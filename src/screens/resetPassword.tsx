@@ -3,151 +3,154 @@ import { TouchableOpacity, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import PasswordInput from '../components/common/Input/PasswordInput';
 import PrimaryButton from '../components/common/Button/PrimaryButton';
 import TickIcon from '../assets/svg/tickIcon';
-
+import PasswordRules from '../components/passwordRules';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
-import { useResponsive } from '../utils/responsive';
+import { useAuthLayout } from '../hooks/useAuthLayout';
+import { validatePasswordReset } from '../utils/validations';
 
 const ResetPassword = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { colors } = useTheme();
-  const { hp, wp, moderateScale } = useResponsive();
-
+  const { colors, strings } = useTheme();
+  const { layout, moderateScale, wp } = useAuthLayout();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const hasUpper = /[A-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasLength = password.length >= 8;
-  const matches = password === confirm && confirm.length > 0;
-  const valid = hasUpper && hasNumber && hasLength && matches;
+  const { matches, valid } = validatePasswordReset(password, confirm);
 
   const handleReset = () => {
     setLoading(true);
-    setTimeout(() => { setLoading(false); setDone(true); }, 1200);
+    setTimeout(() => {
+      setLoading(false);
+      setDone(true);
+    }, 1200);
   };
 
   return (
-    <Screen scroll>
-      {/* Header */}
+    <Screen scroll={false}>
       <View
+        className="flex-row items-center border-b"
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: wp(4),
-          paddingVertical: hp(2),
-          borderBottomWidth: 1,
           borderBottomColor: colors.border,
-          gap: wp(4),
-        }}>
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingVertical: layout.elementGap,
+          gap: wp(3),
+        }}
+      >
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-          <Ionicons name="arrow-back" size={moderateScale(22)} color={colors.text} />
+          <Ionicons
+            name="arrow-back"
+            size={moderateScale(22)}
+            color={colors.text}
+          />
         </TouchableOpacity>
-        <AppText variant="title">Reset password</AppText>
+        <AppText variant="title">{strings.resetPassword.headerTitle}</AppText>
       </View>
-
-      <View style={{ flex: 1, paddingHorizontal: wp(6), paddingTop: hp(3) }}>
+      <View
+        className="flex-1"
+        style={{
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingTop: layout.paddingTop,
+          paddingBottom: layout.paddingBottom,
+        }}
+      >
         {!done ? (
-          <>
-            <AppText variant="h3">Create new password</AppText>
-            <AppText
-              variant="body"
-              color={colors.textSecondary}
-              style={{ marginTop: hp(1), marginBottom: hp(3) }}>
-              Your new password must be different from your previous password.
-            </AppText>
-
-            <PasswordInput
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={setPassword}
-            />
-
-            {password.length > 0 && (
-              <View style={{ marginTop: hp(1.5), marginBottom: hp(2), gap: hp(1) }}>
-                {[
-                  { text: 'At least 8 characters', ok: hasLength },
-                  { text: 'One uppercase letter', ok: hasUpper },
-                  { text: 'One number', ok: hasNumber },
-                ].map(({ text, ok }) => (
-                  <View key={text} style={{ flexDirection: 'row', alignItems: 'center', gap: wp(2) }}>
-                    <View
-                      style={{
-                        width: moderateScale(16),
-                        height: moderateScale(16),
-                        borderRadius: 999,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: ok ? colors.success : colors.border,
-                      }}>
-                      {ok && <TickIcon width={moderateScale(10)} height={moderateScale(10)} />}
-                    </View>
-                    <AppText variant="caption" color={ok ? colors.success : colors.textSecondary}>
-                      {text}
-                    </AppText>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            <View style={{ marginTop: hp(2) }}>
-              <PasswordInput
-                label="Confirm new password"
-                placeholder="Confirm your password"
-                value={confirm}
-                onChangeText={setConfirm}
-              />
-              {confirm.length > 0 && !matches && (
-                <AppText variant="caption" color={colors.error} style={{ marginTop: hp(0.5) }}>
-                  Passwords do not match
+          <View className="flex-1 gap-5">
+            <View style={{ gap: layout.sectionGap }}>
+              <View style={{ gap: layout.tightGap }}>
+                <AppText
+                  variant="h2"
+                  style={{ fontSize: layout.titleFontSize }}
+                >
+                  {strings.resetPassword.subtitle}
                 </AppText>
-              )}
+                <AppText variant="body" color={colors.textSecondary}>
+                  {strings.resetPassword.description}
+                </AppText>
+              </View>
+              <View style={{ gap: layout.sectionGap }}>
+                <View className="relative z-20">
+                  <PasswordInput
+                    label={strings.resetPassword.newPasswordLabel}
+                    placeholder={strings.resetPassword.newPasswordPlaceholder}
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+                  <PasswordRules password={password} />
+                </View>
+                <View className="z-10">
+                  <PasswordInput
+                    label={strings.resetPassword.confirmPasswordLabel}
+                    placeholder={strings.resetPassword.confirmPasswordPlaceholder}
+                    value={confirm}
+                    onChangeText={setConfirm}
+                  />
+                  {confirm.length > 0 && !matches && (
+                    <AppText
+                      variant="caption"
+                      color={colors.error}
+                      style={{ marginTop: layout.tightGap }}
+                    >
+                      {strings.resetPassword.validationLabel}
+                    </AppText>
+                  )}
+                </View>
+              </View>
             </View>
-
-            <PrimaryButton
-              title={loading ? 'Resetting...' : 'Reset password'}
-              onPress={handleReset}
-              disabled={loading || !valid}
-              style={{ marginTop: hp(3) }}
-            />
-          </>
+            <View style={{ marginTop: layout.sectionGap }}>
+              <PrimaryButton
+                title={loading ? 'Resetting...' : 'Reset password'}
+                onPress={handleReset}
+                disabled={loading || !valid}
+              />
+            </View>
+          </View>
         ) : (
-          <View style={{ alignItems: 'center', paddingTop: hp(4) }}>
-            <View
-              style={{
-                width: moderateScale(80),
-                height: moderateScale(80),
-                backgroundColor: '#E3FCEF',
-                borderRadius: 999,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: hp(3),
-              }}>
-              <TickIcon width={moderateScale(40)} height={moderateScale(40)} />
+          <View className="flex-1 gap-5 justify-center">
+            <View className="items-center">
+              <View
+                className="items-center justify-center rounded-full"
+                style={{
+                  width: moderateScale(72),
+                  height: moderateScale(72),
+                  backgroundColor: '#E3FCEF',
+                  marginBottom: layout.sectionGap,
+                }}
+              >
+                <TickIcon
+                  width={moderateScale(36)}
+                  height={moderateScale(36)}
+                />
+              </View>
+              <AppText
+                variant="h2"
+                style={{ fontSize: layout.titleFontSize }}
+              >
+                {strings.resetPassword.successTitle}
+              </AppText>
+              <AppText
+                variant="body"
+                color={colors.textSecondary}
+                className="text-center"
+                style={{ marginTop: layout.tightGap }}
+              >
+                {strings.resetPassword.successSubtitle}
+              </AppText>
             </View>
 
-            <AppText variant="h3">Password reset!</AppText>
-            <AppText
-              variant="body"
-              color={colors.textSecondary}
-              style={{ marginTop: hp(1), marginBottom: hp(4), textAlign: 'center' }}>
-              Your password has been successfully reset. You can now log in with your new password.
-            </AppText>
-
-            <PrimaryButton
-              title="Back to login"
-              onPress={() => navigation.navigate('login')}
-              style={{ width: '100%' }}
-            />
+            <View style={{ marginTop: layout.sectionGap }}>
+              <PrimaryButton
+                title={strings.resetPassword.backButton}
+                onPress={() => navigation.navigate('login')}
+              />
+            </View>
           </View>
         )}
       </View>
