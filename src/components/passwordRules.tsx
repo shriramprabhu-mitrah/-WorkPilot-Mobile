@@ -31,7 +31,6 @@ const PasswordRules = ({ password = '' }: Props) => {
 
   const isAllValid = rules.every((rule) => rule.valid);
   if (isAllValid) return null;
-
   const iconSize = moderateScale(18);
 
   return (

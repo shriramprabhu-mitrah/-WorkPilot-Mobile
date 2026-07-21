@@ -27,7 +27,6 @@ const VerifyEmailScreen = () => {
     setCode(cleanText);
   };
 
-
   return (
     <Screen scroll={false}>
       <View

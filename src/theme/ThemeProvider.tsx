@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useMemo,
-  useState,
-} from 'react';
-
+import React, {createContext,useContext,useMemo,useState,} from 'react';
 import light from '../constants/light';
 import dark from '../constants/dark';
 import Strings from '../constants/textConfig';

@@ -1,22 +1,11 @@
 import React from 'react';
 import { Text, TextProps } from 'react-native';
-
 import { Typography } from '../../constants/Typography';
 import { useTheme } from '../../hooks/useTheme';
 import { useResponsive } from '../../utils/responsive';
-
 interface AppTextProps extends TextProps {
   children: React.ReactNode;
-  variant?:
-    | 'h1'
-    | 'h2'
-    | 'h3'
-    | 'h4'
-    | 'title'
-    | 'bodyLarge'
-    | 'body'
-    | 'caption'
-    | 'button';
+  variant?:| 'h1'| 'h2'| 'h3'| 'h4'| 'title'| 'bodyLarge'| 'body'| 'caption'| 'button';
   color?: string;
   className?: string;
 }

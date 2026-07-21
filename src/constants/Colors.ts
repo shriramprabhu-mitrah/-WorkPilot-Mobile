@@ -1,71 +1,37 @@
-export const LightColors={
+export const LightColors = {
+  primary: "#0E6FFF",
+  secondary: "#5B8DEF",
+  background: "#FFFFFF",
+  surface: "#F8F9FB",
+  card: "#FFFFFF",
+  text: "#111827",
+  textSecondary: "#6B7280",
+  border: "#E5E7EB",
+  placeholder: "#9CA3AF",
+  success: "#16A34A",
+  warning: "#F59E0B",
+  error: "#DC2626",
+  info: "#2563EB",
+  white: "#FFFFFF",
+  black: "#000000",
+  textOnPrimary: "#BFD7FF",
+};
 
-primary:"#0E6FFF",
-
-secondary:"#5B8DEF",
-
-background:"#FFFFFF",
-
-surface:"#F8F9FB",
-
-card:"#FFFFFF",
-
-text:"#111827",
-
-textSecondary:"#6B7280",
-
-border:"#E5E7EB",
-
-placeholder:"#9CA3AF",
-
-success:"#16A34A",
-
-warning:"#F59E0B",
-
-error:"#DC2626",
-
-info:"#2563EB",
-
-white:"#FFFFFF",
-
-black:"#000000",
-
-textOnPrimary:"#BFD7FF"
-
-}
-
-export const DarkColors={
-
-primary:"#4C8DFF",
-
-secondary:"#82AFFF",
-
-background:"#121212",
-
-surface:"#1C1C1E",
-
-card:"#242426",
-
-text:"#FFFFFF",
-
-textSecondary:"#A1A1AA",
-
-border:"#343437",
-
-placeholder:"#71717A",
-
-success:"#22C55E",
-
-warning:"#FBBF24",
-
-error:"#EF4444",
-
-info:"#60A5FA",
-
-white:"#FFFFFF",
-
-black:"#000000",
-
-textOnPrimary:"#BFD7FF"
-
-}
+export const DarkColors = {
+  primary: "#4C8DFF",
+  secondary: "#82AFFF",
+  background: "#121212",
+  surface: "#1C1C1E",
+  card: "#242426",
+  text: "#FFFFFF",
+  textSecondary: "#A1A1AA",
+  border: "#343437",
+  placeholder: "#71717A",
+  success: "#22C55E",
+  warning: "#FBBF24",
+  error: "#EF4444",
+  info: "#60A5FA",
+  white: "#FFFFFF",
+  black: "#000000",
+  textOnPrimary: "#BFD7FF",
+};
