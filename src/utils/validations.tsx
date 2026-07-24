@@ -9,7 +9,7 @@ export interface PasswordValidationResult {
 
 export const validatePasswordReset = (
   password: string = '',
-  confirm: string = ''
+  confirm: string = '',
 ): PasswordValidationResult => {
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);

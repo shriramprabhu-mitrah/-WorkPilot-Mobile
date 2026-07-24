@@ -14,45 +14,83 @@ import SocialButton from '../components/common/Button/SocialButton';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
+import { useAppDispatch } from '../store';
+import { signInUser } from '../store/auth_store/action/auth.thunks';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 const LoginScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const dispatch = useAppDispatch();
   const { colors, strings } = useTheme();
   const { layout } = useAuthLayout();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState({
+    email: '',
+    password: '',
+  });
   const [loading] = useState(false);
 
-  const onLogin = () => {
-    navigation.navigate('HomeTabs');
+  const validate = () => {
+    const newErrors = {
+      email: '',
+      password: '',
+    };
+
+    let isValid = true;
+
+    const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+      isValid = false;
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = 'Please enter a valid email';
+      isValid = false;
+    }
+
+    if (!password.trim()) {
+      newErrors.password = 'Password is required';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+
+    return isValid;
+  };
+
+  const onLogin = async () => {
+    if (!validate()) {
+      return;
+    }
+
+    const result = dispatch(
+      signInUser({
+        payload: {
+          email,
+          password,
+        },
+      }),
+    );
   };
 
   return (
     <Screen scroll={true}>
-      <AuthLogoHeader
-        title="Jira Cloud"
-        content="by Atlassian"
-      />
+      <AuthLogoHeader />
       <View
         style={{
           flex: 1,
           paddingHorizontal: layout.paddingHorizontal,
           paddingTop: layout.paddingTop,
           paddingBottom: layout.paddingBottom,
-          gap: layout.largeSectionGap
+          gap: layout.largeSectionGap,
         }}
       >
         <View style={{ gap: layout.tightGap, marginBottom: layout.sectionGap }}>
-          <AppText
-            variant="h2"
-            style={{ fontSize: layout.titleFontSize }}
-          >
+          <AppText variant='h2' style={{ fontSize: layout.titleFontSize }}>
             {strings.auth.loginTitle}
           </AppText>
-          <AppText
-            variant="body"
-            color={colors.textSecondary}
-          >
+          <AppText variant='body' color={colors.textSecondary}>
             {strings.auth.loginSubtitle}
           </AppText>
         </View>
@@ -60,16 +98,44 @@ const LoginScreen = () => {
           <AppInput
             label={strings.auth.email}
             placeholder={strings.auth.emailPlaceholder}
-            keyboardType="email-address"
-            autoCapitalize="none"
+            keyboardType='email-address'
+            autoCapitalize='none'
             value={email}
-            onChangeText={setEmail}
+            error={errors.email}
+            leftIcon={
+              <Ionicons
+                name='mail-outline'
+                size={20}
+                color={colors.textSecondary}
+              />
+            }
+            onChangeText={text => {
+              setEmail(text);
+              setErrors(prev => ({
+                ...prev,
+                email: '',
+              }));
+            }}
           />
           <PasswordInput
-            label="Password"
-            placeholder="Enter your password"
+            label='Password'
+            placeholder='Enter your password'
             value={password}
-            onChangeText={setPassword}
+            error={errors.password}
+            leftIcon={
+              <Ionicons
+                name='lock-closed-outline'
+                size={20}
+                color={colors.textSecondary}
+              />
+            }
+            onChangeText={text => {
+              setPassword(text);
+              setErrors(prev => ({
+                ...prev,
+                password: '',
+              }));
+            }}
           />
           <TouchableOpacity
             activeOpacity={0.8}
@@ -80,10 +146,7 @@ const LoginScreen = () => {
             }}
             onPress={() => navigation.navigate('ForgotPassword')}
           >
-            <AppText
-              variant="body"
-              color={colors.primary}
-            >
+            <AppText variant='body' color={colors.primary}>
               Forgot Password?
             </AppText>
           </TouchableOpacity>
@@ -94,24 +157,15 @@ const LoginScreen = () => {
             loading={loading}
             onPress={onLogin}
           />
-          <Divider title="or continue with" />
-          <View style={{ gap: layout.sectionGap, zIndex: 1 }}>
-            <SocialButton
-              title="Continue with Google"
-              icon={<GoogleIcon />}
-              onPress={() => { }}
-            />
-            <AuthFooter
-              title="Don't have an account?"
-              actionText="Sign up"
-              onPress={() => navigation.navigate('signUp')}
-            />
-          </View>
+          <AuthFooter
+            title="Don't have an account?"
+            actionText='Sign up'
+            onPress={() => navigation.navigate('signUp')}
+          />
         </View>
       </View>
     </Screen>
   );
 };
-
 
 export default LoginScreen;

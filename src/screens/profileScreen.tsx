@@ -1,323 +1,355 @@
-import React from "react";
+import React from 'react';
+import { View, TouchableOpacity, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { StackNavigationProp } from '@react-navigation/stack';
+
+import Screen from '../components/common/ScreenWapper';
+import AppText from '../components/common/AppText';
+import { RootStackParamList } from '../types/navigationTypes';
+import { useTheme } from '../hooks/useTheme';
+import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
-    View,
-    Text,
-    TouchableOpacity,
-    ScrollView,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { RootStackParamList } from "../types/navigationTypes";
+  quickLinks,
+  recentActivity,
+  stats,
+  teams,
+} from '../data/profileScreenData';
 
-const stats = [
-    {
-        label: "Assigned",
-        value: "12",
-        color: "#0052CC",
-    },
-    {
-        label: "Completed",
-        value: "47",
-        color: "#36B37E",
-    },
-    {
-        label: "In Review",
-        value: "3",
-        color: "#6554C0",
-    },
-    {
-        label: "Overdue",
-        value: "2",
-        color: "#DE350B",
-    },
-];
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const recentActivity = [
-    {
-        id: 1,
-        action: "Updated status on",
-        target: "CLOUD-330",
-        detail: "→ In Progress",
-        time: "2h ago",
-        color: "#0052CC",
-    },
-    {
-        id: 2,
-        action: "Commented on",
-        target: "API-67",
-        detail: '"Will have a fix by EOD"',
-        time: "3h ago",
-        color: "#6B778C",
-    },
-    {
-        id: 3,
-        action: "Created issue",
-        target: "MOB-129",
-        detail: "Dark mode flicker on navigation",
-        time: "Yesterday",
-        color: "#36B37E",
-    },
-    {
-        id: 4,
-        action: "Closed",
-        target: "CLOUD-320",
-        detail: "Circuit breaker implementation",
-        time: "2 days ago",
-        color: "#36B37E",
-    },
-];
-
-const teams = [
-    {
-        name: "Cloud",
-        color: "#0052CC",
-    },
-    {
-        name: "Mobile",
-        color: "#6554C0",
-    },
-    {
-        name: "Platform",
-        color: "#FF5630",
-    },
-];
-
-const quickLinks = [
-    {
-        label: "Starred issues",
-        icon: "star-outline",
-        path: "Home",
-        color: "#FFAB00",
-    },
-    {
-        label: "My open issues",
-        icon: "checkbox-outline",
-        path: "Home",
-        color: "#0052CC",
-    },
-    {
-        label: "Settings",
-        icon: "settings-outline",
-        path: "Settings",
-        color: "#6B778C",
-    },
-];
 const ProfileScreen = () => {
-    const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const { colors, strings } = useTheme();
+  const { layout, moderateScale } = useAuthLayout();
+  // Access nested profile icons safely
+  const profileIcons = strings.profile?.icons;
 
-    return (
-        <SafeAreaView className="flex-1 bg-[#F4F5F7]" edges={["top"]}>
-            <ScrollView
-                contentContainerStyle={{ paddingBottom: 90, flexGrow: 1 }}
-                showsVerticalScrollIndicator={false}
+  return (
+    <Screen scroll={false} backgroundColor={colors.surface}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingBottom: layout.largeSectionGap * 2,
+          flexGrow: 1,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header Banner */}
+        <View
+          style={{
+            backgroundColor: colors.primary,
+            paddingHorizontal: layout.paddingHorizontal,
+            paddingTop: layout.paddingTop,
+            paddingBottom: layout.sectionGap * 1.5,
+          }}
+        >
+          <View className='mb-6 flex-row items-center justify-between'>
+            <AppText variant='h4' color={colors.white}>
+              {strings.profile?.title || 'Profile'}
+            </AppText>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Settings')}
+              className='items-center justify-center rounded-full bg-white/20'
+              style={{
+                width: moderateScale(36),
+                height: moderateScale(36),
+              }}
             >
+              <Ionicons
+                name={
+                  (profileIcons?.settings || 'settings-outline') as IoniconName
+                }
+                size={18}
+                color={colors.white}
+              />
+            </TouchableOpacity>
+          </View>
 
-                <View className="bg-[#0052CC] p-4 pb-8">
-                    <View className="flex-row items-center justify-between mb-6">
-                        <Text className="text-white text-[20px] font-bold">
-                            Profile
-                        </Text>
+          {/* User Info Section */}
+          <View className='flex-row items-end gap-4'>
+            <View className='relative'>
+              <View
+                className='items-center justify-center rounded-full'
+                style={{
+                  width: moderateScale(72),
+                  height: moderateScale(72),
+                  backgroundColor: colors.avatarBg,
+                }}
+              >
+                <AppText variant='h2' color={colors.white}>
+                  AJ
+                </AppText>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                className='absolute bottom-0 right-0 items-center justify-center rounded-full border'
+                style={{
+                  width: moderateScale(26),
+                  height: moderateScale(26),
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                }}
+              >
+                <Ionicons
+                  name={(profileIcons?.edit || 'create-outline') as IoniconName}
+                  size={14}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={{ gap: layout.tightGap / 2 }}>
+              <AppText variant='h3' color={colors.white}>
+                Alex Johnson
+              </AppText>
 
-                        <TouchableOpacity
-                            className="w-9 h-9 rounded-full bg-white/20 items-center justify-center"
-                        >
-                            <Ionicons
-                                name="settings-outline"
-                                size={18}
-                                color="#fff"
-                            />
-                        </TouchableOpacity>
-                    </View>
+              <AppText variant='body' color={colors.textOnPrimaryMuted}>
+                {strings.profile?.role || 'Senior Software Engineer'}
+              </AppText>
 
-                    <View className="flex-row items-end gap-4">
-                        <View className="relative">
-                            <View className="w-20 h-20 rounded-full bg-[#FFAB00] items-center justify-center">
-                                <Text className="text-white text-3xl font-bold">
-                                    AJ
-                                </Text>
-                            </View>
+              <AppText variant='caption' color={colors.textOnPrimarySubtle}>
+                alex.johnson@company.com
+              </AppText>
+            </View>
+          </View>
+        </View>
 
-                            <TouchableOpacity className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white border border-gray-300 items-center justify-center">
-                                <Ionicons
-                                    name="create-outline"
-                                    size={14}
-                                    color="#0052CC"
-                                />
-                            </TouchableOpacity>
-                        </View>
+        {/* Stats Section */}
+        <View
+          style={{
+            marginTop: layout.sectionGap,
+            marginBottom: layout.sectionGap,
+            paddingHorizontal: layout.paddingHorizontal,
+          }}
+        >
+          <View
+            className='flex-row justify-between rounded-2xl border py-4'
+            style={{
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+            }}
+          >
+            {stats.map(item => (
+              <View key={item.label} className='flex-1 items-center'>
+                <AppText variant='h2' style={{ color: item.color }}>
+                  {item.value}
+                </AppText>
 
-                        <View>
-                            <Text className="text-white text-[20px] font-bold">
-                                Alex Johnson
-                            </Text>
+                <AppText
+                  variant='caption'
+                  color={colors.textSecondary}
+                  className='mt-1 text-center'
+                >
+                  {item.label}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        </View>
 
-                            <Text className="text-blue-200 text-[15px]">
-                                Senior Software Engineer
-                            </Text>
+        {/* Teams & Projects */}
+        <View
+          style={{
+            marginBottom: layout.sectionGap,
+            paddingHorizontal: layout.paddingHorizontal,
+          }}
+        >
+          <AppText
+            variant='bodyLarge'
+            color={colors.text}
+            style={{ marginBottom: layout.elementGap }}
+          >
+            {strings.profile?.teamsTitle || 'Teams & Projects'}
+          </AppText>
 
-                            <Text className="text-blue-300 text-[14px] mt-1">
-                                alex.johnson@company.com
-                            </Text>
-                        </View>
-                    </View>
-                </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {teams.map(team => (
+              <View
+                key={team.name}
+                className='mr-2 flex-row items-center rounded-xl border px-3 py-2'
+                style={{
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                }}
+              >
+                <View
+                  className='mr-2 rounded-md'
+                  style={{
+                    width: moderateScale(18),
+                    height: moderateScale(18),
+                    backgroundColor: team.color,
+                  }}
+                />
+                <AppText
+                  variant='body'
+                  color={colors.text}
+                  className='font-medium'
+                >
+                  {team.name}
+                </AppText>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+        {/* Recent Activity */}
+        <View
+          style={{
+            marginBottom: layout.sectionGap,
+            paddingHorizontal: layout.paddingHorizontal,
+          }}
+        >
+          <View
+            className='flex-row items-center justify-between'
+            style={{ marginBottom: layout.elementGap }}
+          >
+            <AppText variant='bodyLarge' color={colors.text}>
+              {strings.profile?.recentActivity || 'Recent Activity'}
+            </AppText>
 
-                <View className="px-4 -mt-4 mb-4">
-                    <View className="bg-white rounded-2xl border border-gray-200 flex-row justify-between py-4">
-                        {stats.map((item) => (
-                            <View
-                                key={item.label}
-                                className="flex-1 items-center"
-                            >
+            <TouchableOpacity activeOpacity={0.7}>
+              <AppText
+                variant='body'
+                color={colors.primary}
+                className='font-medium'
+              >
+                {strings.profile?.viewAll || 'View all'}
+              </AppText>
+            </TouchableOpacity>
+          </View>
 
-                                <Text
-                                    className="text-[20px] font-bold mt-1"
-                                    style={{ color: item.color }}
-                                >
-                                    {item.value}
-                                </Text>
+          <View
+            className='rounded-xl border'
+            style={{
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+            }}
+          >
+            {recentActivity.map((item, index) => (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.7}
+                className={`flex-row items-start px-4 py-3 ${
+                  index !== recentActivity.length - 1 ? 'border-b' : ''
+                }`}
+                style={{
+                  borderColor: colors.itemDivider,
+                }}
+              >
+                <View
+                  className='mr-3 mt-2 rounded-full'
+                  style={{
+                    width: moderateScale(8),
+                    height: moderateScale(8),
+                    backgroundColor: item.color,
+                  }}
+                />
 
-                                <Text className="text-[12px] text-gray-500 text-center mt-1">
-                                    {item.label}
-                                </Text>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-
-                <View className="px-4 mb-5">
-                    <Text className="text-[15px] font-semibold text-[#172B4D] mb-3">
-                        Teams & Projects
-                    </Text>
-
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
+                <View className='flex-1'>
+                  <AppText variant='body' color={colors.text}>
+                    {item.action}{' '}
+                    <AppText
+                      variant='body'
+                      color={colors.primary}
+                      className='font-bold'
                     >
-                        {teams.map((team) => (
-                            <View
-                                key={team.name}
-                                className="flex-row items-center bg-white border border-gray-200 rounded-xl px-3 py-2 mr-2"
-                            >
-                                <View
-                                    className="w-5 h-5 rounded-md mr-2"
-                                    style={{
-                                        backgroundColor: team.color,
-                                    }}
-                                />
-
-                                <Text className="text-[#172B4D] text-[15px] font-medium">
-                                    {team.name}
-                                </Text>
-                            </View>
-                        ))}
-                    </ScrollView>
+                      {item.target}
+                    </AppText>
+                  </AppText>
+                  <AppText
+                    variant='caption'
+                    color={colors.textSecondary}
+                    className='mt-1'
+                    numberOfLines={1}
+                  >
+                    {item.detail}
+                  </AppText>
                 </View>
+                <AppText variant='caption' color={colors.textSecondary}>
+                  {item.time}
+                </AppText>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        {/* Quick Links */}
+        <View
+          style={{
+            marginBottom: layout.sectionGap,
+            paddingHorizontal: layout.paddingHorizontal,
+          }}
+        >
+          <View
+            className='rounded-xl border'
+            style={{
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+            }}
+          >
+            {quickLinks.map((item, index) => (
+              <TouchableOpacity
+                key={item.label}
+                activeOpacity={0.7}
+                className={`flex-row items-center px-4 py-4 ${
+                  index !== quickLinks.length - 1 ? 'border-b' : ''
+                }`}
+                style={{
+                  borderColor: colors.itemDivider,
+                }}
+                onPress={() => {
+                  if (item.navigateUrl) {
+                    navigation.navigate(item.navigateUrl);
+                  }
+                }}
+              >
+                <Ionicons name={item.iconName} size={20} color={item.color} />
 
-                <View className="px-4 mb-5">
-                    <View className="flex-row justify-between items-center mb-3">
-                        <Text className="font-semibold text-[15px] text-[#172B4D]">
-                            Recent Activity
-                        </Text>
-
-                        <TouchableOpacity>
-                            <Text className="text-[#0052CC] text-[14px] font-medium">
-                                View all
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View className="bg-white rounded-xl border border-gray-200">
-                        {recentActivity.map((item, index) => (
-                            <TouchableOpacity
-                                key={item.id}
-                                className={`flex-row px-5 py-4 items-start ${index !== recentActivity.length - 1
-                                    ? "border-b border-gray-100"
-                                    : ""
-                                    }`}
-                            >
-                                <View
-                                    className="w-2 h-2 rounded-full mt-2 mr-3"
-                                    style={{
-                                        backgroundColor: item.color,
-                                    }}
-                                />
-
-                                <View className="flex-1">
-                                    <Text className="text-[#172B4D] text-[15px]">
-                                        {item.action}{" "}
-                                        <Text className="text-[#0052CC] font-bold">
-                                            {item.target}
-                                        </Text>
-                                    </Text>
-
-                                    <Text
-                                        className="text-[14px] text-gray-500 mt-1"
-                                        numberOfLines={1}
-                                    >
-                                        {item.detail}
-                                    </Text>
-                                </View>
-
-                                <Text className="text-[13px] text-gray-400">
-                                    {item.time}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                <View className="px-4 mb-5">
-                    <View className="bg-white rounded-xl border border-gray-200">
-                        {quickLinks.map((item, index) => (
-                            <TouchableOpacity
-                                key={item.label}
-                                className={`flex-row items-center px-4 py-4 ${index !== quickLinks.length - 1
-                                    ? "border-b border-gray-100"
-                                    : ""
-                                    }`}
-                            >
-                                <Ionicons
-                                    name={item.icon as any}
-                                    size={20}
-                                    color={item.color}
-                                />
-
-                                <Text className="flex-1 pl-4 text-[#172B4D] text-[15px] font-medium">
-                                    {item.label}
-                                </Text>
-
-                                <Ionicons
-                                    name="chevron-forward"
-                                    size={18}
-                                    color="#B3BAC5"
-                                />
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                <View className="px-4">
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('login')}
-                        className="border-2 border-gray-300 rounded-xl py-4 flex-row gap-2 items-center justify-center"
-                    >
-                        <Ionicons
-                            name="log-out-outline"
-                            size={18}
-                            color="#DE350B"
-                        />
-
-                        <Text className="text-[#DE350B] text-[15px] font-semibold">
-                            Log out
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </SafeAreaView>
-    );
+                <AppText
+                  variant='body'
+                  color={colors.text}
+                  className='flex-1 pl-4 font-medium'
+                >
+                  {item.label}
+                </AppText>
+                <Ionicons
+                  name={
+                    (profileIcons?.chevronRight ||
+                      'chevron-forward') as IoniconName
+                  }
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        {/* Logout Button */}
+        <View style={{ paddingHorizontal: layout.paddingHorizontal }}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('login')}
+            className='flex-row items-center justify-center gap-2 rounded-xl border-2 py-3'
+            style={{
+              borderColor: colors.error,
+            }}
+          >
+            <Ionicons
+              name={(profileIcons?.logout || 'log-out-outline') as IoniconName}
+              size={18}
+              color={colors.error}
+            />
+            <AppText
+              variant='body'
+              color={colors.error}
+              className='font-semibold'
+            >
+              {strings.profile?.logout || 'Log out'}
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </Screen>
+  );
 };
 
 export default ProfileScreen;

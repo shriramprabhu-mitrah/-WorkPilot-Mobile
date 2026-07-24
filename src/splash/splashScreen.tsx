@@ -27,15 +27,15 @@ const SplashScreen = () => {
   useEffect(() => {
     logoOpacity.value = withDelay(
       300,
-      withTiming(1, { duration: 700, easing: Easing.out(Easing.exp) })
+      withTiming(1, { duration: 700, easing: Easing.out(Easing.exp) }),
     );
     logoScale.value = withDelay(
       300,
-      withTiming(1, { duration: 700, easing: Easing.out(Easing.exp) })
+      withTiming(1, { duration: 700, easing: Easing.out(Easing.exp) }),
     );
     logoTranslateY.value = withDelay(
       300,
-      withTiming(0, { duration: 700, easing: Easing.out(Easing.exp) })
+      withTiming(0, { duration: 700, easing: Easing.out(Easing.exp) }),
     );
     opacity.value = withDelay(2200, withTiming(0, { duration: 500 }));
   }, []);
@@ -43,14 +43,17 @@ const SplashScreen = () => {
   const containerStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
   const logoStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,
-    transform: [{ scale: logoScale.value }, { translateY: logoTranslateY.value }],
+    transform: [
+      { scale: logoScale.value },
+      { translateY: logoTranslateY.value },
+    ],
   }));
 
   const logoSize = moderateScale(48);
   const ringPad = moderateScale(12);
 
   // Dynamic opacity overlays calculated using theme colors
-  const ring5Percent = `${colors.white}0D`;  // ~5% opacity of white (#FFFFFF)
+  const ring5Percent = `${colors.white}0D`; // ~5% opacity of white (#FFFFFF)
   const ring10Percent = `${colors.white}1A`; // ~10% opacity of white (#FFFFFF)
 
   return (
@@ -63,7 +66,8 @@ const SplashScreen = () => {
           alignItems: 'center',
         },
         containerStyle,
-      ]}>
+      ]}
+    >
       {/* Dynamic Animated Rings */}
       <AnimatedRing
         size={moderateScale(500)}
@@ -83,26 +87,12 @@ const SplashScreen = () => {
       />
 
       <Animated.View style={[{ alignItems: 'center' }, logoStyle]}>
-        <View
-          style={{
-            padding: ringPad,
-            borderRadius: moderateScale(24),
-            backgroundColor: colors.white,
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: colors.black,
-            shadowOpacity: 0.25,
-            shadowRadius: 18,
-            shadowOffset: { width: 0, height: 8 },
-            elevation: 15,
-          }}>
-          <JiraLogo width={logoSize} height={logoSize} />
-        </View>
-
+        <JiraLogo width={logoSize} height={logoSize} />
         <AppText
-          variant="h1"
+          variant='h1'
           color={colors.white}
-          style={{ marginTop: hp(2), letterSpacing: -0.8 }}>
+          style={{ marginTop: hp(2), letterSpacing: -0.8 }}
+        >
           {strings.splash.title}
         </AppText>
       </Animated.View>
