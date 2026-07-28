@@ -18,45 +18,42 @@ import { NavigationContainer } from '@react-navigation/native';
 const Stack = createStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
-  const { isAuthenticated } = useAppSelector(state => state.auth);
+  // const { isAuthenticated } = useAppSelector(state => state.auth);
 
-  console.log('isAuthenticated:', isAuthenticated);
+  // console.log('isAuthenticated:', isAuthenticated);
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? (
-        <Stack.Navigator
+      {/* {isAuthenticated ? ( */}
+      <Stack.Navigator
+        initialRouteName='login'
+        screenOptions={{
+          headerShown: false,
+          animation: 'none',
+        }}
+      >
+        {/* <Stack.Navigator
           screenOptions={{
             headerShown: false,
             animation: 'none',
           }}
           initialRouteName='HomeTabs'
-        >
-          <Stack.Screen name='HomeTabs' component={TabNavigator} />
-          <Stack.Screen name='issue' component={issueDetailsScreen} />
-          <Stack.Screen
-            name='projectDetails'
-            component={projectDeatilsScreen}
-          />
-          <Stack.Screen name='BackLogs' component={BackLog} />
-          <Stack.Screen name='Settings' component={SettingsScreen} />
-          <Stack.Screen name='newIssues' component={AddNewIssues} />
-        </Stack.Navigator>
-      ) : (
-        <Stack.Navigator
-          initialRouteName='login'
-          screenOptions={{
-            headerShown: false,
-            animation: 'none',
-          }}
-        >
-          <Stack.Screen name='login' component={LoginScreen} />
-          <Stack.Screen name='signUp' component={SignUpScreen} />
-          <Stack.Screen name='verifyEmail' component={VerifyEmailScreen} />
-          <Stack.Screen name='ForgotPassword' component={ForgotPassword} />
-          <Stack.Screen name='resetPassword' component={ResetPassword} />
-        </Stack.Navigator>
-      )}
+        > */}
+        <Stack.Screen name='HomeTabs' component={TabNavigator} />
+        <Stack.Screen name='issue' component={issueDetailsScreen} />
+        <Stack.Screen name='projectDetails' component={projectDeatilsScreen} />
+        <Stack.Screen name='BackLogs' component={BackLog} />
+        <Stack.Screen name='Settings' component={SettingsScreen} />
+        <Stack.Screen name='newIssues' component={AddNewIssues} />
+        {/* </Stack.Navigator> */}
+        {/* ) : ( */}
+        <Stack.Screen name='login' component={LoginScreen} />
+        <Stack.Screen name='signUp' component={SignUpScreen} />
+        <Stack.Screen name='verifyEmail' component={VerifyEmailScreen} />
+        <Stack.Screen name='ForgotPassword' component={ForgotPassword} />
+        <Stack.Screen name='resetPassword' component={ResetPassword} />
+      </Stack.Navigator>
+      {/* )} */}
     </NavigationContainer>
   );
 };

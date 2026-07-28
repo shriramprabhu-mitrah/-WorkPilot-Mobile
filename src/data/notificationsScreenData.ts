@@ -1,8 +1,23 @@
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme } from '../theme/ThemeProvider';
 
 const { colors } = useTheme();
 
-export const notificationsData = [
+export type NotificationDataType = {
+  id: number;
+  type: string;
+  read: boolean;
+  time: string;
+  avatar: string;
+  color: string;
+  actor: string;
+  action: string;
+  target: string;
+  preview: string;
+  issueId: string;
+};
+
+export const notificationsData: NotificationDataType[] = [
   {
     id: 1,
     type: 'mention',
@@ -98,8 +113,9 @@ export const notificationsData = [
   },
 ];
 
-// Type Icon Mappings
-export const typeIcons: Record<string, { icon: string }> = {
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+export const typeIcons: Record<string, { icon: IoniconName }> = {
   mention: { icon: 'at' },
   assigned: { icon: 'arrow-forward' },
   comment: { icon: 'reader' },

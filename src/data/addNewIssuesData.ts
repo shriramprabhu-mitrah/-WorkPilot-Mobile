@@ -1,16 +1,39 @@
-import { LightColors } from '../constants/Colors';
 import { useTheme } from '../theme/ThemeProvider';
 
 const { colors } = useTheme();
 
-export const projects = [
+export interface ProjectItem {
+  id: string;
+  icon: string;
+  color?: string;
+}
+
+export interface IssueTypeItem {
+  id: string;
+  icon: string;
+  color?: string;
+}
+
+export interface PriorityItem {
+  type: string;
+  color: string;
+}
+
+export interface AssigneeItem {
+  title: string;
+  color: string;
+}
+
+export type StoryPoint = string;
+
+export const projects: ProjectItem[] = [
   { id: 'CLOUD', icon: 'C', color: colors.primary },
   { id: 'MOB', icon: 'M', color: colors.accentPurple },
   { id: 'API', icon: 'A', color: colors.accentOrange },
   { id: 'DESIGN', icon: 'D', color: colors.success },
 ];
 
-export const issueTypes = [
+export const issueTypes: IssueTypeItem[] = [
   { id: 'Story', icon: 'S', color: colors.success },
   { id: 'Bug', icon: 'B', color: colors.error },
   { id: 'Task', icon: 'T', color: colors.primary },
@@ -18,7 +41,7 @@ export const issueTypes = [
   { id: 'Subtask', icon: 'S', color: colors.secondary },
 ];
 
-export const priorities = [
+export const priorities: PriorityItem[] = [
   { type: 'Highest', color: colors.error },
   { type: 'High', color: colors.accentOrange },
   { type: 'Medium', color: colors.warning },

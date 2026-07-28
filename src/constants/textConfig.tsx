@@ -208,7 +208,7 @@ const Strings = {
   },
   notification: {
     headerTitle: 'Notifications',
-    actionMarkAllRead: 'All read',
+    actionMarkAllRead: '✓ All read',
     tabAll: 'All',
     tabUnread: 'Unread',
     emptyTitle: "You're all caught up!",

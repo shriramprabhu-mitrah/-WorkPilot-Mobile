@@ -21,6 +21,7 @@ const Screen = ({
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: backgroundColor ?? colors.background }}
+      edges={['top']}
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}

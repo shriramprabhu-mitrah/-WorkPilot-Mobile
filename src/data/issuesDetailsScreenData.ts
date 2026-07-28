@@ -1,5 +1,5 @@
-import { ThemeContextType } from '../theme/ThemeProvider';
-
+import { ThemeContextType, useTheme } from '../theme/ThemeProvider';
+const { colors } = useTheme();
 export type StatusType = string;
 
 export interface Comment {
@@ -36,16 +36,15 @@ export interface Issue {
   id: string;
   title: string;
   status: StatusType;
-  priority?: 'low' | 'medium' | 'high';
+  priority?: 'Low' | 'Medium' | 'High';
   type?: string;
   project?: string;
   assignee?: string;
   points?: string | number;
   avatar?: string;
   avatarColor?: string;
+  newComment?: string;
 }
-
-// Dynamic Mock Data Functions using Theme Colors
 
 export const getComments = (colors: ThemeContextType['colors']): Comment[] => [
   {
@@ -156,47 +155,13 @@ export const getStatusColors = (
 
 export const myIssues: Issue[] = [
   {
-    id: 'CLOUD-341',
-    type: 'bug',
-    priority: 'high',
-    title: 'OAuth token refresh failing on iOS',
-    status: 'In Progress',
-    project: 'CLOUD',
-    assignee: 'AJ',
-  },
-  {
-    id: 'MOB-128',
-    type: 'story',
-    priority: 'medium',
-    title: 'Implement push notifications for sprint updates',
-    status: 'To Do',
-    project: 'MOB',
-    assignee: 'AJ',
-  },
-  {
-    id: 'API-67',
-    type: 'task',
-    priority: 'low',
-    title: 'Update rate limiting documentation',
-    status: 'In Review',
-    project: 'API',
-    assignee: 'AJ',
-  },
-  {
-    id: 'DS-14',
-    type: 'story',
-    priority: 'medium',
-    title: 'Design token audit and cleanup',
-    status: 'To Do',
-    project: 'DS',
-    assignee: 'AJ',
-  },
-  {
     id: 'API-72',
     title: 'Update OpenAPI spec for v3 endpoints',
     type: 'assigned',
     status: 'In Progress',
-    priority: 'high',
+    priority: 'High',
+    avatar: 'T',
+    avatarColor: colors.info,
   },
   {
     id: 'MOB-128',
@@ -204,125 +169,161 @@ export const myIssues: Issue[] = [
       'The push notification service is ready for testing on both iOS and Android.',
     type: 'comment',
     status: 'In Progress',
-    priority: 'high',
+    priority: 'High',
+    avatar: 'S',
+    avatarColor: colors.success,
   },
   {
     id: 'DS-14',
     title: 'Design token audit → In Review',
     type: 'status',
     status: 'In Progress',
-    priority: 'high',
+    priority: 'High',
+    avatar: 'S',
+    avatarColor: colors.success,
   },
   {
     id: 'mention',
     title: '@alex can you review the Terraform plan before we apply?',
     type: 'mention',
     status: 'In Progress',
-    priority: 'high',
+    priority: 'High',
+    avatar: 'T',
+    avatarColor: colors.info,
   },
   {
     id: 'MOB-100',
     title: 'Offline mode support implementation',
     type: 'assigned',
     status: 'In Progress',
-    priority: 'high',
+    priority: 'High',
+    avatar: 'S',
+    avatarColor: colors.success,
   },
   {
     id: 'API-67',
     title: 'Rate limiting documentation updates ready for review',
     type: 'review',
     status: 'In Progress',
-    priority: 'high',
+    priority: 'High',
+    avatar: 'T',
+    avatarColor: colors.info,
   },
   {
     type: 'Issue',
     id: 'MOB-129',
     title: 'Dark mode flicker on navigation',
     status: 'In Review',
-    priority: 'high',
+    priority: 'High',
+    avatar: 'S',
+    avatarColor: colors.success,
   },
   {
-    id: 'CLOUD-320',
-    status: 'Done',
-    title: 'Circuit breaker implementation',
-    type: 'status',
-    priority: 'high',
+    id: 'CLOUD-341',
+    status: 'In Progress',
+    title: 'OAuth token refresh failing on iOS clients',
+    type: 'Bug',
+    priority: 'High',
+    avatar: 'B',
+    avatarColor: colors.error,
   },
   {
     id: 'CLOUD-320',
     title: 'Add circuit breaker pattern to API calls',
-    priority: 'low',
+    priority: 'Low',
     type: 'status',
     status: 'In Review',
+    avatar: 'S',
+    avatarColor: colors.success,
   },
   {
-    id: 'CLOUD-341',
-    title: 'Implement zero-downtime deployment pipeline',
-    priority: 'high',
+    id: 'CLOUD-302',
+    title: '@alex can you review the Terraform plan before we apply?',
+    priority: 'High',
     type: 'status',
     status: 'To Do',
+    avatar: 'T',
+    avatarColor: colors.primary,
   },
   {
     id: 'CLOUD-342',
     title: 'Configure Terraform modules for VPC setup',
-    priority: 'medium',
+    priority: 'Medium',
     type: 'status',
     status: 'To Do',
+    avatar: 'T',
+    avatarColor: colors.primary,
   },
   {
     id: 'CLOUD-343',
     title: 'Fix memory leak in health check endpoint',
-    priority: 'high',
+    priority: 'High',
     type: 'status',
     status: 'To Do',
+    avatar: 'B',
+    avatarColor: colors.error,
   },
   {
     id: 'CLOUD-330',
     title: 'OAuth token refresh falling on iOS clients',
-    priority: 'high',
+    priority: 'High',
     type: 'status',
     status: 'In Progress',
+    avatar: 'S',
+    avatarColor: colors.success,
   },
   {
     id: 'CLOUD-331',
     title: 'Migrate auth service to k8s v1.28',
-    priority: 'medium',
+    priority: 'Medium',
     type: 'status',
     status: 'In Progress',
+    avatar: 'T',
+    avatarColor: colors.primary,
   },
   {
     id: 'CLOUD-310',
     title: 'Set up monitoring dashboards in Grafana',
-    priority: 'low',
+    priority: 'Low',
     type: 'status',
     status: 'Done',
+    avatar: 'S',
+    avatarColor: colors.success,
   },
   {
     id: 'CLOUD-311',
     title: 'Configure alerting rules for SLA breaches',
-    priority: 'low',
+    priority: 'Low',
     type: 'status',
     status: 'Done',
+    avatar: 'T',
+    avatarColor: colors.primary,
   },
   {
     id: 'CLOUD-312',
     title: 'Fix flaky integration tests in CI pipeline',
-    priority: 'medium',
+    priority: 'Medium',
     type: 'status',
     status: 'Done',
+    avatar: 'B',
+    avatarColor: colors.error,
   },
   {
     id: 'star-1',
     title: 'OAuth token refresh falling on iOS clients',
-    priority: 'medium',
+    priority: 'Medium',
     type: 'status',
     status: 'In Progress',
+    avatar: 'B',
+    avatarColor: colors.error,
   },
   {
     id: 'star-2',
     title: 'OAuth token refresh falling on iOS clients',
-    priority: 'medium',
+    priority: 'Medium',
     type: 'status',
     status: 'In Progress',
+    avatar: 'B',
+    avatarColor: colors.error,
   },
 ];

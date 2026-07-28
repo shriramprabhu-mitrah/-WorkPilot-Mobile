@@ -155,7 +155,8 @@ const LoginScreen = () => {
           <PrimaryButton
             title={strings.auth.login}
             loading={loading}
-            onPress={onLogin}
+            // onPress={onLogin}
+            onPress={() => navigation.navigate('HomeTabs')}
           />
           <AuthFooter
             title="Don't have an account?"

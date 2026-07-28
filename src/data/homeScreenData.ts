@@ -69,8 +69,8 @@ export const myIssues = [
 ];
 
 export const starredIssues = [
-  { label: 'CLOUD-302 · Migrate to k8s v1.28', tag: 'Epic' },
-  { label: 'MOB-100 · Offline mode support', tag: 'Story' },
+  { id: 'star-1', label: 'CLOUD-302 · Migrate to k8s v1.28', tag: 'Epic' },
+  { id: 'star-2', label: 'MOB-100 · Offline mode support', tag: 'Story' },
 ];
 
 export const getTypeIcon = (type: string) => {

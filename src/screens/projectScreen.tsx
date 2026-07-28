@@ -1,32 +1,28 @@
 import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, TextInput, FlatList } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-
 import AppText from '../components/common/AppText';
 import ProjectCard from '../components/common/ProjectCard';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { RootStackParamList } from '../types/navigationTypes';
 import { PROJECTS } from '../data/projectData';
+import Screen from '../components/common/ScreenWapper';
+import { Radius } from '../constants/Radius';
 
 const ProjectScreen = () => {
   const { colors, strings } = useTheme();
   const { layout } = useAuthLayout();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-
   const [selectedTab, setSelectedTab] = useState<'all' | 'starred'>('all');
   const [search, setSearch] = useState('');
-
   const filteredProjects = useMemo(() => {
     let data = PROJECTS;
-
     if (selectedTab === 'starred') {
       data = data.filter(item => item.starred);
     }
-
     if (search.trim()) {
       const query = search.toLowerCase();
       data = data.filter(
@@ -35,18 +31,12 @@ const ProjectScreen = () => {
           item.code.toLowerCase().includes(query),
       );
     }
-
     return data;
   }, [selectedTab, search]);
 
   return (
-    <SafeAreaView
-      style={{ backgroundColor: colors.background }}
-      className='flex-1'
-      edges={['top']}
-    >
+    <Screen scroll={false} backgroundColor={colors.surface}>
       <View className='flex-1'>
-        {/* Header Section */}
         <View
           style={{
             backgroundColor: colors.card || colors.surface,
@@ -84,7 +74,6 @@ const ProjectScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
-        {/* Tab Switcher */}
         <View
           style={{
             backgroundColor: colors.card || colors.surface,
@@ -93,13 +82,12 @@ const ProjectScreen = () => {
           }}
         >
           <View className='flex-row'>
-            {/* All Projects Tab */}
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => setSelectedTab('all')}
               className='flex-1 items-center'
               style={{
-                paddingVertical: layout.elementGap,
+                paddingVertical: layout.largeSectionGap,
                 borderBottomWidth: 2,
                 borderColor:
                   selectedTab === 'all' ? colors.primary : 'transparent',
@@ -115,7 +103,6 @@ const ProjectScreen = () => {
                 {strings?.projects?.allProjects || 'All Projects'}
               </AppText>
             </TouchableOpacity>
-            {/* Starred Tab */}
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => setSelectedTab('starred')}
@@ -131,7 +118,7 @@ const ProjectScreen = () => {
                 <Ionicons
                   name='star'
                   size={layout.iconSize * 0.75}
-                  color={colors.warning || '#FFAB00'}
+                  color={colors.warning}
                   style={{ marginRight: layout.tightGap }}
                 />
 
@@ -150,21 +137,22 @@ const ProjectScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Search Input Bar */}
         <View
           style={{
             paddingHorizontal: layout.paddingHorizontal,
             paddingVertical: layout.elementGap,
+            paddingBottom: layout.paddingBottom,
           }}
         >
           <View
-            className='flex-row items-center rounded-xl border'
+            className='flex-row items-center border'
             style={{
+              borderRadius: Radius.sm,
               backgroundColor: colors.surface || colors.card,
               borderColor: colors.border,
-              paddingHorizontal: layout.paddingHorizontal / 1.5,
-              paddingVertical: layout.tightGap * 2,
+              paddingHorizontal: layout.paddingHorizontal * 0.5,
+              paddingVertical: layout.tightGap,
+              gap: layout.sectionGap,
             }}
           >
             <Ionicons
@@ -172,7 +160,6 @@ const ProjectScreen = () => {
               size={layout.iconSize * 0.85}
               color={colors.placeholder || colors.textSecondary}
             />
-
             <TextInput
               placeholder={
                 strings?.projects?.searchPlaceholder || 'Search projects...'
@@ -184,10 +171,8 @@ const ProjectScreen = () => {
               style={{
                 color: colors.text,
                 fontSize: layout.bodyFontSize,
-                marginLeft: layout.tightGap * 2,
               }}
             />
-
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch('')}>
                 <Ionicons
@@ -199,8 +184,6 @@ const ProjectScreen = () => {
             )}
           </View>
         </View>
-
-        {/* Projects List */}
         <FlatList
           data={filteredProjects}
           keyExtractor={item => item.id}
@@ -209,27 +192,29 @@ const ProjectScreen = () => {
           contentContainerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
             paddingBottom: layout.sectionGap * 2,
+            gap: layout.largeSectionGap,
           }}
           renderItem={({ item }) => <ProjectCard item={item} />}
           ListEmptyComponent={
             <View
               className='items-center justify-center'
-              style={{ paddingVertical: layout.sectionGap * 3 }}
+              style={{
+                paddingVertical: layout.sectionGap * 3,
+                gap: layout.sectionGap,
+              }}
             >
               <Ionicons
                 name='folder-open-outline'
                 size={layout.iconSize * 2.5}
                 color={colors.placeholder || colors.textSecondary}
               />
-
               <AppText
                 variant='title'
                 color={colors.text}
-                className='mt-4 font-semibold'
+                className='font-semibold'
               >
                 {strings?.projects?.noResultsTitle || 'No projects found'}
               </AppText>
-
               <AppText
                 variant='body'
                 color={colors.textSecondary}
@@ -242,7 +227,7 @@ const ProjectScreen = () => {
           }
         />
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 };
 

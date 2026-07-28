@@ -49,11 +49,7 @@ const Avatar = ({ initials, color, size = 'medium' }: Props) => {
         backgroundColor: color ?? colors.primary,
       }}
     >
-      <AppText
-        variant='caption'
-        color={colors.white}
-        className='text-[11px] font-bold'
-      >
+      <AppText variant='caption' color={colors.white} className='font-bold'>
         {initials}
       </AppText>
     </View>

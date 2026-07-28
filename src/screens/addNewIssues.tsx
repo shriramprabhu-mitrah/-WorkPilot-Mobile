@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { ScrollView, View, TextInput, TouchableOpacity } from 'react-native';
+import {
+  ScrollView,
+  View,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+} from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -13,12 +19,17 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
+  AssigneeItem,
   assignees,
+  IssueTypeItem,
   issueTypes,
   priorities,
+  PriorityItem,
+  ProjectItem,
   projects,
   storyPoints,
 } from '../data/addNewIssuesData';
+import { Radius } from '../constants/Radius';
 
 const AddNewIssues = () => {
   const [project, setProject] = useState('CLOUD');
@@ -38,25 +49,22 @@ const AddNewIssues = () => {
 
   return (
     <Screen scroll={false} backgroundColor={colors.background}>
-      {/* Header Bar */}
       <View
         className='flex-row items-center justify-between border-b'
         style={{
-          backgroundColor: colors.background,
+          backgroundColor: colors.card || colors.surface,
           borderColor: colors.border,
-          height: moderateScale(56),
           paddingHorizontal: layout.paddingHorizontal,
+          paddingVertical: layout.largeSectionGap,
         }}
       >
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() =>
-            navigation.navigate('HomeTabs', { screen: 'Projects' })
-          }
+          onPress={() => navigation.goBack()}
         >
-          <Ionicons name='close' size={26} color={colors.text} />
+          <Ionicons name='close' size={24} color={colors.text} />
         </TouchableOpacity>
-        <AppText variant='h3' color={colors.text}>
+        <AppText variant='title' color={colors.text} className='font-bold'>
           {strings.createIssue?.title || 'Create issue'}
         </AppText>
         <TouchableOpacity activeOpacity={0.7} onPress={handleCreate}>
@@ -69,7 +77,6 @@ const AddNewIssues = () => {
           </AppText>
         </TouchableOpacity>
       </View>
-      {/* Form Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -78,45 +85,43 @@ const AddNewIssues = () => {
           paddingBottom: layout.largeSectionGap * 2,
         }}
       >
-        {/* Project Section */}
         <AppText
           variant='bodyLarge'
           color={colors.text}
-          className='font-semibold'
-          style={{ marginBottom: layout.tightGap }}
+          className='font-bold'
+          style={{ paddingBottom: layout.largeSectionGap }}
         >
           {strings.createIssue?.projectLabel || 'Project'}
         </AppText>
-        <ScrollView
+        <FlatList
+          data={projects}
           horizontal
+          keyExtractor={item => item?.id}
           showsHorizontalScrollIndicator={false}
-          className='flex-row'
-        >
-          {projects.map((item: any) => (
+          renderItem={({ item }: { item: ProjectItem }) => (
             <OptionButton
-              key={item.id}
-              title={item.id}
-              icon={item.icon}
-              color={item.color}
-              selected={project === item.id}
-              onPress={() => setProject(item.id)}
+              title={item?.id}
+              icon={item?.icon}
+              color={item?.color}
+              selected={project === item?.id}
+              onPress={() => setProject(item?.id)}
             />
-          ))}
-        </ScrollView>
-        {/* Issue Type Section */}
+          )}
+          contentContainerStyle={{ gap: layout.sectionGap }}
+        />
         <AppText
           variant='bodyLarge'
           color={colors.text}
-          className='font-semibold'
+          className='font-bold'
           style={{
             marginTop: layout.sectionGap,
-            marginBottom: layout.tightGap,
+            marginBottom: layout.largeSectionGap,
           }}
         >
           {strings.createIssue?.issueTypeLabel || 'Issue type'}
         </AppText>
-        <View className='flex-row flex-wrap'>
-          {issueTypes.map((item: any) => (
+        <View className='flex-row flex-wrap' style={{ gap: layout.sectionGap }}>
+          {issueTypes.map((item: IssueTypeItem) => (
             <OptionButton
               key={item.id}
               title={item.id}
@@ -127,13 +132,21 @@ const AddNewIssues = () => {
             />
           ))}
         </View>
-        {/* Summary Input */}
-        <View style={{ marginTop: layout.sectionGap }}>
-          <View className='flex-row items-center'>
+        <View
+          className='gap-1'
+          style={{
+            paddingTop: layout.largeSectionGap,
+            paddingBottom: layout?.largeSectionGap,
+          }}
+        >
+          <View
+            className='flex-row items-center'
+            style={{ gap: layout.elementGap }}
+          >
             <AppText
               variant='bodyLarge'
               color={colors.text}
-              className='font-semibold'
+              className='font-bold'
             >
               {strings.createIssue?.summaryLabel || 'Summary'}
             </AppText>
@@ -141,7 +154,6 @@ const AddNewIssues = () => {
               *
             </AppText>
           </View>
-
           <TextInput
             value={summary}
             onChangeText={setSummary}
@@ -150,8 +162,10 @@ const AddNewIssues = () => {
               'What needs to be done?'
             }
             placeholderTextColor={colors.placeholder}
-            className='rounded-lg border p-3'
+            className='border'
             style={{
+              borderRadius: Radius.xs,
+              paddingHorizontal: layout.paddingHorizontal * 0.5,
               marginTop: layout.tightGap,
               backgroundColor: colors.surface,
               borderColor: colors.border,
@@ -159,13 +173,16 @@ const AddNewIssues = () => {
             }}
           />
         </View>
-
-        {/* Description Input */}
-        <View style={{ marginTop: layout.sectionGap }}>
+        <View
+          style={{
+            paddingVertical: layout?.largeSectionGap,
+            gap: layout.tightGap,
+          }}
+        >
           <AppText
             variant='bodyLarge'
             color={colors.text}
-            className='font-semibold'
+            className='font-bold'
           >
             {strings.createIssue?.descriptionLabel || 'Description'}
           </AppText>
@@ -179,8 +196,10 @@ const AddNewIssues = () => {
               'Add a description...'
             }
             placeholderTextColor={colors.placeholder}
-            className='rounded-lg border p-3'
+            className='rounded-lg border'
             style={{
+              borderRadius: Radius.xs,
+              paddingHorizontal: layout.paddingHorizontal * 0.5,
               marginTop: layout.tightGap,
               height: moderateScale(110),
               backgroundColor: colors.surface,
@@ -189,20 +208,21 @@ const AddNewIssues = () => {
             }}
           />
         </View>
-        {/* Priority Section */}
         <AppText
           variant='bodyLarge'
           color={colors.text}
-          className='font-semibold'
+          className='font-bold'
           style={{
-            marginTop: layout.sectionGap,
-            marginBottom: layout.tightGap,
+            paddingVertical: layout?.largeSectionGap,
           }}
         >
           {strings.createIssue?.priorityLabel || 'Priority'}
         </AppText>
-        <View className='flex-row justify-between'>
-          {priorities.map((item: any) => (
+        <View
+          style={{ gap: layout.tightGap }}
+          className='flex-row flex-wrap justify-between'
+        >
+          {priorities.map((item: PriorityItem) => (
             <PriorityButton
               key={item.type}
               title={item.type}
@@ -212,20 +232,19 @@ const AddNewIssues = () => {
             />
           ))}
         </View>
-        {/* Assignee Section */}
         <AppText
           variant='bodyLarge'
           color={colors.text}
-          className='font-semibold'
+          className='font-bold'
           style={{
-            marginTop: layout.sectionGap,
-            marginBottom: layout.tightGap,
+            paddingTop: layout.largeSectionGap,
+            paddingBottom: layout.largeSectionGap,
           }}
         >
           {strings.createIssue?.assigneeLabel || 'Assignee'}
         </AppText>
-        <View className='flex-row flex-wrap'>
-          {assignees.map((item: any) => (
+        <View style={{ gap: layout.sectionGap }} className='flex-row flex-wrap'>
+          {assignees.map((item: string) => (
             <AssigneeButton
               key={item}
               title={item}
@@ -234,20 +253,19 @@ const AddNewIssues = () => {
             />
           ))}
         </View>
-        {/* Story Points Section */}
         <AppText
           variant='bodyLarge'
           color={colors.text}
-          className='font-semibold'
+          className='font-bold'
           style={{
-            marginTop: layout.sectionGap,
-            marginBottom: layout.tightGap,
+            paddingTop: layout.largeSectionGap,
+            paddingBottom: layout.largeSectionGap,
           }}
         >
           {strings.createIssue?.storyPointsLabel || 'Story points'}
         </AppText>
         <View className='flex-row flex-wrap'>
-          {storyPoints.map((item: any) => (
+          {storyPoints.map((item: string) => (
             <NumberButton
               key={item}
               title={item}
@@ -256,7 +274,6 @@ const AddNewIssues = () => {
             />
           ))}
         </View>
-        {/* Add Attachment Action */}
         <TouchableOpacity
           activeOpacity={0.7}
           className='flex-row items-center'
@@ -269,7 +286,7 @@ const AddNewIssues = () => {
           <AppText
             variant='bodyLarge'
             color={colors.primary}
-            className='font-semibold'
+            className='font-bold'
             style={{ marginLeft: layout.tightGap }}
           >
             {strings.createIssue?.addAttachment || 'Add attachment'}

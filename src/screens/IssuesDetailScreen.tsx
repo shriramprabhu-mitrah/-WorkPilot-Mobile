@@ -16,31 +16,32 @@ import {
   statusOptions,
   getStatusColors,
   myIssues,
+  Issue,
+  Comment,
 } from '../data/issuesDetailsScreenData';
+import Screen from '../components/common/ScreenWapper';
+import { moderateScale } from '../utils/responsive';
+import { Radius } from '../constants/Radius';
 
 const IssueDetailScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<any>();
   const issueId = route.params?.id;
+  const issue = myIssues.find((item: Issue) => item.id === issueId);
   const { colors } = useTheme();
   const { layout } = useAuthLayout();
-
-  // Memoize dynamic getter values based on current theme colors
   const comments = useMemo(() => getComments(colors), [colors]);
   const details = useMemo(() => getDetails(colors), [colors]);
   const statusColors = useMemo(() => getStatusColors(colors), [colors]);
   const [comment, setComment] = useState<string>('');
-  const [status, setStatus] = useState('In Progress');
+  const [status, setStatus] = useState(issue?.status);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [subtaskDone, setSubtaskDone] = useState<Record<string, boolean>>({
     'CLOUD-330a': true,
   });
-  const issue = myIssues.find(item => item.id === issueId);
-  const [localComments, setLocalComments] = useState(comments);
-
+  const [localComments, setLocalComments] = useState<Comment[]>(comments);
   const handleSendComment = () => {
     if (!comment.trim()) return;
-
     const newComment = {
       id: Date.now(),
       author: 'Alex Johnson',
@@ -49,31 +50,26 @@ const IssueDetailScreen = () => {
       time: 'Just now',
       text: comment.trim(),
     };
-    setLocalComments(prev => [...prev, newComment]);
+    setLocalComments((prev: Comment[]) => [...prev, newComment]);
     setComment('');
   };
+  const completedCount = subtasks.filter(item => {
+    return subtaskDone[item.id] !== undefined
+      ? subtaskDone[item.id]
+      : item.done;
+  }).length;
 
-  const currentStatusColor = statusColors[
-    status as keyof typeof statusColors
-  ] || {
-    bg: colors.surface || colors.background,
-    text: colors.text,
-  };
+  const totalCount = subtasks.length;
 
   return (
-    <SafeAreaView
-      style={{ backgroundColor: colors.background }}
-      className='flex-1'
-      edges={['top']}
-    >
-      {/* Header */}
+    <Screen scroll={false} backgroundColor={colors.surface}>
       <View
         className='flex-row items-center justify-between border-b'
         style={{
           backgroundColor: colors.card || colors.surface,
           borderColor: colors.border,
           paddingHorizontal: layout.paddingHorizontal,
-          paddingVertical: layout.elementGap,
+          paddingVertical: layout.largeSectionGap,
         }}
       >
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -85,7 +81,7 @@ const IssueDetailScreen = () => {
         </TouchableOpacity>
         <View
           className='flex-row items-center'
-          style={{ gap: layout.elementGap }}
+          style={{ gap: layout.largeSectionGap }}
         >
           <AppText
             variant='body'
@@ -104,24 +100,26 @@ const IssueDetailScreen = () => {
         </View>
       </View>
       <ScrollView className='flex-1' showsVerticalScrollIndicator={false}>
-        {/* Issue Overview & Title */}
         <View
           className='border-b'
           style={{
             backgroundColor: colors.card || colors.surface,
             borderColor: colors.border,
             paddingHorizontal: layout.paddingHorizontal,
-            paddingTop: layout.elementGap,
-            paddingBottom: layout.sectionGap,
+            paddingVertical: layout.largeSectionGap,
+            gap: layout.elementGap,
           }}
         >
-          <View className='mb-3 flex-row items-center'>
+          <View
+            className='flex-row items-center'
+            style={{ gap: layout.elementGap }}
+          >
             <View
               className='items-center justify-center rounded'
               style={{
                 width: layout.avatarSizeSmall,
                 height: layout.avatarSizeSmall,
-                backgroundColor: colors.error,
+                backgroundColor: `${issue?.avatarColor}`,
               }}
             >
               <AppText
@@ -129,58 +127,52 @@ const IssueDetailScreen = () => {
                 color={colors.white}
                 className='font-bold'
               >
-                B
+                {issue?.avatar}
               </AppText>
             </View>
             <AppText
               variant='body'
               color={colors.textSecondary}
-              className='ml-2 font-medium'
+              className='font-medium'
             >
               {issue?.type} • {issue?.id}
             </AppText>
           </View>
 
-          <AppText
-            variant='title'
-            color={colors.text}
-            className='mb-4 font-bold'
-          >
+          <AppText variant='title' color={colors.text} className='font-bold'>
             {issue?.title}
           </AppText>
-
-          {/* Status Dropdown Picker */}
           <View>
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => setShowStatusPicker(!showStatusPicker)}
               className='flex-row items-center self-start rounded-lg border'
               style={{
-                backgroundColor: currentStatusColor.bg,
+                backgroundColor: `${colors.primary}1A`,
                 borderColor: colors.border,
                 paddingHorizontal: layout.paddingHorizontal,
-                paddingVertical: layout.tightGap * 2,
+                paddingVertical: layout.sectionGap,
                 gap: layout.tightGap,
               }}
             >
               <AppText
                 variant='body'
-                color={currentStatusColor.text}
+                color={colors.info}
                 className='font-semibold'
               >
-                {issue?.status || status}
+                {status}
               </AppText>
               <Ionicons
                 name='chevron-down'
                 size={layout.controlSize * 0.8}
-                color={currentStatusColor.text}
+                color={colors.info}
               />
             </TouchableOpacity>
-
             {showStatusPicker && (
               <View
-                className='absolute left-0 top-14 rounded-xl border'
+                className='absolute left-0 top-14 border'
                 style={{
+                  borderRadius: Radius.lg,
                   width: '50%',
                   backgroundColor: colors.card || colors.surface,
                   borderColor: colors.border,
@@ -206,19 +198,23 @@ const IssueDetailScreen = () => {
                         setStatus(item);
                         setShowStatusPicker(false);
                       }}
-                      className='flex-row items-center py-3'
+                      className='flex-row items-center'
+                      style={{
+                        paddingVertical: layout.elementGap,
+                        gap: layout.largeSectionGap,
+                      }}
                     >
                       <View
-                        className='mr-3 rounded-full'
+                        className='rounded-full'
                         style={{
-                          width: layout.tightGap * 2.5,
-                          height: layout.tightGap * 2.5,
+                          width: layout.tightGap * 4,
+                          height: layout.tightGap * 4,
                           backgroundColor: itemColor,
                         }}
                       />
                       <AppText
                         variant='body'
-                        color={isSelected ? colors.primary : colors.text}
+                        color={isSelected ? colors.info : colors.text}
                         className={isSelected ? 'font-semibold' : 'font-normal'}
                       >
                         {item}
@@ -230,7 +226,6 @@ const IssueDetailScreen = () => {
             )}
           </View>
         </View>
-        {/* Issue Details List */}
         <View
           className='mt-3'
           style={{ backgroundColor: colors.card || colors.surface }}
@@ -242,37 +237,36 @@ const IssueDetailScreen = () => {
               style={{
                 borderColor: colors.itemDivider || colors.border,
                 paddingHorizontal: layout.paddingHorizontal,
-                paddingVertical: layout.elementGap,
+                paddingVertical: layout.largeSectionGap,
               }}
             >
-              <AppText
-                variant='body'
-                color={colors.textSecondary}
-                className='w-28'
-              >
+              <AppText variant='body' color={colors.textSecondary}>
                 {item.label}
               </AppText>
               {item.initials ? (
-                <View className='flex-row items-center'>
+                <View
+                  className='flex-row items-center'
+                  style={{ gap: layout.elementGap }}
+                >
                   <Avatar
-                    size='small'
+                    size='medium'
                     initials={item.initials}
                     color={item.color || colors.primary}
                   />
-                  <AppText variant='body' color={colors.text} className='ml-2'>
+                  <AppText variant='body' color={colors.text}>
                     {item.value}
                   </AppText>
                 </View>
               ) : item.dot ? (
                 <View
                   className='flex-row items-center'
-                  style={{ gap: layout.tightGap }}
+                  style={{ gap: layout.elementGap }}
                 >
                   <View
                     className='rounded-full'
                     style={{
-                      width: layout.tightGap * 2.5,
-                      height: layout.tightGap * 2.5,
+                      width: layout.tightGap * 4,
+                      height: layout.tightGap * 4,
                       backgroundColor: item.dot,
                     }}
                   />
@@ -288,26 +282,26 @@ const IssueDetailScreen = () => {
             </View>
           ))}
         </View>
-        {/* Description Section */}
         <View
           className='mt-3'
           style={{
             backgroundColor: colors.card || colors.surface,
             paddingHorizontal: layout.paddingHorizontal,
             paddingVertical: layout.sectionGap,
+            gap: layout.sectionGap,
           }}
         >
-          <View className='mb-3 flex-row items-center justify-between'>
+          <View className='flex-row items-center justify-between'>
             <AppText
-              variant='title'
+              variant='bodyLarge'
               color={colors.text}
-              className='text-lg font-semibold'
+              className='font-bold'
             >
               Description
             </AppText>
             <TouchableOpacity>
               <Ionicons
-                name='create-outline'
+                name='pencil-sharp'
                 size={layout.iconSize * 0.8}
                 color={colors.textSecondary}
               />
@@ -319,11 +313,7 @@ const IssueDetailScreen = () => {
             mechanism is not triggering correctly, causing users to be logged
             out unexpectedly.
           </AppText>
-          <AppText
-            variant='body'
-            color={colors.text}
-            className='mt-4 leading-6'
-          >
+          <AppText variant='body' color={colors.text} className='leading-6'>
             <AppText variant='body' color={colors.text} className='font-bold'>
               Steps to reproduce :{' '}
             </AppText>
@@ -331,7 +321,6 @@ const IssueDetailScreen = () => {
             Unauthorized error appears despite a valid refresh token.
           </AppText>
         </View>
-        {/* Comment Input & Subtasks */}
         <View
           className='mt-3'
           style={{
@@ -340,50 +329,33 @@ const IssueDetailScreen = () => {
             paddingVertical: layout.sectionGap,
           }}
         >
-          {/* Add Comment Field */}
           <View
-            className='flex-row items-center border-t py-4 pb-6'
-            style={{ borderColor: colors.border, gap: layout.elementGap }}
+            className='flex-row items-center justify-between'
+            style={{
+              paddingVertical: layout.sectionGap,
+              backgroundColor: colors.card,
+              paddingBottom: layout.paddingBottom,
+            }}
           >
-            <Avatar
-              size='medium'
-              initials='AJ'
-              color={colors.avatarBg || colors.warning || colors.primary}
-            />
             <View
-              className='flex-1 flex-row items-end rounded-xl'
-              style={{
-                backgroundColor: colors.surface || colors.background,
-                paddingHorizontal: layout.paddingHorizontal,
-              }}
+              className='flex-row items-center'
+              style={{ gap: layout.sectionGap }}
             >
-              <TextInput
-                value={comment}
-                onChangeText={setComment}
-                placeholder='Add a comment...'
-                multiline
-                className='flex-1'
-                style={{
-                  color: colors.text,
-                  fontSize: layout.bodyFontSize,
-                }}
-                placeholderTextColor={colors.placeholder}
+              <Ionicons
+                name='checkbox-outline'
+                size={layout.iconSize}
+                color={colors.placeholder}
               />
-              <TouchableOpacity
-                disabled={!comment.trim()}
-                onPress={handleSendComment}
-              >
-                <AppText
-                  variant='body'
-                  color={comment.trim() ? colors.primary : colors.placeholder}
-                  className='mb-3 font-semibold'
-                >
-                  Send
-                </AppText>
-              </TouchableOpacity>
+
+              <AppText variant='body' className='font-bold' color={colors.text}>
+                Child issues
+              </AppText>
             </View>
+
+            <AppText variant='body' color={colors.textSecondary}>
+              {completedCount}/{totalCount}
+            </AppText>
           </View>
-          {/* Subtasks Checklist */}
           {subtasks.map(item => {
             const checked =
               subtaskDone[item.id] !== undefined
@@ -414,7 +386,6 @@ const IssueDetailScreen = () => {
             );
           })}
         </View>
-        {/* Attachments Section */}
         <View
           className='mt-3'
           style={{
@@ -423,16 +394,19 @@ const IssueDetailScreen = () => {
             paddingVertical: layout.sectionGap,
           }}
         >
-          <View className='mb-4 flex-row items-center'>
+          <View
+            className='mb-4 flex-row items-center'
+            style={{ gap: layout.elementGap }}
+          >
             <Ionicons
               name='attach'
-              size={layout.iconSize * 0.8}
+              size={layout.iconSize}
               color={colors.textSecondary}
             />
             <AppText
-              variant='title'
+              variant='bodyLarge'
               color={colors.text}
-              className='ml-2 text-lg font-semibold'
+              className='text-lg font-bold'
             >
               Attachments
             </AppText>
@@ -442,13 +416,14 @@ const IssueDetailScreen = () => {
               <TouchableOpacity
                 key={file}
                 activeOpacity={0.8}
-                className='flex-1 flex-row items-center rounded-xl border'
+                className='flex-1 flex-row items-center rounded-lg border'
                 style={{
                   backgroundColor: colors.surface || colors.background,
                   borderColor: colors.border,
-                  paddingHorizontal: layout.paddingHorizontal / 1.5,
+                  paddingHorizontal: layout.paddingHorizontal,
                   paddingVertical: layout.elementGap,
                   marginBottom: layout.elementGap,
+                  gap: layout.elementGap,
                 }}
               >
                 <Ionicons
@@ -459,7 +434,7 @@ const IssueDetailScreen = () => {
                 <AppText
                   variant='caption'
                   color={colors.text}
-                  className='ml-3 flex-1'
+                  className='flex-1'
                   numberOfLines={1}
                 >
                   {file}
@@ -468,7 +443,6 @@ const IssueDetailScreen = () => {
             ))}
           </View>
         </View>
-        {/* Activity / Comments List */}
         <View
           className='mt-3'
           style={{
@@ -479,49 +453,52 @@ const IssueDetailScreen = () => {
         >
           <View
             className='mb-5 flex-row items-center'
-            style={{ gap: layout.tightGap }}
+            style={{ gap: layout.sectionGap }}
           >
             <Ionicons
               name='chatbox-outline'
-              size={layout.iconSize * 0.8}
+              size={layout.iconSize}
               color={colors.textSecondary}
             />
             <AppText
-              variant='title'
+              variant='bodyLarge'
               color={colors.text}
-              className='text-lg font-semibold'
+              className='font-bold'
             >
               Activity ({localComments.length})
             </AppText>
           </View>
           {localComments.map(item => (
-            <View key={item.id} className='mb-5 flex-row'>
+            <View
+              key={item.id}
+              style={{ gap: layout.largeSectionGap }}
+              className='mb-5 flex-row'
+            >
               <Avatar
                 size='medium'
                 initials={item.avatar}
                 color={item.color || colors.primary}
               />
-              <View className='ml-3 flex-1'>
-                <View className='flex-row items-center'>
+              <View className='flex-1' style={{ gap: layout.tightGap }}>
+                <View
+                  className='flex-row items-center'
+                  style={{ gap: layout.elementGap }}
+                >
                   <AppText
                     variant='body'
                     color={colors.text}
-                    className='font-semibold'
+                    className='font-bold'
                   >
                     {item.author}
                   </AppText>
-                  <AppText
-                    variant='caption'
-                    color={colors.textSecondary}
-                    className='ml-2'
-                  >
+                  <AppText variant='caption' color={colors.textSecondary}>
                     {item.time}
                   </AppText>
                 </View>
                 <AppText
                   variant='body'
                   color={colors.text}
-                  className='mt-1 leading-6'
+                  className='leading-6'
                 >
                   {item.text}
                 </AppText>
@@ -530,7 +507,57 @@ const IssueDetailScreen = () => {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+      <View
+        className='flex-row items-center border-t'
+        style={{
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingVertical: layout.elementGap,
+          borderColor: colors.border,
+          gap: layout.largeSectionGap,
+          backgroundColor: colors.surface,
+        }}
+      >
+        <Avatar
+          size='medium'
+          initials='AJ'
+          color={colors.avatarBg || colors.warning || colors.primary}
+        />
+
+        <View
+          className='flex-1 flex-row items-center rounded-xl'
+          style={{
+            backgroundColor: colors.surface,
+            paddingHorizontal: layout.largeSectionGap,
+            height: moderateScale(42),
+          }}
+        >
+          <TextInput
+            value={comment}
+            onChangeText={setComment}
+            placeholder='Add a comment...'
+            placeholderTextColor={colors.placeholder}
+            className='flex-1'
+            style={{
+              color: colors.text,
+              fontSize: layout.bodyFontSize,
+            }}
+          />
+
+          <TouchableOpacity
+            disabled={!comment.trim()}
+            onPress={handleSendComment}
+          >
+            <AppText
+              variant='body'
+              color={comment.trim() ? colors.primary : colors.secondary}
+              className='font-bold'
+            >
+              Send
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Screen>
   );
 };
 
