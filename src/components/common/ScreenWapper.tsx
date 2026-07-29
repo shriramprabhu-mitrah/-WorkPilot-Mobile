@@ -2,6 +2,7 @@ import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
+import { useAuthLayout } from '../../hooks/useAuthLayout';
 
 interface Props {
   children: React.ReactNode;
@@ -17,10 +18,12 @@ const Screen = ({
   backgroundColor,
 }: Props) => {
   const { colors } = useTheme();
+  const { layout, moderateScale, isSmallHeight } = useAuthLayout();
 
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: backgroundColor ?? colors.background }}
+      edges={['top']}
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -31,10 +34,13 @@ const Screen = ({
             keyboardShouldPersistTaps='handled'
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
-              paddingBottom: 30,
+              flexGrow: 1, // Ensures content stretches to fill full screen height
+              // paddingBottom: 50
             }}
           >
-            <View className={className}>{children}</View>
+            <View style={{ flexGrow: 1 }} className={className}>
+              {children}
+            </View>
           </ScrollView>
         ) : (
           <View className={`flex-1 ${className}`}>{children}</View>

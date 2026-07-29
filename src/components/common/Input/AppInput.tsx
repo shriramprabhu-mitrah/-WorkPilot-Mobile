@@ -2,8 +2,8 @@ import React, { ReactNode, useState } from 'react';
 import { TextInput, TextInputProps, View } from 'react-native';
 import { Radius } from '../../../constants/Radius';
 import { useTheme } from '../../../hooks/useTheme';
+import { useAuthLayout } from '../../../hooks/useAuthLayout';
 import AppText from '../AppText';
-import { useResponsive } from '../../../utils/responsive';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -13,8 +13,16 @@ interface Props extends TextInputProps {
 
 const AppInput = ({ label, error, leftIcon, style, ...props }: Props) => {
   const { colors } = useTheme();
-  const { wp, hp, moderateScale } = useResponsive();
+  const { layout, isSmallHeight, isLargeHeight, hp, verticalScale } =
+    useAuthLayout();
   const [isFocused, setIsFocused] = useState(false);
+
+  // Dynamic vertical padding driven by useAuthLayout height tiers
+  const inputPaddingVertical = isSmallHeight
+    ? verticalScale(10)
+    : isLargeHeight
+      ? verticalScale(16)
+      : verticalScale(12);
 
   return (
     <View>
@@ -22,7 +30,8 @@ const AppInput = ({ label, error, leftIcon, style, ...props }: Props) => {
         <AppText
           variant='body'
           style={{
-            marginBottom: hp(1),
+            marginBottom: hp(0.8),
+            fontSize: layout.bodyFontSize,
           }}
         >
           {label}
@@ -40,13 +49,13 @@ const AppInput = ({ label, error, leftIcon, style, ...props }: Props) => {
               ? '#0E6FFF'
               : colors.border,
           borderRadius: Radius.md,
-          paddingHorizontal: wp(4),
+          paddingHorizontal: layout.paddingHorizontal / 1.5,
         }}
       >
         {leftIcon && (
           <View
             style={{
-              marginRight: moderateScale(10),
+              marginRight: layout.elementGap,
             }}
           >
             {leftIcon}
@@ -70,7 +79,8 @@ const AppInput = ({ label, error, leftIcon, style, ...props }: Props) => {
           style={[
             {
               flex: 1,
-              paddingVertical: hp(2),
+              paddingVertical: inputPaddingVertical,
+              fontSize: layout.bodyFontSize,
               color: colors.text,
             },
             style,
@@ -83,7 +93,8 @@ const AppInput = ({ label, error, leftIcon, style, ...props }: Props) => {
           variant='caption'
           color={colors.error}
           style={{
-            marginTop: hp(0.5),
+            marginTop: layout.tightGap,
+            fontSize: layout.captionFontSize,
           }}
         >
           {error}

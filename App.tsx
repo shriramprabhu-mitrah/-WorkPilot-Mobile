@@ -13,11 +13,13 @@ import { Provider } from 'react-redux';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/splash/splashScreen';
 import './global.css';
-import { ThemeProvider } from './src/theme/ThemeProvider';
+import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import { store } from './src/store';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from './src/config/toastConfig';
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+  // const isDarkMode = useColorScheme() === 'dark';
 
   return (
     // <KeyboardProvider>
@@ -25,22 +27,23 @@ function App() {
       <ThemeProvider>
         <SafeAreaProvider>
           <PaperProvider>
-            <StatusBar
+            {/* <StatusBar
               translucent
               backgroundColor='transparent'
               barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-            />
+            /> */}
             <AppContent />
           </PaperProvider>
         </SafeAreaProvider>
       </ThemeProvider>
+      <Toast config={toastConfig} />
     </Provider>
   );
 }
 
 function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
-  // const { loading } = useAuth();
+  const { mode } = useTheme();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -50,9 +53,16 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (isLoading) return <SplashScreen />;
-
-  return <AppNavigator />;
+  return (
+    <>
+      <StatusBar
+        translucent
+        backgroundColor='transparent'
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
+      />
+      {isLoading ? <SplashScreen /> : <AppNavigator />}
+    </>
+  );
 }
 
 export default App;

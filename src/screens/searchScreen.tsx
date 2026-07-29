@@ -4,7 +4,6 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-
 import AppText from '../components/common/AppText';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
@@ -12,8 +11,8 @@ import { RootStackParamList } from '../types/navigationTypes';
 import {
   FILTERS,
   RECENT_SEARCHES,
-  TRENDING,
-  SEARCH_RESULTS,
+  getSearchResultsData,
+  getTrendingData,
 } from '../data/searchScreenData';
 
 const SearchScreen = () => {
@@ -23,9 +22,14 @@ const SearchScreen = () => {
 
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
+  const trendingList = useMemo(() => getTrendingData(colors), [colors]);
+  const searchResultsList = useMemo(
+    () => getSearchResultsData(colors),
+    [colors],
+  );
 
   const filteredResults = useMemo(() => {
-    return SEARCH_RESULTS.filter(item => {
+    return searchResultsList.filter(item => {
       const matchesSearch =
         item.title.toLowerCase().includes(search.toLowerCase()) ||
         item.subtitle.toLowerCase().includes(search.toLowerCase());
@@ -148,7 +152,7 @@ const SearchScreen = () => {
         {/* Content Area */}
         {search.trim().length === 0 ? (
           <FlatList
-            data={TRENDING}
+            data={trendingList}
             keyExtractor={item => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
@@ -265,7 +269,7 @@ const SearchScreen = () => {
                   style={{
                     width: layout.avatarSizeSmall,
                     height: layout.avatarSizeSmall,
-                    backgroundColor: getItemBgColor(item.colorKey),
+                    backgroundColor: getItemBgColor(item.color),
                   }}
                 >
                   <AppText
@@ -349,7 +353,7 @@ const SearchScreen = () => {
                     style={{
                       width: layout.avatarSizeSmall,
                       height: layout.avatarSizeSmall,
-                      backgroundColor: getItemBgColor(item.colorKey),
+                      backgroundColor: getItemBgColor(item.color),
                     }}
                   >
                     <AppText

@@ -25,4 +25,6 @@ export type RootStackParamList = {
   You: undefined;
   Settings: undefined;
   newIssues: undefined;
+  Terms: undefined;
+  PrivacyPolicy: undefined;
 };

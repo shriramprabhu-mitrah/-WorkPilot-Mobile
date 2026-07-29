@@ -9,6 +9,8 @@ import {
   UPDATE_USER,
   PASSWORD_RESET_REQUEST,
   PASSWORD_RESET_CONFIRM,
+  EMAIL_VERIFICATION,
+  RESEND_EMAIL_VERIFICATION,
 } from '../constants/apiServiceEndpoint';
 
 import {
@@ -28,6 +30,10 @@ import {
   PasswordResetRequestResponse,
   PasswordResetConfirmPayload,
   PasswordResetConfirmResponse,
+  EmailVerificationPayload,
+  EmailVerificationResponse,
+  ResendEmailVerificationPayload,
+  ResendEmailVerificationResponse,
 } from '../types/auth.type';
 
 /**
@@ -57,11 +63,9 @@ export const signInService = async (
   payload: SignInPayload,
 ): Promise<SignInResponse> => {
   try {
-    const response = await post<SignInResponse, SignInPayload>(SIGNIN, payload);
-    console.log('Success:', response);
-    return response;
-  } catch (error: any) {
-    console.log('error', error?.message);
+    return await post<SignInResponse, SignInPayload>(SIGNIN, payload);
+  } catch (error) {
+    console.error('Sign In API failed:', error);
     throw error;
   }
 };
@@ -190,6 +194,34 @@ export const passwordResetConfirmService = async (
       PasswordResetConfirmResponse,
       PasswordResetConfirmPayload
     >(PASSWORD_RESET_CONFIRM, payload);
+  } catch (error) {
+    console.error('Password Reset Confirm API failed:', error);
+    throw error;
+  }
+};
+
+export const emailVerificationService = async (
+  payload: EmailVerificationPayload,
+): Promise<EmailVerificationResponse> => {
+  try {
+    return await post<EmailVerificationResponse, EmailVerificationPayload>(
+      EMAIL_VERIFICATION,
+      payload,
+    );
+  } catch (error) {
+    console.error('Password Reset Confirm API failed:', error);
+    throw error;
+  }
+};
+
+export const ResendEmailVerificationService = async (
+  payload: ResendEmailVerificationPayload,
+): Promise<ResendEmailVerificationResponse> => {
+  try {
+    return await post<
+      ResendEmailVerificationResponse,
+      ResendEmailVerificationPayload
+    >(RESEND_EMAIL_VERIFICATION, payload);
   } catch (error) {
     console.error('Password Reset Confirm API failed:', error);
     throw error;

@@ -66,6 +66,9 @@ const authSlice = createSlice({
     ) {
       state.tokens = action.payload;
     },
+    handleLoading(state, action: PayloadAction<boolean>) {
+      state.loading = action.payload;
+    },
   },
 
   extraReducers: builder => {
@@ -92,6 +95,7 @@ const authSlice = createSlice({
           accessToken: action.payload?.access_token ?? null,
           refreshToken: action.payload?.refresh_token ?? null,
         };
+        console.log('isAuthenticated', state.isAuthenticated);
         const decoded = decodeToken(action.payload!.access_token);
         if (decoded) {
           state.user = {
@@ -193,6 +197,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, updateTokens } = authSlice.actions;
+export const { logout, clearError, updateTokens, handleLoading } =
+  authSlice.actions;
 
 export default authSlice.reducer;

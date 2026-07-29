@@ -4,24 +4,23 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-
 import AppText from '../components/common/AppText';
 import ProjectCard from '../components/common/ProjectCard';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { RootStackParamList } from '../types/navigationTypes';
-import { PROJECTS } from '../data/projectData';
+import { getProjects } from '../data/projectData';
 
 const ProjectScreen = () => {
   const { colors, strings } = useTheme();
-  const { layout } = useAuthLayout();
+  const { layout, isSmallHeight, hp } = useAuthLayout();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   const [selectedTab, setSelectedTab] = useState<'all' | 'starred'>('all');
   const [search, setSearch] = useState('');
 
   const filteredProjects = useMemo(() => {
-    let data = PROJECTS;
+    let data = getProjects(colors);
 
     if (selectedTab === 'starred') {
       data = data.filter(item => item.starred);
@@ -37,7 +36,7 @@ const ProjectScreen = () => {
     }
 
     return data;
-  }, [selectedTab, search]);
+  }, [colors, selectedTab, search]);
 
   return (
     <SafeAreaView
@@ -84,6 +83,7 @@ const ProjectScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
+
         {/* Tab Switcher */}
         <View
           style={{
@@ -115,6 +115,7 @@ const ProjectScreen = () => {
                 {strings?.projects?.allProjects || 'All Projects'}
               </AppText>
             </TouchableOpacity>
+
             {/* Starred Tab */}
             <TouchableOpacity
               activeOpacity={0.8}
@@ -208,7 +209,7 @@ const ProjectScreen = () => {
           keyboardShouldPersistTaps='handled'
           contentContainerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
-            paddingBottom: layout.sectionGap * 2,
+            paddingBottom: isSmallHeight ? hp(20) : hp(12),
           }}
           renderItem={({ item }) => <ProjectCard item={item} />}
           ListEmptyComponent={

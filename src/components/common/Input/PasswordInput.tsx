@@ -8,7 +8,8 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Radius } from '../../../constants/Radius';
 import { useTheme } from '../../../hooks/useTheme';
-import { useResponsive } from '../../../utils/responsive';
+// Replaced useResponsive with useAuthLayout
+import { useAuthLayout } from '../../../hooks/useAuthLayout';
 import AppText from '../AppText';
 
 interface Props extends TextInputProps {
@@ -19,14 +20,30 @@ interface Props extends TextInputProps {
 
 const PasswordInput = ({ label, error, leftIcon, style, ...props }: Props) => {
   const { colors } = useTheme();
-  const { hp, wp, moderateScale } = useResponsive();
+  // Destructure required values from useAuthLayout
+  const { layout, isSmallHeight, isLargeHeight, hp, verticalScale } =
+    useAuthLayout();
   const [secure, setSecure] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Dynamic vertical padding driven by useAuthLayout height tiers (matches AppInput)
+  const inputPaddingVertical = isSmallHeight
+    ? verticalScale(10)
+    : isLargeHeight
+      ? verticalScale(16)
+      : verticalScale(12);
 
   return (
     <View>
       {label && (
-        <AppText variant='body' style={{ marginBottom: hp(1) }}>
+        <AppText
+          variant='body'
+          style={{
+            // Applied layout bodyFontSize and scaled marginBottom
+            marginBottom: hp(0.8),
+            fontSize: layout.bodyFontSize,
+          }}
+        >
           {label}
         </AppText>
       )}
@@ -42,13 +59,15 @@ const PasswordInput = ({ label, error, leftIcon, style, ...props }: Props) => {
           borderRadius: Radius.md,
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: wp(4),
+          // Replaced wp with scaled layout horizontal padding
+          paddingHorizontal: layout.paddingHorizontal / 1.5,
         }}
       >
         {leftIcon && (
           <View
             style={{
-              marginRight: wp(3),
+              // Replaced wp with layout elementGap
+              marginRight: layout.elementGap,
             }}
           >
             {leftIcon}
@@ -69,7 +88,10 @@ const PasswordInput = ({ label, error, leftIcon, style, ...props }: Props) => {
           style={[
             {
               flex: 1,
-              paddingVertical: hp(2),
+              // Applied dynamic responsive vertical padding
+              paddingVertical: inputPaddingVertical,
+              // Applied layout bodyFontSize
+              fontSize: layout.bodyFontSize,
               color: colors.text,
             },
             style,
@@ -78,7 +100,8 @@ const PasswordInput = ({ label, error, leftIcon, style, ...props }: Props) => {
         <TouchableOpacity onPress={() => setSecure(!secure)}>
           <Ionicons
             name={secure ? 'eye-off-outline' : 'eye-outline'}
-            size={moderateScale(22)}
+            // Replaced moderateScale with layout controlSize
+            size={layout.controlSize}
             color={colors.textSecondary}
           />
         </TouchableOpacity>
@@ -87,7 +110,11 @@ const PasswordInput = ({ label, error, leftIcon, style, ...props }: Props) => {
         <AppText
           variant='caption'
           color={colors.error}
-          style={{ marginTop: hp(0.5) }}
+          style={{
+            // Replaced hp with layout tightGap and applied captionFontSize
+            marginTop: layout.tightGap,
+            fontSize: layout.captionFontSize,
+          }}
         >
           {error}
         </AppText>

@@ -23,8 +23,7 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 const HomeScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
-  const { layout, moderateScale } = useAuthLayout();
-
+  const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
   const homeIcons = strings.home?.icons;
 
   return (
@@ -32,8 +31,7 @@ const HomeScreen = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingBottom: layout.largeSectionGap * 2,
-          flexGrow: 1,
+          paddingBottom: isSmallHeight ? hp(20) : hp(12),
         }}
       >
         {/* Header Banner */}
@@ -145,7 +143,6 @@ const HomeScreen = () => {
             </AppText>
           </TouchableOpacity>
         </View>
-
         {/* Main Content Area */}
         <View
           style={{
@@ -175,7 +172,6 @@ const HomeScreen = () => {
                 </AppText>
               </TouchableOpacity>
             </View>
-
             <View className='flex-row flex-wrap justify-between'>
               {recentProjects.map(item => (
                 <TouchableOpacity
@@ -224,7 +220,6 @@ const HomeScreen = () => {
               ))}
             </View>
           </View>
-
           {/* My Work Section */}
           <View style={{ marginBottom: layout.sectionGap }}>
             <View
@@ -241,7 +236,6 @@ const HomeScreen = () => {
                   {strings.home?.myWork || 'My Work'}
                 </AppText>
               </View>
-
               <View
                 className='rounded-full px-2 py-0.5'
                 style={{ backgroundColor: colors.border || '#DFE1E6' }}
@@ -255,11 +249,9 @@ const HomeScreen = () => {
                 </AppText>
               </View>
             </View>
-
             {myIssues.map(issue => {
               const type = getTypeIcon(issue.type);
               const statusStyle = getStatusStyle(issue.status);
-
               return (
                 <TouchableOpacity
                   key={issue.id}
@@ -305,7 +297,6 @@ const HomeScreen = () => {
                     >
                       {issue.title}
                     </AppText>
-
                     <View className='flex-row items-center gap-2'>
                       <AppText variant='caption' color={colors.textSecondary}>
                         {issue.id}
@@ -344,7 +335,6 @@ const HomeScreen = () => {
               );
             })}
           </View>
-
           {/* Starred Section */}
           <View style={{ marginBottom: layout.sectionGap }}>
             <View

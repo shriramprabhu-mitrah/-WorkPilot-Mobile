@@ -8,22 +8,31 @@ interface Props {
   title: string;
   actionText: string;
   onPress: () => void;
+  disabled?: boolean;
 }
 
-const AuthFooter = ({ title, actionText, onPress }: Props) => {
+const AuthFooter = ({ title, actionText, onPress, disabled }: Props) => {
   const { colors } = useTheme();
   const { wp } = useResponsive();
 
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-      <AppText variant="body" color={colors.textSecondary}>
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <AppText variant='body' color={colors.textSecondary}>
         {title}
       </AppText>
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onPress}
-        style={{ paddingHorizontal: wp(2) }}>
-        <AppText variant="body" color={colors.primary}>
+        style={{ paddingHorizontal: wp(2) }}
+        disabled={disabled}
+      >
+        <AppText variant='body' color={colors.primary}>
           {actionText}
         </AppText>
       </TouchableOpacity>

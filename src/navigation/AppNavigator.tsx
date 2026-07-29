@@ -21,14 +21,14 @@ const AppNavigator = () => {
   const { isAuthenticated } = useAppSelector(state => state.auth);
 
   console.log('isAuthenticated:', isAuthenticated);
-
+  // const isAuthenticated = true;
   return (
     <NavigationContainer>
       {isAuthenticated ? (
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
-            animation: 'none',
+            // animation: 'reveal_from_bottom',
           }}
           initialRouteName='HomeTabs'
         >
@@ -47,7 +47,7 @@ const AppNavigator = () => {
           initialRouteName='login'
           screenOptions={{
             headerShown: false,
-            animation: 'none',
+            // animation: 'fade',
           }}
         >
           <Stack.Screen name='login' component={LoginScreen} />

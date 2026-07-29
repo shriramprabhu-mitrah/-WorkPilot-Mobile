@@ -16,7 +16,9 @@ export interface TokenData {
   expires_in: number;
   refresh_expires_in: number;
 }
+
 //  Sign Up
+
 export interface SignUpPayload {
   full_name: string;
   username: string;
@@ -30,6 +32,7 @@ export interface SignUpPayload {
 export interface SignUpResponse extends ApiResponse {}
 
 // Sign In
+
 export interface SignInPayload {
   email: string;
   password: string;
@@ -38,16 +41,20 @@ export interface SignInPayload {
 export interface SignInResponse extends ApiResponse<TokenData> {}
 
 // Refresh Token
+
 export interface RefreshTokenPayload {
   refresh_token: string;
+  user_id: string;
 }
 
 export interface RefreshTokenResponse extends ApiResponse<TokenData> {}
 
 // Logout
+
 export interface LogoutResponse extends ApiResponse {}
 
 // Change Password
+
 export interface ChangePasswordPayload {
   old_password: string;
   new_password: string;
@@ -56,6 +63,7 @@ export interface ChangePasswordPayload {
 export interface ChangePasswordResponse extends ApiResponse {}
 
 // Password Reset Request
+
 export interface PasswordResetRequestPayload {
   email: string;
 }
@@ -63,6 +71,7 @@ export interface PasswordResetRequestPayload {
 export interface PasswordResetRequestResponse extends ApiResponse {}
 
 // Password Reset Confirm
+
 export interface PasswordResetConfirmPayload {
   email: string;
   otp: string;
@@ -71,7 +80,21 @@ export interface PasswordResetConfirmPayload {
 
 export interface PasswordResetConfirmResponse extends ApiResponse {}
 
+export interface EmailVerificationPayload {
+  email: string;
+  otp: string;
+}
+
+export interface EmailVerificationResponse extends ApiResponse {}
+
+export interface ResendEmailVerificationPayload {
+  email: string;
+}
+
+export interface ResendEmailVerificationResponse extends ApiResponse {}
+
 // Update User
+
 export interface UpdateUserPayload {
   full_name?: string;
   username?: string;
@@ -82,6 +105,7 @@ export interface UpdateUserPayload {
 export interface UpdateUserResponse extends ApiResponse {}
 
 //  User Model
+
 export interface User {
   id: string;
   role: string;
@@ -97,9 +121,11 @@ export interface User {
 }
 
 // Get User
+
 export interface GetUserResponse extends ApiResponse<User> {}
 
 // Organization Model
+
 export interface Organization {
   id?: string;
   name: string;
@@ -110,6 +136,7 @@ export interface Organization {
 }
 
 // Create Organization
+
 export interface CreateOrganizationPayload {
   name: string;
   domain: string;
@@ -119,6 +146,7 @@ export interface CreateOrganizationPayload {
 export interface CreateOrganizationResponse extends ApiResponse {}
 
 // Redux Auth State
+
 export interface AuthState {
   loading: boolean;
   isAuthenticated: boolean;
@@ -134,6 +162,7 @@ export interface AuthState {
 }
 
 //   Redux Organization State
+
 export interface OrganizationState {
   loading: boolean;
   organizations: Organization[];
@@ -142,6 +171,7 @@ export interface OrganizationState {
 }
 
 //  Redux Password Reset State
+
 export interface PasswordResetState {
   loading: boolean;
   success: boolean;
