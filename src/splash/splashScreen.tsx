@@ -13,9 +13,11 @@ import AnimatedRing from '../components/AnimatedRing';
 import LoadingDots from '../components/LoadingDots';
 import AppText from '../components/common/AppText';
 import { useResponsive } from '../utils/responsive';
+import { useTheme } from '../theme/ThemeProvider';
 
 const SplashScreen = () => {
   const { moderateScale, hp } = useResponsive();
+  const { colors, strings } = useTheme();
 
   const opacity = useSharedValue(1);
   const logoOpacity = useSharedValue(0);
@@ -23,9 +25,18 @@ const SplashScreen = () => {
   const logoTranslateY = useSharedValue(20);
 
   useEffect(() => {
-    logoOpacity.value = withDelay(300, withTiming(1, { duration: 700, easing: Easing.out(Easing.exp) }));
-    logoScale.value = withDelay(300, withTiming(1, { duration: 700, easing: Easing.out(Easing.exp) }));
-    logoTranslateY.value = withDelay(300, withTiming(0, { duration: 700, easing: Easing.out(Easing.exp) }));
+    logoOpacity.value = withDelay(
+      300,
+      withTiming(1, { duration: 700, easing: Easing.out(Easing.exp) })
+    );
+    logoScale.value = withDelay(
+      300,
+      withTiming(1, { duration: 700, easing: Easing.out(Easing.exp) })
+    );
+    logoTranslateY.value = withDelay(
+      300,
+      withTiming(0, { duration: 700, easing: Easing.out(Easing.exp) })
+    );
     opacity.value = withDelay(2200, withTiming(0, { duration: 500 }));
   }, []);
 
@@ -38,23 +49,48 @@ const SplashScreen = () => {
   const logoSize = moderateScale(48);
   const ringPad = moderateScale(12);
 
+  // Dynamic opacity overlays calculated using theme colors
+  const ring5Percent = `${colors.white}0D`;  // ~5% opacity of white (#FFFFFF)
+  const ring10Percent = `${colors.white}1A`; // ~10% opacity of white (#FFFFFF)
+
   return (
     <Animated.View
-      style={[{ flex: 1, backgroundColor: '#0052CC', justifyContent: 'center', alignItems: 'center' }, containerStyle]}>
-
-      <AnimatedRing size={moderateScale(500)} delay={0} borderColor="rgba(255,255,255,0.05)" />
-      <AnimatedRing size={moderateScale(340)} delay={250} borderColor="rgba(255,255,255,0.10)" />
-      <AnimatedRing size={moderateScale(190)} delay={450} borderWidth={0} backgroundColor="rgba(255,255,255,0.05)" />
+      style={[
+        {
+          flex: 1,
+          backgroundColor: colors.primary,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        containerStyle,
+      ]}>
+      {/* Dynamic Animated Rings */}
+      <AnimatedRing
+        size={moderateScale(500)}
+        delay={0}
+        borderColor={ring5Percent}
+      />
+      <AnimatedRing
+        size={moderateScale(340)}
+        delay={250}
+        borderColor={ring10Percent}
+      />
+      <AnimatedRing
+        size={moderateScale(190)}
+        delay={450}
+        borderWidth={0}
+        backgroundColor={ring5Percent}
+      />
 
       <Animated.View style={[{ alignItems: 'center' }, logoStyle]}>
         <View
           style={{
             padding: ringPad,
             borderRadius: moderateScale(24),
-            backgroundColor: '#fff',
+            backgroundColor: colors.white,
             justifyContent: 'center',
             alignItems: 'center',
-            shadowColor: '#000',
+            shadowColor: colors.black,
             shadowOpacity: 0.25,
             shadowRadius: 18,
             shadowOffset: { width: 0, height: 8 },
@@ -62,11 +98,12 @@ const SplashScreen = () => {
           }}>
           <JiraLogo width={logoSize} height={logoSize} />
         </View>
+
         <AppText
           variant="h1"
-          color="#fff"
+          color={colors.white}
           style={{ marginTop: hp(2), letterSpacing: -0.8 }}>
-          Jira Cloud
+          {strings.splash.title}
         </AppText>
       </Animated.View>
 

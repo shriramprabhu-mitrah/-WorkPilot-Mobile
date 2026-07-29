@@ -1,5 +1,4 @@
 import { fontScale } from '../utils/responsive';
-
 interface TypographyStyle {
   fontSize: number;
   fontFamily: string;

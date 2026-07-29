@@ -9,7 +9,7 @@ import ProjectScreen from "../screens/projectScreen";
 
 const Tab = createBottomTabNavigator<RootStackParamList>();
 
-const TapNavigator = () => {
+const TabNavigator = () => {
     return (
         <Tab.Navigator
             initialRouteName='Home'
@@ -19,9 +19,7 @@ const TapNavigator = () => {
                 tabBarInactiveTintColor: '#6B7280',
                 tabBarLabelStyle: {
                     fontSize: 14,
-                },
-            }}
-        >
+                },}}>
             <Tab.Screen
                 name="Home"
                 component={HomeScreen}
@@ -50,4 +48,4 @@ const TapNavigator = () => {
         </Tab.Navigator>
     )
 }
-export default TapNavigator
+export default TabNavigator
