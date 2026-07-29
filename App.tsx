@@ -5,32 +5,45 @@
  * @format
  */
 
-import { NewAppScreen } from '@react-native/new-app-screen';
 import { useEffect, useState } from 'react';
-import { StatusBar, useColorScheme, View } from 'react-native';
+import { StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PaperProvider } from 'react-native-paper';
+import { Provider } from 'react-redux';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/splash/splashScreen';
-import "./global.css";
-import { ThemeProvider } from './src/theme/ThemeProvider';
+import './global.css';
+import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
+import { store } from './src/store';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from './src/config/toastConfig';
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+  // const isDarkMode = useColorScheme() === 'dark';
 
   return (
     // <KeyboardProvider>
-    <ThemeProvider>
-      <SafeAreaProvider>
-            <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+    <Provider store={store}>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <PaperProvider>
+            {/* <StatusBar
+              translucent
+              backgroundColor='transparent'
+              barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+            /> */}
             <AppContent />
-      </SafeAreaProvider>
-    </ThemeProvider>
+          </PaperProvider>
+        </SafeAreaProvider>
+      </ThemeProvider>
+      <Toast config={toastConfig} />
+    </Provider>
   );
 }
 
 function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
-  // const { loading } = useAuth();
+  const { mode } = useTheme();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -38,14 +51,18 @@ function AppContent() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [])
-
-  if (isLoading) return <SplashScreen />
+  }, []);
 
   return (
-    <AppNavigator />
+    <>
+      <StatusBar
+        translucent
+        backgroundColor='transparent'
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
+      />
+      {isLoading ? <SplashScreen /> : <AppNavigator />}
+    </>
   );
 }
-
 
 export default App;

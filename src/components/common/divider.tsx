@@ -11,9 +11,9 @@ const Divider = ({ title }: DividerProps) => {
   const { colors } = useTheme();
 
   return (
-    <View className="flex-row items-center">
+    <View className='flex-row items-center'>
       <View
-        className="flex-1 h-px"
+        className='h-px flex-1'
         style={{
           backgroundColor: colors.border,
         }}
@@ -21,15 +21,16 @@ const Divider = ({ title }: DividerProps) => {
 
       {title ? (
         <AppText
-          variant="caption"
-          className="mx-3"
-          color={colors.textSecondary}>
+          variant='caption'
+          className='mx-3'
+          color={colors.textSecondary}
+        >
           {title}
         </AppText>
       ) : null}
 
       <View
-        className="flex-1 h-px"
+        className='h-px flex-1'
         style={{
           backgroundColor: colors.border,
         }}
