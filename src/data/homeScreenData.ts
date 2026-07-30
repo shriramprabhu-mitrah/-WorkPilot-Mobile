@@ -69,8 +69,8 @@ export const myIssues = [
 ];
 
 export const starredIssues = [
-  { label: 'CLOUD-302 · Migrate to k8s v1.28', tag: 'Epic' },
-  { label: 'MOB-100 · Offline mode support', tag: 'Story' },
+  { id: 'CLOUD-302', label: 'CLOUD-302 · Migrate to k8s v1.28', tag: 'Epic' },
+  { id: 'MOB-100', label: 'MOB-100 · Offline mode support', tag: 'Story' },
 ];
 
 export const getTypeIcon = (type: string) => {
@@ -110,6 +110,11 @@ export const getStatusStyle = (status: string) => {
       return {
         bg: `${colors.accentPurple}20`,
         text: colors.accentPurple,
+      };
+    case 'To Do':
+      return {
+        bg: colors.surface,
+        text: colors.textSecondary,
       };
     default:
       return {

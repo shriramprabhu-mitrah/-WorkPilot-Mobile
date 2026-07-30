@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TouchableOpacity, View, ScrollView } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -11,6 +11,11 @@ import { ThemeSettingsScreen } from '../theme/ThemeSettingsScreen'; // Ensure pa
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
+import { Radius } from '../constants/Radius';
+import CustomBottomSheet from '../components/common/CustomBottomDialog';
+import { logoutUser } from '../store/auth_store/action/auth.thunks';
+import { showSuccessToast } from '../utils/utils';
+import { useAppDispatch } from '../store';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -22,19 +27,10 @@ const atlassianSites = [
 export default function SettingsScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
-  const { layout, moderateScale, wp } = useAuthLayout();
-
-  // Common Card Shadow Style updated with dark-mode friendly border
-  const containerShadow = {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3, // For Android
-    borderWidth: 1,
-    borderColor: colors.border,
-  };
-
+  const dispatch = useAppDispatch();
+  const { layout, moderateScale, wp, isSmallHeight, hp } = useAuthLayout();
+  const [isLogoutModalVisible, setIsLogoutModalVisible] =
+    useState<boolean>(false);
   const sections: Array<{
     title: string;
     items: Array<{
@@ -116,9 +112,12 @@ export default function SettingsScreen() {
     },
   ];
 
+  const handleLogoutConfirm = () => {
+    dispatch(logoutUser(showSuccessToast));
+  };
+
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
-      {/* Dynamic Screen Header */}
       <View
         className='flex-row items-center border-b'
         style={{
@@ -139,30 +138,26 @@ export default function SettingsScreen() {
           {strings?.settings?.headerTitle || 'Settings'}
         </AppText>
       </View>
-
-      {/* Main Scrollable Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: layout.paddingHorizontal,
           paddingTop: layout.paddingTop,
-          paddingBottom: layout.paddingBottom,
+          paddingBottom: isSmallHeight ? hp(10) : hp(8),
           backgroundColor: colors.surface,
         }}
       >
-        {/* User Profile Card Container */}
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => navigation.navigate('Account' as any)}
-          className='flex-row items-center rounded-2xl'
-          style={[
-            containerShadow,
-            {
-              backgroundColor: colors.background || colors.surface,
-              padding: moderateScale(16),
-              marginBottom: layout.sectionGap,
-            },
-          ]}
+          className='flex-row items-center border'
+          style={{
+            borderRadius: Radius.md,
+            padding: moderateScale(16),
+            backgroundColor: colors.background,
+            borderColor: colors.border,
+            marginBottom: layout.sectionGap,
+          }}
         >
           <View
             className='items-center justify-center rounded-full'
@@ -200,10 +195,11 @@ export default function SettingsScreen() {
             </AppText>
           </View>
         </TouchableOpacity>
-
-        {/* Setting Section Groups */}
         {sections.map(section => (
-          <View key={section.title} style={{ marginBottom: layout.sectionGap }}>
+          <View
+            key={section.title}
+            style={{ marginBottom: layout.sectionGap, gap: layout.tightGap }}
+          >
             <AppText
               variant='caption'
               color={colors.textSecondary}
@@ -217,15 +213,16 @@ export default function SettingsScreen() {
             >
               {section.title}
             </AppText>
-
             <View
-              className='overflow-hidden rounded-xl'
-              style={[
-                containerShadow,
-                {
-                  backgroundColor: colors.background || colors.surface,
-                },
-              ]}
+              className='rounded-xl border'
+              style={{
+                borderRadius: Radius.sm,
+                paddingHorizontal: layout.paddingHorizontal * 0.5,
+                paddingTop: layout.paddingTop,
+                paddingBottom: layout.paddingBottom,
+                backgroundColor: colors.background || colors.surface,
+                borderColor: colors.border,
+              }}
             >
               {section.items.map(
                 ({ iconName, label, path, color, isThemeSection }, index) => (
@@ -253,7 +250,7 @@ export default function SettingsScreen() {
                           style={{
                             width: moderateScale(32),
                             height: moderateScale(32),
-                            backgroundColor: `${color}1A`, // Adds 10% opacity tint
+                            backgroundColor: `${color}1A`,
                             marginRight: moderateScale(12),
                           }}
                         >
@@ -267,7 +264,11 @@ export default function SettingsScreen() {
                           {label}
                         </AppText>
                       </View>
-
+                      {isThemeSection && (
+                        <View>
+                          <ThemeSettingsScreen />
+                        </View>
+                      )}
                       {!isThemeSection && (
                         <Ionicons
                           name='chevron-forward-outline'
@@ -276,26 +277,12 @@ export default function SettingsScreen() {
                         />
                       )}
                     </TouchableOpacity>
-
-                    {/* Theme selector component embedded below Theme label */}
-                    {isThemeSection && (
-                      <View
-                        style={{
-                          paddingHorizontal: moderateScale(16),
-                          paddingBottom: moderateScale(14),
-                        }}
-                      >
-                        <ThemeSettingsScreen />
-                      </View>
-                    )}
                   </View>
                 ),
               )}
             </View>
           </View>
         ))}
-
-        {/* Atlassian Sites Section */}
         <View style={{ marginBottom: layout.sectionGap }}>
           <AppText
             variant='caption'
@@ -310,15 +297,14 @@ export default function SettingsScreen() {
           >
             {strings?.settings?.atlassianSites || 'Atlassian sites'}
           </AppText>
-
           <View
-            className='overflow-hidden rounded-xl'
-            style={[
-              containerShadow,
-              {
-                backgroundColor: colors.background || colors.surface,
-              },
-            ]}
+            className='border'
+            style={{
+              borderRadius: Radius.sm,
+              padding: moderateScale(16),
+              backgroundColor: colors.background || colors.surface,
+              borderColor: colors.border,
+            }}
           >
             {atlassianSites.map((site, index) => (
               <View
@@ -343,7 +329,7 @@ export default function SettingsScreen() {
                 >
                   <AppText
                     style={{
-                      color: colors.white || '#FFFFFF',
+                      color: colors.white,
                       fontSize: moderateScale(12),
                       fontWeight: 'bold',
                     }}
@@ -351,7 +337,6 @@ export default function SettingsScreen() {
                     {site.name[0]}
                   </AppText>
                 </View>
-
                 <View className='flex-1'>
                   <AppText variant='body' style={{ fontWeight: '600' }}>
                     {site.name}
@@ -360,14 +345,15 @@ export default function SettingsScreen() {
                     {site.key}
                   </AppText>
                 </View>
-
                 <View
-                  className='rounded-full'
                   style={{
+                    borderRadius: Radius.sm,
                     paddingHorizontal: moderateScale(8),
                     paddingVertical: moderateScale(2),
                     backgroundColor:
-                      site.role === 'Admin' ? '#DEEBFF' : colors.surface,
+                      site.role === 'Admin'
+                        ? colors.background
+                        : colors.surface,
                   }}
                 >
                   <AppText
@@ -388,8 +374,6 @@ export default function SettingsScreen() {
             ))}
           </View>
         </View>
-
-        {/* App Version Info */}
         <View
           className='items-center'
           style={{ marginVertical: layout.elementGap }}
@@ -402,29 +386,26 @@ export default function SettingsScreen() {
               '© 2026 Atlassian. All rights reserved.'}
           </AppText>
         </View>
-
-        {/* Logout Button Container */}
         <TouchableOpacity
-          onPress={() => navigation.navigate('login' as any)}
+          onPress={() => setIsLogoutModalVisible(true)}
           activeOpacity={0.7}
-          className='flex-row items-center justify-center rounded-xl'
-          style={[
-            containerShadow,
-            {
-              backgroundColor: colors.background || colors.surface,
-              paddingVertical: moderateScale(12),
-              gap: moderateScale(8),
-            },
-          ]}
+          className='flex-row items-center justify-center border'
+          style={{
+            borderRadius: Radius.sm,
+            backgroundColor: colors.background || colors.surface,
+            borderColor: colors.border,
+            paddingVertical: moderateScale(12),
+            gap: moderateScale(8),
+          }}
         >
           <Ionicons
             name='log-out-outline'
             size={moderateScale(18)}
-            color={colors.error || '#DE350B'}
+            color={colors.error}
           />
           <AppText
             style={{
-              color: colors.error || '#DE350B',
+              color: colors.error,
               fontWeight: '600',
               fontSize: moderateScale(14),
             }}
@@ -433,6 +414,19 @@ export default function SettingsScreen() {
           </AppText>
         </TouchableOpacity>
       </ScrollView>
+      <CustomBottomSheet
+        visible={isLogoutModalVisible}
+        onDismiss={() => setIsLogoutModalVisible(false)}
+        title={strings.profile?.logout || 'Logout'}
+        message='Are you sure you want to log out?'
+        confirmText={strings.profile?.logout || 'Logout'}
+        cancelText='Cancel'
+        onConfirm={handleLogoutConfirm}
+        confirmButtonColor={colors.error}
+        showCancel={true}
+        showCloseIcon={true}
+        confirmTextColor={colors.white}
+      />
     </Screen>
   );
 }

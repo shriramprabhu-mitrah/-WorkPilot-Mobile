@@ -10,6 +10,7 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
+  QuickLinks,
   quickLinks,
   recentActivity,
   stats,
@@ -34,6 +35,81 @@ const ProfileScreen = () => {
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
+      <View
+        style={{
+          backgroundColor: colors.primary,
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingTop: layout.paddingTop,
+          paddingBottom: layout.sectionGap * 1.5,
+        }}
+      >
+        <View className='mb-6 flex-row items-center justify-between'>
+          <AppText variant='h4' color={colors.white}>
+            {strings.profile?.title || 'Profile'}
+          </AppText>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Settings')}
+            className='items-center justify-center rounded-full bg-white/20'
+            style={{
+              width: moderateScale(36),
+              height: moderateScale(36),
+            }}
+          >
+            <Ionicons
+              name={
+                (profileIcons?.settings || 'settings-outline') as IoniconName
+              }
+              size={18}
+              color={colors.white}
+            />
+          </TouchableOpacity>
+        </View>
+        {/* User Info Section */}
+        <View className='flex-row items-end gap-4'>
+          <View className='relative'>
+            <View
+              className='items-center justify-center rounded-full'
+              style={{
+                width: moderateScale(72),
+                height: moderateScale(72),
+                backgroundColor: colors.avatarBg,
+              }}
+            >
+              <AppText variant='h2' color={colors.white}>
+                AJ
+              </AppText>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              className='absolute bottom-0 right-0 items-center justify-center rounded-full border'
+              style={{
+                width: moderateScale(26),
+                height: moderateScale(26),
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              }}
+            >
+              <Ionicons
+                name={(profileIcons?.edit || 'create-outline') as IoniconName}
+                size={14}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={{ gap: layout.tightGap / 2 }}>
+            <AppText variant='h3' color={colors.white}>
+              Alex Johnson
+            </AppText>
+            <AppText variant='body' color={colors.textOnPrimaryMuted}>
+              {strings.profile?.role || 'Senior Software Engineer'}
+            </AppText>
+            <AppText variant='caption' color={colors.textOnPrimarySubtle}>
+              alex.johnson@company.com
+            </AppText>
+          </View>
+        </View>
+      </View>
       <ScrollView
         contentContainerStyle={{
           paddingBottom: isSmallHeight ? hp(20) : hp(12),
@@ -41,87 +117,6 @@ const ProfileScreen = () => {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Banner */}
-        <View
-          style={{
-            backgroundColor: colors.primary,
-            paddingHorizontal: layout.paddingHorizontal,
-            paddingTop: layout.paddingTop,
-            paddingBottom: layout.sectionGap * 1.5,
-          }}
-        >
-          <View className='mb-6 flex-row items-center justify-between'>
-            <AppText variant='h4' color={colors.white}>
-              {strings.profile?.title || 'Profile'}
-            </AppText>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('Settings')}
-              className='items-center justify-center rounded-full bg-white/20'
-              style={{
-                width: moderateScale(36),
-                height: moderateScale(36),
-              }}
-            >
-              <Ionicons
-                name={
-                  (profileIcons?.settings || 'settings-outline') as IoniconName
-                }
-                size={18}
-                color={colors.white}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* User Info Section */}
-          <View className='flex-row items-end gap-4'>
-            <View className='relative'>
-              <View
-                className='items-center justify-center rounded-full'
-                style={{
-                  width: moderateScale(72),
-                  height: moderateScale(72),
-                  backgroundColor: colors.avatarBg,
-                }}
-              >
-                <AppText variant='h2' color={colors.white}>
-                  AJ
-                </AppText>
-              </View>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                className='absolute bottom-0 right-0 items-center justify-center rounded-full border'
-                style={{
-                  width: moderateScale(26),
-                  height: moderateScale(26),
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                }}
-              >
-                <Ionicons
-                  name={(profileIcons?.edit || 'create-outline') as IoniconName}
-                  size={14}
-                  color={colors.primary}
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={{ gap: layout.tightGap / 2 }}>
-              <AppText variant='h3' color={colors.white}>
-                Alex Johnson
-              </AppText>
-
-              <AppText variant='body' color={colors.textOnPrimaryMuted}>
-                {strings.profile?.role || 'Senior Software Engineer'}
-              </AppText>
-
-              <AppText variant='caption' color={colors.textOnPrimarySubtle}>
-                alex.johnson@company.com
-              </AppText>
-            </View>
-          </View>
-        </View>
-
         {/* Stats Section */}
         <View
           style={{
@@ -154,8 +149,6 @@ const ProfileScreen = () => {
             ))}
           </View>
         </View>
-
-        {/* Teams & Projects */}
         <View
           style={{
             marginBottom: layout.sectionGap,
@@ -169,7 +162,6 @@ const ProfileScreen = () => {
           >
             {strings.profile?.teamsTitle || 'Teams & Projects'}
           </AppText>
-
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {teams.map(team => (
               <View
@@ -199,7 +191,6 @@ const ProfileScreen = () => {
             ))}
           </ScrollView>
         </View>
-        {/* Recent Activity */}
         <View
           style={{
             marginBottom: layout.sectionGap,
@@ -213,7 +204,6 @@ const ProfileScreen = () => {
             <AppText variant='bodyLarge' color={colors.text}>
               {strings.profile?.recentActivity || 'Recent Activity'}
             </AppText>
-
             <TouchableOpacity activeOpacity={0.7}>
               <AppText
                 variant='body'
@@ -278,7 +268,6 @@ const ProfileScreen = () => {
             ))}
           </View>
         </View>
-        {/* Quick Links */}
         <View
           style={{
             marginBottom: layout.sectionGap,
@@ -292,7 +281,7 @@ const ProfileScreen = () => {
               borderColor: colors.border,
             }}
           >
-            {quickLinks.map((item, index) => (
+            {quickLinks.map((item: QuickLinks, index: number) => (
               <TouchableOpacity
                 key={item.label}
                 activeOpacity={0.7}
@@ -304,12 +293,15 @@ const ProfileScreen = () => {
                 }}
                 onPress={() => {
                   if (item.navigateUrl) {
-                    navigation.navigate(item.navigateUrl);
+                    navigation.navigate(item.navigateUrl as any);
                   }
                 }}
               >
-                <Ionicons name={item.iconName} size={20} color={item.color} />
-
+                <Ionicons
+                  name={item.iconName as IoniconName}
+                  size={20}
+                  color={item.color}
+                />
                 <AppText
                   variant='body'
                   color={colors.text}

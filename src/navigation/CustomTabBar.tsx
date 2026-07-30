@@ -26,13 +26,17 @@ const ICONS: Record<
     active: 'home',
     inactive: 'home-outline',
   },
-  Projects: {
+  Project: {
     active: 'folder',
     inactive: 'folder-outline',
   },
   Search: {
     active: 'search',
     inactive: 'search-outline',
+  },
+  Inbox: {
+    active: 'notifications',
+    inactive: 'notifications-outline',
   },
   Profile: {
     active: 'person',
@@ -98,8 +102,8 @@ const TabButton = ({ route, index, state, navigation }: TabButtonProps) => {
         style={[
           animatedStyle,
           {
-            minWidth: wp(18),
-            height: hp(5.8),
+            minWidth: wp(20),
+            height: hp(5.6),
             borderRadius: moderateScale(40),
             backgroundColor: focused ? colors.primary : 'transparent',
             justifyContent: 'center',
@@ -132,17 +136,11 @@ const TabButton = ({ route, index, state, navigation }: TabButtonProps) => {
   );
 };
 
-const CustomTabBar = ({
-  state,
-  descriptors,
-  navigation,
-}: BottomTabBarProps) => {
+const CustomTabBar = ({ state, navigation }: BottomTabBarProps) => {
   const { colors, mode } = useTheme();
   const { wp, hp, moderateScale } = useResponsive();
   const insets = useSafeAreaInsets();
-
   const isDark = mode === 'dark';
-
   // Native Blur configuration derived directly from ThemeContext
   const blurType = isDark ? 'dark' : 'light';
   const fallbackColor = colors.surface;
@@ -160,8 +158,8 @@ const CustomTabBar = ({
       style={[
         styles.wrapper,
         {
-          left: wp(4),
-          right: wp(4),
+          left: wp(2),
+          right: wp(2),
           bottom: insets.bottom + hp(1.2),
         },
       ]}
@@ -187,11 +185,11 @@ const CustomTabBar = ({
         style={[
           styles.overlay,
           {
-            height: hp(8),
+            height: hp(7),
             borderRadius: moderateScale(32),
             backgroundColor: overlayBackgroundColor,
             borderColor: colors.border,
-            paddingHorizontal: wp(2),
+            paddingHorizontal: wp(3),
             shadowColor: colors.black,
           },
         ]}

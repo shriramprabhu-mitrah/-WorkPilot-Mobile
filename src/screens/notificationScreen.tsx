@@ -1,271 +1,282 @@
 import React, { useState } from 'react';
-import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { FlatList, ScrollView, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from '../components/common/AppText';
 import Avatar from '../components/Avatar';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { notificationsData, typeIcons } from '../data/notificationsScreenData';
+import {
+  NotificationDataType,
+  notificationsData,
+  typeIcons,
+} from '../data/notificationsScreenData';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../types/navigationTypes';
+import { useNavigation } from '@react-navigation/native';
+import Screen from '../components/common/ScreenWapper';
 
 export default function NotificationsScreen() {
   const { colors, strings } = useTheme();
-  const { layout } = useAuthLayout();
-
-  const [notifs, setNotifs] = useState(notificationsData);
+  const { layout, isSmallHeight, hp } = useAuthLayout();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const [notifs, setNotifs] =
+    useState<NotificationDataType[]>(notificationsData);
   const [tab, setTab] = useState<'all' | 'unread'>('all');
-
   const markAllRead = () =>
-    setNotifs((prev: any) => prev.map((n: any) => ({ ...n, read: true })));
-
-  const markRead = (id: number) =>
-    setNotifs((prev: any) =>
-      prev.map((n: any) => (n.id === id ? { ...n, read: true } : n)),
+    setNotifs((prev: NotificationDataType[]) =>
+      prev.map((n: NotificationDataType) => ({ ...n, read: true })),
     );
-
-  const displayed = tab === 'unread' ? notifs.filter(n => !n.read) : notifs;
-  const unreadCount = notifs.filter(n => !n.read).length;
-
+  const markRead = (id: number) =>
+    setNotifs((prev: NotificationDataType[]) =>
+      prev.map((n: NotificationDataType) =>
+        n.id === id ? { ...n, read: true } : n,
+      ),
+    );
+  const displayed =
+    tab === 'unread'
+      ? notifs.filter((n: NotificationDataType) => !n.read)
+      : notifs;
+  const unreadCount = notifs.filter(
+    (n: NotificationDataType) => !n.read,
+  ).length;
   return (
-    <SafeAreaView
-      style={{ backgroundColor: colors.background }}
-      className='flex-1'
-      edges={['top']}
-    >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps='handled'
-        contentContainerStyle={{ flexGrow: 1 }}
+    <Screen scroll={false} backgroundColor={colors.surface}>
+      <View
+        className='flex-row items-center justify-between border-b'
+        style={{
+          backgroundColor: colors.card || colors.surface,
+          borderColor: colors.border,
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingVertical: layout.elementGap,
+        }}
       >
-        <View className='flex-1'>
-          {/* Header */}
-          <View
-            className='flex-row items-center justify-between border-b'
-            style={{
-              backgroundColor: colors.card || colors.surface,
-              borderColor: colors.border,
-              paddingHorizontal: layout.paddingHorizontal,
-              paddingVertical: layout.elementGap,
-            }}
+        <AppText variant='title' color={colors.text} className='font-bold'>
+          {strings.notification.headerTitle}
+        </AppText>
+        <View
+          className='flex-row items-center'
+          style={{ gap: layout.largeSectionGap }}
+        >
+          {unreadCount > 0 && (
+            <TouchableOpacity onPress={markAllRead} activeOpacity={0.7}>
+              <AppText
+                variant='body'
+                color={colors.primary}
+                className='font-semibold'
+              >
+                {strings.notification.actionMarkAllRead}
+              </AppText>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Settings')}
+            activeOpacity={0.7}
           >
-            <AppText variant='title' color={colors.text} className='font-bold'>
-              {strings.notification.headerTitle}
-            </AppText>
-            <View
-              className='flex-row items-center'
-              style={{ gap: layout.elementGap }}
+            <Ionicons
+              name='settings-outline'
+              size={layout.iconSize}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+      <View
+        className='flex-row'
+        style={{
+          backgroundColor: colors.card || colors.surface,
+          borderColor: colors.border,
+        }}
+      >
+        {(['all', 'unread'] as const).map(t => {
+          const isSelected = tab === t;
+          return (
+            <TouchableOpacity
+              key={t}
+              activeOpacity={0.8}
+              onPress={() => setTab(t)}
+              className='flex-1 flex-row items-center justify-center'
+              style={{
+                paddingVertical: layout.elementGap,
+                borderBottomWidth: 2,
+                borderBottomColor: isSelected ? colors.primary : 'transparent',
+                gap: layout.tightGap,
+              }}
             >
-              <TouchableOpacity onPress={markAllRead} activeOpacity={0.7}>
-                <AppText
-                  variant='body'
-                  color={colors.primary}
-                  className='font-semibold'
-                >
-                  {strings.notification.actionMarkAllRead}
-                </AppText>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Ionicons
-                  name='settings-outline'
-                  size={layout.iconSize}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-          {/* Filter Tabs */}
-          <View
-            className='flex-row border-b'
-            style={{
-              backgroundColor: colors.card || colors.surface,
-              borderColor: colors.border,
-            }}
-          >
-            {(['all', 'unread'] as const).map(t => {
-              const isSelected = tab === t;
-              return (
-                <TouchableOpacity
-                  key={t}
-                  activeOpacity={0.8}
-                  onPress={() => setTab(t)}
-                  className='flex-1 flex-row items-center justify-center'
+              <AppText
+                variant='body'
+                color={isSelected ? colors.primary : colors.textSecondary}
+                className='font-bold'
+              >
+                {t === 'unread'
+                  ? strings.notification.tabUnread
+                  : strings.notification.tabAll}
+              </AppText>
+              {t === 'unread' && unreadCount > 0 && (
+                <View
+                  className='items-center justify-center rounded-full'
                   style={{
-                    paddingVertical: layout.elementGap,
-                    borderBottomWidth: isSelected ? 2 : 0,
-                    borderBottomColor: isSelected
-                      ? colors.primary
-                      : 'transparent',
-                    gap: layout.tightGap,
+                    width: layout.controlSize,
+                    height: layout.controlSize,
+                    backgroundColor: colors.error,
                   }}
                 >
                   <AppText
-                    variant='body'
-                    color={isSelected ? colors.primary : colors.textSecondary}
-                    className='font-semibold'
+                    variant='caption'
+                    color={colors.white}
+                    className='font-bold'
                   >
-                    {t === 'unread'
-                      ? strings.notification.tabUnread
-                      : strings.notification.tabAll}
+                    {unreadCount}
                   </AppText>
-                  {t === 'unread' && unreadCount > 0 && (
-                    <View
-                      className='items-center justify-center rounded-full'
-                      style={{
-                        width: layout.controlSize * 0.7,
-                        height: layout.controlSize * 0.7,
-                        backgroundColor: colors.error,
-                      }}
-                    >
-                      <AppText
-                        variant='caption'
-                        color={colors.white}
-                        className='font-bold'
-                      >
-                        {unreadCount}
-                      </AppText>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {/* Notifications List or Empty State */}
-          {displayed.length > 0 ? (
-            <View>
-              {displayed.map((n: any) => (
-                <TouchableOpacity
-                  key={n.id}
-                  activeOpacity={0.8}
-                  onPress={() => markRead(n.id)}
-                  className='w-full flex-row items-start border-b'
-                  style={{
-                    backgroundColor: n.read
-                      ? colors.card || colors.surface
-                      : colors.surface || colors.background,
-                    borderColor: colors.itemDivider || colors.border,
-                    paddingHorizontal: layout.paddingHorizontal,
-                    paddingVertical: layout.elementGap,
-                    gap: layout.elementGap,
-                  }}
-                >
-                  {/* Unread Indicator Dot */}
-                  <View className='pt-2'>
-                    <View
-                      className='rounded-full'
-                      style={{
-                        width: layout.tightGap * 1.5,
-                        height: layout.tightGap * 1.5,
-                        backgroundColor: n.read
-                          ? 'transparent'
-                          : colors.primary,
-                      }}
-                    />
-                  </View>
-                  {/* Avatar & Action Badge */}
-                  <View className='relative'>
-                    <Avatar
-                      size='large'
-                      initials={n.avatar}
-                      color={n.color || colors.primary}
-                    />
-                    <View
-                      className='absolute -bottom-1 -right-1 items-center justify-center rounded-full border'
-                      style={{
-                        width: layout.controlSize * 0.75,
-                        height: layout.controlSize * 0.75,
-                        backgroundColor: colors.card || colors.surface,
-                        borderColor: colors.border,
-                      }}
-                    >
-                      <Ionicons
-                        name={typeIcons[n.type]?.icon as any}
-                        color={colors.text}
-                        size={layout.iconSize * 0.6}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Notification Details */}
-                  <View className='flex-1'>
-                    <AppText
-                      variant='body'
-                      color={colors.text}
-                      className='mb-1 leading-5'
-                    >
-                      <AppText
-                        variant='body'
-                        color={colors.text}
-                        className='font-semibold'
-                      >
-                        {n.actor}{' '}
-                      </AppText>
-                      {n.action}{' '}
-                      <AppText
-                        variant='body'
-                        color={colors.primary}
-                        className='font-semibold'
-                      >
-                        {n.target}
-                      </AppText>
-                    </AppText>
-
-                    <AppText
-                      variant='caption'
-                      color={colors.textSecondary}
-                      numberOfLines={2}
-                      className='leading-4'
-                    >
-                      {n.preview}
-                    </AppText>
-
-                    <AppText
-                      variant='caption'
-                      color={colors.placeholder || colors.textSecondary}
-                      className='mt-1 text-xs'
-                    >
-                      {n.time}
-                    </AppText>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            /* Empty State */
-            <View
-              className='items-center justify-center text-center'
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {displayed.length > 0 ? (
+        <FlatList
+          data={displayed}
+          keyExtractor={(item: NotificationDataType) => item.id.toString()}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps='handled'
+          contentContainerStyle={{
+            paddingBottom: isSmallHeight ? hp(20) : hp(12),
+            flexGrow: 1,
+          }}
+          renderItem={({ item }: { item: NotificationDataType }) => (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                markRead(item.id);
+                navigation.navigate('issue', { id: item.target });
+              }}
+              className='flex-row items-start'
               style={{
-                paddingVertical: layout.sectionGap * 3,
+                backgroundColor: item.read
+                  ? colors.card || colors.surface
+                  : `${colors.secondary}2A` || colors.background,
+                borderBottomWidth: 2,
+                borderBottomColor: colors.itemDivider || colors.border,
                 paddingHorizontal: layout.paddingHorizontal,
+                paddingVertical: layout.largeSectionGap,
+                gap: layout.largeSectionGap,
               }}
             >
               <View
-                className='mb-4 items-center justify-center rounded-full'
-                style={{
-                  width: layout.controlSize * 2,
-                  height: layout.controlSize * 2,
-                  backgroundColor: colors.surface || colors.border,
-                }}
+                className='flex-row items-center'
+                style={{ gap: layout.elementGap }}
               >
-                <Ionicons
-                  name='notifications'
-                  size={layout.iconSize * 1.5}
-                  color={colors.placeholder || colors.textSecondary}
+                <View
+                  className='rounded-full'
+                  style={{
+                    width: layout.controlSize * 0.3,
+                    height: layout.controlSize * 0.3,
+                    backgroundColor: item.read ? 'transparent' : colors.primary,
+                  }}
                 />
+                <View className='relative'>
+                  <Avatar
+                    size='large'
+                    initials={item.avatar}
+                    color={item.color || colors.primary}
+                  />
+                  <View
+                    className='absolute -bottom-1 -right-1 items-center justify-center rounded-full border shadow'
+                    style={{
+                      width: layout.controlSize,
+                      height: layout.controlSize,
+                      backgroundColor: colors.card || colors.surface,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    <Ionicons
+                      name={typeIcons[item.type].icon}
+                      color={colors.text}
+                      size={layout.iconSize * 0.6}
+                    />
+                  </View>
+                </View>
               </View>
-              <AppText
-                variant='title'
-                color={colors.text}
-                className='mb-1 font-semibold'
-              >
-                {strings.notification.emptyTitle}
-              </AppText>
-              <AppText variant='body' color={colors.textSecondary}>
-                {strings.notification.emptySubtitle}
-              </AppText>
-            </View>
+              <View className='flex-1' style={{ gap: layout.tightGap }}>
+                <AppText
+                  variant='body'
+                  color={colors.text}
+                  className='font-semibold leading-6'
+                  numberOfLines={2}
+                >
+                  <AppText
+                    variant='body'
+                    color={colors.text}
+                    className='font-bold'
+                  >
+                    {item.actor}{' '}
+                  </AppText>
+                  {item.action}{' '}
+                  <AppText
+                    variant='body'
+                    color={colors.primary}
+                    className='font-semibold'
+                  >
+                    {item.target}
+                  </AppText>
+                </AppText>
+                <AppText
+                  variant='caption'
+                  color={colors.textSecondary}
+                  numberOfLines={1}
+                  ellipsizeMode='clip'
+                  className='leading-4'
+                >
+                  {item.preview}
+                </AppText>
+                <AppText
+                  variant='caption'
+                  color={colors.placeholder || colors.textSecondary}
+                >
+                  {item.time}
+                </AppText>
+              </View>
+            </TouchableOpacity>
           )}
+        />
+      ) : (
+        <View className='flex-1 items-center justify-center'>
+          <View
+            className='items-center justify-center text-center'
+            style={{
+              paddingVertical: layout.sectionGap * 3,
+              paddingHorizontal: layout.paddingHorizontal,
+              gap: layout.elementGap,
+            }}
+          >
+            <View
+              className='items-center justify-center rounded-full'
+              style={{
+                width: layout.controlSize * 2,
+                height: layout.controlSize * 2,
+                backgroundColor: colors.surface,
+              }}
+            >
+              <Ionicons
+                name='notifications'
+                size={layout.iconSize * 1.5}
+                color={colors.placeholder || colors.textSecondary}
+              />
+            </View>
+            <AppText
+              variant='title'
+              color={colors.text}
+              className='mb-1 font-semibold'
+            >
+              {strings.notification.emptyTitle}
+            </AppText>
+            <AppText variant='body' color={colors.textSecondary}>
+              {strings.notification.emptySubtitle}
+            </AppText>
+          </View>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      )}
+    </Screen>
   );
 }

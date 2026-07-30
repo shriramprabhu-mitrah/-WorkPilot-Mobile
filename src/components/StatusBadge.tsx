@@ -1,11 +1,9 @@
 import React from 'react';
 import { View } from 'react-native';
-
 import AppText from '../components/common/AppText';
 import { IssueStatus } from '../data/backlogData';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-
 interface Props {
   status: IssueStatus;
 }
@@ -13,8 +11,6 @@ interface Props {
 const StatusBadge = ({ status }: Props) => {
   const { colors } = useTheme();
   const { layout } = useAuthLayout();
-
-  // Dynamic theme-based styles for status states
   const statusStyles: Record<IssueStatus, { bg: string; text: string }> = {
     'To Do': {
       bg: colors.surface || colors.border,
@@ -29,7 +25,6 @@ const StatusBadge = ({ status }: Props) => {
       text: colors.success,
     },
   };
-
   const currentStyle = statusStyles[status] || statusStyles['To Do'];
 
   return (
@@ -37,14 +32,14 @@ const StatusBadge = ({ status }: Props) => {
       className='items-center justify-center rounded-full'
       style={{
         backgroundColor: currentStyle.bg,
-        paddingHorizontal: layout.tightGap * 1.5,
+        paddingHorizontal: layout.paddingHorizontal * 0.5,
         paddingVertical: layout.tightGap / 1.5,
       }}
     >
       <AppText
         variant='caption'
         color={currentStyle.text}
-        className='text-[12px] font-medium'
+        className='font-medium'
       >
         {status}
       </AppText>

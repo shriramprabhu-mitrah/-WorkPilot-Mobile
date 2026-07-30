@@ -7,11 +7,13 @@ import SearchScreen from '../screens/searchScreen';
 import ProfileScreen from '../screens/profileScreen';
 
 import CustomTabBar from '../navigation/CustomTabBar';
+import NotificationsScreen from '../screens/notificationScreen';
 
 export type BottomTabParamList = {
   Home: undefined;
-  Projects: undefined;
+  Project: undefined;
   Search: undefined;
+  Inbox: undefined;
   Profile: undefined;
 };
 
@@ -27,8 +29,9 @@ const TabNavigator = () => {
       }}
     >
       <Tab.Screen name='Home' component={HomeScreen} />
-      <Tab.Screen name='Projects' component={ProjectsScreen} />
+      <Tab.Screen name='Project' component={ProjectsScreen} />
       <Tab.Screen name='Search' component={SearchScreen} />
+      <Tab.Screen name='Inbox' component={NotificationsScreen} />
       <Tab.Screen name='Profile' component={ProfileScreen} />
     </Tab.Navigator>
   );

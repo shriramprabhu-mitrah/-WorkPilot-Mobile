@@ -10,14 +10,14 @@ import { backlogData } from '../data/backlogData';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
+import { Radius } from '../constants/Radius';
 const Backlog = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
-  const { layout, moderateScale } = useAuthLayout();
+  const { layout, isSmallHeight, hp } = useAuthLayout();
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
-      {/* Header Bar */}
       <View
         className='flex-row items-center justify-between border-b'
         style={{
@@ -28,34 +28,32 @@ const Backlog = () => {
           paddingBottom: layout.elementGap,
         }}
       >
-        {/* Title & Back Button */}
-        <View className='flex-row items-center'>
+        <View
+          className='flex-row items-center'
+          style={{ gap: layout.sectionGap }}
+        >
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => navigation.goBack()}
           >
             <Ionicons name='arrow-back' size={24} color={colors.text} />
           </TouchableOpacity>
-
-          <AppText
-            variant='h3'
-            color={colors.text}
-            style={{ marginLeft: layout.elementGap }}
-          >
+          <AppText variant='title' color={colors.text} className='font-bold'>
             {strings.backlog?.title || 'Backlog'}
           </AppText>
         </View>
-
-        {/* Action Buttons */}
-        <View className='flex-row items-center'>
+        <View
+          className='flex-row items-center'
+          style={{ gap: layout.largeSectionGap }}
+        >
           <TouchableOpacity
             activeOpacity={0.8}
-            className='items-center justify-center rounded-full border'
+            className='items-center justify-center border'
             style={{
-              width: moderateScale(38),
-              height: moderateScale(38),
+              width: layout.iconSize * 2,
+              height: layout.iconSize * 2,
               borderColor: colors.border,
-              marginRight: layout.tightGap,
+              borderRadius: Radius.circle,
             }}
           >
             <Ionicons
@@ -64,13 +62,13 @@ const Backlog = () => {
               color={colors.textSecondary}
             />
           </TouchableOpacity>
-
           <TouchableOpacity
             activeOpacity={0.8}
-            className='items-center justify-center rounded-full border'
+            className='items-center justify-center border'
             style={{
-              width: moderateScale(38),
-              height: moderateScale(38),
+              borderRadius: Radius.circle,
+              width: layout.iconSize * 2,
+              height: layout.iconSize * 2,
               borderColor: colors.border,
             }}
           >
@@ -82,15 +80,13 @@ const Backlog = () => {
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Backlog List */}
       <FlatList
+        contentContainerStyle={{
+          paddingBottom: isSmallHeight ? hp(20) : hp(12),
+        }}
         data={backlogData}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: layout.largeSectionGap * 2,
-        }}
         renderItem={({ item }) => <SprintSection sprint={item} />}
       />
     </Screen>

@@ -1,19 +1,67 @@
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import AppText from '../AppText';
+import { useTheme } from '../../../theme/ThemeProvider';
+import { Radius } from '../../../constants/Radius';
+import { useAuthLayout } from '../../../hooks/useAuthLayout';
+import { moderateScale } from '../../../utils/responsive';
 
-const OptionButton = (props: any) => {
+interface OptionButtonProps {
+  title: string;
+  icon: string;
+  color?: string;
+  selected?: boolean;
+  onPress?: () => void;
+}
+
+const OptionButton = (props: OptionButtonProps) => {
+  const { colors } = useTheme();
+  const { layout } = useAuthLayout();
   return (
     <TouchableOpacity
       onPress={props.onPress}
-      className={`mb-3 mr-3 w-auto rounded-xl border-2 px-4 py-3 ${props.selected ? 'border-blue-600 bg-blue-100' : 'border-gray-300'}`}
+      className={`flex-row items-center border-2`}
+      style={{
+        borderColor: props.selected ? `${colors.primary}` : `${colors.border}`,
+        backgroundColor: props.selected
+          ? `${colors.primary}1A`
+          : `${colors.surface}`,
+        paddingHorizontal: layout.paddingHorizontal * 0.5,
+        paddingTop: layout.paddingTop * 0.75,
+        paddingBottom: layout.paddingBottom * 0.75,
+        gap: layout.sectionGap,
+        borderRadius: Radius.sm,
+      }}
     >
-      <View className='flex-row items-center'>
+      <View
+        className='flex-row items-center'
+        style={{ gap: layout.sectionGap }}
+      >
         <View
-          style={{ backgroundColor: props.color }}
-          className='h-6 w-6 items-center justify-center rounded'
+          style={{
+            backgroundColor: props.color,
+            borderRadius: Radius.xs,
+            width: moderateScale(25),
+            height: moderateScale(25),
+          }}
+          className='items-center justify-center'
         >
-          <Text className='text-xs font-bold text-white'>{props.icon}</Text>
+          <AppText
+            variant='caption'
+            style={{ color: colors?.white }}
+            className='font-bold'
+          >
+            {props.icon}
+          </AppText>
         </View>
-        <Text className='ml-2 font-semibold'>{props.title}</Text>
+        <AppText
+          variant='body'
+          className='font-bold'
+          style={{
+            color: `${props.selected ? colors?.primary : colors?.text}`,
+          }}
+        >
+          {props.title}
+        </AppText>
       </View>
     </TouchableOpacity>
   );

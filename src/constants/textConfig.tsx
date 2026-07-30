@@ -119,8 +119,6 @@ const Strings = {
   theme: {
     dark: 'Dark',
     light: 'Light',
-    system: 'System',
-    note: 'Note: System will take device theme',
   },
 
   profile: {
@@ -208,7 +206,7 @@ const Strings = {
   },
   notification: {
     headerTitle: 'Notifications',
-    actionMarkAllRead: 'All read',
+    actionMarkAllRead: '✓ All read',
     tabAll: 'All',
     tabUnread: 'Unread',
     emptyTitle: "You're all caught up!",
@@ -242,3 +240,5 @@ const Strings = {
 };
 
 export default Strings;
+
+export type StringsType = typeof Strings;

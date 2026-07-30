@@ -19,7 +19,6 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
   const { isAuthenticated } = useAppSelector(state => state.auth);
-
   console.log('isAuthenticated:', isAuthenticated);
   // const isAuthenticated = true;
   return (

@@ -4,6 +4,7 @@ import { TouchableOpacity } from 'react-native';
 import AppText from '../../../components/common/AppText';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAuthLayout } from '../../../hooks/useAuthLayout';
+import { Radius } from '../../../constants/Radius';
 
 interface NumberButtonProps {
   title: string | number;
@@ -18,21 +19,19 @@ const NumberButton = ({
 }: NumberButtonProps) => {
   const { colors } = useTheme();
   const { layout, moderateScale } = useAuthLayout();
-
   const borderColor = selected ? colors.primary : colors.border;
   const backgroundColor = selected
     ? colors.info
       ? `${colors.info}20`
       : `${colors.primary}15`
     : colors.surface || colors.background;
-
-  const size = moderateScale(48);
+  const size = moderateScale(40);
 
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
-      className='items-center justify-center rounded-lg border-2'
+      className='items-center justify-center border-2'
       style={{
         width: size,
         height: size,
@@ -40,6 +39,7 @@ const NumberButton = ({
         backgroundColor,
         marginRight: layout.elementGap,
         marginBottom: layout.elementGap,
+        borderRadius: Radius.sm,
       }}
     >
       <AppText

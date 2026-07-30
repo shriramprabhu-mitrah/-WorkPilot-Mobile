@@ -5,10 +5,11 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 import AppText from '../common/AppText';
-import { Project } from '../../screens/projectScreen';
+import { Project } from '../../data/projectData';
 import { RootStackParamList } from '../../types/navigationTypes';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
+import { Radius } from '../../constants/Radius';
 
 interface Props {
   item: Project;
@@ -18,13 +19,13 @@ interface Props {
 const ProjectCard = ({ item, onPress }: Props) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
-  const { layout, moderateScale } = useAuthLayout();
+  const { layout, moderateScale, isSmallHeight } = useAuthLayout();
 
   const handlePress = () => {
     if (onPress) {
       onPress();
     } else {
-      navigation.navigate('projectDetails', { id: item.id });
+      navigation.navigate('projectDetails', { id: item.type });
     }
   };
 
@@ -32,35 +33,40 @@ const ProjectCard = ({ item, onPress }: Props) => {
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={handlePress}
-      className='rounded-2xl border shadow-sm'
+      className='flex-row items-start border shadow'
       style={{
-        backgroundColor: colors.card || colors.background,
+        backgroundColor: colors.background,
         borderColor: colors.border,
-        paddingHorizontal: layout.paddingHorizontal,
-        paddingVertical: layout.paddingHorizontal,
-        marginBottom: layout.elementGap,
+        paddingHorizontal: layout.paddingHorizontal * 0.5,
+        // paddingTop: layout.paddingTop,
+        // paddingBottom: layout.paddingBottom,
+        paddingVertical: isSmallHeight
+          ? layout.largeSectionGap + 5
+          : layout.sectionGap + 2,
+        borderRadius: Radius.sm,
       }}
     >
-      <View className='flex-row items-center'>
-        {/* Project Code Avatar Badge */}
+      <View
+        className='flex-row items-center'
+        style={{ gap: layout.largeSectionGap }}
+      >
         <View
-          className='items-center justify-center rounded-xl'
+          className='items-center justify-center'
           style={{
-            width: moderateScale(48),
-            height: moderateScale(48),
-            backgroundColor: item.color || colors.primary,
+            width: moderateScale(32),
+            height: moderateScale(32),
+            backgroundColor: item.color,
+            borderRadius: Radius.sm,
           }}
         >
-          <AppText variant='h3' color={colors.white}>
+          <AppText variant='body' className='font-bold' color={colors.white}>
             {item.code}
           </AppText>
         </View>
-
-        {/* Project Details */}
-        <View className='flex-1' style={{ marginLeft: layout.elementGap }}>
+        <View className='flex-1'>
           <View className='flex-row items-center'>
             <AppText
-              variant='bodyLarge'
+              variant='body'
               color={colors.text}
               className='flex-1 font-bold'
               numberOfLines={1}
@@ -68,15 +74,13 @@ const ProjectCard = ({ item, onPress }: Props) => {
               {item.name}
             </AppText>
           </View>
-
           <View
             className='flex-row flex-wrap items-center'
-            style={{ marginTop: layout.tightGap / 2 }}
+            style={{ gap: layout.tightGap }}
           >
             <AppText variant='caption' color={colors.textSecondary}>
               {item.type}
             </AppText>
-
             <AppText
               variant='caption'
               color={colors.placeholder}
@@ -84,11 +88,9 @@ const ProjectCard = ({ item, onPress }: Props) => {
             >
               •
             </AppText>
-
             <AppText variant='caption' color={colors.textSecondary}>
               {item.category}
             </AppText>
-
             <AppText
               variant='caption'
               color={colors.placeholder}
@@ -96,14 +98,11 @@ const ProjectCard = ({ item, onPress }: Props) => {
             >
               •
             </AppText>
-
             <AppText variant='caption' color={colors.textSecondary}>
               {item.issues} {strings.projectCard?.issues || 'issues'}
             </AppText>
           </View>
         </View>
-
-        {/* Star Icon */}
         {item.starred && (
           <Ionicons
             name='star'
@@ -112,11 +111,9 @@ const ProjectCard = ({ item, onPress }: Props) => {
             style={{ marginRight: layout.tightGap }}
           />
         )}
-
-        {/* Chevron Icon */}
         <Ionicons
           name='chevron-forward'
-          size={20}
+          size={16}
           color={colors.placeholder || colors.textSecondary}
         />
       </View>

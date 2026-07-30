@@ -4,14 +4,23 @@ import { Radius } from '../../../constants/Radius';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAuthLayout } from '../../../hooks/useAuthLayout';
 import AppText from '../AppText';
+import { moderateScale } from '../../../utils/responsive';
 
 interface Props extends TextInputProps {
   label?: string;
   error?: string;
   leftIcon?: ReactNode;
+  rightSendButton?: ReactNode;
 }
 
-const AppInput = ({ label, error, leftIcon, style, ...props }: Props) => {
+const AppInput = ({
+  label,
+  error,
+  leftIcon,
+  style,
+  rightSendButton,
+  ...props
+}: Props) => {
   const { colors } = useTheme();
   const { layout, isSmallHeight, isLargeHeight, hp, verticalScale } =
     useAuthLayout();
@@ -86,8 +95,16 @@ const AppInput = ({ label, error, leftIcon, style, ...props }: Props) => {
             style,
           ]}
         />
+        {rightSendButton && (
+          <View
+            style={{
+              marginLeft: moderateScale(10),
+            }}
+          >
+            {rightSendButton}
+          </View>
+        )}
       </View>
-
       {!!error && (
         <AppText
           variant='caption'

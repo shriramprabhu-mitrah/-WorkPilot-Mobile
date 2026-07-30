@@ -1,10 +1,11 @@
+import { StringsType } from '../constants/textConfig';
 import { useTheme } from '../theme/ThemeProvider';
 
 const { colors } = useTheme();
 
 export const todo = [
   {
-    id: 'CLOUD-341',
+    id: 'CLOUD-340',
     title: 'Implement zero-downtime deployment pipeline',
     priority: colors.accentOrange,
     points: '8p',
@@ -158,3 +159,28 @@ export const recentProjects = [
     starred: false,
   },
 ];
+
+export const getColumns = (strings: StringsType) => {
+  return [
+    {
+      title: strings.projectDetails?.toDo || 'TO DO',
+      color: colors.textSecondary,
+      tasks: todo,
+    },
+    {
+      title: strings.projectDetails?.inProgress || 'IN PROGRESS',
+      color: colors.primary,
+      tasks: progress,
+    },
+    {
+      title: strings.projectDetails?.inReview || 'IN REVIEW',
+      color: colors.accentPurple,
+      tasks: review,
+    },
+    {
+      title: strings.projectDetails?.done || 'DONE',
+      color: colors.success,
+      tasks: done,
+    },
+  ];
+};
