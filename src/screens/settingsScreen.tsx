@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TouchableOpacity, View, ScrollView } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -12,6 +12,10 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { Radius } from '../constants/Radius';
+import CustomBottomSheet from '../components/common/CustomBottomDialog';
+import { logoutUser } from '../store/auth_store/action/auth.thunks';
+import { showSuccessToast } from '../utils/utils';
+import { useAppDispatch } from '../store';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -23,7 +27,10 @@ const atlassianSites = [
 export default function SettingsScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
-  const { layout, moderateScale, wp } = useAuthLayout();
+  const dispatch = useAppDispatch();
+  const { layout, moderateScale, wp, isSmallHeight, hp } = useAuthLayout();
+  const [isLogoutModalVisible, setIsLogoutModalVisible] =
+    useState<boolean>(false);
   const sections: Array<{
     title: string;
     items: Array<{
@@ -105,6 +112,10 @@ export default function SettingsScreen() {
     },
   ];
 
+  const handleLogoutConfirm = () => {
+    dispatch(logoutUser(showSuccessToast));
+  };
+
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <View
@@ -132,7 +143,7 @@ export default function SettingsScreen() {
         contentContainerStyle={{
           paddingHorizontal: layout.paddingHorizontal,
           paddingTop: layout.paddingTop,
-          paddingBottom: layout.paddingBottom,
+          paddingBottom: isSmallHeight ? hp(10) : hp(8),
           backgroundColor: colors.surface,
         }}
       >
@@ -253,6 +264,11 @@ export default function SettingsScreen() {
                           {label}
                         </AppText>
                       </View>
+                      {isThemeSection && (
+                        <View>
+                          <ThemeSettingsScreen />
+                        </View>
+                      )}
                       {!isThemeSection && (
                         <Ionicons
                           name='chevron-forward-outline'
@@ -261,16 +277,6 @@ export default function SettingsScreen() {
                         />
                       )}
                     </TouchableOpacity>
-                    {isThemeSection && (
-                      <View
-                        style={{
-                          paddingHorizontal: moderateScale(16),
-                          paddingBottom: moderateScale(14),
-                        }}
-                      >
-                        <ThemeSettingsScreen />
-                      </View>
-                    )}
                   </View>
                 ),
               )}
@@ -381,7 +387,7 @@ export default function SettingsScreen() {
           </AppText>
         </View>
         <TouchableOpacity
-          onPress={() => navigation.navigate('login' as any)}
+          onPress={() => setIsLogoutModalVisible(true)}
           activeOpacity={0.7}
           className='flex-row items-center justify-center border'
           style={{
@@ -408,6 +414,19 @@ export default function SettingsScreen() {
           </AppText>
         </TouchableOpacity>
       </ScrollView>
+      <CustomBottomSheet
+        visible={isLogoutModalVisible}
+        onDismiss={() => setIsLogoutModalVisible(false)}
+        title={strings.profile?.logout || 'Logout'}
+        message='Are you sure you want to log out?'
+        confirmText={strings.profile?.logout || 'Logout'}
+        cancelText='Cancel'
+        onConfirm={handleLogoutConfirm}
+        confirmButtonColor={colors.error}
+        showCancel={true}
+        showCloseIcon={true}
+        confirmTextColor={colors.white}
+      />
     </Screen>
   );
 }

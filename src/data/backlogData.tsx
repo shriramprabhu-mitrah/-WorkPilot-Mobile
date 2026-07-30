@@ -1,4 +1,3 @@
-import { LightColors } from '../constants/Colors';
 import { useTheme } from '../theme/ThemeProvider';
 
 export type IssueStatus = 'To Do' | 'In Progress' | 'Done';
@@ -31,7 +30,7 @@ export const backlogData: Sprint[] = [
     date: 'Jul 8 – Jul 22, 2025',
     issues: [
       {
-        id: '1',
+        id: 'SPR-1',
         title: 'OAuth token refresh failing after session timeout',
         type: 'Story',
         status: 'In Progress',
@@ -40,7 +39,7 @@ export const backlogData: Sprint[] = [
         assigneeColor: colors.primary,
       },
       {
-        id: '2',
+        id: 'SPR-2',
         title: 'Migrate auth service to new API',
         type: 'Task',
         status: 'In Progress',
@@ -49,7 +48,7 @@ export const backlogData: Sprint[] = [
         assigneeColor: colors.accentOrange,
       },
       {
-        id: '3',
+        id: 'SPR-3',
         title: 'Implement zero-downtime deployment',
         type: 'Story',
         status: 'To Do',
@@ -58,7 +57,7 @@ export const backlogData: Sprint[] = [
         assigneeColor: colors.success,
       },
       {
-        id: '4',
+        id: 'SPR-4',
         title: 'Fix memory leak in health check',
         type: 'Bug',
         status: 'To Do',
@@ -76,21 +75,21 @@ export const backlogData: Sprint[] = [
     date: 'Jul 22 – Aug 5, 2025',
     issues: [
       {
-        id: '5',
+        id: 'SPR-5',
         title: 'Add rate limiting to public API',
         type: 'Story',
         status: 'To Do',
         points: 8,
       },
       {
-        id: '6',
+        id: 'SPR-6',
         title: 'Configure Terraform modules',
         type: 'Task',
         status: 'To Do',
         points: 5,
       },
       {
-        id: '7',
+        id: 'SPR-7',
         title: 'Improve error messages for Auth',
         type: 'Story',
         status: 'To Do',
@@ -106,28 +105,28 @@ export const backlogData: Sprint[] = [
     date: '',
     issues: [
       {
-        id: '8',
+        id: 'SPR-8',
         title: 'Multi-region deployment support',
         type: 'Epic',
         status: 'To Do',
         points: 21,
       },
       {
-        id: '9',
+        id: 'SPR-9',
         title: 'Real-time collaboration',
         type: 'Story',
         status: 'To Do',
         points: 13,
       },
       {
-        id: '10',
+        id: 'SPR-10',
         title: 'Refactor legacy authentication',
         type: 'Task',
         status: 'To Do',
         points: 8,
       },
       {
-        id: '11',
+        id: 'SPR-11',
         title: 'Race condition in concurrent requests',
         type: 'Bug',
         status: 'To Do',

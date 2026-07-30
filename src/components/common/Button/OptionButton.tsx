@@ -57,7 +57,7 @@ const OptionButton = (props: OptionButtonProps) => {
           variant='body'
           className='font-bold'
           style={{
-            color: `${props.selected ? colors?.primary : colors?.black}`,
+            color: `${props.selected ? colors?.primary : colors?.text}`,
           }}
         >
           {props.title}

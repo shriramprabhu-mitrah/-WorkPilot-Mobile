@@ -69,23 +69,30 @@ export const teams = [
   { name: 'Platform', color: colors.accentOrange },
 ];
 
-export const quickLinks = [
+export type QuickLinks = {
+  label?: string;
+  iconName?: IoniconName;
+  color?: string;
+  navigateUrl?: undefined | string;
+};
+
+export const quickLinks: QuickLinks[] = [
   {
     label: strings.profile?.starredIssues || 'Starred issues',
     iconName: (profileIcons?.starred || 'star-outline') as IoniconName,
     color: colors.warning,
-    navigateUrl: undefined,
+    navigateUrl: 'HomeTabs',
   },
   {
     label: strings.profile?.myOpenIssues || 'My open issues',
     iconName: (profileIcons?.openIssues || 'checkbox-outline') as IoniconName,
     color: colors.primary,
-    navigateUrl: undefined,
+    navigateUrl: 'HomeTabs',
   },
   {
     label: strings.profile?.settings || 'Settings',
     iconName: (profileIcons?.settings || 'settings-outline') as IoniconName,
     color: colors.textSecondary,
-    navigateUrl: 'Settings' as const,
+    navigateUrl: 'Settings',
   },
 ];

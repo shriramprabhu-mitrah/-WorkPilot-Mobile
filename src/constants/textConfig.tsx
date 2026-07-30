@@ -38,9 +38,9 @@ const Strings = {
       number: 'One number',
       specialCharacter: 'One special character',
     },
-    termsPrefix: 'I agree to the',
-    customerAgreement: 'Atlassian Customer Agreement',
-    termsMiddle: 'and acknowledge the',
+    termsPrefix: 'By continuing to our',
+    customerAgreement: 'Terms',
+    termsMiddle: 'and',
     privacyPolicy: 'Privacy Policy',
     signUpButton: 'Sign up free',
     footerTitle: 'Already have an account?',
@@ -55,7 +55,7 @@ const Strings = {
       "Enter the mail address liked to your Attlassian account and we'll send you a reset link.",
     emailLabel: 'Email',
     emailPlaceholder: 'Enter your email',
-    sendButtonLabel: 'Send Reset Link',
+    sendOtpButton: 'Send OTP',
     footerTitle: 'Remember your password?',
     footerAction: 'Back to Log in',
     resetTitle: 'Check your email',
@@ -119,8 +119,6 @@ const Strings = {
   theme: {
     dark: 'Dark',
     light: 'Light',
-    system: 'System',
-    note: 'Note: System will take device theme',
   },
 
   profile: {
@@ -242,3 +240,5 @@ const Strings = {
 };
 
 export default Strings;
+
+export type StringsType = typeof Strings;

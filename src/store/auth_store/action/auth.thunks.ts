@@ -8,6 +8,8 @@ import {
   changePasswordService,
   passwordResetRequestService,
   passwordResetConfirmService,
+  emailVerificationService,
+  ResendEmailVerificationService,
 } from '../../../services/auth.service';
 
 import {
@@ -17,12 +19,16 @@ import {
   ChangePasswordPayload,
   PasswordResetRequestPayload,
   PasswordResetConfirmPayload,
+  EmailVerificationPayload,
+  ResendEmailVerificationPayload,
 } from '../../../types/auth.type';
 // import { storage } from '../../../storage/storage';
 import { clearStorage, mmkv } from '../..';
+import { handleLoading } from '../reducer/auth.reducer';
 
 interface SignInThunkPayload {
   payload: SignInPayload;
+  showSuccessToast: (message: string, type: string) => void;
 }
 
 export const signUpUser = createAsyncThunk(
@@ -39,16 +45,25 @@ export const signUpUser = createAsyncThunk(
 
 export const signInUser = createAsyncThunk(
   'auth/signInUser',
-  async ({ payload }: SignInThunkPayload, { rejectWithValue }) => {
+  async (
+    { payload, showSuccessToast }: SignInThunkPayload,
+    { dispatch, rejectWithValue },
+  ) => {
     try {
       const response = await signInService(payload);
       console.log('SignIn Response -------->', response);
-      if (response.message.includes('Successfully') && response.success) {
+      if (response?.success) {
+        showSuccessToast(response?.message || 'Login successfully', 'success');
         return response.data;
       }
-      return rejectWithValue('Login Failed');
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Login Failed');
+      showSuccessToast(
+        error.response?.data?.message || 'login failed',
+        'error',
+      );
+      return rejectWithValue(error?.response?.data);
+    } finally {
+      dispatch(handleLoading(false));
     }
   },
 );
@@ -61,13 +76,13 @@ export const refreshToken = createAsyncThunk(
         auth: AuthState;
       };
       const refreshToken = state.auth.tokens?.refreshToken;
-
+      const userid = state?.auth?.user?.id;
       if (!refreshToken) {
         return rejectWithValue('Refresh Token Missing');
       }
-
       const response = await refreshTokenService({
         refresh_token: refreshToken,
+        user_id: userid || '',
       });
       return response.data;
     } catch (error: any) {
@@ -80,15 +95,26 @@ export const refreshToken = createAsyncThunk(
 
 export const logoutUser = createAsyncThunk(
   'auth/logoutUser',
-  async (_, { rejectWithValue }) => {
+  async (
+    showSuccessToast: (message: string, type: string) => void,
+    { rejectWithValue },
+  ) => {
     try {
       const response = await logoutService();
       console.log('LoginoutResponse', response);
       if (response.message.includes('successfully') && response.success) {
         clearStorage();
+        showSuccessToast(
+          response.message || 'Loggedout successfully',
+          'success',
+        );
         return response;
       }
     } catch (error: any) {
+      showSuccessToast(
+        error.response?.data?.message || 'Loggedout successfully',
+        'error',
+      );
       return rejectWithValue(error.response?.data?.message || 'Logout Failed');
     }
   },
@@ -116,9 +142,9 @@ export const passwordResetRequest = createAsyncThunk(
       console.log('response for reset Password ---------- > 104', response);
       return response;
     } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message || 'Password Reset Request Failed',
-      );
+      console.log('LINE122', error);
+
+      return rejectWithValue(error.response || 'Password Reset Request Failed');
     }
   },
 );
@@ -150,6 +176,34 @@ export const checkAuthOnAppStart = createAsyncThunk(
       }
     } catch (error: any) {
       return rejectWithValue(error.message);
+    }
+  },
+);
+
+export const emailVerification = createAsyncThunk(
+  'auth/verify-email',
+  async (payload: EmailVerificationPayload, { rejectWithValue }) => {
+    try {
+      const response = await emailVerificationService(payload);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Password Reset Failed',
+      );
+    }
+  },
+);
+
+export const resendEmailVerification = createAsyncThunk(
+  'auth/verify-email',
+  async (payload: ResendEmailVerificationPayload, { rejectWithValue }) => {
+    try {
+      const response = await ResendEmailVerificationService(payload);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Password Reset Failed',
+      );
     }
   },
 );

@@ -19,6 +19,7 @@ import {
 } from '../../constants/apiServiceEndpoint';
 import { logout } from '../../store/auth_store/reducer/auth.reducer';
 import { API_URL } from '../../utils/utils';
+import reactotron from '../../config/ReactotronConfig';
 
 let baseURL = API_URL;
 const apiClient: AxiosInstance = axios.create({
@@ -33,59 +34,121 @@ const apiClient: AxiosInstance = axios.create({
 
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    reactotron.display({
+      name: 'API Request',
+      value: {
+        Method: config.method?.toUpperCase(),
+        URL: `${config.baseURL}${config.url}`,
+        Headers: config.headers,
+        Body: config.data,
+      },
+    });
+
     const publicRoutes = [
       SIGNIN,
       SIGNUP,
       PASSWORD_RESET_REQUEST,
       PASSWORD_RESET_CONFIRM,
+      REFRESH_TOKEN,
     ];
+
     const isPublicRoute = publicRoutes.some(route =>
       config.url?.includes(route),
     );
+
+    if (config.url?.includes(REFRESH_TOKEN)) {
+      const refreshToken = store.getState().auth?.tokens?.refreshToken;
+
+      if (refreshToken) {
+        config.headers.Authorization = `Bearer ${refreshToken}`;
+      }
+
+      return config;
+    }
+
     if (isPublicRoute) {
       return config;
     }
-    let token = store.getState().auth?.tokens?.accessToken;
-    if (config.url?.includes(REFRESH_TOKEN)) {
-      token = store.getState().auth?.tokens?.refreshToken;
+
+    const accessToken = store.getState().auth?.tokens?.accessToken;
+
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+
     return config;
   },
-  error => Promise.reject(error),
+  error => {
+    reactotron.display({
+      name: 'API Error',
+      value: error,
+    });
+    return Promise.reject(error);
+  },
 );
 
 apiClient.interceptors.response.use(
-  (response: AxiosResponse) => response,
-  async (error: any) => {
+  (response: AxiosResponse) => {
+    reactotron.display({
+      name: 'API Response',
+      value: {
+        URL: response.config.url,
+        Status: response.status,
+        Data: response.data,
+      },
+    });
+
+    return response;
+  },
+  async error => {
+    reactotron.display({
+      name: 'API Error',
+      value: {
+        URL: error.config?.url,
+        Status: error.response?.status,
+        Data: error.response?.data,
+      },
+    });
+
     const originalRequest = error.config;
+
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
     if (originalRequest?.url?.includes(REFRESH_TOKEN)) {
       store.dispatch(logout());
       return Promise.reject(error);
     }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+
       try {
         const refreshTokenValue = store.getState().auth?.tokens?.refreshToken;
+
         if (!refreshTokenValue) {
           store.dispatch(logout());
           return Promise.reject(error);
         }
+
         const result = await store.dispatch(refreshToken());
+
         if (refreshToken.fulfilled.match(result)) {
           const accessToken = store.getState().auth?.tokens?.accessToken;
+
           if (accessToken) {
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return apiClient(originalRequest);
           }
         }
+
         store.dispatch(logout());
-      } catch (err) {
+      } catch {
         store.dispatch(logout());
       }
     }
+
     return Promise.reject(error);
   },
 );

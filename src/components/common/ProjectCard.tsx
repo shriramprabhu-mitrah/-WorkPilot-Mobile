@@ -19,13 +19,13 @@ interface Props {
 const ProjectCard = ({ item, onPress }: Props) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
-  const { layout, moderateScale } = useAuthLayout();
+  const { layout, moderateScale, isSmallHeight } = useAuthLayout();
 
   const handlePress = () => {
     if (onPress) {
       onPress();
     } else {
-      navigation.navigate('projectDetails', { id: item.id });
+      navigation.navigate('projectDetails', { id: item.type });
     }
   };
 
@@ -38,8 +38,11 @@ const ProjectCard = ({ item, onPress }: Props) => {
         backgroundColor: colors.background,
         borderColor: colors.border,
         paddingHorizontal: layout.paddingHorizontal * 0.5,
-        paddingTop: layout.paddingTop * 2,
-        paddingBottom: layout.paddingBottom * 2,
+        // paddingTop: layout.paddingTop,
+        // paddingBottom: layout.paddingBottom,
+        paddingVertical: isSmallHeight
+          ? layout.largeSectionGap + 5
+          : layout.sectionGap + 2,
         borderRadius: Radius.sm,
       }}
     >

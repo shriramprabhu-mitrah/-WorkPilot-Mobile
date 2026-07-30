@@ -2,6 +2,7 @@ import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import authReducer from './auth_store/reducer/auth.reducer';
 import { createMMKV } from 'react-native-mmkv';
 import { persistStore, persistReducer } from 'redux-persist';
+import reactotron from '../config/ReactotronConfig';
 
 export const mmkv = createMMKV();
 
@@ -67,8 +68,16 @@ const persistedReducer = persistReducer(rootPersistConfig, rootReducer);
 export const store = configureStore({
   reducer: persistedReducer,
   middleware: getDefaultMiddleware =>
-    getDefaultMiddleware({ serializableCheck: false }),
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
   devTools: __DEV__,
+  enhancers: getDefaultEnhancers => {
+    if (__DEV__) {
+      return getDefaultEnhancers().concat(reactotron.createEnhancer());
+    }
+    return getDefaultEnhancers();
+  },
 });
 
 export const persistor = persistStore(store);

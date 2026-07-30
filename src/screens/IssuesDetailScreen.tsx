@@ -20,8 +20,8 @@ import {
   Comment,
 } from '../data/issuesDetailsScreenData';
 import Screen from '../components/common/ScreenWapper';
-import { moderateScale } from '../utils/responsive';
 import { Radius } from '../constants/Radius';
+import { AppInput } from '../components';
 
 const IssueDetailScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -29,7 +29,7 @@ const IssueDetailScreen = () => {
   const issueId = route.params?.id;
   const issue = myIssues.find((item: Issue) => item.id === issueId);
   const { colors } = useTheme();
-  const { layout } = useAuthLayout();
+  const { layout, isSmallHeight, hp } = useAuthLayout();
   const comments = useMemo(() => getComments(colors), [colors]);
   const details = useMemo(() => getDetails(colors), [colors]);
   const statusColors = useMemo(() => getStatusColors(colors), [colors]);
@@ -69,7 +69,8 @@ const IssueDetailScreen = () => {
           backgroundColor: colors.card || colors.surface,
           borderColor: colors.border,
           paddingHorizontal: layout.paddingHorizontal,
-          paddingVertical: layout.largeSectionGap,
+          paddingTop: layout.paddingTop,
+          paddingBottom: layout.paddingBottom,
         }}
       >
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -151,7 +152,7 @@ const IssueDetailScreen = () => {
                 backgroundColor: `${colors.primary}1A`,
                 borderColor: colors.border,
                 paddingHorizontal: layout.paddingHorizontal,
-                paddingVertical: layout.sectionGap,
+                paddingVertical: layout.elementGap,
                 gap: layout.tightGap,
               }}
             >
@@ -237,7 +238,9 @@ const IssueDetailScreen = () => {
               style={{
                 borderColor: colors.itemDivider || colors.border,
                 paddingHorizontal: layout.paddingHorizontal,
-                paddingVertical: layout.largeSectionGap,
+                paddingVertical: isSmallHeight
+                  ? layout.largeSectionGap
+                  : layout.sectionGap,
               }}
             >
               <AppText variant='body' color={colors.textSecondary}>
@@ -511,10 +514,11 @@ const IssueDetailScreen = () => {
         className='flex-row items-center border-t'
         style={{
           paddingHorizontal: layout.paddingHorizontal,
-          paddingVertical: layout.elementGap,
+          paddingTop: layout.paddingTop,
           borderColor: colors.border,
           gap: layout.largeSectionGap,
-          backgroundColor: colors.surface,
+          backgroundColor: colors.card,
+          paddingBottom: isSmallHeight ? hp(8.75) : hp(2),
         }}
       >
         <Avatar
@@ -522,39 +526,29 @@ const IssueDetailScreen = () => {
           initials='AJ'
           color={colors.avatarBg || colors.warning || colors.primary}
         />
-
-        <View
-          className='flex-1 flex-row items-center rounded-xl'
-          style={{
-            backgroundColor: colors.surface,
-            paddingHorizontal: layout.largeSectionGap,
-            height: moderateScale(42),
-          }}
-        >
-          <TextInput
+        <View className='flex-1'>
+          <AppInput
             value={comment}
             onChangeText={setComment}
             placeholder='Add a comment...'
-            placeholderTextColor={colors.placeholder}
-            className='flex-1'
             style={{
-              color: colors.text,
               fontSize: layout.bodyFontSize,
             }}
+            rightSendButton={
+              <TouchableOpacity
+                disabled={!comment.trim()}
+                onPress={handleSendComment}
+              >
+                <AppText
+                  variant='body'
+                  color={comment.trim() ? colors.primary : colors.secondary}
+                  className='font-bold'
+                >
+                  Send
+                </AppText>
+              </TouchableOpacity>
+            }
           />
-
-          <TouchableOpacity
-            disabled={!comment.trim()}
-            onPress={handleSendComment}
-          >
-            <AppText
-              variant='body'
-              color={comment.trim() ? colors.primary : colors.secondary}
-              className='font-bold'
-            >
-              Send
-            </AppText>
-          </TouchableOpacity>
         </View>
       </View>
     </Screen>

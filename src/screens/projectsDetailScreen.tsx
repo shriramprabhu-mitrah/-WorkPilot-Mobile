@@ -1,75 +1,42 @@
 import React from 'react';
 import { View, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
-
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import TaskCard from '../components/TaskCard';
-
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import {
-  review,
-  done,
-  todo,
-  progress,
-  recentProjects,
-} from '../data/projectDetailScreenData';
+import { getColumns, recentProjects } from '../data/projectDetailScreenData';
+import { Radius } from '../constants/Radius';
 
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+type ProjectDetailsRouteProp = RouteProp<RootStackParamList, 'projectDetails'>;
 
 const ProjectDeatailsScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const route = useRoute<any>();
+  const route = useRoute<ProjectDetailsRouteProp>();
   const { colors, strings } = useTheme();
-  const { layout, moderateScale } = useAuthLayout();
-
+  const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
   const projectId = route.params?.id;
-  const project = recentProjects.find(p => p.id === projectId);
-
-  // Column definitions using theme colors and fallback strings
-  const columns = [
-    {
-      title: strings.projectDetails?.toDo || 'TO DO',
-      color: colors.textSecondary,
-      tasks: todo,
-    },
-    {
-      title: strings.projectDetails?.inProgress || 'IN PROGRESS',
-      color: colors.primary,
-      tasks: progress,
-    },
-    {
-      title: strings.projectDetails?.inReview || 'IN REVIEW',
-      color: colors.accentPurple || '#6D5BD0',
-      tasks: review,
-    },
-    {
-      title: strings.projectDetails?.done || 'DONE',
-      color: colors.success,
-      tasks: done,
-    },
-  ];
-
+  const project = recentProjects.find(p => p.type === projectId);
+  const columns = getColumns(strings);
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: layout.largeSectionGap * 2 }}
+        contentContainerStyle={{
+          paddingBottom: isSmallHeight ? hp(20) : hp(12),
+        }}
       >
-        {/* Header Banner */}
         <View
           style={{
             backgroundColor: project?.color || colors.primary,
             paddingHorizontal: layout.paddingHorizontal,
-            paddingTop: layout.paddingTop,
-            paddingBottom: layout.sectionGap,
+            paddingVertical: layout.elementGap,
           }}
         >
-          {/* Top Bar Actions */}
           <View className='flex-row items-center justify-between'>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -77,16 +44,22 @@ const ProjectDeatailsScreen = () => {
                 navigation.navigate('HomeTabs', { screen: 'Projects' })
               }
             >
-              <Ionicons name='arrow-back' size={22} color={colors.white} />
+              <Ionicons
+                name='arrow-back'
+                size={layout.iconSize * 1.25}
+                color={colors.white}
+              />
             </TouchableOpacity>
 
-            <View className='flex-row gap-3'>
+            <View className='flex-row' style={{ gap: layout.sectionGap }}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                className='items-center justify-center rounded-full bg-white/20'
+                className='items-center justify-center'
                 style={{
-                  width: moderateScale(36),
-                  height: moderateScale(36),
+                  borderRadius: Radius.circle,
+                  backgroundColor: `${colors.white}2A`,
+                  width: layout.iconSize * 2,
+                  height: layout.iconSize * 2,
                 }}
               >
                 <Ionicons
@@ -95,13 +68,14 @@ const ProjectDeatailsScreen = () => {
                   color={colors.white}
                 />
               </TouchableOpacity>
-
               <TouchableOpacity
                 activeOpacity={0.8}
-                className='items-center justify-center rounded-full bg-white/20'
+                className='items-center justify-center'
                 style={{
-                  width: moderateScale(36),
-                  height: moderateScale(36),
+                  borderRadius: Radius.circle,
+                  backgroundColor: `${colors.white}2A`,
+                  width: layout.iconSize * 2,
+                  height: layout.iconSize * 2,
                 }}
               >
                 <Ionicons
@@ -112,40 +86,38 @@ const ProjectDeatailsScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Project Details */}
-          <View style={{ marginTop: layout.elementGap }}>
-            <AppText variant='h2' color={colors.white}>
+          <View style={{ gap: layout.tightGap }}>
+            <AppText variant='title' color={colors.white} className='font-bold'>
               {project?.name ||
                 strings.projectDetails?.defaultTitle ||
                 'Project'}
             </AppText>
-
             <AppText
               variant='body'
-              color={colors.textOnPrimary}
-              style={{ marginTop: layout.tightGap / 2 }}
+              color={colors.white}
+              className='font-semibold'
             >
               {project?.type || 'Software project'} ·{' '}
               {strings.projectDetails?.softwareType || 'Software project'}
             </AppText>
-
-            {/* Sprint Tag */}
             <View
-              className='flex-row items-center self-start rounded-full bg-white/20'
+              className='flex-row items-center self-start'
               style={{
-                paddingHorizontal: layout.paddingHorizontal / 1.5,
-                paddingVertical: layout.tightGap,
-                marginTop: layout.elementGap,
+                marginVertical: layout.sectionGap,
+                borderRadius: Radius.circle,
+                backgroundColor: `${colors.white}2A`,
+                paddingHorizontal: layout.paddingHorizontal * 0.5,
+                paddingTop: layout.paddingTop * 0.5,
+                paddingBottom: layout.paddingBottom * 0.5,
+                gap: layout.elementGap,
               }}
             >
               <View
-                className='rounded-full'
                 style={{
+                  borderRadius: Radius.circle,
                   width: moderateScale(8),
                   height: moderateScale(8),
                   backgroundColor: colors.success,
-                  marginRight: layout.tightGap,
                 }}
               />
               <AppText
@@ -159,8 +131,6 @@ const ProjectDeatailsScreen = () => {
             </View>
           </View>
         </View>
-
-        {/* Tab Switcher */}
         <View
           className='flex-row border-b'
           style={{
@@ -170,25 +140,30 @@ const ProjectDeatailsScreen = () => {
         >
           <TouchableOpacity
             activeOpacity={0.7}
-            className='flex-1 border-b-2 py-3'
-            style={{ borderColor: colors.primary }}
+            className='flex-1 border-b-2'
+            style={{
+              borderColor: colors.primary,
+              paddingVertical: layout.elementGap,
+            }}
           >
             <AppText
-              variant='bodyLarge'
+              variant='body'
               color={colors.primary}
               className='text-center font-bold'
             >
               {strings.projectDetails?.boardTab || 'Board'}
             </AppText>
           </TouchableOpacity>
-
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => navigation.navigate('BackLogs')}
-            className='flex-1 py-3'
+            className='flex-1'
+            style={{
+              paddingVertical: layout.elementGap,
+            }}
           >
             <AppText
-              variant='bodyLarge'
+              variant='body'
               color={colors.textSecondary}
               className='text-center font-semibold'
             >
@@ -196,14 +171,12 @@ const ProjectDeatailsScreen = () => {
             </AppText>
           </TouchableOpacity>
         </View>
-
-        {/* Kanban Board Columns */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
-            paddingTop: layout.elementGap,
+            paddingTop: layout.tightGap,
           }}
         >
           {columns.map(column => (
@@ -211,19 +184,28 @@ const ProjectDeatailsScreen = () => {
               key={column.title}
               style={{
                 width: moderateScale(280),
-                marginRight: layout.elementGap,
+                paddingRight: layout.elementGap,
+                gap: layout.tightGap,
               }}
             >
-              {/* Column Header */}
-              <View className='mb-3 flex-row items-center justify-between'>
-                <View className='flex-row items-center'>
+              <View
+                className='flex-row items-center justify-between'
+                style={{
+                  paddingHorizontal: layout.paddingHorizontal * 0.25,
+                  paddingTop: layout.paddingTop,
+                  paddingBottom: layout.paddingBottom,
+                }}
+              >
+                <View
+                  className='flex-row items-center'
+                  style={{ gap: layout.sectionGap }}
+                >
                   <View
-                    className='rounded-full'
                     style={{
+                      borderRadius: Radius.circle,
                       width: moderateScale(10),
                       height: moderateScale(10),
                       backgroundColor: column.color,
-                      marginRight: layout.tightGap,
                     }}
                   />
                   <AppText
@@ -233,12 +215,11 @@ const ProjectDeatailsScreen = () => {
                   >
                     {column.title}
                   </AppText>
-
                   <View
-                    className='rounded-full px-2 py-0.5'
                     style={{
-                      backgroundColor: colors.surface,
-                      marginLeft: layout.tightGap,
+                      backgroundColor: colors.border,
+                      paddingHorizontal: layout.paddingHorizontal * 0.25,
+                      borderRadius: Radius.circle,
                     }}
                   >
                     <AppText variant='caption' color={colors.textSecondary}>
@@ -246,33 +227,33 @@ const ProjectDeatailsScreen = () => {
                     </AppText>
                   </View>
                 </View>
-
                 <TouchableOpacity activeOpacity={0.7}>
                   <Ionicons name='add' size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-
-              {/* Task Cards */}
-              {column.tasks.map(item => (
-                <TaskCard key={item.id} item={item} />
-              ))}
-
-              {/* Add Issue Button for TO DO */}
-              {column.title === (strings.projectDetails?.toDo || 'TO DO') && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => navigation.navigate('newIssues')}
-                  className='mt-2 items-center justify-center rounded-lg border-2 border-dashed py-3'
-                  style={{
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <AppText variant='body' color={colors.textSecondary}>
-                    + {strings.projectDetails?.addIssue || 'Add issue'}
-                  </AppText>
-                </TouchableOpacity>
-              )}
+              <View style={{ gap: layout.elementGap }}>
+                {column.tasks.map(item => (
+                  <TaskCard key={item.id} item={item} />
+                ))}
+                {column.title === (strings.projectDetails?.toDo || 'TO DO') && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate('newIssues')}
+                    className='items-center justify-center border-2 border-dashed'
+                    style={{
+                      borderRadius: Radius.sm,
+                      paddingTop: layout.paddingTop,
+                      paddingBottom: layout.paddingBottom,
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    <AppText variant='body' color={colors.textSecondary}>
+                      + {strings.projectDetails?.addIssue || 'Add issue'}
+                    </AppText>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           ))}
         </ScrollView>

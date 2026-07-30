@@ -1,34 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { StackNavigationProp } from '@react-navigation/stack';
-
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
+import CustomBottomSheet from '../components/common/CustomBottomDialog';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
+  QuickLinks,
   quickLinks,
   recentActivity,
   stats,
   teams,
 } from '../data/profileScreenData';
-import { useAppDispatch } from '../store';
+import { clearStorage, useAppDispatch } from '../store';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
+import { showSuccessToast } from '../utils/utils';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
-  const { layout, moderateScale } = useAuthLayout();
+  const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
   const dispatch = useAppDispatch();
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const profileIcons = strings.profile?.icons;
-  const onLogout = () => {
-    dispatch(logoutUser());
+  const handleLogoutConfirm = () => {
+    dispatch(logoutUser(showSuccessToast));
   };
+
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <View
@@ -61,6 +65,7 @@ const ProfileScreen = () => {
             />
           </TouchableOpacity>
         </View>
+        {/* User Info Section */}
         <View className='flex-row items-end gap-4'>
           <View className='relative'>
             <View
@@ -96,7 +101,7 @@ const ProfileScreen = () => {
             <AppText variant='h3' color={colors.white}>
               Alex Johnson
             </AppText>
-            <AppText variant='body' color={colors.textOnPrimarySubtle}>
+            <AppText variant='body' color={colors.textOnPrimaryMuted}>
               {strings.profile?.role || 'Senior Software Engineer'}
             </AppText>
             <AppText variant='caption' color={colors.textOnPrimarySubtle}>
@@ -107,11 +112,12 @@ const ProfileScreen = () => {
       </View>
       <ScrollView
         contentContainerStyle={{
-          paddingBottom: layout.largeSectionGap * 2,
+          paddingBottom: isSmallHeight ? hp(20) : hp(12),
           flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Stats Section */}
         <View
           style={{
             marginTop: layout.sectionGap,
@@ -208,6 +214,7 @@ const ProfileScreen = () => {
               </AppText>
             </TouchableOpacity>
           </View>
+
           <View
             className='rounded-xl border'
             style={{
@@ -218,9 +225,6 @@ const ProfileScreen = () => {
             {recentActivity.map((item, index) => (
               <TouchableOpacity
                 key={item.id}
-                onPress={() =>
-                  navigation.navigate('issue', { id: item.target })
-                }
                 activeOpacity={0.7}
                 className={`flex-row items-start px-4 py-3 ${
                   index !== recentActivity.length - 1 ? 'border-b' : ''
@@ -277,7 +281,7 @@ const ProfileScreen = () => {
               borderColor: colors.border,
             }}
           >
-            {quickLinks.map((item, index) => (
+            {quickLinks.map((item: QuickLinks, index: number) => (
               <TouchableOpacity
                 key={item.label}
                 activeOpacity={0.7}
@@ -289,12 +293,15 @@ const ProfileScreen = () => {
                 }}
                 onPress={() => {
                   if (item.navigateUrl) {
-                    navigation.navigate(item.navigateUrl);
+                    navigation.navigate(item.navigateUrl as any);
                   }
                 }}
               >
-                <Ionicons name={item.iconName} size={20} color={item.color} />
-
+                <Ionicons
+                  name={item.iconName as IoniconName}
+                  size={20}
+                  color={item.color}
+                />
                 <AppText
                   variant='body'
                   color={colors.text}
@@ -314,11 +321,11 @@ const ProfileScreen = () => {
             ))}
           </View>
         </View>
+        {/* Logout Button */}
         <View style={{ paddingHorizontal: layout.paddingHorizontal }}>
           <TouchableOpacity
             activeOpacity={0.8}
-            // onPress={() => navigation.navigate('login')}
-            onPress={onLogout}
+            onPress={() => setIsLogoutModalVisible(true)}
             className='flex-row items-center justify-center gap-2 rounded-xl border-2 py-3'
             style={{
               borderColor: colors.error,
@@ -339,6 +346,21 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Logout Bottom Sheet Dialog */}
+      <CustomBottomSheet
+        visible={isLogoutModalVisible}
+        onDismiss={() => setIsLogoutModalVisible(false)}
+        title={strings.profile?.logout || 'Logout'}
+        message='Are you sure you want to log out?'
+        confirmText={strings.profile?.logout || 'Logout'}
+        cancelText='Cancel'
+        onConfirm={handleLogoutConfirm}
+        confirmButtonColor={colors.error}
+        showCancel={true}
+        showCloseIcon={true}
+        confirmTextColor={colors.white}
+      />
     </Screen>
   );
 };

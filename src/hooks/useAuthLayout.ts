@@ -47,6 +47,7 @@ export const useAuthLayout = (overrides?: LayoutOverrides) => {
 
       // Standard Flexible Gaps
       tightGap: verticalScale(2),
+      mediumGap: verticalScale(4),
       elementGap: isSmallHeight
         ? verticalScale(8)
         : isLargeHeight

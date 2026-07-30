@@ -43,7 +43,7 @@ const AppText = ({
           lineHeight: typography.lineHeight
             ? moderateScale(typography.lineHeight)
             : undefined,
-          color: color || colors.text,
+          color: color || colors?.text,
         },
         style,
       ]}
