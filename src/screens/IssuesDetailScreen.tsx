@@ -1,6 +1,14 @@
-import React, { useMemo, useState } from 'react';
-import { View, TouchableOpacity, ScrollView, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -15,24 +23,33 @@ import {
   subtasks,
   statusOptions,
   getStatusColors,
-  myIssues,
+  getMyIssues,
   Issue,
   Comment,
 } from '../data/issuesDetailsScreenData';
 import Screen from '../components/common/ScreenWapper';
 import { Radius } from '../constants/Radius';
-import { AppInput } from '../components';
+import { AppInput, PrimaryButton } from '../components';
+import { useAppDispatch, useAppSelector } from '../store';
+import {
+  setDescription,
+  setIsEditingDescription,
+} from '../store/user_store/reducer/user.reducer';
+import { moderateScale } from '../utils/responsive';
 
 const IssueDetailScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<any>();
   const issueId = route.params?.id;
-  const issue = myIssues.find((item: Issue) => item.id === issueId);
   const { colors } = useTheme();
+  const myIssues = getMyIssues(colors);
+  const issue = myIssues.find((item: Issue) => item.id === issueId);
   const { layout, isSmallHeight, hp } = useAuthLayout();
+
   const comments = useMemo(() => getComments(colors), [colors]);
   const details = useMemo(() => getDetails(colors), [colors]);
   const statusColors = useMemo(() => getStatusColors(colors), [colors]);
+
   const [comment, setComment] = useState<string>('');
   const [status, setStatus] = useState(issue?.status);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
@@ -40,6 +57,43 @@ const IssueDetailScreen = () => {
     'CLOUD-330a': true,
   });
   const [localComments, setLocalComments] = useState<Comment[]>(comments);
+
+  // Redux state & dispatch
+  const dispatch = useAppDispatch();
+  const { description, isEditingDescription } = useAppSelector(
+    (state: any) => state.user,
+  );
+
+  // Local draft state for modal editing
+  const [draftDescription, setDraftDescription] = useState<string>('');
+
+  // Sync Redux description with issue fallback on mount
+  useEffect(() => {
+    if (!description && issue?.description) {
+      dispatch(setDescription(issue.description));
+    }
+  }, [issue?.description, description, dispatch]);
+
+  // Sync draft text whenever modal opens
+  useEffect(() => {
+    if (isEditingDescription) {
+      setDraftDescription(description || issue?.description || '');
+    }
+  }, [isEditingDescription, description, issue?.description]);
+
+  const handleOpenEditModal = () => {
+    dispatch(setIsEditingDescription(true));
+  };
+
+  const handleCloseEditModal = () => {
+    dispatch(setIsEditingDescription(false));
+  };
+
+  const handleSaveDescription = () => {
+    dispatch(setDescription(draftDescription));
+    dispatch(setIsEditingDescription(false));
+  };
+
   const handleSendComment = () => {
     if (!comment.trim()) return;
     const newComment = {
@@ -53,6 +107,7 @@ const IssueDetailScreen = () => {
     setLocalComments((prev: Comment[]) => [...prev, newComment]);
     setComment('');
   };
+
   const completedCount = subtasks.filter(item => {
     return subtaskDone[item.id] !== undefined
       ? subtaskDone[item.id]
@@ -60,9 +115,21 @@ const IssueDetailScreen = () => {
   }).length;
 
   const totalCount = subtasks.length;
+  const allSelected = subtasks.every(
+    item => (subtaskDone[item.id] ?? item.done) === true,
+  );
+
+  const handleSelectAll = () => {
+    const updatedState: Record<string, boolean> = {};
+    subtasks.forEach(item => {
+      updatedState[item.id] = !allSelected;
+    });
+    setSubtaskDone(updatedState);
+  };
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
+      {/* Header */}
       <View
         className='flex-row items-center justify-between border-b'
         style={{
@@ -100,7 +167,9 @@ const IssueDetailScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
+
       <ScrollView className='flex-1' showsVerticalScrollIndicator={false}>
+        {/* Issue Title & Status Section */}
         <View
           className='border-b'
           style={{
@@ -143,6 +212,7 @@ const IssueDetailScreen = () => {
           <AppText variant='title' color={colors.text} className='font-bold'>
             {issue?.title}
           </AppText>
+
           <View>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -169,6 +239,7 @@ const IssueDetailScreen = () => {
                 color={colors.info}
               />
             </TouchableOpacity>
+
             {showStatusPicker && (
               <View
                 className='absolute left-0 top-14 border'
@@ -227,6 +298,8 @@ const IssueDetailScreen = () => {
             )}
           </View>
         </View>
+
+        {/* Issue Details List */}
         <View
           className='mt-3'
           style={{ backgroundColor: colors.card || colors.surface }}
@@ -285,6 +358,8 @@ const IssueDetailScreen = () => {
             </View>
           ))}
         </View>
+
+        {/* Description Section */}
         <View
           className='mt-3'
           style={{
@@ -302,7 +377,7 @@ const IssueDetailScreen = () => {
             >
               Description
             </AppText>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={handleOpenEditModal}>
               <Ionicons
                 name='pencil-sharp'
                 size={layout.iconSize * 0.8}
@@ -310,20 +385,13 @@ const IssueDetailScreen = () => {
               />
             </TouchableOpacity>
           </View>
+
           <AppText variant='body' color={colors.text} className='leading-6'>
-            iOS clients using the Jira API are experiencing intermittent
-            authentication failures after token expiry. The refresh token
-            mechanism is not triggering correctly, causing users to be logged
-            out unexpectedly.
-          </AppText>
-          <AppText variant='body' color={colors.text} className='leading-6'>
-            <AppText variant='body' color={colors.text} className='font-bold'>
-              Steps to reproduce :{' '}
-            </AppText>
-            Login on iOS → Wait 15 minutes → Perform any API request → A 401
-            Unauthorized error appears despite a valid refresh token.
+            {description || issue?.description}
           </AppText>
         </View>
+
+        {/* Child Story / Subtasks */}
         <View
           className='mt-3'
           style={{
@@ -340,20 +408,28 @@ const IssueDetailScreen = () => {
               paddingBottom: layout.paddingBottom,
             }}
           >
-            <View
+            <TouchableOpacity
               className='flex-row items-center'
-              style={{ gap: layout.sectionGap }}
+              style={{
+                gap: isSmallHeight
+                  ? layout.largeSectionGap + 3
+                  : layout.sectionGap - 2,
+              }}
+              onPress={handleSelectAll}
             >
               <Ionicons
-                name='checkbox-outline'
+                name={allSelected ? 'checkbox' : 'checkbox-outline'}
                 size={layout.iconSize}
-                color={colors.placeholder}
+                color={allSelected ? colors.success : colors.placeholder}
               />
-
-              <AppText variant='body' className='font-bold' color={colors.text}>
-                Child issues
+              <AppText
+                variant='body'
+                className='font-semibold'
+                color={colors.text}
+              >
+                Child Story
               </AppText>
-            </View>
+            </TouchableOpacity>
 
             <AppText variant='body' color={colors.textSecondary}>
               {completedCount}/{totalCount}
@@ -389,6 +465,8 @@ const IssueDetailScreen = () => {
             );
           })}
         </View>
+
+        {/* Attachments */}
         <View
           className='mt-3'
           style={{
@@ -510,6 +588,8 @@ const IssueDetailScreen = () => {
           ))}
         </View>
       </ScrollView>
+
+      {/* Add Comment Input */}
       <View
         className='flex-row items-center border-t'
         style={{
@@ -531,9 +611,7 @@ const IssueDetailScreen = () => {
             value={comment}
             onChangeText={setComment}
             placeholder='Add a comment...'
-            style={{
-              fontSize: layout.bodyFontSize,
-            }}
+            style={{ fontSize: layout.bodyFontSize }}
             rightSendButton={
               <TouchableOpacity
                 disabled={!comment.trim()}
@@ -551,6 +629,78 @@ const IssueDetailScreen = () => {
           />
         </View>
       </View>
+      <Modal
+        visible={isEditingDescription}
+        animationType='fade'
+        transparent
+        onRequestClose={handleCloseEditModal}
+        style={{ padding: moderateScale(10) }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          className='flex-1 justify-center'
+        >
+          <TouchableWithoutFeedback onPress={handleCloseEditModal}>
+            <View
+              className='absolute inset-0'
+              style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
+            />
+          </TouchableWithoutFeedback>
+          <View
+            className='w-11/12 max-w-md rounded-2xl border shadow-2xl'
+            style={{
+              backgroundColor: colors.card || colors.surface,
+              borderColor: colors.border,
+              padding: layout.paddingHorizontal,
+              gap: layout.sectionGap,
+            }}
+          >
+            <View className='flex-row items-center justify-between'>
+              <AppText
+                variant='bodyLarge'
+                color={colors.text}
+                className='font-bold'
+              >
+                Edit Description
+              </AppText>
+              <TouchableOpacity onPress={handleCloseEditModal}>
+                <Ionicons
+                  name='close'
+                  size={layout.iconSize}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+            <AppInput
+              value={draftDescription}
+              onChangeText={setDraftDescription}
+              multiline
+              placeholder='Enter issue description...'
+              style={{ minHeight: 120, textAlignVertical: 'top' }}
+            />
+            <View
+              className='flex-row items-center justify-end'
+              style={{ gap: layout.elementGap }}
+            >
+              <TouchableOpacity
+                onPress={handleCloseEditModal}
+                className='rounded-lg border px-4 py-2'
+                style={{ borderColor: colors.border }}
+              >
+                <AppText variant='body' color={colors.textSecondary}>
+                  Cancel
+                </AppText>
+              </TouchableOpacity>
+
+              <PrimaryButton
+                title='Update'
+                className='px-5 py-2'
+                onPress={handleSaveDescription}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Screen>
   );
 };

@@ -3,7 +3,6 @@ import { View, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { StackNavigationProp } from '@react-navigation/stack';
-
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import { RootStackParamList } from '../types/navigationTypes';
@@ -11,13 +10,13 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
   getPriorityColor,
-  getStatusStyle,
+  getStatusBgStyle,
+  getStatusTextStyle,
   getTypeIcon,
   myIssues,
-  recentProjects,
+  getRecentProjects,
   starredIssues,
 } from '../data/homeScreenData';
-import { Radius } from '../constants/Radius';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -26,7 +25,7 @@ const HomeScreen = () => {
   const { colors, strings } = useTheme();
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
   const homeIcons = strings.home?.icons;
-
+  const recentProjects = getRecentProjects(colors);
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <View
@@ -65,9 +64,9 @@ const HomeScreen = () => {
             </View>
           </View>
           <View className='flex-row items-center gap-2'>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('Projects')}
+              onPress={() => navigation.navigate('newIssues')}
               className='items-center justify-center rounded-full bg-white/20'
               style={{
                 width: moderateScale(36),
@@ -79,7 +78,7 @@ const HomeScreen = () => {
                 size={20}
                 color='#FFFFFF'
               />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => navigation.navigate('Inbox')}
@@ -161,7 +160,7 @@ const HomeScreen = () => {
               </AppText>
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate('Projects')}
+                onPress={() => navigation.navigate('Project')}
               >
                 <AppText
                   variant='body'
@@ -178,7 +177,7 @@ const HomeScreen = () => {
                   key={item.id}
                   activeOpacity={0.8}
                   onPress={() =>
-                    navigation.navigate('projectDetails', { id: item.id })
+                    navigation.navigate('projectDetails', { id: item.key })
                   }
                   style={{
                     width: '48.5%',
@@ -243,8 +242,7 @@ const HomeScreen = () => {
             </View>
             <View>
               {myIssues.map(issue => {
-                const type = getTypeIcon(issue.type);
-                const statusStyle = getStatusStyle(issue.status);
+                const type = getTypeIcon(issue.type, colors);
                 return (
                   <TouchableOpacity
                     key={issue.id}
@@ -280,7 +278,10 @@ const HomeScreen = () => {
                         style={{
                           width: moderateScale(8),
                           height: moderateScale(8),
-                          backgroundColor: getPriorityColor(issue.priority),
+                          backgroundColor: getPriorityColor(
+                            issue.priority,
+                            colors,
+                          ),
                         }}
                       />
                     </View>
@@ -310,11 +311,21 @@ const HomeScreen = () => {
                         />
                         <View
                           className='rounded-full px-2 py-0.5'
-                          style={{ backgroundColor: statusStyle.bg }}
+                          style={{
+                            backgroundColor:
+                              issue.status === 'To Do'
+                                ? colors.surface
+                                : getStatusBgStyle(issue.status, colors),
+                          }}
                         >
                           <AppText
                             variant='caption'
-                            style={{ color: statusStyle.text }}
+                            style={{
+                              color:
+                                issue.status === 'To Do'
+                                  ? colors.textSecondary
+                                  : getStatusTextStyle(issue.status, colors),
+                            }}
                             className='text-[11px] font-medium'
                           >
                             {issue.status}

@@ -1,8 +1,6 @@
-import { useTheme } from '../theme/ThemeProvider';
+import { ThemeColors } from '../constants/Colors';
 
 export type IssueStatus = 'To Do' | 'In Progress' | 'Done';
-
-const { colors } = useTheme();
 
 export interface Issue {
   id: string;
@@ -22,7 +20,7 @@ export interface Sprint {
   issues: Issue[];
 }
 
-export const backlogData: Sprint[] = [
+export const getBacklogData = (colors: ThemeColors): Sprint[] => [
   {
     id: '1',
     title: 'Sprint 14',

@@ -1,8 +1,6 @@
-import { useTheme } from '../theme/ThemeProvider';
+import { ThemeColors } from '../constants/Colors';
 
-const { colors } = useTheme();
-
-export const recentProjects = [
+export const getRecentProjects = (colors: ThemeColors) => [
   {
     id: '1',
     key: 'CLOUD',
@@ -32,7 +30,6 @@ export const recentProjects = [
     avatar: 'DS',
   },
 ];
-
 export const myIssues = [
   {
     id: 'CLOUD-341',
@@ -73,7 +70,7 @@ export const starredIssues = [
   { id: 'MOB-100', label: 'MOB-100 · Offline mode support', tag: 'Story' },
 ];
 
-export const getTypeIcon = (type: string) => {
+export const getTypeIcon = (type: string, colors: ThemeColors) => {
   switch (type) {
     case 'bug':
       return { icon: 'B', color: colors.error };
@@ -86,7 +83,7 @@ export const getTypeIcon = (type: string) => {
   }
 };
 
-export const getPriorityColor = (priority: string) => {
+export const getPriorityColor = (priority: string, colors: ThemeColors) => {
   switch (priority) {
     case 'high':
       return colors.error;
@@ -99,27 +96,20 @@ export const getPriorityColor = (priority: string) => {
   }
 };
 
-export const getStatusStyle = (status: string) => {
-  switch (status) {
-    case 'In Progress':
-      return {
-        bg: `${colors.info}20`,
-        text: colors.info,
-      };
-    case 'In Review':
-      return {
-        bg: `${colors.accentPurple}20`,
-        text: colors.accentPurple,
-      };
-    case 'To Do':
-      return {
-        bg: colors.surface,
-        text: colors.textSecondary,
-      };
-    default:
-      return {
-        bg: colors.surface,
-        text: colors.textSecondary,
-      };
-  }
-};
+export const getStatusBgStyle = (status: string, colors: ThemeColors) =>
+  status === 'In Progress'
+    ? `${colors.info}20`
+    : status === 'In Review'
+      ? `${colors.accentPurple}20`
+      : status === 'To Do'
+        ? colors.surface
+        : `${colors.success}20`;
+
+export const getStatusTextStyle = (status: string, colors: ThemeColors) =>
+  status === 'In Progress'
+    ? colors.info
+    : status === 'In Review'
+      ? colors.accentPurple
+      : status === 'To Do'
+        ? colors.textSecondary
+        : colors.success;

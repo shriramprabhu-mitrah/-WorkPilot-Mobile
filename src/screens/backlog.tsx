@@ -6,7 +6,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import SprintSection from '../components/sprint';
-import { backlogData } from '../data/backlogData';
+import { getBacklogData } from '../data/backlogData';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
@@ -15,7 +15,7 @@ const Backlog = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
   const { layout, isSmallHeight, hp } = useAuthLayout();
-
+  const backlogData = getBacklogData(colors);
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <View

@@ -13,20 +13,16 @@ import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import OptionButton from '../components/common/Button/OptionButton';
 import PriorityButton from '../components/common/Button/PriorityButton';
-import NumberButton from '../components/common/Button/NumberButton';
+// import NumberButton from '../components/common/Button/NumberButton';
 import AssigneeButton from '../components/common/Button/AssigneButton';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
-  assignees,
+  getCreateIssueData,
   IssueTypeItem,
-  issueTypes,
-  priorities,
   PriorityItem,
   ProjectItem,
-  projects,
-  storyPoints,
 } from '../data/addNewIssuesData';
 import { Radius } from '../constants/Radius';
 
@@ -35,13 +31,14 @@ const AddNewIssues = () => {
   const [issueType, setIssueType] = useState('Story');
   const [priority, setPriority] = useState<string>('Medium');
   const [assignee, setAssignee] = useState('Unassigned');
-  const [storyPoint, setStoryPoint] = useState('3');
+  const [storyPoint, setStoryPoint] = useState('');
   const [summary, setSummary] = useState('');
   const [description, setDescription] = useState('');
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
-
+  const { projects, issueTypes, priorities, assignees } =
+    getCreateIssueData(colors);
   const handleCreate = () => {
     navigation.navigate('projectDetails', { id: project });
   };
@@ -64,7 +61,7 @@ const AddNewIssues = () => {
           <Ionicons name='close' size={24} color={colors.text} />
         </TouchableOpacity>
         <AppText variant='title' color={colors.text} className='font-bold'>
-          {strings.createIssue?.title || 'Create issue'}
+          {strings.createIssue?.title || 'Create story'}
         </AppText>
         <TouchableOpacity activeOpacity={0.7} onPress={handleCreate}>
           <AppText
@@ -262,7 +259,7 @@ const AddNewIssues = () => {
           >
             {strings.createIssue?.storyPointsLabel || 'Story points'}
           </AppText>
-          <View className='flex-row flex-wrap'>
+          {/* <View className='flex-row flex-wrap'>
             {storyPoints.map((item: string) => (
               <NumberButton
                 key={item}
@@ -271,7 +268,22 @@ const AddNewIssues = () => {
                 onPress={() => setStoryPoint(item)}
               />
             ))}
-          </View>
+          </View> */}
+          <TextInput
+            value={storyPoint}
+            onChangeText={setStoryPoint}
+            placeholder={'Give story point ...'}
+            placeholderTextColor={colors.placeholder}
+            className='border'
+            style={{
+              borderRadius: Radius.xs,
+              paddingHorizontal: layout.paddingHorizontal * 0.5,
+              marginTop: layout.tightGap,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              color: colors.text,
+            }}
+          />
         </View>
         <TouchableOpacity
           activeOpacity={0.7}

@@ -9,7 +9,7 @@ import TaskCard from '../components/TaskCard';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { getColumns, recentProjects } from '../data/projectDetailScreenData';
+import { getColumns, getRecentProjects } from '../data/projectDetailScreenData';
 import { Radius } from '../constants/Radius';
 
 type ProjectDetailsRouteProp = RouteProp<RootStackParamList, 'projectDetails'>;
@@ -20,8 +20,9 @@ const ProjectDeatailsScreen = () => {
   const { colors, strings } = useTheme();
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
   const projectId = route.params?.id;
+  const recentProjects = getRecentProjects(colors);
   const project = recentProjects.find(p => p.type === projectId);
-  const columns = getColumns(strings);
+  const columns = getColumns(strings, colors);
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <ScrollView
@@ -41,7 +42,7 @@ const ProjectDeatailsScreen = () => {
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() =>
-                navigation.navigate('HomeTabs', { screen: 'Projects' })
+                navigation.navigate('HomeTabs', { screen: 'Project' })
               }
             >
               <Ionicons

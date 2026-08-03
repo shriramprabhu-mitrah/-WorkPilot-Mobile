@@ -1,3 +1,5 @@
+import { ThemeColors } from './Colors';
+
 export const FILTERS = ['All', 'Issues', 'Projects', 'Boards', 'People'];
 
 export const RECENT_SEARCHES = [
@@ -7,7 +9,7 @@ export const RECENT_SEARCHES = [
   'mobile push notifications',
 ];
 
-export const getTrendingData = (colors: any) => [
+export const getTrendingData = (colors: ThemeColors) => [
   {
     id: 'CLOUD-330',
     letter: 'B',
@@ -34,7 +36,7 @@ export const getTrendingData = (colors: any) => [
   },
 ];
 
-export const getSearchResultsData = (colors: any) => [
+export const getSearchResultsData = (colors: ThemeColors) => [
   {
     id: 'CLOUD-330',
     letter: 'B',

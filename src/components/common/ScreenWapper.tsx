@@ -27,15 +27,17 @@ const Screen = ({
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
         {scroll ? (
           <ScrollView
             keyboardShouldPersistTaps='handled'
             showsVerticalScrollIndicator={false}
+            keyboardDismissMode='interactive'
             contentContainerStyle={{
-              flexGrow: 1, // Ensures content stretches to fill full screen height
-              // paddingBottom: 50
+              flexGrow: 1,
+              paddingBottom: 40,
             }}
           >
             <View style={{ flexGrow: 1 }} className={className}>

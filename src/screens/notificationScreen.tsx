@@ -8,7 +8,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
   NotificationDataType,
-  notificationsData,
+  getNotificationsData,
   typeIcons,
 } from '../data/notificationsScreenData';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -20,8 +20,9 @@ export default function NotificationsScreen() {
   const { colors, strings } = useTheme();
   const { layout, isSmallHeight, hp } = useAuthLayout();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const [notifs, setNotifs] =
-    useState<NotificationDataType[]>(notificationsData);
+  const [notifs, setNotifs] = useState<NotificationDataType[]>(
+    getNotificationsData(colors),
+  );
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const markAllRead = () =>
     setNotifs((prev: NotificationDataType[]) =>

@@ -2,7 +2,7 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type HomeTabParamList = {
   Home: undefined;
-  Projects: undefined;
+  Project: undefined;
   Search: undefined;
   Inbox: undefined;
   You: undefined;
@@ -19,7 +19,7 @@ export type RootStackParamList = {
   issue: { id: string };
   HomeTabs: NavigatorScreenParams<HomeTabParamList> | undefined;
   Home: undefined;
-  Projects: undefined;
+  Project: undefined;
   Search: undefined;
   Inbox: undefined;
   You: undefined;

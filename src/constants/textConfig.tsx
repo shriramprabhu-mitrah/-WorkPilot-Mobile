@@ -191,7 +191,7 @@ const Strings = {
     addIssueToSprint: 'Add issue to sprint',
   },
   createIssue: {
-    title: 'Create issue',
+    title: 'Create story',
     createButton: 'Create',
     projectLabel: 'Project',
     issueTypeLabel: 'Issue type',
