@@ -6,7 +6,7 @@ interface LayoutOverrides {
 }
 
 export const useAuthLayout = (overrides?: LayoutOverrides) => {
-  const { height, wp, hp, verticalScale, fontScale, moderateScale } =
+  const { height, wp, hp, verticalScale, fontScale, moderateScale, width } =
     useResponsive();
 
   const smallThreshold = overrides?.smallThreshold ?? 700;
