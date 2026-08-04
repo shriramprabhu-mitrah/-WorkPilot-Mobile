@@ -52,3 +52,24 @@ export const priorities: PriorityItem[] = [
 export const assignees = ['Unassigned', 'AJ', 'MK', 'SR', 'JL'];
 
 export const storyPoints = ['1', '2', '3', '5', '8', '13', '21'];
+
+export interface AttachmentMenuItem {
+  id: string;
+  label: string;
+  icon: string; // React Native Paper icon identifier
+}
+
+export const attachmentMenu: AttachmentMenuItem[] = [
+  { id: '1', label: 'Choose photo or Video', icon: 'image-multiple-outline' },
+  { id: '2', label: 'Take photo', icon: 'camera-outline' },
+  { id: '3', label: 'Record video', icon: 'paperclip' },
+  { id: '4', label: 'Choose file', icon: 'file-document-outline' },
+];
+
+export interface AttachmentFile {
+  id: string;
+  uri: string;
+  name: string;
+  type: 'image' | 'video' | 'file' | 'document';
+  size?: number;
+}

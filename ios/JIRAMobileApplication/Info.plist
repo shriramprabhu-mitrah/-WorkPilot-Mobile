@@ -55,5 +55,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+<string>We need camera access to capture photos and scan documents.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>We need photo library access to pick and crop photos.</string>
 </dict>
 </plist>
