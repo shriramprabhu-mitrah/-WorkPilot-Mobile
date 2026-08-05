@@ -1,5 +1,7 @@
 //  Common API Response
 
+import { UpdateUserProfilePayload } from '../store/user_store/action/user.thunks';
+
 export interface ApiResponse<T = any> {
   success: boolean;
   status_code: number;
@@ -95,11 +97,12 @@ export interface ResendEmailVerificationResponse extends ApiResponse {}
 
 // Update User
 
-export interface UpdateUserPayload {
-  full_name?: string;
-  username?: string;
-  avatar_url?: string;
-  timezone?: string;
+export interface GetUserPayload {
+  accessToken: any;
+}
+
+export interface UpdateUserPayload extends UpdateUserProfilePayload {
+  accessToken: string;
 }
 
 export interface UpdateUserResponse extends ApiResponse {}

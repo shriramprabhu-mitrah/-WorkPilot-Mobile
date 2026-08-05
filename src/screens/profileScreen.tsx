@@ -11,12 +11,12 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
   QuickLinks,
-  quickLinks,
-  recentActivity,
-  stats,
-  teams,
+  getQuickLinks,
+  getRecentActivity,
+  getStats,
+  getTeams,
 } from '../data/profileScreenData';
-import { clearStorage, useAppDispatch } from '../store';
+import { useAppDispatch, useAppSelector } from '../store';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
 
@@ -32,7 +32,11 @@ const ProfileScreen = () => {
   const handleLogoutConfirm = () => {
     dispatch(logoutUser(showSuccessToast));
   };
-
+  const { user } = useAppSelector(state => state.user);
+  const quickLinks = getQuickLinks(colors, strings);
+  const recentActivity = getRecentActivity(colors);
+  const stats = getStats(colors, strings);
+  const teams = getTeams(colors);
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <View
@@ -82,6 +86,7 @@ const ProfileScreen = () => {
             </View>
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={() => navigation.navigate('updateDetails')}
               className='absolute bottom-0 right-0 items-center justify-center rounded-full border'
               style={{
                 width: moderateScale(26),
@@ -99,13 +104,15 @@ const ProfileScreen = () => {
           </View>
           <View style={{ gap: layout.tightGap / 2 }}>
             <AppText variant='h3' color={colors.white}>
-              Alex Johnson
+              {user?.name}
             </AppText>
-            <AppText variant='body' color={colors.textOnPrimaryMuted}>
-              {strings.profile?.role || 'Senior Software Engineer'}
+            <AppText variant='body' color={colors.textOnPrimarySubtle}>
+              {user?.role ||
+                strings.profile?.role ||
+                'Senior Software Engineer'}
             </AppText>
             <AppText variant='caption' color={colors.textOnPrimarySubtle}>
-              alex.johnson@company.com
+              {user?.email || 'alex.johnson@company.com'}
             </AppText>
           </View>
         </View>
@@ -204,7 +211,10 @@ const ProfileScreen = () => {
             <AppText variant='bodyLarge' color={colors.text}>
               {strings.profile?.recentActivity || 'Recent Activity'}
             </AppText>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Project')}
+              activeOpacity={0.7}
+            >
               <AppText
                 variant='body'
                 color={colors.primary}
@@ -225,6 +235,9 @@ const ProfileScreen = () => {
             {recentActivity.map((item, index) => (
               <TouchableOpacity
                 key={item.id}
+                onPress={() =>
+                  navigation.navigate('issue', { id: item.target })
+                }
                 activeOpacity={0.7}
                 className={`flex-row items-start px-4 py-3 ${
                   index !== recentActivity.length - 1 ? 'border-b' : ''

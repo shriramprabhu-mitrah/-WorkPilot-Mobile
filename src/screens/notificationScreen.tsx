@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { FlatList, ScrollView, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from '../components/common/AppText';
 import Avatar from '../components/Avatar';
@@ -8,7 +7,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
   NotificationDataType,
-  notificationsData,
+  getNotificationsData,
   typeIcons,
 } from '../data/notificationsScreenData';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -20,8 +19,9 @@ export default function NotificationsScreen() {
   const { colors, strings } = useTheme();
   const { layout, isSmallHeight, hp } = useAuthLayout();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const [notifs, setNotifs] =
-    useState<NotificationDataType[]>(notificationsData);
+  const [notifs, setNotifs] = useState<NotificationDataType[]>(
+    getNotificationsData(colors),
+  );
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const markAllRead = () =>
     setNotifs((prev: NotificationDataType[]) =>

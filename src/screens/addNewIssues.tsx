@@ -23,7 +23,6 @@ import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import OptionButton from '../components/common/Button/OptionButton';
 import PriorityButton from '../components/common/Button/PriorityButton';
-import NumberButton from '../components/common/Button/NumberButton';
 import AssigneeButton from '../components/common/Button/AssigneButton';
 import { AttachmentMenu } from '../components/Attachments/AttachmentMenu';
 import { AttachmentList } from '../components/Attachments/AttachmentList';
@@ -32,23 +31,20 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
-  assignees,
+  getCreateIssueData,
   IssueTypeItem,
-  issueTypes,
-  priorities,
   PriorityItem,
   ProjectItem,
-  projects,
-  storyPoints,
 } from '../data/addNewIssuesData';
 import { Radius } from '../constants/Radius';
+import { AppInput } from '../components';
 
 const AddNewIssues = () => {
   const [project, setProject] = useState('CLOUD');
   const [issueType, setIssueType] = useState('Story');
   const [priority, setPriority] = useState<string>('Medium');
   const [assignee, setAssignee] = useState('Unassigned');
-  const [storyPoint, setStoryPoint] = useState('3');
+  const [storyPoint, setStoryPoint] = useState('');
   const [summary, setSummary] = useState('');
   const [description, setDescription] = useState('');
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
@@ -56,7 +52,8 @@ const AddNewIssues = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
-
+  const { projects, issueTypes, priorities, assignees } =
+    getCreateIssueData(colors);
   const handleCreate = () => {
     navigation.navigate('projectDetails', { id: project });
   };
@@ -262,7 +259,7 @@ const AddNewIssues = () => {
           <Ionicons name='close' size={24} color={colors.text} />
         </TouchableOpacity>
         <AppText variant='title' color={colors.text} className='font-bold'>
-          {strings.createIssue?.title || 'Create issue'}
+          {strings.createIssue?.title || 'Create story'}
         </AppText>
         <TouchableOpacity activeOpacity={0.7} onPress={handleCreate}>
           <AppText
@@ -456,16 +453,12 @@ const AddNewIssues = () => {
           >
             {strings.createIssue?.storyPointsLabel || 'Story points'}
           </AppText>
-          <View className='flex-row flex-wrap'>
-            {storyPoints.map((item: string) => (
-              <NumberButton
-                key={item}
-                title={item}
-                selected={storyPoint === item}
-                onPress={() => setStoryPoint(item)}
-              />
-            ))}
-          </View>
+          <AppInput
+            value={storyPoint}
+            onChangeText={setStoryPoint}
+            placeholder={'Give story point ...'}
+            placeholderTextColor={colors.placeholder}
+          />
         </View>
 
         {/* ATTACHMENT SECTION */}

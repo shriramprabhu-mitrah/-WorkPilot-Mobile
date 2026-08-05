@@ -3,6 +3,8 @@ import authReducer from './auth_store/reducer/auth.reducer';
 import { createMMKV } from 'react-native-mmkv';
 import { persistStore, persistReducer } from 'redux-persist';
 import reactotron from '../config/ReactotronConfig';
+import issueReducer from './issue_store/reducer/issue.reducer';
+import userReducer from './user_store/reducer/user.reducer';
 
 export const mmkv = createMMKV();
 
@@ -43,7 +45,10 @@ const authPersistConfig = {
   key: 'auth',
   storage: mmkvStorage,
 };
-
+const userPersistConfig = {
+  key: 'user',
+  storage: mmkvStorage,
+};
 const rootPersistConfig = {
   key: 'root',
   storage: mmkvStorage,
@@ -56,6 +61,8 @@ const rootReducer = combineReducers({
   // home: homeSlice,
   // theme: themeSlice,
   auth: persistReducer(authPersistConfig, authReducer),
+  user: persistReducer(userPersistConfig, userReducer),
+  issue: issueReducer,
   // audit: persistReducer(auditPersistConfig, auditSlice),
   // response: persistReducer(responsePersistConfig, responseSlice),
   // submission: submissionSlice,

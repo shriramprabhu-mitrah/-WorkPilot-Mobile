@@ -131,10 +131,8 @@ const SignUpScreen = () => {
     }
   };
 
-  console.log('Hello', API_URL);
-
   return (
-    <Screen scroll={false}>
+    <Screen scroll={true}>
       {/* Dynamic Header */}
       <AuthLogoHeader />
       {/* Dynamic Card Container */}

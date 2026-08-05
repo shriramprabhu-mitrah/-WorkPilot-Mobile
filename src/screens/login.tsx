@@ -79,7 +79,7 @@ const LoginScreen = () => {
   };
 
   return (
-    <Screen scroll={false}>
+    <Screen scroll={true}>
       <View className='flex-1'>
         {/* Curved Hero Header */}
         <AuthLogoHeader />

@@ -1,3 +1,5 @@
+import { ThemeColors } from '../constants/Colors';
+
 export interface Project {
   id: string;
   name: string;
@@ -9,7 +11,7 @@ export interface Project {
   starred: boolean;
 }
 
-export const getProjects = (colors: Record<string, any>): Project[] => [
+export const getProjects = (colors: ThemeColors): Project[] => [
   {
     id: '1',
     name: 'Cloud Migration',

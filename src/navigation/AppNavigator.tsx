@@ -14,6 +14,7 @@ import BackLog from '../screens/backlog';
 import SettingsScreen from '../screens/settingsScreen';
 import AddNewIssues from '../screens/addNewIssues';
 import { NavigationContainer } from '@react-navigation/native';
+import UpdateUserDetailsScreen from '../screens/updateUserDetailScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -40,6 +41,10 @@ const AppNavigator = () => {
           <Stack.Screen name='BackLogs' component={BackLog} />
           <Stack.Screen name='Settings' component={SettingsScreen} />
           <Stack.Screen name='newIssues' component={AddNewIssues} />
+          <Stack.Screen
+            name='updateDetails'
+            component={UpdateUserDetailsScreen}
+          />
         </Stack.Navigator>
       ) : (
         <Stack.Navigator

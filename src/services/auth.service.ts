@@ -34,6 +34,7 @@ import {
   EmailVerificationResponse,
   ResendEmailVerificationPayload,
   ResendEmailVerificationResponse,
+  GetUserPayload,
 } from '../types/auth.type';
 
 /**
@@ -131,11 +132,13 @@ export const changePasswordService = async (
  * ===========================
  */
 
-export const getUserService = async (): Promise<GetUserResponse> => {
+export const getUserService = async (
+  payload: GetUserPayload,
+): Promise<GetUserResponse> => {
   try {
-    return await get<GetUserResponse>(GET_USER);
+    return await get<GetUserResponse>(GET_USER, payload.accessToken);
   } catch (error) {
-    console.error('Get User API failed:', error);
+    console.error('Get User Profile API failed:', error);
     throw error;
   }
 };

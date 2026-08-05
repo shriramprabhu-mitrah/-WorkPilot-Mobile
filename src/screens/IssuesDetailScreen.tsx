@@ -1,45 +1,80 @@
-import React, { useMemo, useState } from 'react';
-import { View, TouchableOpacity, ScrollView, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, TouchableOpacity, ScrollView } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import AppText from '../components/common/AppText';
 import Avatar from '../components/Avatar';
+import Screen from '../components/common/ScreenWapper';
+import { AppInput } from '../components';
+import PopupModel from '../components/Model';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { RootStackParamList } from '../types/navigationTypes';
+import { Radius } from '../constants/Radius';
+import { RootState, useAppDispatch, useAppSelector } from '../store';
+import {
+  setDescription,
+  setIsEditingDescription,
+  setIssues,
+} from '../store/issue_store/reducer/issue.reducer';
 import {
   getComments,
   getDetails,
   subtasks,
   statusOptions,
   getStatusColors,
-  myIssues,
+  getMyIssues,
   Issue,
   Comment,
 } from '../data/issuesDetailsScreenData';
-import Screen from '../components/common/ScreenWapper';
-import { Radius } from '../constants/Radius';
-import { AppInput } from '../components';
 
 const IssueDetailScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<any>();
   const issueId = route.params?.id;
-  const issue = myIssues.find((item: Issue) => item.id === issueId);
   const { colors } = useTheme();
   const { layout, isSmallHeight, hp } = useAuthLayout();
-  const comments = useMemo(() => getComments(colors), [colors]);
-  const details = useMemo(() => getDetails(colors), [colors]);
-  const statusColors = useMemo(() => getStatusColors(colors), [colors]);
+  const dispatch = useAppDispatch();
+  const myIssues = useMemo(() => getMyIssues(colors), [colors]);
+  const { issues, isEditingDescription } = useAppSelector(
+    (state: RootState) => state.issue,
+  );
+  const issue = issues.find((item: Issue) => item.id === issueId);
+  const currentDescription = issue?.description ?? '';
   const [comment, setComment] = useState<string>('');
   const [status, setStatus] = useState(issue?.status);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [subtaskDone, setSubtaskDone] = useState<Record<string, boolean>>({
     'CLOUD-330a': true,
   });
+
+  useEffect(() => {
+    if (issues.length === 0) {
+      dispatch(setIssues(myIssues));
+    }
+  }, [dispatch, issues.length, myIssues]);
+
+  const comments = useMemo(() => getComments(colors), [colors]);
   const [localComments, setLocalComments] = useState<Comment[]>(comments);
+  const details = useMemo(() => getDetails(colors), [colors]);
+  const statusColors = useMemo(() => getStatusColors(colors), [colors]);
+  const handleOpenEditModal = () => {
+    dispatch(setIsEditingDescription(true));
+  };
+  const handleCloseEditModal = () => {
+    dispatch(setIsEditingDescription(false));
+  };
+  const handleSaveDescription = (newDescription: string) => {
+    if (!issueId) return;
+    dispatch(
+      setDescription({
+        issueId,
+        description: newDescription,
+      }),
+    );
+    dispatch(setIsEditingDescription(false));
+  };
   const handleSendComment = () => {
     if (!comment.trim()) return;
     const newComment = {
@@ -60,6 +95,16 @@ const IssueDetailScreen = () => {
   }).length;
 
   const totalCount = subtasks.length;
+  const allSelected = subtasks.every(
+    item => (subtaskDone[item.id] ?? item.done) === true,
+  );
+  const handleSelectAll = () => {
+    const updatedState: Record<string, boolean> = {};
+    subtasks.forEach(item => {
+      updatedState[item.id] = !allSelected;
+    });
+    setSubtaskDone(updatedState);
+  };
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
@@ -302,7 +347,7 @@ const IssueDetailScreen = () => {
             >
               Description
             </AppText>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={handleOpenEditModal}>
               <Ionicons
                 name='pencil-sharp'
                 size={layout.iconSize * 0.8}
@@ -311,17 +356,7 @@ const IssueDetailScreen = () => {
             </TouchableOpacity>
           </View>
           <AppText variant='body' color={colors.text} className='leading-6'>
-            iOS clients using the Jira API are experiencing intermittent
-            authentication failures after token expiry. The refresh token
-            mechanism is not triggering correctly, causing users to be logged
-            out unexpectedly.
-          </AppText>
-          <AppText variant='body' color={colors.text} className='leading-6'>
-            <AppText variant='body' color={colors.text} className='font-bold'>
-              Steps to reproduce :{' '}
-            </AppText>
-            Login on iOS → Wait 15 minutes → Perform any API request → A 401
-            Unauthorized error appears despite a valid refresh token.
+            {currentDescription}
           </AppText>
         </View>
         <View
@@ -340,21 +375,28 @@ const IssueDetailScreen = () => {
               paddingBottom: layout.paddingBottom,
             }}
           >
-            <View
+            <TouchableOpacity
               className='flex-row items-center'
-              style={{ gap: layout.sectionGap }}
+              style={{
+                gap: isSmallHeight
+                  ? layout.largeSectionGap + 3
+                  : layout.sectionGap - 2,
+              }}
+              onPress={handleSelectAll}
             >
               <Ionicons
-                name='checkbox-outline'
+                name={allSelected ? 'checkbox' : 'checkbox-outline'}
                 size={layout.iconSize}
-                color={colors.placeholder}
+                color={allSelected ? colors.success : colors.placeholder}
               />
-
-              <AppText variant='body' className='font-bold' color={colors.text}>
-                Child issues
+              <AppText
+                variant='body'
+                className='font-semibold'
+                color={colors.text}
+              >
+                Child Story
               </AppText>
-            </View>
-
+            </TouchableOpacity>
             <AppText variant='body' color={colors.textSecondary}>
               {completedCount}/{totalCount}
             </AppText>
@@ -551,6 +593,12 @@ const IssueDetailScreen = () => {
           />
         </View>
       </View>
+      <PopupModel
+        visible={isEditingDescription}
+        initialDescription={currentDescription}
+        onClose={handleCloseEditModal}
+        onSave={handleSaveDescription}
+      />
     </Screen>
   );
 };
