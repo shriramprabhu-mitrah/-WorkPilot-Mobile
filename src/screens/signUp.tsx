@@ -15,7 +15,7 @@ import PasswordRules from '../components/passwordRules';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { API_URL, showErrorToast, showSuccessToast } from '../utils/utils';
+import { showSuccessToast } from '../utils/utils';
 import { mmkv, useAppDispatch } from '../store';
 import { signUpUser } from '../store/auth_store/action/auth.thunks';
 import { useResponsive } from '../utils/responsive';
@@ -122,9 +122,6 @@ const SignUpScreen = () => {
       showSuccessToast(result.message, 'success');
       navigation.navigate('verifyEmail');
     } catch (error: any) {
-      showErrorToast(
-        error?.error?.message || error?.message || 'Account creation failed',
-      );
       console.error(error);
     } finally {
       setLoading(false);

@@ -11,6 +11,7 @@ import {
   PASSWORD_RESET_CONFIRM,
   EMAIL_VERIFICATION,
   RESEND_EMAIL_VERIFICATION,
+  USER_VALIDATE,
 } from '../constants/apiServiceEndpoint';
 
 import {
@@ -24,6 +25,7 @@ import {
   ChangePasswordPayload,
   ChangePasswordResponse,
   GetUserResponse,
+  UpdateUserPayload,
   UpdateUserResponse,
   PasswordResetRequestPayload,
   PasswordResetRequestResponse,
@@ -33,6 +35,7 @@ import {
   EmailVerificationResponse,
   ResendEmailVerificationPayload,
   ResendEmailVerificationResponse,
+  UserValidateResponse,
 } from '../types/auth.type';
 
 /**
@@ -146,19 +149,16 @@ export const getUserService = async (): Promise<GetUserResponse> => {
  */
 
 export const updateUserService = async (
-  formData: FormData,
+  payload: FormData,
 ): Promise<UpdateUserResponse> => {
   try {
-    return await patch<UpdateUserResponse, FormData>(UPDATE_USER, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return await patch<UpdateUserResponse, FormData>(UPDATE_USER, payload);
   } catch (error) {
     console.error('Update User API failed:', error);
     throw error;
   }
 };
+
 /**
  * ===========================
  * Password Reset Request
@@ -223,6 +223,20 @@ export const ResendEmailVerificationService = async (
     >(RESEND_EMAIL_VERIFICATION, payload);
   } catch (error) {
     console.error('Password Reset Confirm API failed:', error);
+    throw error;
+  }
+};
+
+export const userValidateService = async (
+  type: string,
+  value: string,
+): Promise<UserValidateResponse> => {
+  try {
+    return await get<UserValidateResponse>(
+      `${USER_VALIDATE}?type=${encodeURIComponent(type)}&value=${encodeURIComponent(value)}`,
+    );
+  } catch (error) {
+    console.error('User Validate API failed:', error);
     throw error;
   }
 };

@@ -17,6 +17,11 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import { store } from './src/store';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/config/toastConfig';
+import { useSelector } from 'react-redux';
+import { RootState } from './src/store';
+// import NetworkErrorScreen from './src/screens/networkErrorScreen';
+import { setNetworkError } from './src/store/commonSlice';
+import NetInfo from '@react-native-community/netinfo';
 
 function App() {
   // const isDarkMode = useColorScheme() === 'dark';
@@ -45,6 +50,10 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const { mode } = useTheme();
 
+  // const isNetworkError = useSelector(
+  //   (state: RootState) => state.common.isNetworkError,
+  // );
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -53,6 +62,14 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
+  // const handleRetry = async () => {
+  //   const state = await NetInfo.fetch();
+
+  //   if (state.isConnected) {
+  //     store.dispatch(setNetworkError(false));
+  //   }
+  // };
+
   return (
     <>
       <StatusBar
@@ -60,6 +77,14 @@ function AppContent() {
         backgroundColor='transparent'
         barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
       />
+
+      {/* {isLoading ? (
+        <SplashScreen />
+      ) : isNetworkError ? (
+        <NetworkErrorScreen onRetry={handleRetry} />
+      ) : (
+        <AppNavigator />
+      )} */}
       {isLoading ? <SplashScreen /> : <AppNavigator />}
     </>
   );

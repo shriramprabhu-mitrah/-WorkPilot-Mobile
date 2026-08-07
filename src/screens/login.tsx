@@ -73,7 +73,6 @@ const LoginScreen = () => {
           email,
           password,
         },
-        showSuccessToast,
       }),
     );
   };
@@ -215,11 +214,11 @@ const LoginScreen = () => {
               onPress={onLogin}
               // onPress={() => navigation.navigate('HomeTabs')}
             />
-            <AuthFooter
+            {/* <AuthFooter
               title="Don't have an account?"
               actionText='Sign up'
               onPress={() => navigation.navigate('signUp')}
-            />
+            /> */}
           </View>
         </View>
       </View>

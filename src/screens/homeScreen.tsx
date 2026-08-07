@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -19,6 +19,10 @@ import {
 } from '../data/homeScreenData';
 import { useAppDispatch, useAppSelector } from '../store';
 import { getUserProfileInfo } from '../store/auth_store/action/auth.thunks';
+import RecentProjectsSkeleton from '../components/skeleton/RecentProjectsSkeleton';
+import MyIssuesSkeleton from '../components/skeleton/MyIssuesSkeleton';
+import ListSkeleton from '../components/skeleton/ListSkeleton';
+import { Skeleton } from '@rneui/themed';
 import { Radius } from '../constants/Radius';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -27,12 +31,22 @@ const HomeScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
   const dispatch = useAppDispatch();
-  const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
+  const { layout, moderateScale, hp, isSmallHeight, verticalScale } =
+    useAuthLayout();
   const homeIcons = strings.home?.icons;
   const recentProjects = getRecentProjects(colors);
+  const [loading, setLoading] = useState(true);
   const { user } = useAppSelector(state => state.auth);
   useEffect(() => {
     dispatch(getUserProfileInfo());
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, []);
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
@@ -49,7 +63,7 @@ const HomeScreen = () => {
           <View className='flex-row items-center gap-3'>
             <TouchableOpacity
               onPress={() => navigation.navigate('Profile')}
-              className='items-center justify-center'
+              className='items-center justify-center rounded-full bg-[#FFAB00]'
               style={{
                 width: moderateScale(40),
                 height: moderateScale(40),
@@ -200,56 +214,60 @@ const HomeScreen = () => {
                 </AppText>
               </TouchableOpacity>
             </View>
-            <View className='flex-row flex-wrap justify-between'>
-              {recentProjects.map(item => (
-                <TouchableOpacity
-                  key={item.id}
-                  activeOpacity={0.8}
-                  onPress={() =>
-                    navigation.navigate('projectDetails', { id: item.key })
-                  }
-                  style={{
-                    width: '48.5%',
-                    backgroundColor: colors.background,
-                    borderColor: colors.border || '#E5E7EB',
-                    marginBottom: layout.elementGap,
-                  }}
-                  className='rounded-xl border p-3'
-                >
-                  <View className='flex-row items-center'>
-                    <View
-                      className='items-center justify-center rounded-lg'
-                      style={{
-                        width: moderateScale(36),
-                        height: moderateScale(36),
-                        backgroundColor: item.color,
-                      }}
-                    >
-                      <AppText
-                        variant='body'
-                        className='font-bold'
-                        color='#FFFFFF'
+            {loading ? (
+              <RecentProjectsSkeleton />
+            ) : (
+              <View className='flex-row flex-wrap justify-between'>
+                {recentProjects.map(item => (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      navigation.navigate('projectDetails', { id: item.key })
+                    }
+                    style={{
+                      width: '48.5%',
+                      backgroundColor: colors.background,
+                      borderColor: colors.border || '#E5E7EB',
+                      marginBottom: layout.elementGap,
+                    }}
+                    className='rounded-xl border p-3'
+                  >
+                    <View className='flex-row items-center'>
+                      <View
+                        className='items-center justify-center rounded-lg'
+                        style={{
+                          width: moderateScale(36),
+                          height: moderateScale(36),
+                          backgroundColor: item.color,
+                        }}
                       >
-                        {item.avatar}
-                      </AppText>
+                        <AppText
+                          variant='body'
+                          className='font-bold'
+                          color='#FFFFFF'
+                        >
+                          {item.avatar}
+                        </AppText>
+                      </View>
+                      <View className='ml-2 flex-1'>
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          className='font-semibold'
+                          numberOfLines={1}
+                        >
+                          {item.name}
+                        </AppText>
+                        <AppText variant='caption' color={colors.textSecondary}>
+                          {item.key}
+                        </AppText>
+                      </View>
                     </View>
-                    <View className='ml-2 flex-1'>
-                      <AppText
-                        variant='body'
-                        color={colors.text}
-                        className='font-semibold'
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </AppText>
-                      <AppText variant='caption' color={colors.textSecondary}>
-                        {item.key}
-                      </AppText>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
           <View style={{ gap: layout.elementGap }}>
             <View
@@ -269,111 +287,119 @@ const HomeScreen = () => {
                 {strings.home?.myWork || 'My Work'}
               </AppText>
             </View>
-            <View>
-              {myIssues.map(issue => {
-                const type = getTypeIcon(issue.type, colors);
-                return (
-                  <TouchableOpacity
-                    key={issue.id}
-                    activeOpacity={0.8}
-                    onPress={() =>
-                      navigation.navigate('issue', { id: issue.id })
-                    }
-                    className='mb-3 flex-row items-start rounded-xl border p-3.5'
-                    style={{
-                      backgroundColor: colors.background,
-                      borderColor: colors.border || '#E5E7EB',
-                    }}
-                  >
-                    <View className='mr-3 mt-0.5 flex-row items-center gap-2'>
-                      <View
-                        className='items-center justify-center rounded-lg'
-                        style={{
-                          width: moderateScale(28),
-                          height: moderateScale(28),
-                          backgroundColor: type.color,
-                        }}
-                      >
-                        <AppText
-                          variant='caption'
-                          className='font-bold'
-                          color='#FFFFFF'
-                        >
-                          {type.icon}
-                        </AppText>
-                      </View>
-                      <View
-                        className='rounded-full'
-                        style={{
-                          width: moderateScale(8),
-                          height: moderateScale(8),
-                          backgroundColor: getPriorityColor(
-                            issue.priority,
-                            colors,
-                          ),
-                        }}
-                      />
-                    </View>
-                    <View
-                      className='flex-1'
-                      style={{ gap: layout.tightGap / 2 }}
+            {loading ? (
+              <MyIssuesSkeleton />
+            ) : (
+              <View>
+                {myIssues.map(issue => {
+                  const type = getTypeIcon(issue.type, colors);
+                  return (
+                    <TouchableOpacity
+                      key={issue.id}
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        navigation.navigate('issue', { id: issue.id })
+                      }
+                      className='mb-3 flex-row items-start rounded-xl border p-3.5'
+                      style={{
+                        backgroundColor: colors.background,
+                        borderColor: colors.border || '#E5E7EB',
+                      }}
                     >
-                      <AppText
-                        variant='body'
-                        color={colors.text}
-                        className='font-semibold'
-                        numberOfLines={2}
-                      >
-                        {issue.title}
-                      </AppText>
-                      <View className='flex-row items-center gap-2'>
-                        <AppText variant='caption' color={colors.textSecondary}>
-                          {issue.id}
-                        </AppText>
+                      <View className='mr-3 mt-0.5 flex-row items-center gap-2'>
                         <View
-                          className='rounded-full'
+                          className='items-center justify-center rounded-lg'
                           style={{
-                            width: moderateScale(4),
-                            height: moderateScale(4),
-                            backgroundColor: colors.textSecondary || '#9CA3AF',
-                          }}
-                        />
-                        <View
-                          className='rounded-full px-2 py-0.5'
-                          style={{
-                            backgroundColor:
-                              issue.status === 'To Do'
-                                ? colors.surface
-                                : getStatusBgStyle(issue.status, colors),
+                            width: moderateScale(28),
+                            height: moderateScale(28),
+                            backgroundColor: type.color,
                           }}
                         >
                           <AppText
                             variant='caption'
-                            style={{
-                              color:
-                                issue.status === 'To Do'
-                                  ? colors.textSecondary
-                                  : getStatusTextStyle(issue.status, colors),
-                            }}
-                            className='text-[11px] font-medium'
+                            className='font-bold'
+                            color='#FFFFFF'
                           >
-                            {issue.status}
+                            {type.icon}
                           </AppText>
                         </View>
+                        <View
+                          className='rounded-full'
+                          style={{
+                            width: moderateScale(8),
+                            height: moderateScale(8),
+                            backgroundColor: getPriorityColor(
+                              issue.priority,
+                              colors,
+                            ),
+                          }}
+                        />
                       </View>
-                    </View>
-                    <Ionicons
-                      name={
-                        (homeIcons?.chevronRight ||
-                          'chevron-forward') as IoniconName
-                      }
-                      size={18}
-                      color={colors.textSecondary || '#B3BAC5'}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      <View
+                        className='flex-1'
+                        style={{ gap: layout.tightGap / 2 }}
+                      >
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          className='font-semibold'
+                          numberOfLines={2}
+                        >
+                          {issue.title}
+                        </AppText>
+                        <View className='flex-row items-center gap-2'>
+                          <AppText
+                            variant='caption'
+                            color={colors.textSecondary}
+                          >
+                            {issue.id}
+                          </AppText>
+                          <View
+                            className='rounded-full'
+                            style={{
+                              width: moderateScale(4),
+                              height: moderateScale(4),
+                              backgroundColor:
+                                colors.textSecondary || '#9CA3AF',
+                            }}
+                          />
+                          <View
+                            className='rounded-full px-2 py-0.5'
+                            style={{
+                              backgroundColor:
+                                issue.status === 'To Do'
+                                  ? colors.surface
+                                  : getStatusBgStyle(issue.status, colors),
+                            }}
+                          >
+                            <AppText
+                              variant='caption'
+                              style={{
+                                color:
+                                  issue.status === 'To Do'
+                                    ? colors.textSecondary
+                                    : getStatusTextStyle(issue.status, colors),
+                              }}
+                              className='text-[11px] font-medium'
+                            >
+                              {issue.status}
+                            </AppText>
+                          </View>
+                        </View>
+                      </View>
+                      <Ionicons
+                        name={
+                          (homeIcons?.chevronRight ||
+                            'chevron-forward') as IoniconName
+                        }
+                        size={18}
+                        color={colors.textSecondary || '#B3BAC5'}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </View>
           {/* Starred Section */}
           <View style={{ gap: layout.elementGap }}>
@@ -387,55 +413,106 @@ const HomeScreen = () => {
                 {strings.home?.starred || 'Starred'}
               </AppText>
             </View>
-            <View
-              className='rounded-xl border'
-              style={{
-                backgroundColor: colors.background,
-                borderColor: colors.border || '#E5E7EB',
-              }}
-            >
-              {starredIssues.map((item, index) => (
-                <TouchableOpacity
-                  key={item.label}
-                  activeOpacity={0.7}
-                  onPress={() => navigation.navigate('issue', { id: item.id })}
-                  className={`flex-row items-center justify-between px-4 py-3.5 ${
-                    index !== starredIssues.length - 1 ? 'border-b' : ''
-                  }`}
-                  style={{
-                    borderColor: colors.border || '#F3F4F6',
-                  }}
-                >
-                  <View className='mr-2 flex-1 flex-row items-center'>
-                    <Ionicons
-                      name={(homeIcons?.star || 'star') as IoniconName}
-                      size={16}
-                      color='#FFAB00'
-                    />
-                    <AppText
-                      variant='body'
-                      color={colors.text}
-                      className='ml-3 flex-1'
-                      numberOfLines={1}
+            {loading ? (
+              <View
+                className='rounded-xl border'
+                style={{
+                  backgroundColor: colors.background,
+                  borderColor: colors.border || '#E5E7EB',
+                }}
+              >
+                <ListSkeleton
+                  count={starredIssues?.length}
+                  renderItem={index => (
+                    <View
+                      className={`flex-row items-center justify-between ${
+                        index !== 4 ? 'border-b' : ''
+                      }`}
+                      style={{
+                        paddingHorizontal: moderateScale(16),
+                        paddingVertical: verticalScale(14),
+                        borderColor: colors.border || '#F3F4F6',
+                      }}
                     >
-                      {item.label}
-                    </AppText>
-                  </View>
-                  <View
-                    className='rounded-full px-2.5 py-0.5'
-                    style={{ backgroundColor: colors.surface || '#F3F4F6' }}
+                      <View className='mr-2 flex-1 flex-row items-center'>
+                        <Skeleton
+                          circle
+                          width={moderateScale(16)}
+                          height={moderateScale(16)}
+                        />
+
+                        <Skeleton
+                          width={moderateScale(140)}
+                          height={verticalScale(14)}
+                          style={{
+                            marginLeft: moderateScale(12),
+                          }}
+                        />
+                      </View>
+
+                      <Skeleton
+                        width={moderateScale(60)}
+                        height={verticalScale(22)}
+
+                        style={{ borderRadius: moderateScale(12) }}
+                      />
+                    </View>
+                  )}
+                />
+              </View>
+            ) : (
+              <View
+                className='rounded-xl border'
+                style={{
+                  backgroundColor: colors.background,
+                  borderColor: colors.border || '#E5E7EB',
+                }}
+              >
+                {starredIssues.map((item, index) => (
+                  <TouchableOpacity
+                    key={item.label}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      navigation.navigate('issue', { id: item.id })
+                    }
+                    className={`flex-row items-center justify-between px-4 py-3.5 ${
+                      index !== starredIssues.length - 1 ? 'border-b' : ''
+                    }`}
+                    style={{
+                      borderColor: colors.border || '#F3F4F6',
+                    }}
                   >
-                    <AppText
-                      variant='caption'
-                      color={colors.textSecondary}
-                      className='text-[11px]'
+                    <View className='mr-2 flex-1 flex-row items-center'>
+                      <Ionicons
+                        name={(homeIcons?.star || 'star') as IoniconName}
+                        size={16}
+                        color='#FFAB00'
+                      />
+                      <AppText
+                        variant='body'
+                        color={colors.text}
+                        className='ml-3 flex-1'
+                        numberOfLines={1}
+                      >
+                        {item.label}
+                      </AppText>
+                    </View>
+                    <View
+                      className='rounded-full px-2.5 py-0.5'
+                      style={{ backgroundColor: colors.surface || '#F3F4F6' }}
                     >
-                      {item.tag}
-                    </AppText>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
+                      <AppText
+                        variant='caption'
+                        color={colors.textSecondary}
+                        className='text-[11px]'
+                      >
+                        {item.tag}
+                      </AppText>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>

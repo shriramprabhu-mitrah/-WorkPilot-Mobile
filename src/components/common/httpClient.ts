@@ -18,8 +18,9 @@ import {
   SIGNUP,
 } from '../../constants/apiServiceEndpoint';
 import { logout } from '../../store/auth_store/reducer/auth.reducer';
-import { API_URL } from '../../utils/utils';
+import { API_URL, showSuccessToast } from '../../utils/utils';
 import reactotron from '../../config/ReactotronConfig';
+import { setNetworkError } from '../../store/commonSlice';
 
 let baseURL = API_URL;
 const apiClient: AxiosInstance = axios.create({
@@ -89,6 +90,8 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    store.dispatch(setNetworkError(false));
+
     reactotron.display({
       name: 'API Response',
       value: {
@@ -97,6 +100,17 @@ apiClient.interceptors.response.use(
         Data: response.data,
       },
     });
+
+    // const method = response.config.method?.toLowerCase();
+
+    // console.log('LINE103', response?.data?.message);
+
+    // if (
+    //   ['post', 'put', 'patch', 'delete'].includes(method || '') &&
+    //   response?.data?.message
+    // ) {
+    //   showSuccessToast(response?.data?.message, 'success');
+    // }
 
     return response;
   },
@@ -110,14 +124,29 @@ apiClient.interceptors.response.use(
       },
     });
 
+    if (
+      error.code === 'ERR_NETWORK' ||
+      error.code === 'ECONNABORTED' ||
+      error.message === 'Network Error' ||
+      !error.response
+    ) {
+      store.dispatch(setNetworkError(true));
+      return Promise.reject(error);
+    }
+
+    store.dispatch(setNetworkError(false));
+
     const originalRequest = error.config;
 
     if (!originalRequest) {
+      showSuccessToast('Something went wrong', 'error');
       return Promise.reject(error);
     }
 
     if (originalRequest?.url?.includes(REFRESH_TOKEN)) {
       store.dispatch(logout());
+
+      showSuccessToast('Please login again.', 'error');
       return Promise.reject(error);
     }
 
@@ -147,6 +176,14 @@ apiClient.interceptors.response.use(
       } catch {
         store.dispatch(logout());
       }
+    } else {
+      showSuccessToast(
+        error.response?.data?.message ||
+          error.response?.data?.error?.message ||
+          error.message ||
+          'Something went wrong',
+        'error',
+      );
     }
 
     return Promise.reject(error);

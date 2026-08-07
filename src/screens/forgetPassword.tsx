@@ -18,7 +18,7 @@ import {
   passwordResetRequest,
   resendEmailVerification,
 } from '../store/auth_store/action/auth.thunks';
-import { showErrorToast, showSuccessToast } from '../utils/utils';
+import { showSuccessToast } from '../utils/utils';
 import { AuthFooter, PasswordInput } from '../components';
 import { useResponsive } from '../utils/responsive';
 
@@ -64,7 +64,7 @@ const ForgotPassword = () => {
 
   const handleSubmit = async () => {
     if (!email.trim()) {
-      showErrorToast('Please enter your email');
+      showSuccessToast('Please enter your email', 'error');
       return;
     }
 
@@ -79,15 +79,10 @@ const ForgotPassword = () => {
 
       // Store email for next screens if required
       mmkv.set('resetPasswordEmail', email.trim());
-
-      showSuccessToast('Password reset email sent successfully', 'success');
-
       setSent(true);
       setCountdown(30);
     } catch (error: any) {
       console.log('LINE88', error);
-
-      showErrorToast(error || 'Failed to send reset email');
     } finally {
       setLoading(false);
     }
@@ -95,18 +90,18 @@ const ForgotPassword = () => {
 
   const handleResetPassword = async () => {
     if (otp.length !== 6) {
-      showErrorToast('Please enter a valid OTP');
+      showSuccessToast('Please enter a valid OTP', 'error');
       return;
     }
 
     if (!newPassword.trim()) {
-      showErrorToast('Please enter a new password');
+      showSuccessToast('Please enter a new password', 'error');
       return;
     }
 
-    setResetLoading(true);
-
     try {
+      setResetLoading(true);
+
       await dispatch(
         passwordResetConfirm({
           email,
@@ -115,15 +110,11 @@ const ForgotPassword = () => {
         }),
       ).unwrap();
 
-      showSuccessToast('Password reset successfully', 'success');
-
       mmkv.remove('resetPasswordEmail');
 
       navigation.replace('login');
-    } catch (error: any) {
-      showErrorToast(
-        error?.error?.message || error?.message || 'Failed to reset password',
-      );
+    } catch (error) {
+      console.log('Password reset failed:', error);
     } finally {
       setResetLoading(false);
     }
@@ -143,16 +134,10 @@ const ForgotPassword = () => {
         }),
       ).unwrap();
 
-      showSuccessToast('Password reset OTP sent successfully', 'sucsess');
-
       setOtp('');
       setCountdown(30);
     } catch (error: any) {
       console.log('LINE149', error);
-
-      showErrorToast(
-        error?.error?.message || error?.message || 'Failed to resend OTP',
-      );
     } finally {
       setResendLoading(false);
     }

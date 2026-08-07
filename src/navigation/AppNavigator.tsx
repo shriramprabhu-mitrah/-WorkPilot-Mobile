@@ -14,21 +14,22 @@ import BackLog from '../screens/backlog';
 import SettingsScreen from '../screens/settingsScreen';
 import AddNewIssues from '../screens/addNewIssues';
 import { NavigationContainer } from '@react-navigation/native';
+import TermsScreen from '../screens/TermsScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import UpdateUserDetailsScreen from '../screens/updateUserDetailScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
   const { isAuthenticated } = useAppSelector(state => state.auth);
+
   console.log('isAuthenticated:', isAuthenticated);
-  // const isAuthenticated = true;
   return (
     <NavigationContainer>
       {isAuthenticated ? (
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
-            // animation: 'reveal_from_bottom',
           }}
           initialRouteName='HomeTabs'
         >
@@ -51,7 +52,6 @@ const AppNavigator = () => {
           initialRouteName='login'
           screenOptions={{
             headerShown: false,
-            // animation: 'fade',
           }}
         >
           <Stack.Screen name='login' component={LoginScreen} />
@@ -59,6 +59,8 @@ const AppNavigator = () => {
           <Stack.Screen name='verifyEmail' component={VerifyEmailScreen} />
           <Stack.Screen name='ForgotPassword' component={ForgotPassword} />
           <Stack.Screen name='resetPassword' component={ResetPassword} />
+          <Stack.Screen name='Terms' component={TermsScreen} />
+          <Stack.Screen name='PrivacyPolicy' component={PrivacyPolicyScreen} />
         </Stack.Navigator>
       )}
     </NavigationContainer>

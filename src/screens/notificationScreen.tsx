@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from '../components/common/AppText';
@@ -14,6 +14,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useNavigation } from '@react-navigation/native';
 import Screen from '../components/common/ScreenWapper';
+import NotificationCardSkeleton from '../components/skeleton/NotificationCardSkeleton';
 
 export default function NotificationsScreen() {
   const { colors, strings } = useTheme();
@@ -23,6 +24,16 @@ export default function NotificationsScreen() {
     getNotificationsData(colors),
   );
   const [tab, setTab] = useState<'all' | 'unread'>('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const markAllRead = () =>
     setNotifs((prev: NotificationDataType[]) =>
       prev.map((n: NotificationDataType) => ({ ...n, read: true })),
@@ -144,101 +155,107 @@ export default function NotificationsScreen() {
             paddingBottom: isSmallHeight ? hp(20) : hp(12),
             flexGrow: 1,
           }}
-          renderItem={({ item }: { item: NotificationDataType }) => (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                markRead(item.id);
-                navigation.navigate('issue', { id: item.target });
-              }}
-              className='flex-row items-start'
-              style={{
-                backgroundColor: item.read
-                  ? colors.card || colors.surface
-                  : `${colors.secondary}2A` || colors.background,
-                borderBottomWidth: 2,
-                borderBottomColor: colors.itemDivider || colors.border,
-                paddingHorizontal: layout.paddingHorizontal,
-                paddingVertical: layout.largeSectionGap,
-                gap: layout.largeSectionGap,
-              }}
-            >
-              <View
-                className='flex-row items-center'
-                style={{ gap: layout.elementGap }}
+          renderItem={({ item }: { item: NotificationDataType }) =>
+            loading ? (
+              <NotificationCardSkeleton />
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  markRead(item.id);
+                  navigation.navigate('issue', { id: item.target });
+                }}
+                className='flex-row items-start'
+                style={{
+                  backgroundColor: item.read
+                    ? colors.card || colors.surface
+                    : `${colors.secondary}2A` || colors.background,
+                  borderBottomWidth: 2,
+                  borderBottomColor: colors.itemDivider || colors.border,
+                  paddingHorizontal: layout.paddingHorizontal,
+                  paddingVertical: layout.largeSectionGap,
+                  gap: layout.largeSectionGap,
+                }}
               >
                 <View
-                  className='rounded-full'
-                  style={{
-                    width: layout.controlSize * 0.3,
-                    height: layout.controlSize * 0.3,
-                    backgroundColor: item.read ? 'transparent' : colors.primary,
-                  }}
-                />
-                <View className='relative'>
-                  <Avatar
-                    size='large'
-                    initials={item.avatar}
-                    color={item.color || colors.primary}
-                  />
+                  className='flex-row items-center'
+                  style={{ gap: layout.elementGap }}
+                >
                   <View
-                    className='absolute -bottom-1 -right-1 items-center justify-center rounded-full border shadow'
+                    className='rounded-full'
                     style={{
-                      width: layout.controlSize,
-                      height: layout.controlSize,
-                      backgroundColor: colors.card || colors.surface,
-                      borderColor: colors.border,
+                      width: layout.controlSize * 0.3,
+                      height: layout.controlSize * 0.3,
+                      backgroundColor: item.read
+                        ? 'transparent'
+                        : colors.primary,
                     }}
-                  >
-                    <Ionicons
-                      name={typeIcons[item.type].icon}
-                      color={colors.text}
-                      size={layout.iconSize * 0.6}
+                  />
+                  <View className='relative'>
+                    <Avatar
+                      size='large'
+                      initials={item.avatar}
+                      color={item.color || colors.primary}
                     />
+                    <View
+                      className='absolute -bottom-1 -right-1 items-center justify-center rounded-full border shadow'
+                      style={{
+                        width: layout.controlSize,
+                        height: layout.controlSize,
+                        backgroundColor: colors.card || colors.surface,
+                        borderColor: colors.border,
+                      }}
+                    >
+                      <Ionicons
+                        name={typeIcons[item.type].icon}
+                        color={colors.text}
+                        size={layout.iconSize * 0.6}
+                      />
+                    </View>
                   </View>
                 </View>
-              </View>
-              <View className='flex-1' style={{ gap: layout.tightGap }}>
-                <AppText
-                  variant='body'
-                  color={colors.text}
-                  className='font-semibold leading-6'
-                  numberOfLines={2}
-                >
+                <View className='flex-1' style={{ gap: layout.tightGap }}>
                   <AppText
                     variant='body'
                     color={colors.text}
-                    className='font-bold'
+                    className='font-semibold leading-6'
+                    numberOfLines={2}
                   >
-                    {item.actor}{' '}
+                    <AppText
+                      variant='body'
+                      color={colors.text}
+                      className='font-bold'
+                    >
+                      {item.actor}{' '}
+                    </AppText>
+                    {item.action}{' '}
+                    <AppText
+                      variant='body'
+                      color={colors.primary}
+                      className='font-semibold'
+                    >
+                      {item.target}
+                    </AppText>
                   </AppText>
-                  {item.action}{' '}
                   <AppText
-                    variant='body'
-                    color={colors.primary}
-                    className='font-semibold'
+                    variant='caption'
+                    color={colors.textSecondary}
+                    numberOfLines={1}
+                    ellipsizeMode='clip'
+                    className='leading-4'
                   >
-                    {item.target}
+                    {item.preview}
                   </AppText>
-                </AppText>
-                <AppText
-                  variant='caption'
-                  color={colors.textSecondary}
-                  numberOfLines={1}
-                  ellipsizeMode='clip'
-                  className='leading-4'
-                >
-                  {item.preview}
-                </AppText>
-                <AppText
-                  variant='caption'
-                  color={colors.placeholder || colors.textSecondary}
-                >
-                  {item.time}
-                </AppText>
-              </View>
-            </TouchableOpacity>
-          )}
+                  <AppText
+                    variant='caption'
+                    color={colors.placeholder || colors.textSecondary}
+                  >
+                    {item.time}
+                  </AppText>
+                </View>
+              </TouchableOpacity>
+            )
+          }
         />
       ) : (
         <View className='flex-1 items-center justify-center'>

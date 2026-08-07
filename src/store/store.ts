@@ -1,5 +1,6 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import authReducer from './auth_store/reducer/auth.reducer';
+import commonReducer from './commonSlice';
 import { createMMKV } from 'react-native-mmkv';
 import { persistStore, persistReducer } from 'redux-persist';
 import reactotron from '../config/ReactotronConfig';
@@ -56,6 +57,7 @@ const rootReducer = combineReducers({
   // home: homeSlice,
   // theme: themeSlice,
   auth: persistReducer(authPersistConfig, authReducer),
+  common: commonReducer,
   issue: issueReducer,
   // audit: persistReducer(auditPersistConfig, auditSlice),
   // response: persistReducer(responsePersistConfig, responseSlice),

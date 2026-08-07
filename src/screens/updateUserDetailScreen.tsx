@@ -18,7 +18,7 @@ import PrimaryButton from '../components/common/Button/PrimaryButton';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { showErrorToast, showSuccessToast } from '../utils/utils';
+import { showSuccessToast } from '../utils/utils';
 import { useAppDispatch, useAppSelector } from '../store';
 import CameraModal from '../components/cameraModal';
 import { Radius } from '../constants/Radius';
@@ -73,7 +73,7 @@ const UpdateUserDetailsScreen = () => {
       setAvatarUri(image.path);
     } catch (error: any) {
       if (error?.code !== 'E_PICKER_CANCELLED') {
-        showErrorToast('Failed to select image');
+        showSuccessToast('Failed to select image', 'error');
       }
     }
   };
@@ -95,7 +95,7 @@ const UpdateUserDetailsScreen = () => {
       setAvatarUri(image.path);
     } catch (error: any) {
       if (error?.code !== 'E_PICKER_CANCELLED') {
-        showErrorToast('Failed to capture photo');
+        showSuccessToast('Failed to capture photo', 'error');
       }
     }
   };
@@ -164,7 +164,7 @@ const UpdateUserDetailsScreen = () => {
       } as any);
     }
     if ((formData as FormData & { _parts: unknown[] })._parts.length === 0) {
-      showErrorToast('No changes to update');
+      showSuccessToast('No changes to update', 'error');
       setLoading(false);
       return;
     }

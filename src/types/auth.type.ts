@@ -168,6 +168,8 @@ export interface User {
 
 export interface GetUserResponse extends ApiResponse<User> {}
 
+export interface UserValidateResponse extends ApiResponse {}
+
 // Organization Model
 
 export interface Organization {
