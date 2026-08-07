@@ -1,9 +1,33 @@
+import { ThemeColors } from '../constants/Colors';
 import { StringsType } from '../constants/textConfig';
-import { useTheme } from '../theme/ThemeProvider';
 
-const { colors } = useTheme();
+export interface Task {
+  id: string;
+  title: string;
+  priority: string;
+  points: string;
+  avatar: string;
+  avatarColor: string;
+}
 
-export const todo = [
+export interface RecentProject {
+  id: string;
+  name: string;
+  code: string;
+  type: string;
+  category: string;
+  issues: number;
+  color: string;
+  starred: boolean;
+}
+
+export interface KanbanColumn {
+  title: string;
+  color: string;
+  tasks: Task[];
+}
+
+export const getTodo = (colors: ThemeColors): Task[] => [
   {
     id: 'CLOUD-340',
     title: 'Implement zero-downtime deployment pipeline',
@@ -30,7 +54,7 @@ export const todo = [
   },
 ];
 
-export const progress = [
+export const getProgress = (colors: ThemeColors): Task[] => [
   {
     id: 'CLOUD-330',
     title: 'OAuth token refresh falling on iOS clients',
@@ -49,7 +73,7 @@ export const progress = [
   },
 ];
 
-export const review = [
+export const getReview = (colors: ThemeColors): Task[] => [
   {
     id: 'CLOUD-320',
     title: 'Add circuit breaker pattern to API calls',
@@ -60,7 +84,7 @@ export const review = [
   },
 ];
 
-export const done = [
+export const getDone = (colors: ThemeColors): Task[] => [
   {
     id: 'CLOUD-310',
     title: 'Set up monitoring dashboards in Grafana',
@@ -87,7 +111,7 @@ export const done = [
   },
 ];
 
-export const recentProjects = [
+export const getRecentProjects = (colors: ThemeColors): RecentProject[] => [
   {
     id: '1',
     name: 'Cloud Migration',
@@ -160,27 +184,30 @@ export const recentProjects = [
   },
 ];
 
-export const getColumns = (strings: StringsType) => {
+export const getColumns = (
+  strings: StringsType,
+  colors: ThemeColors,
+): KanbanColumn[] => {
   return [
     {
       title: strings.projectDetails?.toDo || 'TO DO',
       color: colors.textSecondary,
-      tasks: todo,
+      tasks: getTodo(colors),
     },
     {
       title: strings.projectDetails?.inProgress || 'IN PROGRESS',
       color: colors.primary,
-      tasks: progress,
+      tasks: getProgress(colors),
     },
     {
       title: strings.projectDetails?.inReview || 'IN REVIEW',
       color: colors.accentPurple,
-      tasks: review,
+      tasks: getReview(colors),
     },
     {
       title: strings.projectDetails?.done || 'DONE',
       color: colors.success,
-      tasks: done,
+      tasks: getDone(colors),
     },
   ];
 };

@@ -1,11 +1,9 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import Strings from '../constants/textConfig';
-import { useTheme } from '../theme/ThemeProvider';
-const { colors, strings } = useTheme();
-const profileIcons = strings.profile?.icons;
+import Strings, { StringsType } from '../constants/textConfig';
+import { ThemeColors } from '../constants/Colors';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-export const stats = [
+export const getStats = (colors: ThemeColors, strings: StringsType) => [
   {
     label: Strings.profile?.assigned || 'Assigned',
     value: '12',
@@ -28,7 +26,7 @@ export const stats = [
   },
 ];
 
-export const recentActivity = [
+export const getRecentActivity = (colors: ThemeColors) => [
   {
     id: 1,
     action: 'Updated status on',
@@ -63,7 +61,7 @@ export const recentActivity = [
   },
 ];
 
-export const teams = [
+export const getTeams = (colors: ThemeColors) => [
   { name: 'Cloud', color: colors.primary },
   { name: 'Mobile', color: colors.accentPurple },
   { name: 'Platform', color: colors.accentOrange },
@@ -76,22 +74,28 @@ export type QuickLinks = {
   navigateUrl?: undefined | string;
 };
 
-export const quickLinks: QuickLinks[] = [
+export const getQuickLinks = (
+  colors: ThemeColors,
+  strings: StringsType,
+): QuickLinks[] => [
   {
     label: strings.profile?.starredIssues || 'Starred issues',
-    iconName: (profileIcons?.starred || 'star-outline') as IoniconName,
+    iconName: (strings.profile?.icons?.starred ||
+      'star-outline') as IoniconName,
     color: colors.warning,
     navigateUrl: 'HomeTabs',
   },
   {
     label: strings.profile?.myOpenIssues || 'My open issues',
-    iconName: (profileIcons?.openIssues || 'checkbox-outline') as IoniconName,
+    iconName: (strings.profile?.icons?.openIssues ||
+      'checkbox-outline') as IoniconName,
     color: colors.primary,
     navigateUrl: 'HomeTabs',
   },
   {
     label: strings.profile?.settings || 'Settings',
-    iconName: (profileIcons?.settings || 'settings-outline') as IoniconName,
+    iconName: (strings.profile?.icons?.settings ||
+      'settings-outline') as IoniconName,
     color: colors.textSecondary,
     navigateUrl: 'Settings',
   },

@@ -17,7 +17,7 @@ import {
   emailVerification,
   resendEmailVerification,
 } from '../store/auth_store/action/auth.thunks';
-import { showErrorToast, showSuccessToast } from '../utils/utils';
+import { showSuccessToast } from '../utils/utils';
 
 const VerifyEmailScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -67,7 +67,7 @@ const VerifyEmailScreen = () => {
     }
 
     if (!email) {
-      showErrorToast('Email not found. Please register again.');
+      showSuccessToast('Email not found. Please register again.', 'error');
       return;
     }
 
@@ -81,14 +81,11 @@ const VerifyEmailScreen = () => {
         }),
       ).unwrap();
 
-      showSuccessToast('Email verified successfully');
-
-      // Remove the stored email after successful verification
       mmkv.remove('verificationEmail');
 
       navigation.replace('login');
     } catch (error: any) {
-      showErrorToast(
+      console.log(
         error?.error?.message || error?.message || 'Email verification failed',
       );
     } finally {
@@ -110,11 +107,9 @@ const VerifyEmailScreen = () => {
         }),
       ).unwrap();
 
-      showSuccessToast('Verification code sent successfully');
-
       setCountdown(30);
     } catch (error: any) {
-      showErrorToast(
+      console.log(
         error?.error?.message ||
           error?.message ||
           'Failed to resend verification code',

@@ -14,13 +14,3 @@ export const showSuccessToast = (message: string, type: string) => {
     visibilityTime: 3000,
   });
 };
-
-export const showErrorToast = (message: string) => {
-  Toast.show({
-    type: 'error',
-    text1: 'Error',
-    text2: message,
-    position: 'top',
-    visibilityTime: 3000,
-  });
-};

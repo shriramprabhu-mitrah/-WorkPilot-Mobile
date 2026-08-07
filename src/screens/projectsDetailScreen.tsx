@@ -30,7 +30,7 @@ import TaskCard from '../components/TaskCard';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { getColumns, recentProjects } from '../data/projectDetailScreenData';
+import { getColumns, getRecentProjects } from '../data/projectDetailScreenData';
 import { Radius } from '../constants/Radius';
 
 type ProjectDetailsRouteProp = RouteProp<RootStackParamList, 'projectDetails'>;
@@ -226,13 +226,14 @@ const ProjectDeatailsScreen = () => {
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
 
   const [boardColumns, setBoardColumns] = useState<ColumnData[]>(() =>
-    getColumns(strings),
+    getColumns(strings, colors),
   );
   const [columnLayouts, setColumnLayouts] = useState<
     Record<string, { xMin: number; xMax: number }>
   >({});
 
   const projectId = route.params?.id;
+  const recentProjects = getRecentProjects(colors);
   const project = recentProjects.find(p => p.type === projectId);
 
   const handleColumnLayout = (title: string, event: LayoutChangeEvent) => {
@@ -313,7 +314,7 @@ const ProjectDeatailsScreen = () => {
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() =>
-                navigation.navigate('HomeTabs', { screen: 'Projects' })
+                navigation.navigate('HomeTabs', { screen: 'Project' })
               }
             >
               <Ionicons
@@ -441,7 +442,7 @@ const ProjectDeatailsScreen = () => {
           >
             <AppText
               variant='body'
-              color={colors.textSecondary}
+              color={colors?.textSecondary}
               className='text-center font-semibold'
             >
               {strings.projectDetails?.backlogTab || 'Backlog'}

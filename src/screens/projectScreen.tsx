@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, TouchableOpacity, TextInput, FlatList } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -12,6 +12,8 @@ import { getProjects } from '../data/projectData';
 import Screen from '../components/common/ScreenWapper';
 import { Radius } from '../constants/Radius';
 import { moderateScale } from '../utils/responsive';
+import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
+import ListSkeleton from '../components/skeleton/ListSkeleton';
 
 const ProjectScreen = () => {
   const { colors, strings } = useTheme();
@@ -19,6 +21,16 @@ const ProjectScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [selectedTab, setSelectedTab] = useState<'all' | 'starred'>('all');
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const filteredProjects = useMemo(() => {
     let data = getProjects(colors);
     if (selectedTab === 'starred') {
@@ -179,48 +191,60 @@ const ProjectScreen = () => {
           )}
         </View>
       </View>
-      <FlatList
-        data={filteredProjects}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps='handled'
-        contentContainerStyle={{
-          paddingHorizontal: layout.paddingHorizontal,
-          paddingBottom: isSmallHeight ? hp(20) : hp(12),
-          gap: isSmallHeight ? layout.sectionGap + 2 : layout.elementGap - 2,
-        }}
-        renderItem={({ item }) => <ProjectCard item={item} />}
-        ListEmptyComponent={
-          <View
-            className='items-center justify-center'
-            style={{
-              paddingVertical: layout.sectionGap * 3,
-              gap: layout.sectionGap,
-            }}
-          >
-            <Ionicons
-              name='folder-open-outline'
-              size={layout.iconSize * 2.5}
-              color={colors.placeholder || colors.textSecondary}
-            />
-            <AppText
-              variant='title'
-              color={colors.text}
-              className='font-semibold'
+      {loading ? (
+        <ListSkeleton
+          count={8}
+          containerStyle={{
+            paddingHorizontal: layout.paddingHorizontal,
+            paddingBottom: isSmallHeight ? hp(20) : hp(12),
+            gap: isSmallHeight ? layout.sectionGap + 2 : layout.elementGap - 2,
+          }}
+          renderItem={() => <ProjectCardSkeleton />}
+        />
+      ) : (
+        <FlatList
+          data={filteredProjects}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps='handled'
+          contentContainerStyle={{
+            paddingHorizontal: layout.paddingHorizontal,
+            paddingBottom: isSmallHeight ? hp(20) : hp(12),
+            gap: isSmallHeight ? layout.sectionGap + 2 : layout.elementGap - 2,
+          }}
+          renderItem={({ item }) => <ProjectCard item={item} />}
+          ListEmptyComponent={
+            <View
+              className='items-center justify-center'
+              style={{
+                paddingVertical: layout.sectionGap * 3,
+                gap: layout.sectionGap,
+              }}
             >
-              {strings?.projects?.noResultsTitle || 'No projects found'}
-            </AppText>
-            <AppText
-              variant='body'
-              color={colors.textSecondary}
-              className='mt-1 text-center'
-            >
-              {strings?.projects?.noResultsSubtitle ||
-                'Try searching for a different name or code.'}
-            </AppText>
-          </View>
-        }
-      />
+              <Ionicons
+                name='folder-open-outline'
+                size={layout.iconSize * 2.5}
+                color={colors.placeholder || colors.textSecondary}
+              />
+              <AppText
+                variant='title'
+                color={colors.text}
+                className='font-semibold'
+              >
+                {strings?.projects?.noResultsTitle || 'No projects found'}
+              </AppText>
+              <AppText
+                variant='body'
+                color={colors.textSecondary}
+                className='mt-1 text-center'
+              >
+                {strings?.projects?.noResultsSubtitle ||
+                  'Try searching for a different name or code.'}
+              </AppText>
+            </View>
+          }
+        />
+      )}
     </Screen>
   );
 };

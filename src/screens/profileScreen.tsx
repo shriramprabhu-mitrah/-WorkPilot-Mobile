@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, ScrollView } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -11,14 +11,16 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
   QuickLinks,
-  quickLinks,
-  recentActivity,
-  stats,
-  teams,
+  getQuickLinks,
+  getRecentActivity,
+  getStats,
+  getTeams,
 } from '../data/profileScreenData';
-import { clearStorage, useAppDispatch } from '../store';
+import { useAppDispatch, useAppSelector } from '../store';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
+import { Radius } from '../constants/Radius';
+import { getRoleLabel } from '../constants/role';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -32,7 +34,11 @@ const ProfileScreen = () => {
   const handleLogoutConfirm = () => {
     dispatch(logoutUser(showSuccessToast));
   };
-
+  const { user } = useAppSelector(state => state.auth);
+  const quickLinks = getQuickLinks(colors, strings);
+  const recentActivity = getRecentActivity(colors);
+  const stats = getStats(colors, strings);
+  const teams = getTeams(colors);
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <View
@@ -65,23 +71,56 @@ const ProfileScreen = () => {
             />
           </TouchableOpacity>
         </View>
-        {/* User Info Section */}
         <View className='flex-row items-end gap-4'>
           <View className='relative'>
             <View
-              className='items-center justify-center rounded-full'
+              className='items-center justify-center'
               style={{
-                width: moderateScale(72),
-                height: moderateScale(72),
-                backgroundColor: colors.avatarBg,
+                width: moderateScale(74),
+                height: moderateScale(74),
+                marginRight: moderateScale(14),
+                borderRadius: Radius.circle,
               }}
             >
-              <AppText variant='h2' color={colors.white}>
-                AJ
-              </AppText>
+              {user?.avatar_url ? (
+                <Image
+                  source={{ uri: user.avatar_url }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                  }}
+                  resizeMode='cover'
+                />
+              ) : (
+                <View
+                  className='items-center justify-center'
+                  style={{
+                    width: moderateScale(74),
+                    height: moderateScale(74),
+                    backgroundColor: colors.accentOrange,
+                    borderRadius: Radius.circle,
+                  }}
+                >
+                  <AppText
+                    style={{
+                      fontSize: moderateScale(28),
+                      fontWeight: 'bold',
+                      color: colors.white,
+                    }}
+                  >
+                    {user?.name
+                      ?.split(' ')
+                      .map(word => word[0])
+                      .join('')
+                      .substring(0, 2)
+                      .toUpperCase() || 'U'}
+                  </AppText>
+                </View>
+              )}
             </View>
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={() => navigation.navigate('updateDetails')}
               className='absolute bottom-0 right-0 items-center justify-center rounded-full border'
               style={{
                 width: moderateScale(26),
@@ -99,13 +138,15 @@ const ProfileScreen = () => {
           </View>
           <View style={{ gap: layout.tightGap / 2 }}>
             <AppText variant='h3' color={colors.white}>
-              Alex Johnson
+              {user?.name}
             </AppText>
-            <AppText variant='body' color={colors.textOnPrimaryMuted}>
-              {strings.profile?.role || 'Senior Software Engineer'}
+            <AppText variant='body' color={colors.textOnPrimarySubtle}>
+              {getRoleLabel(user?.role) ||
+                strings.profile?.role ||
+                'Senior Software Engineer'}
             </AppText>
             <AppText variant='caption' color={colors.textOnPrimarySubtle}>
-              alex.johnson@company.com
+              {user?.email || 'alex.johnson@company.com'}
             </AppText>
           </View>
         </View>
@@ -204,7 +245,10 @@ const ProfileScreen = () => {
             <AppText variant='bodyLarge' color={colors.text}>
               {strings.profile?.recentActivity || 'Recent Activity'}
             </AppText>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Project')}
+              activeOpacity={0.7}
+            >
               <AppText
                 variant='body'
                 color={colors.primary}
@@ -225,6 +269,9 @@ const ProfileScreen = () => {
             {recentActivity.map((item, index) => (
               <TouchableOpacity
                 key={item.id}
+                onPress={() =>
+                  navigation.navigate('issue', { id: item.target })
+                }
                 activeOpacity={0.7}
                 className={`flex-row items-start px-4 py-3 ${
                   index !== recentActivity.length - 1 ? 'border-b' : ''

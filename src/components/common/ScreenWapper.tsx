@@ -1,8 +1,10 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthLayout } from '../../hooks/useAuthLayout';
 
 interface Props {
   children: React.ReactNode;
@@ -18,7 +20,7 @@ const Screen = ({
   backgroundColor,
 }: Props) => {
   const { colors } = useTheme();
-  const { layout, moderateScale, isSmallHeight } = useAuthLayout();
+  const insets = useSafeAreaInsets();
 
   return (
     <SafeAreaView
@@ -26,16 +28,20 @@ const Screen = ({
       edges={['top']}
     >
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+        style={{
+          flex: 1,
+          backgroundColor: backgroundColor ?? colors.background,
+        }}
       >
         {scroll ? (
           <ScrollView
             keyboardShouldPersistTaps='handled'
             showsVerticalScrollIndicator={false}
+            keyboardDismissMode='interactive'
             contentContainerStyle={{
-              flexGrow: 1, // Ensures content stretches to fill full screen height
-              // paddingBottom: 50
+              flexGrow: 1,
             }}
           >
             <View style={{ flexGrow: 1 }} className={className}>
@@ -43,7 +49,9 @@ const Screen = ({
             </View>
           </ScrollView>
         ) : (
-          <View className={`flex-1 ${className}`}>{children}</View>
+          <View style={{ flex: 1 }} className={className}>
+            {children}
+          </View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>

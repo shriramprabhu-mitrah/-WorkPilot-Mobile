@@ -1,7 +1,5 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useTheme } from '../theme/ThemeProvider';
-
-const { colors } = useTheme();
+import { ThemeColors } from '../constants/Colors';
 
 export type NotificationDataType = {
   id: number;
@@ -17,7 +15,9 @@ export type NotificationDataType = {
   issueId: string;
 };
 
-export const notificationsData: NotificationDataType[] = [
+export const getNotificationsData = (
+  colors: ThemeColors,
+): NotificationDataType[] => [
   {
     id: 1,
     type: 'mention',

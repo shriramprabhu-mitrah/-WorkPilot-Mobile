@@ -10,6 +10,8 @@ import {
   passwordResetConfirmService,
   emailVerificationService,
   ResendEmailVerificationService,
+  updateUserService,
+  getUserService,
 } from '../../../services/auth.service';
 
 import {
@@ -21,11 +23,12 @@ import {
   PasswordResetConfirmPayload,
   EmailVerificationPayload,
   ResendEmailVerificationPayload,
+  UpdateUserResponse,
+  UpdateUserProfileThunkPayload,
 } from '../../../types/auth.type';
 // import { storage } from '../../../storage/storage';
-import { clearStorage, mmkv } from '../..';
 import { handleLoading } from '../reducer/auth.reducer';
-
+import { clearStorage } from '../../store';
 interface SignInThunkPayload {
   payload: SignInPayload;
   showSuccessToast: (message: string, type: string) => void;
@@ -38,30 +41,26 @@ export const signUpUser = createAsyncThunk(
       const response = await signUpService(payload);
       return response;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Sign Up Failed');
+      return rejectWithValue(
+        error.response?.data?.error?.message || 'Sign Up Failed',
+      );
     }
   },
 );
 
 export const signInUser = createAsyncThunk(
   'auth/signInUser',
-  async (
-    { payload, showSuccessToast }: SignInThunkPayload,
-    { dispatch, rejectWithValue },
-  ) => {
+  async ({ payload }: SignInThunkPayload, { dispatch, rejectWithValue }) => {
     try {
       const response = await signInService(payload);
       console.log('SignIn Response -------->', response);
       if (response?.success) {
-        showSuccessToast(response?.message || 'Login successfully', 'success');
         return response.data;
       }
     } catch (error: any) {
-      showSuccessToast(
-        error.response?.data?.message || 'login failed',
-        'error',
+      return rejectWithValue(
+        error.response?.data?.error?.message || 'login failed',
       );
-      return rejectWithValue(error?.response?.data);
     } finally {
       dispatch(handleLoading(false));
     }
@@ -87,7 +86,7 @@ export const refreshToken = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Refresh Token Failed',
+        error.response?.data?.error?.message || 'Refresh Token Failed',
       );
     }
   },
@@ -111,11 +110,9 @@ export const logoutUser = createAsyncThunk(
         return response;
       }
     } catch (error: any) {
-      showSuccessToast(
-        error.response?.data?.message || 'Loggedout successfully',
-        'error',
+      return rejectWithValue(
+        error.response?.data?.error?.message || 'Logout Failed',
       );
-      return rejectWithValue(error.response?.data?.message || 'Logout Failed');
     }
   },
 );
@@ -128,7 +125,7 @@ export const changePassword = createAsyncThunk(
       return response;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Change Password Failed',
+        error.response?.data?.error?.message || 'Change Password Failed',
       );
     }
   },
@@ -142,9 +139,9 @@ export const passwordResetRequest = createAsyncThunk(
       console.log('response for reset Password ---------- > 104', response);
       return response;
     } catch (error: any) {
-      console.log('LINE122', error);
-
-      return rejectWithValue(error.response || 'Password Reset Request Failed');
+      return rejectWithValue(
+        error.response?.data?.error?.message || 'Password Reset Request Failed',
+      );
     }
   },
 );
@@ -157,7 +154,7 @@ export const passwordResetConfirm = createAsyncThunk(
       return response;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Password Reset Failed',
+        error.response?.data?.error?.message || 'Password Reset Failed',
       );
     }
   },
@@ -188,7 +185,7 @@ export const emailVerification = createAsyncThunk(
       return response;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Password Reset Failed',
+        error.response?.data?.error?.message || 'Email verification failed',
       );
     }
   },
@@ -202,8 +199,56 @@ export const resendEmailVerification = createAsyncThunk(
       return response;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Password Reset Failed',
+        error.response?.data?.error?.message || 'Resend verification failed',
       );
+    }
+  },
+);
+
+export const getUserProfileInfo = createAsyncThunk(
+  'auth/me',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await getUserService();
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch user profile',
+      );
+    }
+  },
+);
+export const updateUserProfileInfo = createAsyncThunk<
+  UpdateUserResponse,
+  UpdateUserProfileThunkPayload,
+  { rejectValue: string }
+>(
+  'auth/update-profile',
+  async (
+    { formData, showSuccessToast, handleSuccess },
+    { dispatch, rejectWithValue },
+  ) => {
+    try {
+      const response = await updateUserService(formData);
+      if (response.success) {
+        showSuccessToast(
+          response.message || 'Profile updated successfully',
+          'success',
+        );
+        handleSuccess();
+        return response;
+      }
+      return rejectWithValue('User Data Update Failed');
+    } catch (error: any) {
+      showSuccessToast(
+        error.response?.data?.message || 'User Data Update Failed',
+        'error',
+      );
+      return rejectWithValue(
+        error.response?.data?.message || 'User Data Update Failed',
+      );
+    } finally {
+      dispatch(handleLoading(false));
     }
   },
 );

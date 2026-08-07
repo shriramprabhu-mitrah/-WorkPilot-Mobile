@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { useTheme, ThemePreference } from '../theme/ThemeProvider';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { AppText } from '../components';
+// import { AppText } from '../components';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Radius } from '../constants/Radius';
 
@@ -35,10 +35,11 @@ export const ThemeSettingsScreen = () => {
     Animated.spring(animatedIndex, {
       toValue: selectedIndex !== -1 ? selectedIndex : 0,
       useNativeDriver: false,
-      speed: 200,
-      bounciness: 0,
+      stiffness: 400,
+      damping: 30,
+      mass: 0.8,
     }).start();
-  }, [selectedIndex, animatedIndex]);
+  }, [selectedIndex]);
   const handleLayout = (event: LayoutChangeEvent) => {
     setContainerWidth(event.nativeEvent.layout.width);
   };
@@ -93,24 +94,11 @@ export const ThemeSettingsScreen = () => {
               className='z-10 h-full flex-1 items-center justify-center'
               onPress={() => setThemePreference(option.value)}
             >
-              {option.icon !== 'settings' ? (
-                <Ionicons
-                  name={option.icon}
-                  size={moderateScale(18)}
-                  color={isSelected ? colors.white : colors.textSecondary}
-                />
-              ) : (
-                <AppText
-                  className={isSelected ? 'font-bold' : 'font-medium'}
-                  variant='body'
-                  style={{
-                    width: 'auto',
-                    color: isSelected ? colors.white : colors.textSecondary,
-                  }}
-                >
-                  {option.title}
-                </AppText>
-              )}
+              <Ionicons
+                name={option.icon}
+                size={moderateScale(18)}
+                color={isSelected ? colors.white : colors.textSecondary}
+              />
             </TouchableOpacity>
           );
         })}
