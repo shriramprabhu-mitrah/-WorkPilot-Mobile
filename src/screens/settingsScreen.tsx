@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, View, ScrollView } from 'react-native';
+import { TouchableOpacity, View, ScrollView, Image } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -15,7 +15,7 @@ import { Radius } from '../constants/Radius';
 import CustomBottomSheet from '../components/common/CustomBottomDialog';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
-import { useAppDispatch } from '../store';
+import { useAppDispatch, useAppSelector } from '../store';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -29,6 +29,7 @@ export default function SettingsScreen() {
   const { colors, strings } = useTheme();
   const dispatch = useAppDispatch();
   const { layout, moderateScale, wp, isSmallHeight, hp } = useAuthLayout();
+  const { user } = useAppSelector(state => state.auth);
   const [isLogoutModalVisible, setIsLogoutModalVisible] =
     useState<boolean>(false);
   const sections: Array<{
@@ -160,31 +161,57 @@ export default function SettingsScreen() {
           }}
         >
           <View
-            className='items-center justify-center rounded-full'
+            className='items-center justify-center'
             style={{
               width: moderateScale(52),
               height: moderateScale(52),
-              backgroundColor: '#FFAB00',
               marginRight: moderateScale(14),
+              borderRadius: Radius.circle,
             }}
           >
-            <AppText
-              style={{
-                fontSize: moderateScale(18),
-                fontWeight: 'bold',
-                color: colors.white || '#FFFFFF',
-              }}
-            >
-              AJ
-            </AppText>
+            {user?.avatar_url ? (
+              <Image
+                source={{ uri: user.avatar_url }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                }}
+                resizeMode='cover'
+              />
+            ) : (
+              <View
+                className='items-center justify-center'
+                style={{
+                  width: moderateScale(52),
+                  height: moderateScale(52),
+                  backgroundColor: colors.accentOrange,
+                  borderRadius: Radius.circle,
+                }}
+              >
+                <AppText
+                  style={{
+                    fontSize: moderateScale(22),
+                    fontWeight: 'bold',
+                    color: colors.white,
+                  }}
+                >
+                  {user?.name
+                    ?.split(' ')
+                    .map(word => word[0])
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase() || 'U'}
+                </AppText>
+              </View>
+            )}
           </View>
 
           <View className='flex-1' style={{ gap: layout.tightGap / 2 }}>
             <AppText variant='bodyLarge' style={{ fontWeight: '600' }}>
-              Alex Johnson
+              {user?.name}
             </AppText>
             <AppText variant='caption' color={colors.textSecondary}>
-              alex.johnson@company.com
+              {user?.email}
             </AppText>
             <AppText
               variant='caption'

@@ -11,6 +11,8 @@ interface CameraModalProps {
   onClose: () => void;
   onSelectGallery: () => void;
   onSelectCamera: () => void;
+  onRemovePhoto?: () => void;
+  showRemoveOption?: boolean;
   title?: string;
 }
 
@@ -19,6 +21,8 @@ const CameraModal: React.FC<CameraModalProps> = ({
   onClose,
   onSelectGallery,
   onSelectCamera,
+  onRemovePhoto,
+  showRemoveOption = false,
   title = 'Update Profile Picture',
 }) => {
   const { colors } = useTheme();
@@ -38,65 +42,99 @@ const CameraModal: React.FC<CameraModalProps> = ({
       >
         <TouchableOpacity
           activeOpacity={1}
-          className='relative rounded-t-3xl'
+          className='relative rounded-t-3xl border'
+          onPress={() => {}}
           style={{
-            backgroundColor: colors.card || colors.surface,
-            padding: moderateScale(25),
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            padding: moderateScale(5),
             paddingBottom: isSmallHeight ? hp(7) : hp(6),
           }}
         >
-          <AppText
-            variant='title'
-            color={colors.text}
-            className='mb-4 font-bold'
+          <View
+            style={{
+              alignSelf: 'center',
+              width: moderateScale(42),
+              height: moderateScale(5),
+              borderRadius: 10,
+              backgroundColor: colors.border,
+              marginTop: moderateScale(10),
+              marginBottom: moderateScale(18),
+            }}
+          />
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: moderateScale(20),
+              marginBottom: moderateScale(10),
+            }}
           >
-            {title}
-          </AppText>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons
+                name='close'
+                size={layout.iconSize}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+            <AppText variant='title' className='font-bold'>
+              {title}
+            </AppText>
+            <TouchableOpacity onPress={onRemovePhoto}>
+              <Ionicons
+                name='trash-outline'
+                size={layout.iconSize}
+                color={colors.error}
+              />
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
-            className='absolute right-5 top-5 z-40'
-            onPress={onClose}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={onSelectCamera}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: moderateScale(22),
+              paddingVertical: moderateScale(14),
+              gap: moderateScale(16),
+            }}
           >
             <Ionicons
-              name='close'
-              size={layout.iconSize}
-              color={colors.textSecondary}
+              name='camera-outline'
+              size={layout.iconSize + 2}
+              color={colors.primary}
             />
-          </TouchableOpacity>
-          <TouchableOpacity
-            className='flex-row items-center border-b'
-            style={{
-              borderBottomColor: colors.border,
-              gap: layout.elementGap,
-              paddingVertical: moderateScale(15),
-            }}
-            onPress={onSelectGallery}
-          >
-            <Ionicons name='images-outline' size={22} color={colors.primary} />
             <AppText
-              variant='bodyLarge'
-              color={colors.text}
-              className='font-medium'
+              variant='body'
+              style={{
+                fontSize: layout.bodyFontSize,
+              }}
             >
-              Choose from Gallery
+              Camera
             </AppText>
           </TouchableOpacity>
           <TouchableOpacity
-            className='flex-row items-center border-b'
+            onPress={onSelectGallery}
             style={{
-              borderBottomColor: colors.border,
-              gap: layout.elementGap,
-              paddingVertical: moderateScale(15),
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: moderateScale(22),
+              paddingVertical: moderateScale(14),
+              gap: moderateScale(16),
             }}
-            onPress={onSelectCamera}
           >
-            <Ionicons name='camera-outline' size={22} color={colors.primary} />
+            <Ionicons
+              name='images-outline'
+              size={layout.iconSize + 2}
+              color={colors.primary}
+            />
             <AppText
-              variant='bodyLarge'
-              color={colors.text}
-              className='font-medium'
+              variant='body'
+              style={{
+                fontSize: layout.bodyFontSize,
+              }}
             >
-              Take Photo
+              Gallery
             </AppText>
           </TouchableOpacity>
         </TouchableOpacity>

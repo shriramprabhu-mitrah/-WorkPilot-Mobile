@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, ScrollView } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -19,6 +19,8 @@ import {
 import { useAppDispatch, useAppSelector } from '../store';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
+import { Radius } from '../constants/Radius';
+import { getRoleLabel } from '../constants/role';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -32,7 +34,7 @@ const ProfileScreen = () => {
   const handleLogoutConfirm = () => {
     dispatch(logoutUser(showSuccessToast));
   };
-  const { user } = useAppSelector(state => state.user);
+  const { user } = useAppSelector(state => state.auth);
   const quickLinks = getQuickLinks(colors, strings);
   const recentActivity = getRecentActivity(colors);
   const stats = getStats(colors, strings);
@@ -69,20 +71,52 @@ const ProfileScreen = () => {
             />
           </TouchableOpacity>
         </View>
-        {/* User Info Section */}
         <View className='flex-row items-end gap-4'>
           <View className='relative'>
             <View
-              className='items-center justify-center rounded-full'
+              className='items-center justify-center'
               style={{
-                width: moderateScale(72),
-                height: moderateScale(72),
-                backgroundColor: colors.avatarBg,
+                width: moderateScale(74),
+                height: moderateScale(74),
+                marginRight: moderateScale(14),
+                borderRadius: Radius.circle,
               }}
             >
-              <AppText variant='h2' color={colors.white}>
-                AJ
-              </AppText>
+              {user?.avatar_url ? (
+                <Image
+                  source={{ uri: user.avatar_url }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                  }}
+                  resizeMode='cover'
+                />
+              ) : (
+                <View
+                  className='items-center justify-center'
+                  style={{
+                    width: moderateScale(74),
+                    height: moderateScale(74),
+                    backgroundColor: colors.accentOrange,
+                    borderRadius: Radius.circle,
+                  }}
+                >
+                  <AppText
+                    style={{
+                      fontSize: moderateScale(28),
+                      fontWeight: 'bold',
+                      color: colors.white,
+                    }}
+                  >
+                    {user?.name
+                      ?.split(' ')
+                      .map(word => word[0])
+                      .join('')
+                      .substring(0, 2)
+                      .toUpperCase() || 'U'}
+                  </AppText>
+                </View>
+              )}
             </View>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -107,7 +141,7 @@ const ProfileScreen = () => {
               {user?.name}
             </AppText>
             <AppText variant='body' color={colors.textOnPrimarySubtle}>
-              {user?.role ||
+              {getRoleLabel(user?.role) ||
                 strings.profile?.role ||
                 'Senior Software Engineer'}
             </AppText>

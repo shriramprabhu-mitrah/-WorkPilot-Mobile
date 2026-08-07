@@ -3,7 +3,6 @@ import {
   View,
   TouchableOpacity,
   Image,
-  Modal,
   Alert,
   PermissionsAndroid,
   Platform,
@@ -21,20 +20,18 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { showErrorToast, showSuccessToast } from '../utils/utils';
 import { useAppDispatch, useAppSelector } from '../store';
-// import PasswordRules from '../components/passwordRules';
-// import { PasswordInput } from '../components';
+import CameraModal from '../components/cameraModal';
+import { Radius } from '../constants/Radius';
 import {
   getUserProfileInfo,
   updateUserProfileInfo,
-  UpdateUserProfilePayload,
-} from '../store/user_store/action/user.thunks';
-import CameraModal from '../components/cameraModal';
-import { Radius } from '../constants/Radius';
+} from '../store/auth_store/action/auth.thunks';
+import { getRoleLabel } from '../constants/role';
 
 const UpdateUserDetailsScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector(state => state.user);
+  const { user } = useAppSelector(state => state.auth);
   const { colors, strings } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
   const [avatarUri, setAvatarUri] = useState<string | undefined>(
@@ -43,7 +40,6 @@ const UpdateUserDetailsScreen = () => {
   const [name, setName] = useState<string>(user?.name ?? '');
   const [username, setUsername] = useState<string>(user?.username ?? '');
   const [email, setEmail] = useState<string>(user?.email ?? '');
-  const [password, setPassword] = useState<string>('');
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
   const [errors, setErrors] = useState({
     name: '',
@@ -52,9 +48,6 @@ const UpdateUserDetailsScreen = () => {
     password: '',
   });
   const [loading, setLoading] = useState(false);
-  const avatarSize = isSmallHeight ? moderateScale(80) : moderateScale(96);
-  const badgeSize = isSmallHeight ? moderateScale(26) : moderateScale(30);
-  const cardBorderRadius = moderateScale(20);
 
   const requestCameraPermission = async () => {
     if (Platform.OS === 'android') {
@@ -107,6 +100,10 @@ const UpdateUserDetailsScreen = () => {
     }
   };
 
+  const handleRemovePhoto = async () => {
+    setPickerModalVisible(false);
+  };
+
   const validate = () => {
     const newErrors = { name: '', username: '', email: '', password: '' };
     let isValid = true;
@@ -139,175 +136,213 @@ const UpdateUserDetailsScreen = () => {
         strings?.updateUser?.emailInvalid || 'Enter a valid email address';
       isValid = false;
     }
-    if (password.length > 0 && password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-      isValid = false;
-    }
     setErrors(newErrors);
     return isValid;
   };
 
-  const handleUpdateDetails = async () => {
+  const handleUpdateDetails = () => {
     if (!validate()) return;
     setLoading(true);
-    try {
-      const payload: UpdateUserProfilePayload = {};
-      if (name !== user?.name) {
-        payload.full_name = name;
-      }
-      if (username !== user?.username) {
-        payload.username = username;
-      }
-      if (avatarUri && avatarUri !== user?.avatar_url) {
-        payload.avatar = avatarUri;
-      }
-      if (Object.keys(payload).length === 0) {
-        showErrorToast('No changes to update');
-        return;
-      }
-      console.log('payload', payload);
-      const result = await dispatch(updateUserProfileInfo(payload)).unwrap();
-      showSuccessToast(result.message, 'success');
-      await dispatch(getUserProfileInfo());
-      navigation.goBack();
-    } catch (error: any) {
-      showErrorToast(
-        error ||
-          strings?.updateUser?.defaultErrorMessage ||
-          'Failed to update user profile',
-      );
-    } finally {
-      setLoading(false);
+    const formData = new FormData();
+    if (name !== user?.name) {
+      formData.append('full_name', name);
     }
+    if (username !== user?.username) {
+      formData.append('username', username);
+    }
+    if (avatarUri && avatarUri !== user?.avatar_url) {
+      const fileName = avatarUri.split('/').pop() || 'avatar.jpg';
+      const fileType = fileName.endsWith('.png')
+        ? 'image/png'
+        : fileName.endsWith('.webp')
+          ? 'image/webp'
+          : 'image/jpeg';
+      formData.append('avatar', {
+        uri: avatarUri,
+        name: fileName,
+        type: fileType,
+      } as any);
+    }
+    if ((formData as FormData & { _parts: unknown[] })._parts.length === 0) {
+      showErrorToast('No changes to update');
+      setLoading(false);
+      return;
+    }
+    dispatch(
+      updateUserProfileInfo({
+        formData,
+        showSuccessToast,
+        handleSuccess,
+      }),
+    );
+  };
+
+  const handleSuccess = () => {
+    dispatch(getUserProfileInfo());
+    navigation.goBack();
   };
 
   const isActiveUser = user?.is_active ?? true;
 
   return (
     <Screen scroll={true}>
-      <View
-        className='flex-1'
-        style={{
-          paddingHorizontal: layout.paddingHorizontal,
-          paddingTop: isSmallHeight ? moderateScale(12) : moderateScale(16),
-          paddingBottom: isSmallHeight ? moderateScale(16) : moderateScale(24),
-        }}
-      >
-        <TouchableOpacity
-          className='self-start'
-          activeOpacity={0.7}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons
-            name='arrow-back'
-            size={layout.iconSize * 1.1}
-            color={colors.text}
-          />
-        </TouchableOpacity>
+      <View style={{ backgroundColor: colors.primary }}>
         <View
-          className='items-center'
           style={{
-            marginBottom: isSmallHeight ? moderateScale(14) : moderateScale(20),
-            gap: layout.elementGap,
+            paddingHorizontal: layout.paddingHorizontal,
+            paddingTop: isSmallHeight ? moderateScale(12) : moderateScale(16),
+            paddingBottom: isSmallHeight
+              ? moderateScale(24)
+              : moderateScale(32),
           }}
         >
-          <TouchableOpacity
-            className='relative'
-            activeOpacity={0.8}
-            onPress={() => setPickerModalVisible(true)}
+          <View
+            className='flex-row items-center'
+            style={{ gap: layout.elementGap }}
           >
-            <View
-              className='items-center justify-center shadow'
-              style={{
-                width: avatarSize,
-                height: avatarSize,
-                borderRadius: Radius.circle,
-                backgroundColor: colors.card || colors.surface,
-                borderWidth: 3,
-                borderColor: colors.primary,
-              }}
-            >
-              {avatarUri ? (
-                <Image
-                  source={{ uri: avatarUri }}
-                  className='h-full w-full'
-                  resizeMode='cover'
-                  style={{ borderRadius: Radius.circle }}
-                />
-              ) : (
-                <Ionicons
-                  name='person'
-                  size={avatarSize * 0.5}
-                  color={colors.textSecondary}
-                />
-              )}
-            </View>
-            <View
-              className='absolute bottom-0 right-0 items-center justify-center border-2 shadow'
-              style={{
-                width: badgeSize,
-                height: badgeSize,
-                borderRadius: Radius.circle,
-                backgroundColor: colors.primary,
-                borderColor: colors.background,
-              }}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => navigation.goBack()}
+              style={{ padding: moderateScale(4) }}
             >
               <Ionicons
-                name='camera'
-                size={badgeSize * 0.5}
+                name='arrow-back'
+                size={layout.iconSize * 1.1}
                 color={colors.white}
               />
-            </View>
-          </TouchableOpacity>
-          <AppText
-            variant='h2'
-            className='text-center font-bold'
-            style={{
-              fontSize: isSmallHeight ? moderateScale(18) : moderateScale(20),
-            }}
-          >
-            {user?.name || strings?.updateUser?.headerTitle}
-          </AppText>
-
-          <View
-            className='flex-row items-center justify-center'
-            style={{ gap: moderateScale(10) }}
-          >
-            <View
-              className='border px-2.5 py-1'
+            </TouchableOpacity>
+            <AppText
+              variant='bodyLarge'
+              className='font-bold'
               style={{
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-                borderRadius: Radius.lg,
+                fontSize: moderateScale(18),
+                color: colors.white,
               }}
             >
-              <AppText
-                variant='caption'
-                color={colors.textSecondary}
-                className='font-semibold uppercase tracking-wider'
-                style={{ fontSize: moderateScale(10) }}
-              >
-                {user?.role || 'User'}
-              </AppText>
-            </View>
-
-            <View
-              className={`flex-row items-center px-2.5 py-1 ${
-                isActiveUser ? 'bg-emerald-500/10' : 'bg-red-500/10'
-              }`}
-              style={{ gap: moderateScale(4), borderRadius: Radius.lg }}
+              Profile
+            </AppText>
+          </View>
+          <View className='items-center' style={{ gap: layout.elementGap }}>
+            <TouchableOpacity
+              className='relative'
+              activeOpacity={0.8}
+              onPress={() => setPickerModalVisible(true)}
             >
               <View
-                className={`h-1.5 w-1.5 rounded-full ${
-                  isActiveUser ? 'bg-emerald-500' : 'bg-red-500'
-                }`}
+                className='items-center justify-center'
+                style={{
+                  width: isSmallHeight
+                    ? moderateScale(100)
+                    : moderateScale(116),
+                  height: isSmallHeight
+                    ? moderateScale(100)
+                    : moderateScale(116),
+                  marginRight: moderateScale(14),
+                  borderRadius: Radius.circle,
+                }}
+              >
+                {user?.avatar_url ? (
+                  <Image
+                    source={{ uri: user.avatar_url }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                    }}
+                    resizeMode='cover'
+                  />
+                ) : (
+                  <View
+                    className='items-center justify-center'
+                    style={{
+                      width: isSmallHeight
+                        ? moderateScale(100)
+                        : moderateScale(116),
+                      height: isSmallHeight
+                        ? moderateScale(100)
+                        : moderateScale(116),
+                      backgroundColor: colors.accentOrange,
+                      borderRadius: Radius.circle,
+                    }}
+                  >
+                    <AppText
+                      style={{
+                        fontSize: moderateScale(36),
+                        fontWeight: 'bold',
+                        color: colors.white,
+                      }}
+                    >
+                      {user?.name
+                        ?.split(' ')
+                        .map(word => word[0])
+                        .join('')
+                        .substring(0, 2)
+                        .toUpperCase() || 'U'}
+                    </AppText>
+                  </View>
+                )}
+              </View>
+              <View
+                className='absolute bottom-0 right-0 items-center justify-center'
+                style={{
+                  width: isSmallHeight ? moderateScale(30) : moderateScale(34),
+                  height: isSmallHeight ? moderateScale(30) : moderateScale(34),
+                  borderRadius: Radius.circle,
+                  backgroundColor: colors.primary,
+                  borderWidth: 2,
+                  borderColor: colors.white,
+                }}
+              >
+                <Ionicons
+                  name='camera'
+                  size={
+                    (isSmallHeight ? moderateScale(30) : moderateScale(34)) *
+                    0.5
+                  }
+                  color={colors.white}
+                />
+              </View>
+            </TouchableOpacity>
+            <AppText
+              variant='h2'
+              className='text-center font-bold'
+              style={{
+                fontSize: isSmallHeight ? moderateScale(20) : moderateScale(22),
+                color: colors.white,
+              }}
+            >
+              {user?.name || strings?.updateUser?.headerTitle}
+            </AppText>
+            <AppText
+              variant='body'
+              className='text-center'
+              style={{ color: colors.white }}
+            >
+              {getRoleLabel(user?.role)}
+            </AppText>
+            <View
+              className='flex-row items-center justify-center'
+              style={{
+                backgroundColor: colors.card || colors.surface,
+                paddingHorizontal: moderateScale(12),
+                paddingVertical: moderateScale(3),
+                borderRadius: Radius.circle,
+                gap: moderateScale(6),
+              }}
+            >
+              <View
+                style={{
+                  width: moderateScale(8),
+                  height: moderateScale(8),
+                  borderRadius: Radius.circle,
+                  backgroundColor: isActiveUser ? colors.success : colors.error,
+                }}
               />
               <AppText
                 variant='caption'
-                className={`font-bold ${
-                  isActiveUser ? 'text-emerald-500' : 'text-red-500'
-                }`}
-                style={{ fontSize: moderateScale(10) }}
+                className='font-bold'
+                style={{
+                  color: colors.text,
+                }}
               >
                 {isActiveUser
                   ? strings?.updateUser?.statusActive || 'Active'
@@ -317,15 +352,17 @@ const UpdateUserDetailsScreen = () => {
           </View>
         </View>
         <View
-          className='shadow'
           style={{
-            backgroundColor: colors.card || colors.surface,
+            flex: 1,
+            backgroundColor: colors.background,
+            borderTopLeftRadius: moderateScale(28),
+            borderTopRightRadius: moderateScale(28),
             paddingHorizontal: layout.paddingHorizontal,
-            paddingVertical: isSmallHeight
-              ? moderateScale(14)
-              : moderateScale(18),
-            borderRadius: cardBorderRadius,
-            gap: isSmallHeight ? moderateScale(10) : layout.elementGap,
+            paddingTop: isSmallHeight ? moderateScale(20) : moderateScale(28),
+            paddingBottom: isSmallHeight
+              ? moderateScale(20)
+              : moderateScale(32),
+            gap: layout.largeSectionGap,
           }}
         >
           <AppInput
@@ -372,7 +409,7 @@ const UpdateUserDetailsScreen = () => {
               strings?.updateUser?.emailPlaceholder || 'Enter email address'
             }
             keyboardType='email-address'
-            aria-disabled
+            disabled
             autoCapitalize='none'
             leftIcon={
               <Ionicons
@@ -388,47 +425,25 @@ const UpdateUserDetailsScreen = () => {
               setErrors(prev => ({ ...prev, email: '' }));
             }}
           />
-          {/* <View className='relative z-20'>
-            <PasswordRules password={password} />
-            <PasswordInput
-              label={strings?.signUp?.passwordLabel || 'New Password'}
-              placeholder={
-                strings?.signUp?.passwordPlaceholder || 'Enter new password'
-              }
-              leftIcon={
-                <Ionicons
-                  name='lock-closed-outline'
-                  size={moderateScale(18)}
-                  color={colors.textSecondary}
-                />
-              }
-              value={password}
-              error={errors.password}
-              onChangeText={text => {
-                setPassword(text);
-                setErrors(prev => ({ ...prev, password: '' }));
-              }}
-            />
-          </View> */}
-          <View style={{ marginTop: moderateScale(6) }}>
-            <PrimaryButton
-              title={strings?.updateUser?.submitButton || 'Save Changes'}
-              loading={loading}
-              onPress={handleUpdateDetails}
-              style={{
-                paddingVertical: isSmallHeight
-                  ? moderateScale(12)
-                  : moderateScale(14),
-              }}
-            />
-          </View>
+          <PrimaryButton
+            title={strings?.updateUser?.submitButton || 'Save Changes'}
+            style={{
+              marginTop: isSmallHeight
+                ? layout.largeSectionGap
+                : layout.elementGap,
+            }}
+            loading={loading}
+            onPress={handleUpdateDetails}
+          />
         </View>
       </View>
       <CameraModal
         visible={pickerModalVisible}
         onClose={() => setPickerModalVisible(false)}
-        onSelectGallery={handleChooseFromGallery}
         onSelectCamera={handleTakePhoto}
+        onSelectGallery={handleChooseFromGallery}
+        onRemovePhoto={handleRemovePhoto}
+        showRemoveOption={!!avatarUri}
       />
     </Screen>
   );

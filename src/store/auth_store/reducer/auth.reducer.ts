@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { AuthState } from '../../../types/auth.type';
+import { AuthState, User } from '../../../types/auth.type';
 import {
   signUpUser,
   signInUser,
@@ -9,6 +9,7 @@ import {
   passwordResetRequest,
   passwordResetConfirm,
   checkAuthOnAppStart,
+  getUserProfileInfo,
 } from '../action/auth.thunks';
 import { jwtDecode } from 'jwt-decode';
 
@@ -193,6 +194,18 @@ const authSlice = createSlice({
           accessToken: null,
           refreshToken: null,
         };
+      })
+      .addCase(getUserProfileInfo.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getUserProfileInfo.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload as User;
+      })
+      .addCase(getUserProfileInfo.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });

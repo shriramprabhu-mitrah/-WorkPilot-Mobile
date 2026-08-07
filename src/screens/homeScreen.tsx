@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -18,7 +18,8 @@ import {
   starredIssues,
 } from '../data/homeScreenData';
 import { useAppDispatch, useAppSelector } from '../store';
-import { getUserProfileInfo } from '../store/user_store/action/user.thunks';
+import { getUserProfileInfo } from '../store/auth_store/action/auth.thunks';
+import { Radius } from '../constants/Radius';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -29,7 +30,7 @@ const HomeScreen = () => {
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
   const homeIcons = strings.home?.icons;
   const recentProjects = getRecentProjects(colors);
-  const { user } = useAppSelector(state => state.user);
+  const { user } = useAppSelector(state => state.auth);
   useEffect(() => {
     dispatch(getUserProfileInfo());
   }, []);
@@ -48,15 +49,50 @@ const HomeScreen = () => {
           <View className='flex-row items-center gap-3'>
             <TouchableOpacity
               onPress={() => navigation.navigate('Profile')}
-              className='items-center justify-center rounded-full bg-[#FFAB00]'
+              className='items-center justify-center'
               style={{
                 width: moderateScale(40),
                 height: moderateScale(40),
+                borderRadius: Radius.circle,
               }}
             >
-              <AppText variant='body' className='font-bold' color='#FFFFFF'>
-                AJ
-              </AppText>
+              {user?.avatar_url ? (
+                <Image
+                  source={{ uri: user.avatar_url }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: moderateScale(26),
+                  }}
+                  resizeMode='cover'
+                />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Profile')}
+                  className='items-center justify-center'
+                  style={{
+                    width: moderateScale(40),
+                    height: moderateScale(40),
+                    backgroundColor: colors.accentOrange,
+                    borderRadius: Radius.circle,
+                  }}
+                >
+                  <AppText
+                    style={{
+                      fontSize: moderateScale(18),
+                      fontWeight: 'bold',
+                      color: colors.white,
+                    }}
+                  >
+                    {user?.name
+                      ?.split(' ')
+                      .map(word => word[0])
+                      .join('')
+                      .substring(0, 2)
+                      .toUpperCase() || 'U'}
+                  </AppText>
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
             <View>
               <AppText variant='caption' color='#B3D4FF'>

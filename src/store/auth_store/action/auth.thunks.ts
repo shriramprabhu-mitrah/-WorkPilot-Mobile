@@ -10,6 +10,8 @@ import {
   passwordResetConfirmService,
   emailVerificationService,
   ResendEmailVerificationService,
+  updateUserService,
+  getUserService,
 } from '../../../services/auth.service';
 
 import {
@@ -21,9 +23,10 @@ import {
   PasswordResetConfirmPayload,
   EmailVerificationPayload,
   ResendEmailVerificationPayload,
+  UpdateUserResponse,
+  UpdateUserProfileThunkPayload,
 } from '../../../types/auth.type';
-// import { storage } from '../../../storage/storage';
-import { clearStorage, mmkv } from '../..';
+import { clearStorage } from '../..';
 import { handleLoading } from '../reducer/auth.reducer';
 
 interface SignInThunkPayload {
@@ -204,6 +207,55 @@ export const resendEmailVerification = createAsyncThunk(
       return rejectWithValue(
         error.response?.data?.message || 'Password Reset Failed',
       );
+    }
+  },
+);
+
+export const getUserProfileInfo = createAsyncThunk(
+  'auth/me',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await getUserService();
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch user profile',
+      );
+    }
+  },
+);
+
+export const updateUserProfileInfo = createAsyncThunk<
+  UpdateUserResponse,
+  UpdateUserProfileThunkPayload,
+  { rejectValue: string }
+>(
+  'auth/update-profile',
+  async (
+    { formData, showSuccessToast, handleSuccess },
+    { dispatch, rejectWithValue },
+  ) => {
+    try {
+      const response = await updateUserService(formData);
+      if (response.success) {
+        showSuccessToast(
+          response.message || 'Profile updated successfully',
+          'success',
+        );
+        handleSuccess();
+        return response;
+      }
+      return rejectWithValue('User Data Update Failed');
+    } catch (error: any) {
+      showSuccessToast(
+        error.response?.data?.message || 'User Data Update Failed',
+        'error',
+      );
+      return rejectWithValue(
+        error.response?.data?.message || 'User Data Update Failed',
+      );
+    } finally {
+      dispatch(handleLoading(false));
     }
   },
 );

@@ -24,7 +24,6 @@ import {
   ChangePasswordPayload,
   ChangePasswordResponse,
   GetUserResponse,
-  UpdateUserPayload,
   UpdateUserResponse,
   PasswordResetRequestPayload,
   PasswordResetRequestResponse,
@@ -34,7 +33,6 @@ import {
   EmailVerificationResponse,
   ResendEmailVerificationPayload,
   ResendEmailVerificationResponse,
-  GetUserPayload,
 } from '../types/auth.type';
 
 /**
@@ -132,13 +130,11 @@ export const changePasswordService = async (
  * ===========================
  */
 
-export const getUserService = async (
-  payload: GetUserPayload,
-): Promise<GetUserResponse> => {
+export const getUserService = async (): Promise<GetUserResponse> => {
   try {
-    return await get<GetUserResponse>(GET_USER, payload.accessToken);
+    return await get<GetUserResponse>(GET_USER);
   } catch (error) {
-    console.error('Get User Profile API failed:', error);
+    console.error('Get User API failed:', error);
     throw error;
   }
 };
@@ -150,19 +146,19 @@ export const getUserService = async (
  */
 
 export const updateUserService = async (
-  payload: UpdateUserPayload,
+  formData: FormData,
 ): Promise<UpdateUserResponse> => {
   try {
-    return await patch<UpdateUserResponse, UpdateUserPayload>(
-      UPDATE_USER,
-      payload,
-    );
+    return await patch<UpdateUserResponse, FormData>(UPDATE_USER, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   } catch (error) {
     console.error('Update User API failed:', error);
     throw error;
   }
 };
-
 /**
  * ===========================
  * Password Reset Request

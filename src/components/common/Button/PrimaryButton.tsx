@@ -1,9 +1,9 @@
 import React from 'react';
-import {TouchableOpacity,ActivityIndicator,} from 'react-native';
+import { TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Radius } from '../../../constants/Radius';
 import { useTheme } from '../../../hooks/useTheme';
 import AppText from '../AppText';
-import { useResponsive } from '../../../utils/responsive';
+import { useAuthLayout } from '../../../hooks/useAuthLayout';
 
 interface Props {
   title: string;
@@ -22,9 +22,8 @@ const PrimaryButton = ({
   className = '',
   style,
 }: Props) => {
-
-  const {colors} = useTheme();
-  const {hp} = useResponsive();
+  const { colors } = useTheme();
+  const { isSmallHeight, isLargeHeight, verticalScale } = useAuthLayout();
   return (
     <TouchableOpacity
       activeOpacity={0.8}
@@ -33,25 +32,28 @@ const PrimaryButton = ({
       className={className}
       style={[
         {
-          backgroundColor:colors.primary,
-          paddingVertical:hp(2),
-          borderRadius:Radius.md,
+          backgroundColor: colors.primary,
+          paddingVertical: isSmallHeight
+            ? verticalScale(10)
+            : isLargeHeight
+              ? verticalScale(16)
+              : verticalScale(12),
+          borderRadius: Radius.md,
           alignItems: 'center',
-          opacity:
-            disabled ? 0.6 : 1,
+          opacity: disabled ? 0.6 : 1,
         },
-        style
-      ]}>
-      {loading ?
-          <ActivityIndicator color="white" />
-          :
-          <AppText
-            variant="button"
-            color="white"
-          >
-            {title}
-          </AppText>}
+        style,
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color='white' />
+      ) : (
+        <AppText variant='button' color='white'>
+          {title}
+        </AppText>
+      )}
     </TouchableOpacity>
-  )}
+  );
+};
 
 export default PrimaryButton;

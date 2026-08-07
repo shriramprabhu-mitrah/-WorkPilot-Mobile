@@ -558,9 +558,9 @@ const IssueDetailScreen = () => {
           paddingHorizontal: layout.paddingHorizontal,
           paddingTop: layout.paddingTop,
           borderColor: colors.border,
-          gap: layout.largeSectionGap,
+          gap: isSmallHeight ? layout.largeSectionGap : layout.sectionGap,
           backgroundColor: colors.card,
-          paddingBottom: isSmallHeight ? hp(8.75) : hp(2),
+          paddingBottom: isSmallHeight ? hp(8.75) : hp(8),
         }}
       >
         <Avatar

@@ -11,6 +11,7 @@ interface Props extends TextInputProps {
   error?: string;
   leftIcon?: ReactNode;
   rightSendButton?: ReactNode;
+  disabled?: boolean;
 }
 
 const AppInput = ({
@@ -19,6 +20,7 @@ const AppInput = ({
   leftIcon,
   style,
   rightSendButton,
+  disabled = false,
   ...props
 }: Props) => {
   const { colors } = useTheme();
@@ -57,6 +59,7 @@ const AppInput = ({
             : isFocused
               ? '#0E6FFF'
               : colors.border,
+          opacity: disabled ? 0.7 : 1,
           borderRadius: Radius.md,
           paddingHorizontal: layout.paddingHorizontal / 1.5,
         }}
@@ -73,9 +76,12 @@ const AppInput = ({
 
         <TextInput
           {...props}
+          editable={!disabled}
           placeholderTextColor={colors.placeholder}
           onFocus={e => {
-            setIsFocused(true);
+            if (!disabled) {
+              setIsFocused(true);
+            }
             props.onFocus?.(e);
           }}
           onBlur={e => {
@@ -90,7 +96,7 @@ const AppInput = ({
               flex: 1,
               paddingVertical: inputPaddingVertical,
               fontSize: layout.bodyFontSize,
-              color: colors.text,
+              color: disabled ? colors.textSecondary : colors.text,
             },
             style,
           ]}
