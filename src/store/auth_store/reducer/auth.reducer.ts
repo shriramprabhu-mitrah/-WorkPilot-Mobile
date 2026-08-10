@@ -12,6 +12,7 @@ import {
   getUserProfileInfo,
 } from '../action/auth.thunks';
 import { jwtDecode } from 'jwt-decode';
+import reactotron from 'reactotron-react-native';
 
 const initialState: AuthState = {
   loading: false,
@@ -66,6 +67,35 @@ const authSlice = createSlice({
       }>,
     ) {
       state.tokens = action.payload;
+    },
+    authenticateWithToken(
+      state,
+      action: PayloadAction<{
+        accessToken: string;
+        refreshToken?: string | null;
+      }>,
+    ) {
+      const { accessToken, refreshToken } = action.payload;
+
+      state.loading = false;
+      state.isAuthenticated = true;
+
+      reactotron.log('LINE83', accessToken);
+      state.tokens = {
+        accessToken,
+        refreshToken: refreshToken ?? null,
+      };
+
+      const decoded = decodeToken(accessToken);
+
+      console.log('LINE91', decoded);
+
+      if (decoded) {
+        state.user = {
+          id: decoded.user_id,
+          role: decoded.role,
+        };
+      }
     },
     handleLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
@@ -210,7 +240,12 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, updateTokens, handleLoading } =
-  authSlice.actions;
+export const {
+  logout,
+  clearError,
+  updateTokens,
+  handleLoading,
+  authenticateWithToken,
+} = authSlice.actions;
 
 export default authSlice.reducer;

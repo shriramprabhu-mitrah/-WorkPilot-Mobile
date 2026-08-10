@@ -35,15 +35,7 @@ const apiClient: AxiosInstance = axios.create({
 
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    reactotron.display({
-      name: 'API Request',
-      value: {
-        Method: config.method?.toUpperCase(),
-        URL: `${config.baseURL}${config.url}`,
-        Headers: config.headers,
-        Body: config.data,
-      },
-    });
+    const accessToken = store.getState().auth?.tokens?.accessToken;
 
     const publicRoutes = [
       SIGNIN,
@@ -58,32 +50,37 @@ apiClient.interceptors.request.use(
     );
 
     if (config.url?.includes(REFRESH_TOKEN)) {
-      const refreshToken = store.getState().auth?.tokens?.refreshToken;
+      const refreshTokenValue = store.getState().auth?.tokens?.refreshToken;
 
-      if (refreshToken) {
-        config.headers.Authorization = `Bearer ${refreshToken}`;
+      if (refreshTokenValue) {
+        config.headers.Authorization = `Bearer ${refreshTokenValue}`;
       }
-
-      return config;
-    }
-
-    if (isPublicRoute) {
-      return config;
-    }
-
-    const accessToken = store.getState().auth?.tokens?.accessToken;
-
-    if (accessToken) {
+    } else if (!isPublicRoute && accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
+
+    reactotron.display({
+      name: '🚀 API REQUEST',
+      value: {
+        method: config.method?.toUpperCase(),
+        url: `${config.baseURL}${config.url}`,
+        headers: config.headers,
+        body: config.data,
+        hasAccessToken: !!accessToken,
+      },
+    });
 
     return config;
   },
   error => {
     reactotron.display({
-      name: 'API Error',
-      value: error,
+      name: '❌ REQUEST CONFIG ERROR',
+      value: {
+        message: error?.message,
+        error,
+      },
     });
+
     return Promise.reject(error);
   },
 );
@@ -95,9 +92,10 @@ apiClient.interceptors.response.use(
     reactotron.display({
       name: 'API Response',
       value: {
-        URL: response.config.url,
-        Status: response.status,
-        Data: response.data,
+        method: response.config.method?.toUpperCase(),
+        url: `${response.config.baseURL}${response.config.url}`,
+        status: response.status,
+        data: response.data,
       },
     });
 
@@ -118,9 +116,12 @@ apiClient.interceptors.response.use(
     reactotron.display({
       name: 'API Error',
       value: {
-        URL: error.config?.url,
-        Status: error.response?.status,
-        Data: error.response?.data,
+        method: error.config?.method?.toUpperCase(),
+        url: `${error.config?.baseURL || ''}${error.config?.url || ''}`,
+        status: error.response?.status,
+        code: error.code,
+        message: error.message,
+        data: error.response?.data,
       },
     });
 
