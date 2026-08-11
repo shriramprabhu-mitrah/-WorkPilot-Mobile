@@ -16,9 +16,9 @@ export const PASSWORD_RESET_CONFIRM = `/auth/password-reset/confirm`;
 
 // ORGANIZATION
 
-
+export const GET_ORGANIZATION_DETAIL = `/organization/get`;
 export const CREATE_ORGANIZATION = `/organization/create`;
 
 //PROJECT
 
-export const GET_PROJECTS = `/project/get`
+export const GET_PROJECTS = `/project/get`;

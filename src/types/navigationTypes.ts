@@ -28,4 +28,6 @@ export type RootStackParamList = {
   Terms: undefined;
   PrivacyPolicy: undefined;
   updateDetails: undefined;
+  QuickAccess: undefined;
+  Create: undefined;
 };
