@@ -5,6 +5,7 @@ import { createMMKV } from 'react-native-mmkv';
 import { persistStore, persistReducer } from 'redux-persist';
 import reactotron from '../config/ReactotronConfig';
 import issueReducer from './issue_store/reducer/issue.reducer';
+import homeReducer from './home_store/reducer/home.reducer';
 
 export const mmkv = createMMKV();
 
@@ -59,6 +60,7 @@ const rootReducer = combineReducers({
   auth: persistReducer(authPersistConfig, authReducer),
   common: commonReducer,
   issue: issueReducer,
+  home: homeReducer,
   // audit: persistReducer(auditPersistConfig, auditSlice),
   // response: persistReducer(responsePersistConfig, responseSlice),
   // submission: submissionSlice,

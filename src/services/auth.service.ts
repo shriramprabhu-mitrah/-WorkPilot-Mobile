@@ -12,6 +12,7 @@ import {
   EMAIL_VERIFICATION,
   RESEND_EMAIL_VERIFICATION,
   USER_VALIDATE,
+  GET_ORGANIZATION_DETAIL,
 } from '../constants/apiServiceEndpoint';
 
 import {
@@ -36,6 +37,7 @@ import {
   ResendEmailVerificationPayload,
   ResendEmailVerificationResponse,
   UserValidateResponse,
+  GetOrganizationResponse,
 } from '../types/auth.type';
 
 /**
@@ -240,3 +242,13 @@ export const userValidateService = async (
     throw error;
   }
 };
+
+export const getOrganizationDetailService =
+  async (): Promise<GetOrganizationResponse> => {
+    try {
+      return await get<GetOrganizationResponse>(GET_ORGANIZATION_DETAIL);
+    } catch (error) {
+      console.error('Get Organization Detail API failed:', error);
+      throw error;
+    }
+  };

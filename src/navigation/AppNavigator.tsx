@@ -17,6 +17,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import TermsScreen from '../screens/TermsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import UpdateUserDetailsScreen from '../screens/updateUserDetailScreen';
+import QuickAccessScreen from '../screens/QuickAccess';
+import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -42,6 +44,8 @@ const AppNavigator = () => {
           <Stack.Screen name='BackLogs' component={BackLog} />
           <Stack.Screen name='Settings' component={SettingsScreen} />
           <Stack.Screen name='newIssues' component={AddNewIssues} />
+          <Stack.Screen name='QuickAccess' component={QuickAccessScreen} />
+          <Stack.Screen name='Create' component={CreateScreen} />
           <Stack.Screen
             name='updateDetails'
             component={UpdateUserDetailsScreen}

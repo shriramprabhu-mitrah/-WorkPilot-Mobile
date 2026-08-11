@@ -10,6 +10,7 @@ import {
   passwordResetConfirm,
   checkAuthOnAppStart,
   getUserProfileInfo,
+  getOrganizationDetail,
 } from '../action/auth.thunks';
 import { jwtDecode } from 'jwt-decode';
 
@@ -19,6 +20,7 @@ const initialState: AuthState = {
   error: null,
   message: null,
   user: null,
+  organization: null,
   tokens: {
     accessToken: null,
     refreshToken: null,
@@ -194,6 +196,17 @@ const authSlice = createSlice({
           accessToken: null,
           refreshToken: null,
         };
+      })
+      .addCase(getOrganizationDetail.fulfilled, (state, action) => {
+        state.organization = action.payload ?? null;
+      })
+      .addCase(getOrganizationDetail.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(getOrganizationDetail.pending, (state, action) => {
+        state.loading = true;
+        state.error = null;
       })
       .addCase(getUserProfileInfo.pending, state => {
         state.loading = true;
