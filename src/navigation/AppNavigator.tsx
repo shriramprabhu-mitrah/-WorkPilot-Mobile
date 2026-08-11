@@ -31,6 +31,8 @@ const AppNavigator = () => {
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector(state => state.auth);
 
+  const onboardingCompleted = mmkv.getBoolean('onboardingCompleted') ?? false;
+
   useEffect(() => {
     const handleAuthUrl = async (url: string) => {
       try {
@@ -121,7 +123,7 @@ const AppNavigator = () => {
         </Stack.Navigator>
       ) : (
         <Stack.Navigator
-          initialRouteName='Onboarding'
+          initialRouteName={onboardingCompleted ? 'login' : 'Onboarding'}
           screenOptions={{
             headerShown: false,
           }}

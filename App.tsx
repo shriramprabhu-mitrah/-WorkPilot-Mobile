@@ -28,30 +28,32 @@ import { navigate } from './src/navigation/navigationRef';
 // import NetInfo from '@react-native-community/netinfo';
 
 function App() {
-  useEffect(() => {
-    const handleDeepLink = async ({ url }: { url: string }) => {
-      console.log('Deep Link:', url);
+  // useEffect(() => {
+  //   const handleDeepLink = async ({ url }: { url: string }) => {
+  //     console.log('Deep Link:', url);
 
-      const token = new URL(url).searchParams.get('token');
+  //     const token = new URL(url).searchParams.get('token');
 
-      if (token) {
-        await mmkv.set('accessToken', token);
+  //     if (token) {
+  //       await mmkv.set('accessToken', token);
 
-        navigate('HomeTabs');
-      }
-    };
+  //       navigate('HomeTabs');
+  //     }
+  //   };
 
-    const subscription = Linking.addEventListener('url', handleDeepLink);
+  //   const subscription = Linking.addEventListener('url', handleDeepLink);
 
-    Linking.getInitialURL().then(url => {
-      if (url) {
-        handleDeepLink({ url });
-      }
-    });
+  //   Linking.getInitialURL().then(url => {
+  //     if (url) {
+  //       handleDeepLink({ url });
+  //     }
+  //   });
 
-    return () => subscription.remove();
-  }, []);
+  //   return () => subscription.remove();
+  // }, []);
   // const isDarkMode = useColorScheme() === 'dark';
+
+  // console.log('LINE56');
 
   return (
     // <KeyboardProvider>

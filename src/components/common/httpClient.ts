@@ -25,7 +25,7 @@ import { setNetworkError } from '../../store/commonSlice';
 let baseURL = API_URL;
 const apiClient: AxiosInstance = axios.create({
   baseURL,
-  timeout: 13000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
     'App-Version': '1.0',
@@ -36,6 +36,15 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const accessToken = store.getState().auth?.tokens?.accessToken;
+
+    const authState = store.getState().auth;
+
+    console.log('========== AUTH DEBUG ==========');
+    console.log('accessToken:', authState?.tokens?.accessToken);
+    console.log('refreshToken:', authState?.tokens?.refreshToken);
+    console.log('isAuthenticated:', authState?.isAuthenticated);
+    console.log('URL:', config.url);
+    console.log('================================');
 
     const publicRoutes = [
       SIGNIN,

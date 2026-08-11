@@ -19,6 +19,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { moderateScale } from '../utils/responsive';
 import { ONBOARDING_DATA } from '../utils/utils';
+import { mmkv } from '../store';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -81,6 +82,7 @@ const OnboardingScreen = () => {
   };
 
   const completeOnboarding = () => {
+    mmkv.set('onboardingCompleted', true);
     navigation.replace('login');
   };
 
