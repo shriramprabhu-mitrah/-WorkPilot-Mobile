@@ -21,7 +21,7 @@ export interface Project {
 }
 
 export interface ProjectState {
-  projects: any[];
+  projects: Project[];
   loading: boolean;
   isFetchingMore: boolean;
   page: number;
