@@ -1,5 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, TouchableOpacity, FlatList, Image } from 'react-native';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from 'react';
+import {
+  View,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+} from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -9,7 +20,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { RootStackParamList } from '../types/navigationTypes';
 import Screen from '../components/common/ScreenWapper';
-import { Radius } from '../constants/Radius';
+import CommonHeader from '../components/common/CommonHeader';
 import { moderateScale } from '../utils/responsive';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
@@ -18,116 +29,112 @@ import { AppInput } from '../components';
 import { getAllProjectInfo } from '../store/project_store/action/project_thunk';
 import PopupModel from '../components/popupModel';
 
+const PAGE_SIZE = 10;
+
 const ProjectScreen = () => {
   const { colors, strings } = useTheme();
   const { layout, isSmallHeight, hp } = useAuthLayout();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [selectedTab, setSelectedTab] = useState<'all' | 'starred'>('all');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [starredProjectIds, setStarredProjectIds] = useState<string[]>([]);
   const [createProjectModalVisible, setCreateProjectModalVisible] =
     useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const isMomentumScroll = useRef(false);
+
   const dispatch = useAppDispatch();
-  const { projects, loading } = useAppSelector(
+  const { projects, loading, isFetchingMore, page, hasMore } = useAppSelector(
     (state: RootState) => state.projects,
   );
   const { user } = useAppSelector((state: RootState) => state.auth);
 
   useEffect(() => {
-    dispatch(getAllProjectInfo());
-  }, [dispatch]);
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  const fetchProjects = useCallback(
+    (pageNumber: number, searchQuery: string) => {
+      dispatch(
+        getAllProjectInfo({
+          page: pageNumber,
+          page_size: PAGE_SIZE,
+          name: searchQuery.trim() || undefined,
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  useEffect(() => {
+    fetchProjects(1, debouncedSearch);
+  }, [fetchProjects, debouncedSearch]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await dispatch(
+      getAllProjectInfo({
+        page: 1,
+        page_size: PAGE_SIZE,
+        name: debouncedSearch.trim() || undefined,
+      }),
+    );
+    setRefreshing(false);
+  };
+
+  const handleLoadMore = () => {
+    if (isMomentumScroll.current && !loading && !isFetchingMore && hasMore) {
+      fetchProjects(page + 1, debouncedSearch);
+      isMomentumScroll.current = false;
+    }
+  };
+
+  const toggleStar = (id: string) => {
+    setStarredProjectIds(prev =>
+      prev.includes(id) ? prev.filter(pId => pId !== id) : [...prev, id],
+    );
+  };
 
   const filteredProjects = useMemo(() => {
     if (!projects) return [];
-    const query = search.trim().toLowerCase();
-    return projects.filter((project: any) => {
-      const matchesSearch =
-        !query ||
-        project.name?.toLowerCase().includes(query) ||
-        project.description?.toLowerCase().includes(query);
+    return projects
+      .map(project => ({
+        ...project,
+        starred: starredProjectIds.includes(project.id),
+      }))
+      .filter(project => {
+        return (
+          selectedTab === 'all' ||
+          (selectedTab === 'starred' && project.starred)
+        );
+      });
+  }, [projects, selectedTab, starredProjectIds]);
 
-      return matchesSearch;
-    });
-  }, [projects, search, selectedTab]);
+  const renderFooter = () => {
+    if (!isFetchingMore) return null;
+    return (
+      <View
+        style={{ paddingVertical: layout.elementGap, alignItems: 'center' }}
+      >
+        <ActivityIndicator size='small' color={colors.primary} />
+      </View>
+    );
+  };
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
-      <View
-        className='flex-row items-center justify-between'
-        style={{
-          backgroundColor: colors.card || colors.surface,
-          paddingHorizontal: layout.paddingHorizontal,
-          paddingVertical: moderateScale(10),
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Profile')}
-          className='items-center justify-center rounded-full'
-          style={{
-            width: moderateScale(40),
-            height: moderateScale(40),
-            borderRadius: Radius.circle,
-          }}
-        >
-          {user?.avatar_url ? (
-            <Image
-              source={{ uri: user.avatar_url }}
-              style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: moderateScale(26),
-              }}
-              resizeMode='cover'
-            />
-          ) : (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Profile')}
-              className='items-center justify-center'
-              style={{
-                width: moderateScale(40),
-                height: moderateScale(40),
-                backgroundColor: colors.accentOrange,
-                borderRadius: Radius.circle,
-              }}
-            >
-              <AppText
-                style={{
-                  fontSize: moderateScale(18),
-                  fontWeight: 'bold',
-                  color: colors.white,
-                }}
-              >
-                {user?.name
-                  ?.split(' ')
-                  .map((word: any) => word[0])
-                  .join('')
-                  .substring(0, 2)
-                  .toUpperCase() || 'U'}
-              </AppText>
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
-        <AppText
-          variant='title'
-          color={colors.text}
-          className='font-bold'
-          style={{ fontSize: layout.titleFontSize }}
-        >
-          {strings?.projects?.title || 'Projects'}
-        </AppText>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setCreateProjectModalVisible(true)}
-          style={{
-            width: moderateScale(38),
-            height: moderateScale(38),
-            borderRadius: Radius.circle,
-            backgroundColor: colors.primary,
-          }}
-          className='items-center justify-center'
-        >
-          <Ionicons name='add' size={24} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+      <CommonHeader
+        variant='project'
+        title='Projects'
+        user={user ?? undefined}
+        onProfilePress={() => navigation.navigate('Profile')}
+        onRightActionPress={() => setCreateProjectModalVisible(true)}
+      />
       <View
         style={{
           backgroundColor: colors.card || colors.surface,
@@ -168,7 +175,10 @@ const ProjectScreen = () => {
                 selectedTab === 'starred' ? colors.primary : 'transparent',
             }}
           >
-            <View className='flex-row items-center'>
+            <View
+              className='flex-row items-center'
+              style={{ gap: layout.mediumGap }}
+            >
               <Ionicons
                 name='star'
                 size={layout.iconSize * 0.75}
@@ -211,28 +221,39 @@ const ProjectScreen = () => {
           }
         />
       </View>
-      {loading ? (
+      {loading && page === 1 ? (
         <ListSkeleton
-          count={projects?.length}
+          count={10}
           containerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
-            paddingBottom: isSmallHeight ? hp(20) : hp(12),
+            paddingBottom: hp(18),
             gap: isSmallHeight ? layout.sectionGap + 2 : layout.elementGap - 2,
           }}
           renderItem={index => <ProjectCardSkeleton key={index} />}
         />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={filteredProjects}
-          keyExtractor={item => item.id}
+          keyExtractor={item => item.id.toString()}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps='handled'
           contentContainerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
-            paddingBottom: isSmallHeight ? hp(20) : hp(12),
+            paddingBottom: moderateScale(150),
             gap: isSmallHeight ? layout.sectionGap + 2 : layout.elementGap - 2,
           }}
-          renderItem={({ item }) => <ProjectCard item={item} />}
+          renderItem={({ item }) => (
+            <ProjectCard item={item} onToggleStar={() => toggleStar(item.id)} />
+          )}
+          onMomentumScrollBegin={() => {
+            isMomentumScroll.current = true;
+          }}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.2}
+          ListFooterComponent={renderFooter}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
           ListEmptyComponent={
             <View
               className='items-center justify-center'

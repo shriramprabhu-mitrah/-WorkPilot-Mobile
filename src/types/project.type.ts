@@ -2,6 +2,13 @@ import { ApiResponse } from './auth.type';
 
 export interface GetProjectsResponse extends ApiResponse {}
 
+export interface GetProjectsParams {
+  page?: number;
+  page_size?: number;
+  name?: string;
+  status?: string;
+}
+
 export interface Project {
   id: string;
   organization_id: string;
@@ -14,8 +21,11 @@ export interface Project {
 }
 
 export interface ProjectState {
-  projects: Project[];
+  projects: any[];
   loading: boolean;
+  isFetchingMore: boolean;
+  page: number;
+  hasMore: boolean;
   error: string | null;
 }
 
@@ -34,4 +44,32 @@ export interface CreateProjectThunkParams {
   payload: CreateProjectPayload;
   showSuccessToast?: (message: string, type: string) => void;
   handleSuccess?: () => void;
+}
+
+export interface UpdateProjectPayload {
+  name?: string;
+  description?: string;
+  status?: string;
+}
+
+export interface UpdateProjectResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data?: Project;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  status: string;
+}
+
+export interface UpdateProjectThunkPayload {
+  projectId: string;
+  payload: UpdateProjectPayload;
+  onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
+  onFinally?: () => void;
 }

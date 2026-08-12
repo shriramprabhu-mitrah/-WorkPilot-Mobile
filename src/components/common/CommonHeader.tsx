@@ -192,6 +192,49 @@ export const CommonHeader: React.FC<HeaderProps> = ({
         );
 
       case 'project':
+        return (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onProfilePress}
+            className='items-center justify-center overflow-hidden'
+            style={{
+              width: moderateScale(36),
+              height: moderateScale(36),
+              borderRadius: Radius.circle,
+              backgroundColor: user?.avatar_url
+                ? 'transparent'
+                : colors.accentOrange,
+            }}
+          >
+            {user?.avatar_url ? (
+              <Image
+                source={{ uri: user.avatar_url }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: Radius.circle,
+                }}
+                resizeMode='cover'
+              />
+            ) : (
+              <AppText
+                style={{
+                  fontSize: moderateScale(16),
+                  fontWeight: 'bold',
+                  color: colors.white,
+                }}
+              >
+                {user?.name
+                  ?.split(' ')
+                  .map(word => word[0])
+                  .join('')
+                  .substring(0, 2)
+                  .toUpperCase() || 'P'}
+              </AppText>
+            )}
+          </TouchableOpacity>
+        );
+
       case 'quickAccess':
         return onBackPress ? (
           <TouchableOpacity
@@ -251,18 +294,16 @@ export const CommonHeader: React.FC<HeaderProps> = ({
             activeOpacity={0.7}
             disabled={!onProjectTitlePress}
             onPress={onProjectTitlePress}
-            className='flex-row items-center'
+            className='flex-row items-center justify-center'
           >
             <AppText
-              variant='body'
-              className='mr-1 font-bold'
+              variant='title'
+              className='font-bold'
               color={colors.text}
-              style={{ fontSize: moderateScale(16) }}
               numberOfLines={1}
             >
-              {title || 'Project'}
+              {title || 'Projects'}
             </AppText>
-            <Ionicons name='chevron-down' size={16} color={colors.text} />
           </TouchableOpacity>
         );
 
@@ -332,16 +373,16 @@ export const CommonHeader: React.FC<HeaderProps> = ({
             onPress={onRightActionPress}
             className='items-center justify-center rounded-full border'
             style={{
-              width: moderateScale(36),
-              height: moderateScale(36),
-              backgroundColor: colors.background,
-              borderColor: colors.border,
+              width: moderateScale(30),
+              height: moderateScale(30),
+              backgroundColor: colors.primary,
+              borderColor: colors.primary,
             }}
           >
             <Ionicons
-              name={rightIconName || 'share-outline'}
-              size={moderateScale(18)}
-              color={colors.text}
+              name={rightIconName || 'add'}
+              size={layout.iconSize * 1.1}
+              color={colors.white}
             />
           </TouchableOpacity>
         );

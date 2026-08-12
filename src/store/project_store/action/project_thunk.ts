@@ -2,22 +2,27 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
   CreateProjectResponse,
   CreateProjectThunkParams,
+  GetProjectsParams,
   GetProjectsResponse,
+  UpdateProjectResponse,
+  UpdateProjectThunkPayload,
 } from '../../../types/project.type';
 import {
   createNewProjectService,
   getProjectService,
+  updateProjectService,
 } from '../../../services/project.service';
 import { handleLoading } from '../../auth_store/reducer/auth.reducer';
 
 export const getAllProjectInfo = createAsyncThunk<
-  GetProjectsResponse,
-  void,
+  { response: GetProjectsResponse; page: number },
+  GetProjectsParams | undefined,
   { rejectValue: string }
->('project/get', async (_, { rejectWithValue }) => {
+>('project/get', async (params, { rejectWithValue }) => {
   try {
-    const response = await getProjectService();
-    return response;
+    const response = await getProjectService(params);
+    console.log(response);
+    return { response, page: params?.page || 1 };
   } catch (error: any) {
     return rejectWithValue(
       error.response?.data?.message || 'Failed to fetch projects',
@@ -59,6 +64,33 @@ export const createNewProject = createAsyncThunk<
       return rejectWithValue(error?.message || 'Failed to create project');
     } finally {
       dispatch(handleLoading(false));
+    }
+  },
+);
+
+export const updateProject = createAsyncThunk<
+  UpdateProjectResponse,
+  UpdateProjectThunkPayload,
+  {
+    rejectValue: string;
+  }
+>(
+  'project/updateProject',
+  async (
+    { projectId, payload, onSuccess, onError, onFinally },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await updateProjectService(projectId, payload);
+      onSuccess?.(response.message);
+      return response;
+    } catch (error: any) {
+      onError?.(error?.response?.data?.message || 'Failed to update project');
+      return rejectWithValue(
+        error?.response?.data?.message || 'Failed to update project',
+      );
+    } finally {
+      onFinally?.();
     }
   },
 );

@@ -67,7 +67,7 @@ export const Home: React.FC = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingBottom: isSmallHeight ? hp(20) : hp(12),
+          paddingBottom: isSmallHeight ? hp(20) : hp(20),
         }}
       >
         {/* Quick Access / Shortcuts Section */}

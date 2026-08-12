@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import AppText from '../common/AppText';
@@ -132,6 +133,22 @@ const ProjectCard = ({ item, onPress, onToggleStar }: Props) => {
             {item.status}
           </AppText>
         </View>
+        {onToggleStar && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={e => {
+              e.stopPropagation();
+              onToggleStar();
+            }}
+            style={{ padding: 4 }}
+          >
+            <Ionicons
+              name={item.starred ? 'star' : 'star-outline'}
+              size={layout.iconSize * 0.75}
+              color={item.starred ? colors.warning : colors.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
