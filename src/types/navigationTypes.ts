@@ -31,3 +31,11 @@ export type RootStackParamList = {
   QuickAccess: undefined;
   Create: undefined;
 };
+
+export type ProjectTopTabParamList = {
+  Summary: undefined;
+  Board: undefined;
+  List: undefined;
+  Backlogs: undefined;
+  Settings: undefined;
+};

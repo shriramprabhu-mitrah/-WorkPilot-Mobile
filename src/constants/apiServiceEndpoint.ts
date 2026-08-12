@@ -23,5 +23,6 @@ export const CREATE_ORGANIZATION = `/organization/create`;
 
 export const GET_PROJECTS = `/project/get`;
 export const CREATE_PROJECT = `/project/create`;
+export const GET_PROJECT_DETAILS = `/project/{project_id}/details`;
 export const UPDATE_PROJECT = `/project/update/{project_id}`;
 export const DELETE_PROJECT = `/project/{project_id}`;

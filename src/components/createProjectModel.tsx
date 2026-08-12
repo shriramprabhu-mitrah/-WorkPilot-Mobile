@@ -24,6 +24,7 @@ import {
 } from '../store/project_store/action/project_thunk';
 import { handleLoading } from '../store/auth_store/reducer/auth.reducer';
 import { resetProjects } from '../store/project_store/reducer/project_reducer';
+import CommonHeader from './common/CommonHeader';
 
 interface CreateProjectModalProps {
   visible: boolean;
@@ -98,26 +99,12 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             className='relative flex-1 p-1.5 pb-5'
             style={{ backgroundColor: colors.surface }}
           >
-            <View className='mb-2.5 mt-12 flex-row items-center justify-between px-5'>
-              <TouchableOpacity
-                className='items-center justify-center border p-1.5'
-                style={{
-                  borderColor: colors.border,
-                  borderRadius: Radius.circle,
-                }}
-                onPress={handleClose}
-              >
-                <Ionicons
-                  name='close'
-                  size={layout.iconSize}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-              <AppText variant='title' className='font-bold'>
-                {title}
-              </AppText>
-              <View style={{ width: layout.iconSize }} />
-            </View>
+            <CommonHeader
+              variant='createProject'
+              title='Create Project'
+              onBackPress={handleClose}
+              containerStyle={{ paddingTop: moderateScale(20) }}
+            />
             <ScrollView
               className='flex-1'
               keyboardShouldPersistTaps='handled'

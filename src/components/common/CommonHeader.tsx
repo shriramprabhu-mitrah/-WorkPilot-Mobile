@@ -18,7 +18,12 @@ import { Radius } from '../../constants/Radius';
 import { User } from '../../types/auth.type';
 
 export type HeaderVariant =
-  'home' | 'createProject' | 'project' | 'quickAccess' | 'custom';
+  | 'home'
+  | 'createProject'
+  | 'project'
+  | 'quickAccess'
+  | 'custom'
+  | 'projectdetails';
 
 export interface HeaderProps {
   /** Screen variant to control layout automatically */
@@ -255,6 +260,26 @@ export const CommonHeader: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         ) : null;
 
+      case 'projectdetails':
+        return (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onBackPress}
+            className='items-center justify-center rounded-full'
+            style={{
+              width: moderateScale(36),
+              height: moderateScale(36),
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+            }}
+          >
+            <Ionicons
+              name='chevron-back-outline'
+              size={moderateScale(20)}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        );
       default:
         return null;
     }
@@ -346,26 +371,6 @@ export const CommonHeader: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         );
 
-      case 'createProject':
-        return (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={onRightActionPress}
-            className='items-center justify-center rounded-full'
-            style={{
-              width: moderateScale(36),
-              height: moderateScale(36),
-              backgroundColor: colors.border,
-            }}
-          >
-            <Ionicons
-              name='checkmark'
-              size={moderateScale(20)}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        );
-
       case 'project':
         return (
           <TouchableOpacity
@@ -387,6 +392,7 @@ export const CommonHeader: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         );
 
+      case 'createProject':
       default:
         return null;
     }

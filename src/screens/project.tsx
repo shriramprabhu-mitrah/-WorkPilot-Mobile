@@ -137,7 +137,7 @@ const ProjectScreen = () => {
       />
       <View
         style={{
-          backgroundColor: colors.card || colors.surface,
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
           borderColor: colors.border,
         }}
