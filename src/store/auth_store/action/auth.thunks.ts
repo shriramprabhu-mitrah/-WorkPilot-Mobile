@@ -12,6 +12,7 @@ import {
   ResendEmailVerificationService,
   updateUserService,
   getUserService,
+  getOrganizationDetailService,
 } from '../../../services/auth.service';
 
 import {
@@ -214,6 +215,20 @@ export const getUserProfileInfo = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(
         error.response?.data?.message || 'Failed to fetch user profile',
+      );
+    }
+  },
+);
+
+export const getOrganizationDetail = createAsyncThunk(
+  'auth/userOrganization',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await getOrganizationDetailService();
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch organization detail',
       );
     }
   },

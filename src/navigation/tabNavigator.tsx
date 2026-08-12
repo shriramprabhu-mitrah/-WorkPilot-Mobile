@@ -8,6 +8,7 @@ import ProfileScreen from '../screens/profileScreen';
 
 import CustomTabBar from '../navigation/CustomTabBar';
 import NotificationsScreen from '../screens/notificationScreen';
+import Home from '../screens/Home';
 
 export type BottomTabParamList = {
   Home: undefined;
@@ -28,7 +29,7 @@ const TabNavigator = () => {
         headerShown: false,
       }}
     >
-      <Tab.Screen name='Home' component={HomeScreen} />
+      <Tab.Screen name='Home' component={Home} />
       <Tab.Screen name='Project' component={ProjectsScreen} />
       <Tab.Screen name='Search' component={SearchScreen} />
       <Tab.Screen name='Inbox' component={NotificationsScreen} />

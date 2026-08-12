@@ -24,6 +24,8 @@ import WebLoginScreen from '../screens/WebLoginScreen';
 import OnboardingScreen from '../screens/onboardingScreen';
 import OnBoardingLoginScreen from '../screens/OnBoardingLoginScreen';
 import { authenticateWithToken } from '../store/auth_store/reducer/auth.reducer';
+import QuickAccessScreen from '../screens/QuickAccess';
+// import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -116,6 +118,8 @@ const AppNavigator = () => {
 
           <Stack.Screen name='newIssues' component={AddNewIssues} />
 
+          <Stack.Screen name='QuickAccess' component={QuickAccessScreen} />
+          {/* <Stack.Screen name='Create' component={CreateScreen} /> */}
           <Stack.Screen
             name='updateDetails'
             component={UpdateUserDetailsScreen}

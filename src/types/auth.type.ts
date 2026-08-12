@@ -175,7 +175,12 @@ export interface UserValidateResponse extends ApiResponse {}
 export interface Organization {
   id?: string;
   name: string;
+  slug: string;
   domain: string;
+  industry: string;
+  is_active?: boolean;
+  team_size: string;
+  country: string;
   logo_url?: string;
   created_at?: string;
   updated_at?: string;
@@ -191,6 +196,8 @@ export interface CreateOrganizationPayload {
 
 export interface CreateOrganizationResponse extends ApiResponse {}
 
+export interface GetOrganizationResponse extends ApiResponse<Organization> {}
+
 // Redux Auth State
 
 export interface AuthState {
@@ -199,6 +206,7 @@ export interface AuthState {
   error: string | null;
   message: string | null;
   user: User | null;
+  organization: Organization | null;
   tokens:
     | {
         accessToken: string | null;
@@ -211,7 +219,7 @@ export interface AuthState {
 
 export interface OrganizationState {
   loading: boolean;
-  organizations: Organization[];
+  organizations: Organization;
   error: string | null;
   message: string | null;
 }

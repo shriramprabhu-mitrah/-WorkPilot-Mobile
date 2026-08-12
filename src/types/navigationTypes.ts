@@ -30,4 +30,6 @@ export type RootStackParamList = {
   PrivacyPolicy: undefined;
   updateDetails: undefined;
   WebLogin: undefined;
+  QuickAccess: undefined;
+  Create: undefined;
 };
