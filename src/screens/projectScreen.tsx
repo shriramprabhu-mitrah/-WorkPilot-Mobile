@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, TouchableOpacity, TextInput, FlatList } from 'react-native';
+import { View, TouchableOpacity, FlatList, Image } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -8,12 +8,15 @@ import ProjectCard from '../components/common/ProjectCard';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { RootStackParamList } from '../types/navigationTypes';
-import { getProjects } from '../data/projectData';
+import { getAllProjectInfo } from '../store/project_store/action/project_thunk';
 import Screen from '../components/common/ScreenWapper';
 import { Radius } from '../constants/Radius';
 import { moderateScale } from '../utils/responsive';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
+import { RootState, useAppDispatch, useAppSelector } from '../store';
+import PopupModel from '../components/popupModel';
+import { AppInput } from '../components';
 
 const ProjectScreen = () => {
   const { colors, strings } = useTheme();
@@ -21,65 +24,109 @@ const ProjectScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [selectedTab, setSelectedTab] = useState<'all' | 'starred'>('all');
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [createProjectModalVisible, setCreateProjectModalVisible] =
+    useState(false);
+  const dispatch = useAppDispatch();
+  const { projects, loading } = useAppSelector(
+    (state: RootState) => state.projects,
+  );
+  const { user } = useAppSelector((state: RootState) => state.auth);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
+    dispatch(getAllProjectInfo());
+  }, [dispatch]);
 
   const filteredProjects = useMemo(() => {
-    let data = getProjects(colors);
-    if (selectedTab === 'starred') {
-      data = data.filter(item => item.starred);
-    }
-    if (search.trim()) {
-      const query = search.toLowerCase();
-      data = data.filter(
-        item =>
-          item.name.toLowerCase().includes(query) ||
-          item.code.toLowerCase().includes(query),
-      );
-    }
-    return data;
-  }, [colors, selectedTab, search]);
+    if (!projects) return [];
+    const query = search.trim().toLowerCase();
+    return projects.filter(project => {
+      const matchesSearch =
+        !query ||
+        project.name?.toLowerCase().includes(query) ||
+        project.description?.toLowerCase().includes(query);
+
+      return matchesSearch;
+    });
+  }, [projects, search, selectedTab]);
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <View
+        className='flex-row items-center justify-between'
         style={{
           backgroundColor: colors.card || colors.surface,
           paddingHorizontal: layout.paddingHorizontal,
-          paddingTop: layout.paddingTop,
-          paddingBottom: layout.paddingBottom,
-          borderBottomWidth: 1,
-          borderColor: colors.border,
+          paddingVertical: moderateScale(10),
         }}
       >
-        <View className='flex-row items-center justify-between'>
-          <AppText
-            variant='title'
-            color={colors.text}
-            className='font-bold'
-            style={{ fontSize: layout.titleFontSize }}
-          >
-            {strings?.projects?.title || 'Projects'}
-          </AppText>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('newIssues')}
-            style={{
-              padding: moderateScale(2),
-              backgroundColor: colors.primary,
-            }}
-            className='items-center justify-center rounded-full'
-          >
-            <Ionicons name='add' size={layout.iconSize} color={colors.white} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Profile')}
+          className='items-center justify-center rounded-full'
+          style={{
+            width: moderateScale(40),
+            height: moderateScale(40),
+            borderRadius: Radius.circle,
+          }}
+        >
+          {user?.avatar_url ? (
+            <Image
+              source={{ uri: user.avatar_url }}
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: moderateScale(26),
+              }}
+              resizeMode='cover'
+            />
+          ) : (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Profile')}
+              className='items-center justify-center'
+              style={{
+                width: moderateScale(40),
+                height: moderateScale(40),
+                backgroundColor: colors.accentOrange,
+                borderRadius: Radius.circle,
+              }}
+            >
+              <AppText
+                style={{
+                  fontSize: moderateScale(18),
+                  fontWeight: 'bold',
+                  color: colors.white,
+                }}
+              >
+                {user?.name
+                  ?.split(' ')
+                  .map(word => word[0])
+                  .join('')
+                  .substring(0, 2)
+                  .toUpperCase() || 'U'}
+              </AppText>
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+        <AppText
+          variant='title'
+          color={colors.text}
+          className='font-bold'
+          style={{ fontSize: layout.titleFontSize }}
+        >
+          {strings?.projects?.title || 'Projects'}
+        </AppText>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setCreateProjectModalVisible(true)}
+          style={{
+            width: moderateScale(38),
+            height: moderateScale(38),
+            borderRadius: Radius.circle,
+            backgroundColor: colors.primary,
+          }}
+          className='items-center justify-center'
+        >
+          <Ionicons name='add' size={24} color={colors.text} />
+        </TouchableOpacity>
       </View>
       <View
         style={{
@@ -128,7 +175,6 @@ const ProjectScreen = () => {
                 color={colors.warning}
                 style={{ marginRight: layout.tightGap }}
               />
-
               <AppText
                 variant='body'
                 color={
@@ -148,58 +194,32 @@ const ProjectScreen = () => {
         style={{
           paddingHorizontal: layout.paddingHorizontal,
           paddingVertical: layout.elementGap,
-          paddingBottom: layout.paddingBottom,
         }}
       >
-        <View
-          className='flex-row items-center border'
-          style={{
-            borderRadius: Radius.sm,
-            backgroundColor: colors.surface || colors.card,
-            borderColor: colors.border,
-            paddingHorizontal: layout.paddingHorizontal * 0.5,
-            paddingVertical: layout.tightGap,
-            gap: layout.sectionGap,
-          }}
-        >
-          <Ionicons
-            name='search-outline'
-            size={layout.iconSize * 0.85}
-            color={colors.placeholder || colors.textSecondary}
-          />
-          <TextInput
-            placeholder={
-              strings?.projects?.searchPlaceholder || 'Search projects...'
-            }
-            placeholderTextColor={colors.placeholder || colors.textSecondary}
-            value={search}
-            onChangeText={setSearch}
-            className='flex-1'
-            style={{
-              color: colors.text,
-              fontSize: layout.bodyFontSize,
-            }}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons
-                name='close'
-                size={layout.iconSize * 0.8}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
+        <AppInput
+          placeholder={
+            strings?.projects?.searchPlaceholder || 'Search projects...'
+          }
+          value={search}
+          onChangeText={setSearch}
+          leftIcon={
+            <Ionicons
+              name='search-outline'
+              size={layout.iconSize * 0.85}
+              color={colors.placeholder || colors.textSecondary}
+            />
+          }
+        />
       </View>
       {loading ? (
         <ListSkeleton
-          count={8}
+          count={projects?.length}
           containerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
             paddingBottom: isSmallHeight ? hp(20) : hp(12),
             gap: isSmallHeight ? layout.sectionGap + 2 : layout.elementGap - 2,
           }}
-          renderItem={() => <ProjectCardSkeleton />}
+          renderItem={index => <ProjectCardSkeleton key={index} />}
         />
       ) : (
         <FlatList
@@ -239,12 +259,17 @@ const ProjectScreen = () => {
                 className='mt-1 text-center'
               >
                 {strings?.projects?.noResultsSubtitle ||
-                  'Try searching for a different name or code.'}
+                  'Try searching for a different name.'}
               </AppText>
             </View>
           }
         />
       )}
+      <PopupModel
+        mode='createProject'
+        visible={createProjectModalVisible}
+        onClose={() => setCreateProjectModalVisible(false)}
+      />
     </Screen>
   );
 };

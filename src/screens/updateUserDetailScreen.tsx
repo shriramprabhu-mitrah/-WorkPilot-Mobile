@@ -20,7 +20,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { showSuccessToast } from '../utils/utils';
 import { useAppDispatch, useAppSelector } from '../store';
-import CameraModal from '../components/cameraModal';
+import PopupModel from '../components/popupModel';
 import { Radius } from '../constants/Radius';
 import {
   getUserProfileInfo,
@@ -273,7 +273,7 @@ const UpdateUserDetailsScreen = () => {
                     >
                       {user?.name
                         ?.split(' ')
-                        .map(word => word[0])
+                        .map((word: any) => word[0])
                         .join('')
                         .substring(0, 2)
                         .toUpperCase() || 'U'}
@@ -437,7 +437,7 @@ const UpdateUserDetailsScreen = () => {
           />
         </View>
       </View>
-      <CameraModal
+      <PopupModel
         visible={pickerModalVisible}
         onClose={() => setPickerModalVisible(false)}
         onSelectCamera={handleTakePhoto}

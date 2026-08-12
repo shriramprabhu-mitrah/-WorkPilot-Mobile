@@ -6,6 +6,7 @@ import { persistStore, persistReducer } from 'redux-persist';
 import reactotron from '../config/ReactotronConfig';
 import issueReducer from './issue_store/reducer/issue.reducer';
 import homeReducer from './home_store/reducer/home.reducer';
+import projectReducer from './project_store/reducer/project_reducer';
 
 export const mmkv = createMMKV();
 
@@ -61,6 +62,7 @@ const rootReducer = combineReducers({
   common: commonReducer,
   issue: issueReducer,
   home: homeReducer,
+  projects: projectReducer,
   // audit: persistReducer(auditPersistConfig, auditSlice),
   // response: persistReducer(responsePersistConfig, responseSlice),
   // submission: submissionSlice,
