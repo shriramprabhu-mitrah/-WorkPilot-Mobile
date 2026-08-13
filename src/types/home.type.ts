@@ -1,30 +1,28 @@
-export interface ViewedItem {
+export interface User {
   id: string;
-  title: string;
-  type: string;
-  category: string;
-  key?: string;
-  projectName?: string;
+  name: string;
+  email: string;
+  avatar_url: string;
+  role: string;
 }
 
-export interface ActivityItem {
+export interface Activity {
   id: string;
-  title: string;
-  type: string;
-  key: string;
-  projectName: string;
+  project_id: string;
+  organization_id: string;
   action: string;
-  user: {
-    name: string;
-    avatarInitial: string;
-  };
-  formattedDate: string;
+  resource_type: string;
+  resource_id: string;
+  details: string;
+  created_at: string;
+  title: string;
 }
 
-export interface ShortcutItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  iconName: string;
-  type: string;
+export interface data {
+  user: User | null;
+  activities: Activity[];
+}
+
+export interface HomeResponse {
+  data: data;
 }

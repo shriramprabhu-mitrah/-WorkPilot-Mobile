@@ -6,7 +6,7 @@ import SignUpScreen from '../screens/signUp';
 import VerifyEmailScreen from '../screens/verifyEmail';
 import ForgotPassword from '../screens/forgetPassword';
 import ResetPassword from '../screens/resetPassword';
-import TabNavigator from './tabNavigator';
+import DrawerNavigator from './DrawerNavigator';
 import { useAppSelector } from '../store';
 import issueDetailsScreen from '../screens/IssuesDetailScreen';
 import ProjectDetails from '../screens/projectDetails';
@@ -18,6 +18,7 @@ import TermsScreen from '../screens/TermsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import UpdateUserDetailsScreen from '../screens/updateUserDetailScreen';
 import QuickAccessScreen from '../screens/QuickAccess';
+import SearchScreen from '../screens/searchScreen';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -35,13 +36,14 @@ const AppNavigator = () => {
           }}
           initialRouteName='HomeTabs'
         >
-          <Stack.Screen name='HomeTabs' component={TabNavigator} />
+          <Stack.Screen name='HomeTabs' component={DrawerNavigator} />
           <Stack.Screen name='issue' component={issueDetailsScreen} />
           <Stack.Screen name='projectDetails' component={ProjectDetails} />
           <Stack.Screen name='BackLogs' component={BackLog} />
           <Stack.Screen name='Settings' component={SettingsScreen} />
           <Stack.Screen name='newIssues' component={AddNewIssues} />
           <Stack.Screen name='QuickAccess' component={QuickAccessScreen} />
+          <Stack.Screen name='Search' component={SearchScreen} />
           {/* <Stack.Screen name='Create' component={CreateScreen} /> */}
           <Stack.Screen
             name='updateDetails'
