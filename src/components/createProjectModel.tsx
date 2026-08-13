@@ -98,7 +98,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             className='relative flex-1 p-1.5 pb-5'
             style={{ backgroundColor: colors.surface }}
           >
-            <View className='mb-2.5 mt-12 flex-row items-center justify-between px-5'>
+            <View
+              className='mb-2.5 flex-row items-center justify-between px-5'
+              style={{ paddingTop: moderateScale(25) }}
+            >
               <TouchableOpacity
                 className='items-center justify-center border p-1.5'
                 style={{
