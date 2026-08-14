@@ -14,20 +14,16 @@ import AppText from '../components/common/AppText';
 import { CommonHeader } from '../components/common/CommonHeader';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { VIEWED_DATA } from '../data/newHomeData';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
   getOrganizationDetail,
   getUserProfileInfo,
 } from '../store/auth_store/action/auth.thunks';
-import {
-  setActiveTab,
-  setLoading,
-} from '../store/home_store/reducer/home.reducer';
+import { setActiveTab } from '../store/home_store/reducer/home.reducer';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
-import { getActivity } from '../store/home_store/action/home.thunk';
+import { getAudit } from '../store/home_store/action/home.thunk';
 
 // Static Data for Recent Projects
 const RECENT_PROJECTS_DATA = [
@@ -81,9 +77,9 @@ const formatDate = (isoString?: string): string => {
   }
 };
 
-// Helper function to clean up API action names (e.g. project_created -> created)
+// Helper function to clean up API action names
 const formatAction = (action?: string): string => {
-  if (!action) return 'updated';
+  if (!action) return 'viewed';
   return action.replace(/^project_|^task_|^tasks_/, '').replace(/_/g, ' ');
 };
 
@@ -95,11 +91,14 @@ export const Home: React.FC = () => {
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
 
   const { user } = useAppSelector(state => state.auth);
-  const { userActivities, activeTab, loading } = useAppSelector(
-    state => state.home,
-  );
+  const {
+    activities,
+    user: homeUser,
+    activeTab,
+    loading,
+  } = useAppSelector(state => state.home);
 
-  // Pagination state for activities
+  // Pagination state for activities (kept for local state consistency, but pagination logic is commented out)
   const [page, setPage] = useState(1);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -108,30 +107,27 @@ export const Home: React.FC = () => {
     useCallback(() => {
       dispatch(getUserProfileInfo());
       dispatch(getOrganizationDetail());
-      dispatch(getActivity({ page: 1 }));
-
-      dispatch(setLoading(true));
-      const timer = setTimeout(() => {
-        dispatch(setLoading(false));
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }, [dispatch]),
+      dispatch(getAudit({ type: activeTab, page: 1 }));
+    }, [dispatch, activeTab]),
   );
 
   const handleOpenDrawer = () => {
     navigation.openDrawer();
   };
 
-  // Pagination Handler
+  /* 
+    Pagination load-more function is commented out to stop page number 
+    and further API requests from increasing upon scroll.
+  */
   const handleLoadMore = () => {
-    if (activeTab === 'activity' && hasMore && !isFetchingMore && !loading) {
+    /*
+    if (hasMore && !isFetchingMore && !loading) {
       setIsFetchingMore(true);
       const nextPage = page + 1;
-      dispatch(getActivity({ page: nextPage }))
+      dispatch(getAudit({ type: activeTab, page: nextPage }))
         .unwrap()
         .then((res: any) => {
-          if (!res?.activities || res?.activities?.length === 0) {
+          if (!res?.activities || res.activities.length === 0) {
             setHasMore(false);
           } else {
             setPage(nextPage);
@@ -140,6 +136,7 @@ export const Home: React.FC = () => {
         .catch(() => setHasMore(false))
         .finally(() => setIsFetchingMore(false));
     }
+    */
   };
 
   /* Render Header Section containing Recent Projects & Tabs */
@@ -245,7 +242,12 @@ export const Home: React.FC = () => {
         >
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => dispatch(setActiveTab('viewed'))}
+            onPress={() => {
+              setPage(1);
+              setHasMore(true);
+              dispatch(setActiveTab('viewed'));
+              dispatch(getAudit({ type: 'viewed', page: 1 }));
+            }}
             className='flex-1 items-center rounded-full py-1.5'
             style={{
               backgroundColor:
@@ -265,7 +267,12 @@ export const Home: React.FC = () => {
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => dispatch(setActiveTab('activity'))}
+            onPress={() => {
+              setPage(1);
+              setHasMore(true);
+              dispatch(setActiveTab('activity'));
+              dispatch(getAudit({ type: 'activity', page: 1 }));
+            }}
             className='flex-1 items-center rounded-full py-1.5'
             style={{
               backgroundColor:
@@ -298,19 +305,17 @@ export const Home: React.FC = () => {
     </View>
   );
 
-  /* Render Single Activity Item matched with design */
+  /* Render Single Activity Item */
   const renderActivityItem = ({ item }: { item: any }) => {
-    // Determine user details from API response or store
-    const activityUser = userActivities?.user || user;
+    const activityUser = homeUser || user;
     const userName = activityUser?.name || 'User';
     const userInitials = getInitials(userName);
     const actionText = formatAction(item.action);
     const formattedDate = formatDate(item.created_at);
     const resourceType = item.resource_type || 'task';
 
-    // Dynamic field extraction from API
     const title = item.title || item.details || 'Activity Details';
-    const key = item.task_key || '';
+    const key = item.task_key || item.key || '';
 
     return (
       <TouchableOpacity
@@ -322,7 +327,6 @@ export const Home: React.FC = () => {
         }}
       >
         <View className='flex-row items-center'>
-          {/* Left Avatar with Overlaid Type Badge */}
           <View className='relative mr-3.5 self-center'>
             <View
               className='items-center justify-center rounded-full'
@@ -343,7 +347,6 @@ export const Home: React.FC = () => {
               </AppText>
             </View>
 
-            {/* Type Badge Over Avatar */}
             <View
               className='absolute -bottom-1 -right-1 items-center justify-center rounded border'
               style={{
@@ -360,9 +363,7 @@ export const Home: React.FC = () => {
             </View>
           </View>
 
-          {/* Right Text Details Column */}
           <View className='flex-1 justify-center'>
-            {/* Header Line (Displays: Name action resource_type • Date) */}
             <AppText
               variant='caption'
               color={colors.textSecondary}
@@ -372,7 +373,6 @@ export const Home: React.FC = () => {
               {userName} {actionText} {resourceType} • {formattedDate}
             </AppText>
 
-            {/* Title Line */}
             <AppText
               variant='body'
               className='font-bold'
@@ -386,7 +386,6 @@ export const Home: React.FC = () => {
               {title}
             </AppText>
 
-            {/* Sub-text line (Key) */}
             {key ? (
               <AppText
                 variant='caption'
@@ -403,54 +402,84 @@ export const Home: React.FC = () => {
     );
   };
 
-  /* Render Single Viewed Item */
-  const renderViewedItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      className='mb-2 flex-row items-center rounded-lg px-2 py-2.5'
-      style={{ backgroundColor: colors.background }}
-    >
-      <View
-        className='mr-3 items-center justify-center rounded-lg border'
+  /* Render Single Viewed Item (Shows Title FIRST, then Icon + Resource Type below) */
+  const renderViewedItem = ({ item }: { item: any }) => {
+    const title =
+      item.title ||
+      item.name ||
+      item.details ||
+      (item.action ? formatAction(item.action) : 'Viewed Item');
+
+    const resourceType = item.resource_type || item.type || 'task';
+    const titleInitials = getInitials(title);
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        className='mb-3 rounded-2xl border p-4'
         style={{
-          width: moderateScale(32),
-          height: moderateScale(32),
-          backgroundColor: colors.surface,
+          backgroundColor: colors.background,
           borderColor: colors.border,
         }}
       >
-        <WorkItemIcon
-          type={item.type}
-          size={moderateScale(16)}
-          color={colors.text}
-        />
-      </View>
-      <View className='flex-1'>
-        <AppText
-          variant='body'
-          className='font-medium'
-          color={colors.text}
-          numberOfLines={1}
-        >
-          {item.title}
-        </AppText>
-        <AppText
-          variant='caption'
-          color={colors.textSecondary}
-          numberOfLines={1}
-        >
-          {item.key
-            ? item.key
-            : item.projectName
-              ? `${item.category} • in ${item.projectName}`
-              : item.category}
-        </AppText>
-      </View>
-    </TouchableOpacity>
-  );
+        <View className='flex-row items-center'>
+          {/* Two letters derived from Title */}
+          <View
+            className='mr-3.5 items-center justify-center rounded-lg'
+            style={{
+              width: moderateScale(40),
+              height: moderateScale(40),
+              backgroundColor: colors.primary,
+            }}
+          >
+            <AppText
+              className='font-bold'
+              style={{
+                fontSize: moderateScale(15),
+                color: colors.white,
+              }}
+            >
+              {titleInitials}
+            </AppText>
+          </View>
 
-  const listData =
-    activeTab === 'viewed' ? VIEWED_DATA : userActivities?.activities || [];
+          <View className='flex-1 justify-center'>
+            {/* 1. Title Display (FIRST) */}
+            <AppText
+              variant='body'
+              className='font-bold'
+              color={colors.text}
+              style={{
+                fontSize: moderateScale(15),
+                lineHeight: moderateScale(20),
+                marginBottom: 2,
+              }}
+              numberOfLines={1}
+            >
+              {title}
+            </AppText>
+
+            {/* 2. Resource Type with Icon (BELOW TITLE) */}
+            <View className='flex-row items-center' style={{ gap: 4 }}>
+              <WorkItemIcon
+                type={resourceType}
+                size={moderateScale(12)}
+                color={colors.textSecondary}
+              />
+              <AppText
+                variant='caption'
+                className='font-medium capitalize'
+                color={colors.textSecondary}
+                style={{ fontSize: moderateScale(11) }}
+              >
+                {resourceType}
+              </AppText>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
@@ -478,7 +507,7 @@ export const Home: React.FC = () => {
         </View>
       ) : (
         <FlatList
-          data={listData}
+          data={activities}
           keyExtractor={(item, index) =>
             item.id?.toString() || index.toString()
           }
@@ -491,7 +520,15 @@ export const Home: React.FC = () => {
           renderItem={
             activeTab === 'viewed' ? renderViewedItem : renderActivityItem
           }
-          /* Pagination Props */
+          ListEmptyComponent={
+            <View className='items-center justify-center py-10'>
+              <AppText variant='body' color={colors.textSecondary}>
+                {activeTab === 'viewed'
+                  ? 'No recently viewed items'
+                  : 'No recent activity'}
+              </AppText>
+            </View>
+          }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={

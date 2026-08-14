@@ -25,4 +25,4 @@ export const UPDATE_PROJECT = `/project/update/{project_id}`;
 export const DELETE_PROJECT = `/project/{project_id}`;
 
 //Activity
-export const GET_ACTIVITIES = `/audit`;
+export const GET_AUDIT = `/audit`;

@@ -63,24 +63,24 @@ export const CustomDrawerContent: React.FC<
       icon: 'person-outline',
       route: 'Profile',
     },
-    {
-      id: 5,
-      name: 'Teams',
-      icon: 'people-outline',
-      route: 'Teams',
-    },
-    {
-      id: 6,
-      name: 'Notifications',
-      icon: 'notifications-outline',
-      route: 'Notifications',
-    },
-    {
-      id: 7,
-      name: 'Settings',
-      icon: 'settings-outline',
-      route: 'Settings',
-    },
+    // {
+    //   id: 5,
+    //   name: 'Teams',
+    //   icon: 'people-outline',
+    //   route: 'Teams',
+    // },
+    // {
+    //   id: 6,
+    //   name: 'Notifications',
+    //   icon: 'notifications-outline',
+    //   route: 'Notifications',
+    // },
+    // {
+    //   id: 7,
+    //   name: 'Settings',
+    //   icon: 'settings-outline',
+    //   route: 'Settings',
+    // },
     {
       id: 8,
       name: 'Logout',
@@ -120,7 +120,7 @@ export const CustomDrawerContent: React.FC<
   };
 
   return (
-    <Screen scroll={false} backgroundColor={colors.surface}>
+    <Screen scroll={false} backgroundColor={colors.primary}>
       {/* 1. Header Profile Section (Blue Background) */}
       <View
         style={{
@@ -132,7 +132,7 @@ export const CustomDrawerContent: React.FC<
       >
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => handleNavigation('Profile')}
+          // onPress={() => handleNavigation('Profile')}
         >
           {/* Avatar Circle */}
           <View
@@ -191,43 +191,45 @@ export const CustomDrawerContent: React.FC<
         </TouchableOpacity>
       </View>
 
-      {/* 2. Drawer Items List */}
-      <DrawerContentScrollView
-        {...props}
-        contentContainerStyle={{ paddingTop: 12 }}
-      >
-        {drawerList.map(item => (
-          <React.Fragment key={item.id}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              className='flex-row items-center px-5 py-3.5'
-              onPress={() => handleItemPress(item)}
-              style={{ gap: moderateScale(30) }}
-            >
-              <Ionicons
-                name={item.icon as IoniconsIconName}
-                size={moderateScale(22)}
-                color={item.route === 'Logout' ? colors.error : colors.text}
-                className='mr-4'
-              />
-              <AppText
-                variant='title'
-                color={item.route === 'Logout' ? colors.error : colors.text}
+      {/* 2. Drawer Items List Container */}
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
+        <DrawerContentScrollView
+          {...props}
+          contentContainerStyle={{ paddingTop: 12 }}
+        >
+          {drawerList.map(item => (
+            <React.Fragment key={item.id}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                className='flex-row items-center px-5 py-3.5'
+                onPress={() => handleItemPress(item)}
+                style={{ gap: moderateScale(30) }}
               >
-                {item.name}
-              </AppText>
-            </TouchableOpacity>
+                <Ionicons
+                  name={item.icon as IoniconsIconName}
+                  size={moderateScale(22)}
+                  color={item.route === 'Logout' ? colors.error : colors.text}
+                  className='mr-4'
+                />
+                <AppText
+                  variant='title'
+                  color={item.route === 'Logout' ? colors.error : colors.text}
+                >
+                  {item.name}
+                </AppText>
+              </TouchableOpacity>
 
-            {/* Dividers added after Home (id: 1) and after Notifications (id: 6) */}
-            {(item.id === 1 || item.id === 6) && (
-              <View
-                className='mx-5 my-1.5 h-px'
-                style={{ backgroundColor: colors.border || '#EBECF0' }}
-              />
-            )}
-          </React.Fragment>
-        ))}
-      </DrawerContentScrollView>
+              {/* Dividers added after Home (id: 1) and after Notifications (id: 6) */}
+              {(item.id === 1 || item.id === 6) && (
+                <View
+                  className='mx-5 my-1.5 h-px'
+                  style={{ backgroundColor: colors.border || '#EBECF0' }}
+                />
+              )}
+            </React.Fragment>
+          ))}
+        </DrawerContentScrollView>
+      </View>
 
       {/* Bottom Sheet for Project List */}
       <ProjectListBottomSheet
