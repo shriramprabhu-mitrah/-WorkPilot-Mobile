@@ -6,25 +6,54 @@
  */
 
 import { useEffect, useState } from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import { Linking, StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 import { Provider } from 'react-redux';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/splash/splashScreen';
+import { useNavigation } from '@react-navigation/native';
 import './global.css';
 import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
-import { store } from './src/store';
+import { mmkv, store } from './src/store';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/config/toastConfig';
 import { useSelector } from 'react-redux';
 import { RootState } from './src/store';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from './src/types/navigationTypes';
+import { navigate } from './src/navigation/navigationRef';
 // import NetworkErrorScreen from './src/screens/networkErrorScreen';
-import { setNetworkError } from './src/store/commonSlice';
-import NetInfo from '@react-native-community/netinfo';
+// import { setNetworkError } from './src/store/commonSlice';
+// import NetInfo from '@react-native-community/netinfo';
 
 function App() {
+  // useEffect(() => {
+  //   const handleDeepLink = async ({ url }: { url: string }) => {
+  //     console.log('Deep Link:', url);
+
+  //     const token = new URL(url).searchParams.get('token');
+
+  //     if (token) {
+  //       await mmkv.set('accessToken', token);
+
+  //       navigate('HomeTabs');
+  //     }
+  //   };
+
+  //   const subscription = Linking.addEventListener('url', handleDeepLink);
+
+  //   Linking.getInitialURL().then(url => {
+  //     if (url) {
+  //       handleDeepLink({ url });
+  //     }
+  //   });
+
+  //   return () => subscription.remove();
+  // }, []);
   // const isDarkMode = useColorScheme() === 'dark';
+
+  // console.log('LINE56');
 
   return (
     // <KeyboardProvider>

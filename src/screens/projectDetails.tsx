@@ -39,11 +39,11 @@ const ProjectDetails = () => {
       />
       <ProjectTopNavigator />
       <PopupModel
-        mode="projectList"
+        mode='projectList'
         visible={projectListVisible}
         onClose={() => setProjectListVisible(false)}
         onSelectProject={handleSelectProject}
-        title="Select Project"
+        title='Select Project'
       />
     </Screen>
   );

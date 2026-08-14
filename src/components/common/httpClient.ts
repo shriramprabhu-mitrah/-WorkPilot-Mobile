@@ -25,67 +25,47 @@ import { setNetworkError } from '../../store/commonSlice';
 let baseURL = API_URL;
 const apiClient: AxiosInstance = axios.create({
   baseURL,
-  timeout: 13000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
     'App-Version': '1.0',
     platform: Platform.OS === 'android' ? '1' : '2',
+    'X-Client-Platform': 'mobile',
   },
 });
 
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    reactotron.display({
-      name: 'API Request',
-      value: {
-        Method: config.method?.toUpperCase(),
-        URL: `${config.baseURL}${config.url}`,
-        Headers: config.headers,
-        Body: config.data,
-      },
-    });
+    const accessToken = store.getState().auth?.tokens?.accessToken;
 
     const publicRoutes = [
       SIGNIN,
       SIGNUP,
       PASSWORD_RESET_REQUEST,
       PASSWORD_RESET_CONFIRM,
-      REFRESH_TOKEN,
     ];
 
     const isPublicRoute = publicRoutes.some(route =>
       config.url?.includes(route),
     );
 
-    if (config.url?.includes(REFRESH_TOKEN)) {
-      const refreshToken = store.getState().auth?.tokens?.refreshToken;
+    config.headers['X-Client-Platform'] = 'mobile';
 
-      if (refreshToken) {
-        config.headers.Authorization = `Bearer ${refreshToken}`;
-      }
-
-      return config;
-    }
-
-    if (isPublicRoute) {
-      return config;
-    }
-
-    const accessToken = store.getState().auth?.tokens?.accessToken;
-
-    if (accessToken) {
+    if (!isPublicRoute && accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
 
+    console.log('[API REQUEST]', {
+      url: config.url,
+      method: config.method,
+      isPublicRoute,
+      hasAccessToken: !!accessToken,
+      hasAuthorization: !!config.headers.Authorization,
+    });
+
     return config;
   },
-  error => {
-    reactotron.display({
-      name: 'API Error',
-      value: error,
-    });
-    return Promise.reject(error);
-  },
+  error => Promise.reject(error),
 );
 
 apiClient.interceptors.response.use(
@@ -95,35 +75,32 @@ apiClient.interceptors.response.use(
     reactotron.display({
       name: 'API Response',
       value: {
-        URL: response.config.url,
-        Status: response.status,
-        Data: response.data,
+        method: response.config.method?.toUpperCase(),
+        url: `${response.config.baseURL}${response.config.url}`,
+        status: response.status,
+        data: response.data,
       },
     });
-
-    // const method = response.config.method?.toLowerCase();
-
-    // console.log('LINE103', response?.data?.message);
-
-    // if (
-    //   ['post', 'put', 'patch', 'delete'].includes(method || '') &&
-    //   response?.data?.message
-    // ) {
-    //   showSuccessToast(response?.data?.message, 'success');
-    // }
 
     return response;
   },
+
   async error => {
+    const originalRequest = error.config;
+
     reactotron.display({
       name: 'API Error',
       value: {
-        URL: error.config?.url,
-        Status: error.response?.status,
-        Data: error.response?.data,
+        method: originalRequest?.method?.toUpperCase(),
+        url: `${originalRequest?.baseURL || ''}${originalRequest?.url || ''}`,
+        status: error.response?.status,
+        code: error.code,
+        message: error.message,
+        data: error.response?.data,
       },
     });
 
+    // Network errors
     if (
       error.code === 'ERR_NETWORK' ||
       error.code === 'ECONNABORTED' ||
@@ -136,55 +113,32 @@ apiClient.interceptors.response.use(
 
     store.dispatch(setNetworkError(false));
 
-    const originalRequest = error.config;
-
     if (!originalRequest) {
-      showSuccessToast('Something went wrong', 'error');
       return Promise.reject(error);
     }
 
-    if (originalRequest?.url?.includes(REFRESH_TOKEN)) {
+    // Access token is invalid/expired
+    if (error.response?.status === 401) {
+      console.log('[AUTH] Access token rejected');
+
       store.dispatch(logout());
 
-      showSuccessToast('Please login again.', 'error');
+      showSuccessToast(
+        'Your session has expired. Please login again.',
+        'error',
+      );
+
       return Promise.reject(error);
     }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshTokenValue = store.getState().auth?.tokens?.refreshToken;
-
-        if (!refreshTokenValue) {
-          store.dispatch(logout());
-          return Promise.reject(error);
-        }
-
-        const result = await store.dispatch(refreshToken());
-
-        if (refreshToken.fulfilled.match(result)) {
-          const accessToken = store.getState().auth?.tokens?.accessToken;
-
-          if (accessToken) {
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-            return apiClient(originalRequest);
-          }
-        }
-
-        store.dispatch(logout());
-      } catch {
-        store.dispatch(logout());
-      }
-    } else {
-      showSuccessToast(
-        error.response?.data?.message ||
-          error.response?.data?.error?.message ||
-          error.message ||
-          'Something went wrong',
-        'error',
-      );
-    }
+    // Other API errors
+    showSuccessToast(
+      error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.message ||
+        'Something went wrong',
+      'error',
+    );
 
     return Promise.reject(error);
   },

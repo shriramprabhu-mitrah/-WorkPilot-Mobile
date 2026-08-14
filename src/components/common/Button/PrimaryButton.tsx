@@ -12,6 +12,7 @@ interface Props {
   disabled?: boolean;
   className?: string;
   style?: any;
+  textColor?: string;
 }
 
 const PrimaryButton = ({
@@ -21,9 +22,11 @@ const PrimaryButton = ({
   disabled = false,
   className = '',
   style,
+  textColor = 'white',
 }: Props) => {
   const { colors } = useTheme();
   const { isSmallHeight, isLargeHeight, verticalScale } = useAuthLayout();
+
   return (
     <TouchableOpacity
       activeOpacity={0.8}
@@ -46,9 +49,9 @@ const PrimaryButton = ({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color='white' />
+        <ActivityIndicator color={textColor} />
       ) : (
-        <AppText variant='button' color='white'>
+        <AppText variant='button' color={textColor}>
           {title}
         </AppText>
       )}

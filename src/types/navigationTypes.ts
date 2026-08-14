@@ -9,6 +9,7 @@ export type HomeTabParamList = {
 };
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   login: undefined;
   signUp: undefined;
   verifyEmail: undefined;
@@ -28,6 +29,8 @@ export type RootStackParamList = {
   Terms: undefined;
   PrivacyPolicy: undefined;
   updateDetails: undefined;
+  WebLogin: undefined;
+  WebSignup: undefined;
   QuickAccess: undefined;
   Create: undefined;
 };

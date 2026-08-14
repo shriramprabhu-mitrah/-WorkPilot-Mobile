@@ -3,7 +3,7 @@
  */
 
 if (__DEV__) {
-  import('./src/config/ReactotronConfig');
+  import('./ReactotronConfig');
 }
 
 import 'react-native-gesture-handler';

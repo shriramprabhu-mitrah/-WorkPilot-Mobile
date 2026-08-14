@@ -13,6 +13,7 @@ import {
   getOrganizationDetail,
 } from '../action/auth.thunks';
 import { jwtDecode } from 'jwt-decode';
+import reactotron from 'reactotron-react-native';
 
 const initialState: AuthState = {
   loading: false,
@@ -68,6 +69,56 @@ const authSlice = createSlice({
       }>,
     ) {
       state.tokens = action.payload;
+    },
+    authenticateWithToken(
+      state,
+      action: PayloadAction<{
+        accessToken: string;
+        refreshToken?: string | null;
+      }>,
+    ) {
+      const { accessToken, refreshToken } = action.payload;
+
+      state.loading = false;
+      state.isAuthenticated = true;
+
+      reactotron.log('LINE83', accessToken);
+      state.tokens = {
+        accessToken,
+        refreshToken: refreshToken ?? null,
+      };
+
+      const decoded = decodeToken(accessToken);
+
+      console.log('[WEB TOKEN]', {
+        hasToken: !!accessToken,
+        tokenLength: accessToken?.length,
+        userId: decoded?.user_id,
+        role: decoded?.role,
+        issuedAt: decoded?.iat,
+        expiresAt: decoded?.exp,
+        expiresAtDate: decoded?.exp
+          ? new Date(decoded.exp * 1000).toISOString()
+          : null,
+      });
+
+      if (decoded?.exp) {
+        const now = Math.floor(Date.now() / 1000);
+
+        console.log('[TOKEN EXPIRY]', {
+          now,
+          exp: decoded.exp,
+          isExpired: decoded.exp <= now,
+          remainingSeconds: decoded.exp - now,
+        });
+      }
+
+      if (decoded) {
+        state.user = {
+          id: decoded.user_id,
+          role: decoded.role,
+        };
+      }
     },
     handleLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
@@ -223,7 +274,12 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, updateTokens, handleLoading } =
-  authSlice.actions;
+export const {
+  logout,
+  clearError,
+  updateTokens,
+  handleLoading,
+  authenticateWithToken,
+} = authSlice.actions;
 
 export default authSlice.reducer;
