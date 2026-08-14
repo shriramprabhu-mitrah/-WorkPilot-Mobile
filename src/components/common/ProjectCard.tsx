@@ -21,23 +21,22 @@ export interface ProjectCardItem {
 
 interface Props {
   item: ProjectCardItem;
-  onPress?: () => void;
+  onPress?: (id: string) => void;
   onToggleStar?: () => void;
 }
 
 const ProjectCard = ({ item, onPress, onToggleStar }: Props) => {
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  // const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const { moderateScale, layout } = useAuthLayout();
 
   const handlePress = () => {
+    const targetId = item.id;
+    if (!targetId) {
+      return;
+    }
     if (onPress) {
-      onPress();
-    } else {
-      const targetId = item.id;
-      if (targetId) {
-        navigation.navigate('projectDetails', { id: targetId });
-      }
+      onPress(targetId);
     }
   };
 

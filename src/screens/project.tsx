@@ -26,7 +26,10 @@ import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import { AppInput } from '../components';
-import { getAllProjectInfo } from '../store/project_store/action/project_thunk';
+import {
+  getAllProjectInfo,
+  getProjectById,
+} from '../store/project_store/action/project_thunk';
 import PopupModel from '../components/popupModel';
 
 const PAGE_SIZE = 10;
@@ -126,6 +129,18 @@ const ProjectScreen = () => {
     );
   };
 
+  const handleProjectPress = (id: string) => {
+    dispatch(
+      getProjectById({
+        projectId: id,
+        handleSuccess,
+      }),
+    );
+  };
+  const handleSuccess = () => {
+    navigation.navigate('projectDetails');
+  };
+
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <CommonHeader
@@ -137,7 +152,7 @@ const ProjectScreen = () => {
       />
       <View
         style={{
-          backgroundColor: colors.card || colors.surface,
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
           borderColor: colors.border,
         }}
@@ -244,7 +259,11 @@ const ProjectScreen = () => {
             gap: isSmallHeight ? layout.sectionGap + 2 : layout.elementGap - 2,
           }}
           renderItem={({ item }) => (
-            <ProjectCard item={item} onToggleStar={() => toggleStar(item.id)} />
+            <ProjectCard
+              item={item}
+              onPress={handleProjectPress}
+              onToggleStar={() => toggleStar(item.id)}
+            />
           )}
           onMomentumScrollBegin={() => {
             isMomentumScroll.current = true;

@@ -1,12 +1,14 @@
 import { get, patch, post } from '../components/common/httpClient';
 import {
   CREATE_PROJECT,
+  GET_PROJECT_BY_ID,
   GET_PROJECTS,
   UPDATE_PROJECT,
 } from '../constants/apiServiceEndpoint';
 import {
   CreateProjectPayload,
   CreateProjectResponse,
+  GetProjectByIdResponse,
   GetProjectsParams,
   GetProjectsResponse,
   UpdateProjectPayload,
@@ -37,4 +39,12 @@ export const updateProjectService = async (
   const url = UPDATE_PROJECT.replace('{project_id}', projectId);
 
   return await patch<UpdateProjectResponse, UpdateProjectPayload>(url, payload);
+};
+
+export const getProjectByIdService = async (
+  projectId: string,
+): Promise<GetProjectByIdResponse> => {
+  const url = GET_PROJECT_BY_ID.replace('{project_id}', projectId);
+
+  return await get<GetProjectByIdResponse>(url);
 };

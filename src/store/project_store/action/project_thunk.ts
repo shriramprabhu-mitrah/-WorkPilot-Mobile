@@ -2,13 +2,16 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
   CreateProjectResponse,
   CreateProjectThunkParams,
+  GetProjectByIdThunkPayload,
   GetProjectsParams,
   GetProjectsResponse,
+  ProjectDetails,
   UpdateProjectResponse,
   UpdateProjectThunkPayload,
 } from '../../../types/project.type';
 import {
   createNewProjectService,
+  getProjectByIdService,
   getProjectService,
   updateProjectService,
 } from '../../../services/project.service';
@@ -91,6 +94,30 @@ export const updateProject = createAsyncThunk<
       );
     } finally {
       onFinally?.();
+    }
+  },
+);
+
+export const getProjectById = createAsyncThunk<
+  ProjectDetails,
+  GetProjectByIdThunkPayload,
+  { rejectValue: string }
+>(
+  'project/getProjectById',
+  async ({ projectId, handleSuccess }, { rejectWithValue }) => {
+    try {
+      const response = await getProjectByIdService(projectId);
+      if (response.success) {
+        handleSuccess();
+        return response.data;
+      }
+      return rejectWithValue(response.message || 'Failed to retrieve project');
+    } catch (error: any) {
+      return rejectWithValue(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to retrieve project',
+      );
     }
   },
 );
