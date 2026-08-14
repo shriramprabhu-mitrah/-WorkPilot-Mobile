@@ -30,6 +30,12 @@ export const Summary: React.FC = () => {
 
   const chartTotal = chartData.reduce((total, item) => total + item.value, 0);
 
+  const donutTheme =
+    colors.background === '#FFFFFF'
+      ? 'light'
+      : colors.background === '#121212'
+        ? 'dark'
+        : 'system';
   return (
     <Screen scroll={true} backgroundColor={colors.surface}>
       <View
@@ -223,6 +229,7 @@ export const Summary: React.FC = () => {
               height={moderateScale(260)}
               legend={false}
               innerRadius={moderateScale(75)}
+              theme={donutTheme}
               centerLabel={
                 <View
                   style={{ alignItems: 'center', justifyContent: 'center' }}
@@ -232,7 +239,7 @@ export const Summary: React.FC = () => {
                     className='font-semibold'
                     style={{
                       fontSize: moderateScale(22),
-                      color: colors.text,
+                      color: colors.textSecondary,
                     }}
                   >
                     {chartTotal || totalTasks}
@@ -291,12 +298,6 @@ export const Summary: React.FC = () => {
                 >
                   {item.value}
                 </AppText>
-
-                <Ionicons
-                  name='chevron-forward'
-                  size={16}
-                  color={colors.textSecondary}
-                />
               </View>
             </TouchableOpacity>
           ))}

@@ -8,7 +8,6 @@ import List from '../screens/projectScreens/list';
 import Backlogs from '../screens/projectScreens/backlog';
 import Settings from '../screens/projectScreens/setting';
 import Report from '../screens/projectScreens/report';
-import Calendar from '../screens/projectScreens/calender';
 import { ProjectTopTabParamList } from '../types/navigationTypes';
 
 const TopTab = createMaterialTopTabNavigator<ProjectTopTabParamList>();
@@ -42,7 +41,6 @@ const ProjectTopNavigator = () => {
     >
       <TopTab.Screen name='Summary' component={Summary} />
       <TopTab.Screen name='Board' component={Board} />
-      <TopTab.Screen name='Calendar' component={Calendar} />
       <TopTab.Screen name='List' component={List} />
       <TopTab.Screen name='Report' component={Report} />
       <TopTab.Screen name='Backlogs' component={Backlogs} />

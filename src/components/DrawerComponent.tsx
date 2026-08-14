@@ -14,7 +14,10 @@ import { useAppDispatch, useAppSelector } from '../store';
 import { Radius } from '../constants/Radius';
 import Screen from './common/ScreenWapper';
 import { ProjectListBottomSheet } from './common/ProjectBottomSheet';
-import { getAllProjectInfo } from '../store/project_store/action/project_thunk';
+import {
+  getAllProjectInfo,
+  getProjectById,
+} from '../store/project_store/action/project_thunk';
 import CustomBottomSheet from '../components/common/CustomBottomDialog';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
@@ -101,6 +104,19 @@ export const CustomDrawerContent: React.FC<
 
   const handleLogoutConfirm = () => {
     dispatch(logoutUser(showSuccessToast));
+  };
+
+  const handleOnSelectProject = (id: string) => {
+    dispatch(
+      getProjectById({
+        projectId: id,
+        handleSuccess,
+      }),
+    );
+  };
+
+  const handleSuccess = () => {
+    handleNavigation('projectDetails');
   };
 
   return (
@@ -217,6 +233,7 @@ export const CustomDrawerContent: React.FC<
       <ProjectListBottomSheet
         visible={projectSheetVisible}
         onDismiss={() => setProjectSheetVisible(false)}
+        onSelectProject={handleOnSelectProject}
       />
 
       {/* Bottom Sheet for Logout Confirmation */}
