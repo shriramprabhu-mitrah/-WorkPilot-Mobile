@@ -1,4 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { data } from '../../../types/home.type';
+import { getActivity } from '../action/home.thunk';
 
 export interface QuickAccessItem {
   id: string;
@@ -14,6 +16,7 @@ interface HomeState {
   isSearching: boolean;
   searchQuery: string;
   selectedFilter: string | null;
+  userActivities: data;
 }
 
 const initialState: HomeState = {
@@ -23,6 +26,16 @@ const initialState: HomeState = {
   isSearching: false,
   searchQuery: '',
   selectedFilter: null,
+  userActivities: {
+    user: {
+      id: '',
+      name: '',
+      email: '',
+      avatar_url: '',
+      role: '',
+    },
+    activities: [],
+  },
 };
 
 const MAX_LIMIT = 6;
@@ -64,6 +77,18 @@ const homeSlice = createSlice({
         item => item.id !== action.payload,
       );
     },
+  },
+  extraReducers: builder => {
+    builder
+      .addCase(getActivity.fulfilled, (state, action) => {
+        state.userActivities = action.payload;
+      })
+      .addCase(getActivity.pending, (state, action) => {
+        state.loading = true;
+      })
+      .addCase(getActivity.rejected, (state, action) => {
+        state.loading = false;
+      });
   },
 });
 

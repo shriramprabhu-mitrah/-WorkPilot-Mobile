@@ -1,8 +1,9 @@
 import React from 'react';
 import { CreateProjectModal } from './createProjectModel';
 import { CameraPickerModal } from './cameraModal';
+import { ProjectListModal } from './projectListModal';
 
-export type ModalMode = 'camera' | 'createProject';
+export type ModalMode = 'camera' | 'createProject' | 'projectList';
 
 interface PopupModelProps {
   visible: boolean;
@@ -13,6 +14,7 @@ interface PopupModelProps {
   onRemovePhoto?: () => void;
   showRemoveOption?: boolean;
   title?: string;
+  onSelectProject?: (projectId: string) => void;
 }
 
 const PopupModel: React.FC<PopupModelProps> = ({
@@ -24,10 +26,22 @@ const PopupModel: React.FC<PopupModelProps> = ({
   onRemovePhoto,
   showRemoveOption = false,
   title,
+  onSelectProject,
 }) => {
   if (mode === 'createProject') {
     return (
       <CreateProjectModal visible={visible} onClose={onClose} title={title} />
+    );
+  }
+
+  if (mode === 'projectList') {
+    return (
+      <ProjectListModal
+        visible={visible}
+        onClose={onClose}
+        title={title}
+        onSelectProject={onSelectProject}
+      />
     );
   }
 
@@ -45,4 +59,4 @@ const PopupModel: React.FC<PopupModelProps> = ({
 };
 
 export default PopupModel;
-export { CameraPickerModal, CreateProjectModal };
+export { CameraPickerModal, CreateProjectModal, ProjectListModal };

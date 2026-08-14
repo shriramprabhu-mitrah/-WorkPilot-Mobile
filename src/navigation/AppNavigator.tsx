@@ -7,8 +7,8 @@ import SignUpScreen from '../screens/signUp';
 import VerifyEmailScreen from '../screens/verifyEmail';
 import ForgotPassword from '../screens/forgetPassword';
 import ResetPassword from '../screens/resetPassword';
-import TabNavigator from './tabNavigator';
 import { mmkv, useAppDispatch, useAppSelector } from '../store';
+import DrawerNavigator from './DrawerNavigator';
 import issueDetailsScreen from '../screens/IssuesDetailScreen';
 import ProjectDetails from '../screens/projectDetails';
 import BackLog from '../screens/backlog';
@@ -26,6 +26,7 @@ import OnBoardingLoginScreen from '../screens/OnBoardingLoginScreen';
 import { authenticateWithToken } from '../store/auth_store/reducer/auth.reducer';
 import QuickAccessScreen from '../screens/QuickAccess';
 import WebSignupScreen from '../screens/WebSignup';
+import SearchScreen from '../screens/searchScreen';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -104,8 +105,7 @@ const AppNavigator = () => {
             headerShown: false,
           }}
         >
-          <Stack.Screen name='HomeTabs' component={TabNavigator} />
-
+          <Stack.Screen name='HomeTabs' component={DrawerNavigator} />
           <Stack.Screen name='issue' component={issueDetailsScreen} />
 
           <Stack.Screen name='projectDetails' component={ProjectDetails} />
@@ -116,6 +116,7 @@ const AppNavigator = () => {
           <Stack.Screen name='newIssues' component={AddNewIssues} />
 
           <Stack.Screen name='QuickAccess' component={QuickAccessScreen} />
+          <Stack.Screen name='Search' component={SearchScreen} />
           {/* <Stack.Screen name='Create' component={CreateScreen} /> */}
           <Stack.Screen
             name='updateDetails'

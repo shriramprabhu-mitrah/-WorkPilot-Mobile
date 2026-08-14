@@ -18,7 +18,12 @@ import { Radius } from '../../constants/Radius';
 import { User } from '../../types/auth.type';
 
 export type HeaderVariant =
-  'home' | 'createProject' | 'project' | 'quickAccess' | 'custom';
+  | 'home'
+  | 'createProject'
+  | 'project'
+  | 'quickAccess'
+  | 'custom'
+  | 'projectdetails';
 
 export interface HeaderProps {
   /** Screen variant to control layout automatically */
@@ -41,6 +46,7 @@ export interface HeaderProps {
   user?: User;
   workspaceName?: string;
   onProfilePress?: () => void;
+  onDrawerPress?: () => void; // <--- Added drawer handler
   onSearchPress?: () => void;
 
   /** Tab Variant Specific Props */
@@ -67,6 +73,7 @@ export const CommonHeader: React.FC<HeaderProps> = ({
   user,
   workspaceName = 'reactproject',
   onProfilePress,
+  onDrawerPress,
   onSearchPress,
   tabs = [],
   activeTab,
@@ -80,7 +87,7 @@ export const CommonHeader: React.FC<HeaderProps> = ({
   const { colors, strings } = useTheme();
   const { layout, moderateScale } = useAuthLayout();
 
-  const isLeftAligned = titleAlignment === 'left' || variant === 'home';
+  const isLeftAligned = titleAlignment === 'left' && variant !== 'home';
 
   // --- RENDER HELPERS BASED ON SCREEN VARIANT ---
 
@@ -90,84 +97,24 @@ export const CommonHeader: React.FC<HeaderProps> = ({
     switch (variant) {
       case 'home':
         return (
-          <View
-            className='shrink-0 flex-row items-center'
-            style={{ gap: layout.tightGap * 2 }}
+          /* Hamburger / Drawer Icon Button */
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onDrawerPress}
+            className='items-center justify-center rounded-full border'
+            style={{
+              width: moderateScale(36),
+              height: moderateScale(36),
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+            }}
           >
-            {/* User Avatar */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={onProfilePress}
-              className='items-center justify-center overflow-hidden'
-              style={{
-                width: moderateScale(36),
-                height: moderateScale(36),
-                borderRadius: Radius.circle,
-                backgroundColor: user?.avatar_url
-                  ? 'transparent'
-                  : colors.accentOrange,
-              }}
-            >
-              {user?.avatar_url ? (
-                <Image
-                  source={{ uri: user.avatar_url }}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: Radius.circle,
-                  }}
-                  resizeMode='cover'
-                />
-              ) : (
-                <AppText
-                  style={{
-                    fontSize: moderateScale(16),
-                    fontWeight: 'bold',
-                    color: colors.white,
-                  }}
-                >
-                  {user?.name
-                    ?.split(' ')
-                    .map(word => word[0])
-                    .join('')
-                    .substring(0, 2)
-                    .toUpperCase() || 'H'}
-                </AppText>
-              )}
-            </TouchableOpacity>
-
-            {/* Workspace Badge */}
-            <View
-              className='shrink-0 flex-row items-center gap-3 rounded-full border px-3 py-1.5'
-              style={{
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-              }}
-            >
-              <View
-                className='items-center justify-center rounded'
-                style={{
-                  width: moderateScale(16),
-                  height: moderateScale(16),
-                  backgroundColor: colors.primary,
-                }}
-              >
-                <Ionicons
-                  name='flash'
-                  size={moderateScale(10)}
-                  color={colors.white}
-                />
-              </View>
-              <AppText
-                variant='body'
-                className='font-semibold'
-                color={colors.text}
-                numberOfLines={1}
-              >
-                {workspaceName}
-              </AppText>
-            </View>
-          </View>
+            <Ionicons
+              name='menu-outline'
+              size={moderateScale(24)}
+              color={colors.text}
+            />
+          </TouchableOpacity>
         );
 
       case 'createProject':
@@ -255,6 +202,26 @@ export const CommonHeader: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         ) : null;
 
+      case 'projectdetails':
+        return (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onBackPress}
+            className='items-center justify-center rounded-full'
+            style={{
+              width: moderateScale(36),
+              height: moderateScale(36),
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+            }}
+          >
+            <Ionicons
+              name='chevron-back-outline'
+              size={moderateScale(20)}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        );
       default:
         return null;
     }
@@ -264,6 +231,18 @@ export const CommonHeader: React.FC<HeaderProps> = ({
     if (centerComponent) return centerComponent;
 
     switch (variant) {
+      case 'home':
+        return (
+          <AppText
+            variant='body'
+            className='font-bold'
+            style={{ fontSize: moderateScale(18), color: colors.text }}
+            numberOfLines={1}
+          >
+            Home
+          </AppText>
+        );
+
       case 'createProject':
         return (
           <AppText
@@ -307,6 +286,33 @@ export const CommonHeader: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         );
 
+      case 'projectdetails':
+        return (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            disabled={!onProjectTitlePress}
+            onPress={onProjectTitlePress}
+            className='flex-row items-center justify-center'
+            style={{ gap: moderateScale(4) }}
+          >
+            <AppText
+              variant='title'
+              className='font-bold'
+              color={colors.text}
+              numberOfLines={1}
+            >
+              {title || 'Project Details'}
+            </AppText>
+            {onProjectTitlePress && (
+              <Ionicons
+                name='chevron-down-outline'
+                size={moderateScale(18)}
+                color={colors.text}
+              />
+            )}
+          </TouchableOpacity>
+        );
+
       default:
         return title ? (
           <AppText
@@ -325,46 +331,26 @@ export const CommonHeader: React.FC<HeaderProps> = ({
     if (rightComponent) return rightComponent;
 
     switch (variant) {
-      case 'home':
-        return (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={onRightActionPress}
-            className='items-center justify-center rounded-full border'
-            style={{
-              width: moderateScale(30),
-              height: moderateScale(30),
-              backgroundColor: colors.primary,
-              borderColor: colors.primary,
-            }}
-          >
-            <Ionicons
-              name='add'
-              size={layout.iconSize * 1.1}
-              color={colors.white}
-            />
-          </TouchableOpacity>
-        );
-
-      case 'createProject':
-        return (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={onRightActionPress}
-            className='items-center justify-center rounded-full'
-            style={{
-              width: moderateScale(36),
-              height: moderateScale(36),
-              backgroundColor: colors.border,
-            }}
-          >
-            <Ionicons
-              name='checkmark'
-              size={moderateScale(20)}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        );
+      // case 'home':
+      //   return (
+      //     <TouchableOpacity
+      //       activeOpacity={0.8}
+      //       onPress={onRightActionPress}
+      //       className='items-center justify-center rounded-full border'
+      //       style={{
+      //         width: moderateScale(30),
+      //         height: moderateScale(30),
+      //         backgroundColor: colors.primary,
+      //         borderColor: colors.primary,
+      //       }}
+      //     >
+      //       <Ionicons
+      //         name='add'
+      //         size={layout.iconSize * 1.1}
+      //         color={colors.white}
+      //       />
+      //     </TouchableOpacity>
+      //   );
 
       case 'project':
         return (
@@ -387,6 +373,7 @@ export const CommonHeader: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         );
 
+      case 'createProject':
       default:
         return null;
     }
