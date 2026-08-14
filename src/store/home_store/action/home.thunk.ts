@@ -1,21 +1,21 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { getAuditLogService } from '../../../services/home.service';
+import { getAuditService } from '../../../services/home.service';
 
-export interface GetActivityParams {
+export interface GetAuditParams {
+  type: 'viewed' | 'activity';
   page?: number;
-  limit?: number;
-  [key: string]: any;
+  page_size?: number;
 }
 
-export const getActivity = createAsyncThunk(
-  'home/getActivity',
-  async (params: GetActivityParams = {}, { rejectWithValue }) => {
+export const getAudit = createAsyncThunk(
+  'home/getAudit',
+  async (params: GetAuditParams, { rejectWithValue }) => {
     try {
-      const response = await getAuditLogService(params);
+      const response = await getAuditService(params);
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Failed to fetch user activities',
+        error.response?.data?.message || 'Failed to fetch audit data',
       );
     }
   },

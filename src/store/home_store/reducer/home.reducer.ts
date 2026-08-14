@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { data } from '../../../types/home.type';
-import { getActivity } from '../action/home.thunk';
+import { Activity, User } from '../../../types/home.type';
+import { getAudit } from '../action/home.thunk';
 
 export interface QuickAccessItem {
   id: string;
@@ -16,26 +16,21 @@ interface HomeState {
   isSearching: boolean;
   searchQuery: string;
   selectedFilter: string | null;
-  userActivities: data;
+  isProjectSheetVisible: boolean;
+  user: User | null;
+  activities: Activity[];
 }
 
 const initialState: HomeState = {
   loading: false,
   activeTab: 'viewed',
-  quickAccessItems: [], // Set to empty array initially
+  quickAccessItems: [],
   isSearching: false,
   searchQuery: '',
   selectedFilter: null,
-  userActivities: {
-    user: {
-      id: '',
-      name: '',
-      email: '',
-      avatar_url: '',
-      role: '',
-    },
-    activities: [],
-  },
+  isProjectSheetVisible: false,
+  user: null,
+  activities: [],
 };
 
 const MAX_LIMIT = 6;
@@ -52,15 +47,16 @@ const homeSlice = createSlice({
     },
     setIsSearching: (state, action: PayloadAction<boolean>) => {
       state.isSearching = action.payload;
-      if (!action.payload) {
-        state.searchQuery = '';
-      }
+      if (!action.payload) state.searchQuery = '';
     },
     setSearchQuery: (state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
     },
     setSelectedFilter: (state, action: PayloadAction<string | null>) => {
       state.selectedFilter = action.payload;
+    },
+    setProjectSheetVisible: (state, action: PayloadAction<boolean>) => {
+      state.isProjectSheetVisible = action.payload;
     },
     addQuickAccessItem: (state, action: PayloadAction<QuickAccessItem>) => {
       const exists = state.quickAccessItems.some(
@@ -80,13 +76,17 @@ const homeSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(getActivity.fulfilled, (state, action) => {
-        state.userActivities = action.payload;
-      })
-      .addCase(getActivity.pending, (state, action) => {
+      .addCase(getAudit.pending, state => {
         state.loading = true;
       })
-      .addCase(getActivity.rejected, (state, action) => {
+      .addCase(getAudit.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload) {
+          state.user = action.payload.user ?? null;
+          state.activities = action.payload.activities ?? [];
+        }
+      })
+      .addCase(getAudit.rejected, state => {
         state.loading = false;
       });
   },
@@ -98,6 +98,7 @@ export const {
   setIsSearching,
   setSearchQuery,
   setSelectedFilter,
+  setProjectSheetVisible,
   addQuickAccessItem,
   removeQuickAccessItem,
 } = homeSlice.actions;

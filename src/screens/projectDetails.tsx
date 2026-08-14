@@ -8,12 +8,14 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import PopupModel from '../components/popupModel';
 import { getProjectById } from '../store/project_store/action/project_thunk';
+import { useTheme } from '../theme/ThemeProvider';
 
 const ProjectDetails = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [projectListVisible, setProjectListVisible] = useState(false);
   const { project } = useAppSelector((state: RootState) => state?.projects);
   const dispatch = useAppDispatch();
+  const { colors } = useTheme();
 
   const handleSuccess = () => {
     navigation.navigate('projectDetails');
@@ -28,7 +30,7 @@ const ProjectDetails = () => {
   };
 
   return (
-    <Screen scroll={false}>
+    <Screen scroll={false} backgroundColor={colors.surface}>
       <CommonHeader
         variant='projectdetails'
         title={project?.name || 'My Software Team'}

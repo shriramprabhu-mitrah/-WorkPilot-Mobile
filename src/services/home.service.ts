@@ -1,14 +1,26 @@
 import { get } from '../components/common/httpClient';
-import { GET_ACTIVITIES } from '../constants/apiServiceEndpoint';
-import { HomeResponse } from '../types/home.type';
+import { GET_AUDIT } from '../constants/apiServiceEndpoint';
+import { AuditResponse } from '../types/home.type';
 
-export const getAuditLogService = async (
+export interface GetAuditServiceParams {
+  type: 'viewed' | 'activity';
+  page?: number;
+  page_size?: number;
+}
+
+export const getAuditService = async (
   params?: Record<string, any>,
-): Promise<HomeResponse> => {
+): Promise<AuditResponse> => {
   try {
-    return await get<HomeResponse>(GET_ACTIVITIES, params);
+    const { type, ...queryParams } = params || {};
+
+    // Map 'viewed' to 'view' endpoint segment
+    const endpointType = type === 'viewed' ? 'view' : 'activity';
+    const url = `${GET_AUDIT}/${endpointType}`;
+
+    return await get<AuditResponse>(url, queryParams);
   } catch (error) {
-    console.error('Get Audit Log API failed:', error);
+    console.error('Get Audit API failed:', error);
     throw error;
   }
 };
