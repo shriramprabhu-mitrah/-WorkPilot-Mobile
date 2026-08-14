@@ -15,10 +15,10 @@ import { RootStackParamList } from '../types/navigationTypes';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-const LOGIN_URL =
-  'https://workpilot-frontend-4vak.onrender.com/signin?source=mobile';
+const SIGN_UP =
+  'https://workpilot-frontend-4vak.onrender.com/signup?source=mobile';
 
-const WebLoginScreen = () => {
+const WebSignupScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +44,7 @@ const WebLoginScreen = () => {
 
       {/* WebView */}
       <WebView
-        source={{ uri: LOGIN_URL }}
+        source={{ uri: SIGN_UP }}
         javaScriptEnabled
         domStorageEnabled
         sharedCookiesEnabled
@@ -103,7 +103,7 @@ const WebLoginScreen = () => {
   );
 };
 
-export default WebLoginScreen;
+export default WebSignupScreen;
 
 const styles = StyleSheet.create({
   container: {

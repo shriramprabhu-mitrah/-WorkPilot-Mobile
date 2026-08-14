@@ -26,7 +26,6 @@ import {
   ChangePasswordPayload,
   ChangePasswordResponse,
   GetUserResponse,
-  UpdateUserPayload,
   UpdateUserResponse,
   PasswordResetRequestPayload,
   PasswordResetRequestResponse,
@@ -154,7 +153,11 @@ export const updateUserService = async (
   payload: FormData,
 ): Promise<UpdateUserResponse> => {
   try {
-    return await patch<UpdateUserResponse, FormData>(UPDATE_USER, payload);
+    return await patch<UpdateUserResponse, FormData>(UPDATE_USER, payload, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   } catch (error) {
     console.error('Update User API failed:', error);
     throw error;

@@ -10,7 +10,7 @@ import ResetPassword from '../screens/resetPassword';
 import TabNavigator from './tabNavigator';
 import { mmkv, useAppDispatch, useAppSelector } from '../store';
 import issueDetailsScreen from '../screens/IssuesDetailScreen';
-import projectDeatilsScreen from '../screens/projectsDetailScreen';
+import ProjectDetails from '../screens/projectDetails';
 import BackLog from '../screens/backlog';
 import SettingsScreen from '../screens/settingsScreen';
 import AddNewIssues from '../screens/addNewIssues';
@@ -25,6 +25,7 @@ import OnboardingScreen from '../screens/onboardingScreen';
 import OnBoardingLoginScreen from '../screens/OnBoardingLoginScreen';
 import { authenticateWithToken } from '../store/auth_store/reducer/auth.reducer';
 import QuickAccessScreen from '../screens/QuickAccess';
+import WebSignupScreen from '../screens/WebSignup';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -107,11 +108,7 @@ const AppNavigator = () => {
 
           <Stack.Screen name='issue' component={issueDetailsScreen} />
 
-          <Stack.Screen
-            name='projectDetails'
-            component={projectDeatilsScreen}
-          />
-
+          <Stack.Screen name='projectDetails' component={ProjectDetails} />
           <Stack.Screen name='BackLogs' component={BackLog} />
 
           <Stack.Screen name='Settings' component={SettingsScreen} />
@@ -137,6 +134,8 @@ const AppNavigator = () => {
           <Stack.Screen name='login' component={OnBoardingLoginScreen} />
 
           <Stack.Screen name='WebLogin' component={WebLoginScreen} />
+
+          <Stack.Screen name='WebSignup' component={WebSignupScreen} />
 
           <Stack.Screen name='signUp' component={SignUpScreen} />
 

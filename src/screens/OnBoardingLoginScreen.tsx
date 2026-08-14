@@ -52,7 +52,9 @@ const OnBoardingLoginScreen = () => {
     navigation.navigate('WebLogin');
   };
 
-  reactotron.log('HEllo');
+  const handleSignupPress = () => {
+    navigation.navigate('WebSignup');
+  };
   return (
     <Screen scroll={false}>
       <View
@@ -146,6 +148,17 @@ const OnBoardingLoginScreen = () => {
             <PrimaryButton
               title='LOG IN'
               onPress={handleLoginPress}
+              className='w-1/2 font-bold'
+              style={{
+                backgroundColor: colors.white,
+                paddingVertical: moderateScale(10),
+                borderRadius: Radius.sm,
+              }}
+              textColor={colors.primary}
+            />
+            <PrimaryButton
+              title='SIGN UP'
+              onPress={handleSignupPress}
               className='w-1/2 font-bold'
               style={{
                 backgroundColor: colors.white,

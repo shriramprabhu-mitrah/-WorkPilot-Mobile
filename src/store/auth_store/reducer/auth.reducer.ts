@@ -90,7 +90,28 @@ const authSlice = createSlice({
 
       const decoded = decodeToken(accessToken);
 
-      console.log('LINE91', decoded);
+      console.log('[WEB TOKEN]', {
+        hasToken: !!accessToken,
+        tokenLength: accessToken?.length,
+        userId: decoded?.user_id,
+        role: decoded?.role,
+        issuedAt: decoded?.iat,
+        expiresAt: decoded?.exp,
+        expiresAtDate: decoded?.exp
+          ? new Date(decoded.exp * 1000).toISOString()
+          : null,
+      });
+
+      if (decoded?.exp) {
+        const now = Math.floor(Date.now() / 1000);
+
+        console.log('[TOKEN EXPIRY]', {
+          now,
+          exp: decoded.exp,
+          isExpired: decoded.exp <= now,
+          remainingSeconds: decoded.exp - now,
+        });
+      }
 
       if (decoded) {
         state.user = {
