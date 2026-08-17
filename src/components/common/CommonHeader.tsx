@@ -41,6 +41,7 @@ export interface HeaderProps {
 
   /** Project Viewing Specific Props */
   onProjectTitlePress?: () => void;
+  showDropdownIcon?: boolean; // <--- Controls dropdown arrow visibility
 
   /** Home Variant Specific Props */
   user?: User;
@@ -70,6 +71,7 @@ export const CommonHeader: React.FC<HeaderProps> = ({
   onRightActionPress,
   rightIconName,
   onProjectTitlePress,
+  showDropdownIcon = true,
   user,
   workspaceName = 'reactproject',
   onProfilePress,
@@ -292,18 +294,25 @@ export const CommonHeader: React.FC<HeaderProps> = ({
             activeOpacity={0.7}
             disabled={!onProjectTitlePress}
             onPress={onProjectTitlePress}
-            className='flex-row items-center justify-center'
-            style={{ gap: moderateScale(4) }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
             <AppText
               variant='title'
               className='font-bold'
               color={colors.text}
               numberOfLines={1}
+              style={{
+                fontSize: moderateScale(18),
+                marginRight: moderateScale(4),
+              }}
             >
               {title || 'Project Details'}
             </AppText>
-            {onProjectTitlePress && (
+            {showDropdownIcon && (
               <Ionicons
                 name='chevron-down-outline'
                 size={moderateScale(18)}

@@ -6,17 +6,37 @@ import Summary from '../screens/projectScreens/summary';
 import Board from '../screens/projectScreens/board';
 import List from '../screens/projectScreens/list';
 import Backlogs from '../screens/projectScreens/backlog';
-import Settings from '../screens/projectScreens/setting';
+import Settings, { ViewState } from '../screens/projectScreens/setting';
 import Report from '../screens/projectScreens/report';
 import { ProjectTopTabParamList } from '../types/navigationTypes';
 
+interface ProjectTopNavigatorProps {
+  settingsView: ViewState;
+  setSettingsView: React.Dispatch<React.SetStateAction<ViewState>>;
+  activeTab?: string;
+  setActiveTab?: (tabName: string) => void;
+}
+
 const TopTab = createMaterialTopTabNavigator<ProjectTopTabParamList>();
 
-const ProjectTopNavigator = () => {
+export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
+  settingsView,
+  setSettingsView,
+  setActiveTab,
+}) => {
   const { colors } = useTheme();
 
   return (
     <TopTab.Navigator
+      screenListeners={{
+        state: e => {
+          const state = e.data.state;
+          if (state) {
+            const activeRouteName = state.routes[state.index].name;
+            setActiveTab?.(activeRouteName);
+          }
+        },
+      }}
       screenOptions={{
         tabBarContentContainerStyle: {
           backgroundColor: colors.surface,
@@ -44,7 +64,15 @@ const ProjectTopNavigator = () => {
       <TopTab.Screen name='List' component={List} />
       <TopTab.Screen name='Report' component={Report} />
       <TopTab.Screen name='Backlogs' component={Backlogs} />
-      <TopTab.Screen name='Settings' component={Settings} />
+      <TopTab.Screen name='Settings'>
+        {props => (
+          <Settings
+            {...props}
+            currentView={settingsView}
+            setCurrentView={setSettingsView}
+          />
+        )}
+      </TopTab.Screen>
     </TopTab.Navigator>
   );
 };

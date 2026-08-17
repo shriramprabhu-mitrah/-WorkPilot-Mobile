@@ -107,10 +107,11 @@ export const CustomDrawerContent: React.FC<
   };
 
   const handleOnSelectProject = (id: string) => {
+    handleNavigation('projectDetails');
     dispatch(
       getProjectById({
         projectId: id,
-        handleSuccess,
+        // handleSuccess,
       }),
     );
   };

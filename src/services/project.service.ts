@@ -1,6 +1,7 @@
-import { get, patch, post } from '../components/common/httpClient';
+import { del, get, patch, post } from '../components/common/httpClient';
 import {
   CREATE_PROJECT,
+  DELETE_PROJECT,
   GET_PROJECT_BY_ID,
   GET_PROJECTS,
   UPDATE_PROJECT,
@@ -8,6 +9,7 @@ import {
 import {
   CreateProjectPayload,
   CreateProjectResponse,
+  DeleteProjectResponse,
   GetProjectByIdResponse,
   GetProjectsParams,
   GetProjectsResponse,
@@ -47,4 +49,12 @@ export const getProjectByIdService = async (
   const url = GET_PROJECT_BY_ID.replace('{project_id}', projectId);
 
   return await get<GetProjectByIdResponse>(url);
+};
+
+export const deleteProjectService = async (
+  projectId: string,
+): Promise<DeleteProjectResponse> => {
+  const url = DELETE_PROJECT.replace('{project_id}', projectId);
+
+  return await del<DeleteProjectResponse>(url);
 };

@@ -62,6 +62,71 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
           color={colors?.accentPurple || '#A855F7'}
         />
       );
+    case 'chevron-up':
+      return (
+        <Ionicons name='chevron-up' size={size} color={color || colors?.text} />
+      );
+    case 'chevron-down':
+      return (
+        <Ionicons
+          name='chevron-down'
+          size={size}
+          color={color || colors?.text}
+        />
+      );
+    case 'chevron-right':
+      return (
+        <Ionicons
+          name='chevron-forward'
+          size={size}
+          color={color || colors?.textSecondary}
+        />
+      );
+    case 'image-placeholder':
+      return (
+        <Ionicons name='image-outline' size={size} color={color || '#FFF'} />
+      );
+    case 'edit':
+      return (
+        <Ionicons
+          name='pencil'
+          size={size}
+          color={color || colors?.textSecondary}
+        />
+      );
+    case 'summary':
+      return (
+        <Ionicons
+          name='pie-chart-outline'
+          size={size}
+          color={color || colors?.primary}
+        />
+      );
+    case 'backlog':
+      return (
+        <Ionicons
+          name='list-outline'
+          size={size}
+          color={color || colors?.primary}
+        />
+      );
+    case 'timeline':
+      return (
+        <Ionicons
+          name='calendar-outline'
+          size={size}
+          color={color || colors?.primary}
+        />
+      );
+    case 'reports':
+      return (
+        <Ionicons
+          name='bar-chart-outline'
+          size={size}
+          color={color || colors?.primary}
+        />
+      );
+
     default:
       return (
         <Ionicons
