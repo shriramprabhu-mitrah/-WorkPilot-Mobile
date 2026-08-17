@@ -95,7 +95,7 @@ export interface ProjectMetrics {
 
 export interface GetProjectByIdThunkPayload {
   projectId: string;
-  handleSuccess: () => void;
+  handleSuccess?: () => void;
 }
 
 export interface ProjectDetails {
@@ -117,4 +117,26 @@ export interface GetProjectByIdResponse {
   status_code: number;
   message: string;
   data: ProjectDetails;
+}
+
+export interface DeleteProjectResponse {
+  data: string;
+  message: string;
+  meta: {
+    has_next: boolean;
+    has_previous: boolean;
+    page: number;
+    page_size: number;
+    total_items: number;
+    total_pages: number;
+  };
+  status_code: number;
+  success: boolean;
+}
+
+export interface DeleteProjectPayload {
+  projectId: string;
+  onSuccess?: (message?: string) => void;
+  onError?: (errorMessage?: string) => void;
+  onFinally?: () => void;
 }

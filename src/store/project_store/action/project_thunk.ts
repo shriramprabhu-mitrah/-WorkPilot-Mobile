@@ -2,6 +2,7 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
   CreateProjectResponse,
   CreateProjectThunkParams,
+  DeleteProjectPayload,
   GetProjectByIdThunkPayload,
   GetProjectsParams,
   GetProjectsResponse,
@@ -11,6 +12,7 @@ import {
 } from '../../../types/project.type';
 import {
   createNewProjectService,
+  deleteProjectService,
   getProjectByIdService,
   getProjectService,
   updateProjectService,
@@ -102,22 +104,45 @@ export const getProjectById = createAsyncThunk<
   ProjectDetails,
   GetProjectByIdThunkPayload,
   { rejectValue: string }
->(
-  'project/getProjectById',
-  async ({ projectId, handleSuccess }, { rejectWithValue }) => {
+>('project/getProjectById', async ({ projectId }, { rejectWithValue }) => {
+  try {
+    const response = await getProjectByIdService(projectId);
+    if (response.success) {
+      // handleSuccess();
+      return response.data;
+    }
+    return rejectWithValue(response.message || 'Failed to retrieve project');
+  } catch (error: any) {
+    return rejectWithValue(
+      error?.response?.data?.message ||
+        error?.message ||
+        'Failed to retrieve project',
+    );
+  }
+});
+
+export const deleteProject = createAsyncThunk(
+  'project/deleteProject',
+  async (
+    { projectId, onSuccess, onError, onFinally }: DeleteProjectPayload,
+    { rejectWithValue },
+  ) => {
     try {
-      const response = await getProjectByIdService(projectId);
-      if (response.success) {
-        handleSuccess();
-        return response.data;
-      }
-      return rejectWithValue(response.message || 'Failed to retrieve project');
+      const data = await deleteProjectService(projectId);
+      const successMessage = data?.message || 'Project deleted successfully';
+      onSuccess?.(successMessage);
+
+      return { projectId, data };
     } catch (error: any) {
-      return rejectWithValue(
+      const errorMessage =
         error?.response?.data?.message ||
-          error?.message ||
-          'Failed to retrieve project',
-      );
+        error?.message ||
+        'Failed to delete project';
+
+      onError?.(errorMessage);
+      return rejectWithValue(errorMessage);
+    } finally {
+      onFinally?.();
     }
   },
 );

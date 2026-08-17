@@ -1,51 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Screen from '../components/common/ScreenWapper';
 import ProjectTopNavigator from '../navigation/projectTopNavigator';
 import CommonHeader from '../components/common/CommonHeader';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
-import PopupModel from '../components/popupModel';
 import { getProjectById } from '../store/project_store/action/project_thunk';
-import { useTheme } from '../theme/ThemeProvider';
+import { ViewState } from '../screens/projectScreens/setting';
+import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
 
 const ProjectDetails = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const [projectListVisible, setProjectListVisible] = useState(false);
+  const [projectSheetVisible, setProjectSheetVisible] = useState(false);
+  const [settingsView, setSettingsView] = useState<ViewState>('MAIN_SETTINGS');
+  const [activeTab, setActiveTab] = useState<string>('Summary');
+
   const { project } = useAppSelector((state: RootState) => state?.projects);
   const dispatch = useAppDispatch();
-  const { colors } = useTheme();
+
+  useFocusEffect(
+    useCallback(() => {
+      setSettingsView('MAIN_SETTINGS');
+    }, []),
+  );
 
   const handleSuccess = () => {
-    navigation.navigate('projectDetails');
+    setSettingsView('MAIN_SETTINGS');
+    // navigation.navigate('projectDetails');
   };
-  const handleSelectProject = (projectId: string) => {
+
+  const handleOnSelectProject = (id: string) => {
+    setProjectSheetVisible(false);
     dispatch(
       getProjectById({
-        projectId,
+        projectId: id,
         handleSuccess,
       }),
     );
   };
 
+  // Return specific sub-view titles for inner settings, otherwise always return project name
+  const getHeaderTitle = () => {
+    if (activeTab.toLowerCase() === 'settings') {
+      if (settingsView === 'DETAILS') {
+        return 'Project details';
+      }
+      if (settingsView === 'FEATURES') {
+        return 'Features';
+      }
+    }
+    return project?.name || 'My Software Team';
+  };
+
+  const handleBackPress = () => {
+    if (settingsView !== 'MAIN_SETTINGS') {
+      setSettingsView('MAIN_SETTINGS');
+    } else {
+      navigation.goBack();
+    }
+  };
+
+  // Show dropdown arrow and enable project selector sheet on all tabs (at root settings view level)
+  // const canShowDropdown = settingsView === 'MAIN_SETTINGS';
+
   return (
-    <Screen scroll={false} backgroundColor={colors.surface}>
+    <Screen scroll={false}>
       <CommonHeader
         variant='projectdetails'
-        title={project?.name || 'My Software Team'}
-        onBackPress={() => {
-          navigation.goBack();
-        }}
-        onProjectTitlePress={() => setProjectListVisible(true)}
+        title={getHeaderTitle()}
+        onBackPress={handleBackPress}
+        showDropdownIcon={settingsView === 'MAIN_SETTINGS'}
+        onProjectTitlePress={
+          settingsView === 'MAIN_SETTINGS'
+            ? () => setProjectSheetVisible(true)
+            : undefined
+        }
       />
-      <ProjectTopNavigator />
-      <PopupModel
-        mode='projectList'
-        visible={projectListVisible}
-        onClose={() => setProjectListVisible(false)}
-        onSelectProject={handleSelectProject}
-        title='Select Project'
+
+      <ProjectTopNavigator
+        settingsView={settingsView}
+        setSettingsView={setSettingsView}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+
+      <ProjectListBottomSheet
+        visible={projectSheetVisible}
+        onDismiss={() => setProjectSheetVisible(false)}
+        onSelectProject={handleOnSelectProject}
       />
     </Screen>
   );
