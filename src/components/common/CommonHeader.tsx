@@ -16,6 +16,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
 import { User } from '../../types/auth.type';
+import { RootState, useAppSelector } from '../../store';
 
 export type HeaderVariant =
   | 'home'
@@ -42,12 +43,13 @@ export interface HeaderProps {
   /** Project Viewing Specific Props */
   onProjectTitlePress?: () => void;
   showDropdownIcon?: boolean; // <--- Controls dropdown arrow visibility
+  onSprintTitlePress?: () => void; // <--- Added optional Sprint Press
 
   /** Home Variant Specific Props */
   user?: User;
   workspaceName?: string;
   onProfilePress?: () => void;
-  onDrawerPress?: () => void; // <--- Added drawer handler
+  onDrawerPress?: () => void;
   onSearchPress?: () => void;
 
   /** Tab Variant Specific Props */
@@ -71,6 +73,7 @@ export const CommonHeader: React.FC<HeaderProps> = ({
   onRightActionPress,
   rightIconName,
   onProjectTitlePress,
+  onSprintTitlePress, // <--- Destructured Sprint Press
   showDropdownIcon = true,
   user,
   workspaceName = 'reactproject',
@@ -89,6 +92,9 @@ export const CommonHeader: React.FC<HeaderProps> = ({
   const { colors, strings } = useTheme();
   const { layout, moderateScale } = useAuthLayout();
 
+  // Grab the project details directly from reducer
+  const { project } = useAppSelector((state: RootState) => state?.projects);
+
   const isLeftAligned = titleAlignment === 'left' && variant !== 'home';
 
   // --- RENDER HELPERS BASED ON SCREEN VARIANT ---
@@ -99,7 +105,6 @@ export const CommonHeader: React.FC<HeaderProps> = ({
     switch (variant) {
       case 'home':
         return (
-          /* Hamburger / Drawer Icon Button */
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={onDrawerPress}
@@ -289,6 +294,9 @@ export const CommonHeader: React.FC<HeaderProps> = ({
         );
 
       case 'projectdetails':
+        const sprintsCount = project?.sprints?.length || 0;
+        const hasSprintsData = project?.sprints !== undefined;
+
         return (
           <TouchableOpacity
             activeOpacity={0.7}
@@ -340,27 +348,6 @@ export const CommonHeader: React.FC<HeaderProps> = ({
     if (rightComponent) return rightComponent;
 
     switch (variant) {
-      // case 'home':
-      //   return (
-      //     <TouchableOpacity
-      //       activeOpacity={0.8}
-      //       onPress={onRightActionPress}
-      //       className='items-center justify-center rounded-full border'
-      //       style={{
-      //         width: moderateScale(30),
-      //         height: moderateScale(30),
-      //         backgroundColor: colors.primary,
-      //         borderColor: colors.primary,
-      //       }}
-      //     >
-      //       <Ionicons
-      //         name='add'
-      //         size={layout.iconSize * 1.1}
-      //         color={colors.white}
-      //       />
-      //     </TouchableOpacity>
-      //   );
-
       case 'project':
         return (
           <TouchableOpacity

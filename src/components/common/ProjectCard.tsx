@@ -38,6 +38,7 @@ const ProjectCard = ({ item, onPress, onToggleStar }: Props) => {
     }
     if (onPress) {
       onPress(targetId, projectName);
+      console.log('card');
     }
   };
 

@@ -8,7 +8,13 @@ import {
   GetProjectsResponse,
   GetUserStoriesResponse,
   GetUserStorieThunkArgs,
+  GetRecentProjectResponse,
+  GetSprintByIdParams,
+  GetSprintByIdResponse,
+  GetSprintResponse,
+  GetSprintsParams,
   ProjectDetails,
+  RecentProject,
   UpdateProjectResponse,
   UpdateProjectThunkPayload,
 } from '../../../types/project.type';
@@ -18,9 +24,12 @@ import {
   getProjectByIdService,
   getProjectService,
   getUserStorieService,
+  recentProjectService,
   updateProjectService,
 } from '../../../services/project.service';
 import { handleLoading } from '../../auth_store/reducer/auth.reducer';
+import { getSprintById, getSprints } from '../../../services/sprint.service';
+// import { RecentProject } from '../../../data/projectDetailScreenData';
 
 export const getAllProjectInfo = createAsyncThunk<
   { response: GetProjectsResponse; page: number },
@@ -30,7 +39,7 @@ export const getAllProjectInfo = createAsyncThunk<
   try {
     const response = await getProjectService(params);
     console.log(response);
-    return { response, page: params?.page || 1 };
+    return { response, page: params?.page || 1, include_sprints: true };
   } catch (error: any) {
     return rejectWithValue(
       error.response?.data?.message || 'Failed to fetch projects',
@@ -168,3 +177,59 @@ export const getUserStorie = createAsyncThunk<
     }
   },
 );
+
+export const getSprintsThunk = createAsyncThunk<
+  GetSprintResponse,
+  GetSprintsParams,
+  { rejectValue: string }
+>('sprints/getSprints', async (params, { rejectWithValue }) => {
+  try {
+    const response = await getSprints(params);
+
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(
+      error?.response?.data?.message ||
+        error?.message ||
+        'Failed to get sprints',
+    );
+  }
+});
+
+export const getSprintByIdThunk = createAsyncThunk<
+  GetSprintByIdResponse,
+  GetSprintByIdParams,
+  { rejectValue: string }
+>('sprints/getSprintById', async (params, { rejectWithValue }) => {
+  try {
+    const response = await getSprintById(params);
+
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(
+      error?.response?.data?.message ||
+        error?.message ||
+        'Failed to get sprint',
+    );
+  }
+});
+
+export const getRecentProjects = createAsyncThunk<
+  RecentProject[],
+  void,
+  {
+    rejectValue: string;
+  }
+>('projects/recentProjects', async (_, { rejectWithValue }) => {
+  try {
+    const response = await recentProjectService();
+
+    return response.data.project;
+  } catch (error: any) {
+    return rejectWithValue(
+      error?.response?.data?.message ||
+        error?.message ||
+        'Failed to get recent projects',
+    );
+  }
+});

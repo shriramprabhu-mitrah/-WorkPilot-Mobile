@@ -17,11 +17,14 @@ import { ProjectListBottomSheet } from './common/ProjectBottomSheet';
 import {
   getAllProjectInfo,
   getProjectById,
+  getSprintByIdThunk,
+  getSprintsThunk,
 } from '../store/project_store/action/project_thunk';
 import CustomBottomSheet from '../components/common/CustomBottomDialog';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
 import { getProjectName } from '../store/project_store/reducer/project_reducer';
+import { Sprint } from '../types/project.type';
 
 export const CustomDrawerContent: React.FC<
   DrawerContentComponentProps
@@ -30,9 +33,13 @@ export const CustomDrawerContent: React.FC<
   const dispatch = useAppDispatch();
   const { moderateScale, layout } = useAuthLayout();
   const { user } = useAppSelector(state => state.auth);
+  const { projects, project, loading, sprints } = useAppSelector(
+    state => state.projects,
+  );
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
-
+  const [include_sprints, setInclude_sprints] = useState(true);
+  const params = { include_sprints: include_sprints };
   const handleNavigation = (routeName: string) => {
     if (props.navigation && typeof props.navigation.navigate === 'function') {
       props.navigation.navigate(routeName);
@@ -53,35 +60,11 @@ export const CustomDrawerContent: React.FC<
       route: 'ProjectSelection',
     },
     {
-      id: 3,
-      name: 'Sprint Selection',
-      icon: 'time-outline',
-      route: 'SprintSelection',
-    },
-    {
       id: 4,
       name: 'Profile',
       icon: 'person-outline',
       route: 'Profile',
     },
-    // {
-    //   id: 5,
-    //   name: 'Teams',
-    //   icon: 'people-outline',
-    //   route: 'Teams',
-    // },
-    // {
-    //   id: 6,
-    //   name: 'Notifications',
-    //   icon: 'notifications-outline',
-    //   route: 'Notifications',
-    // },
-    // {
-    //   id: 7,
-    //   name: 'Settings',
-    //   icon: 'settings-outline',
-    //   route: 'Settings',
-    // },
     {
       id: 8,
       name: 'Logout',
@@ -93,7 +76,7 @@ export const CustomDrawerContent: React.FC<
   const handleItemPress = (item: (typeof drawerList)[0]) => {
     if (item.route === 'ProjectSelection') {
       props.navigation.closeDrawer();
-      dispatch(getAllProjectInfo());
+      dispatch(getAllProjectInfo(params));
       setTimeout(() => setProjectSheetVisible(true), 300);
     } else if (item.route === 'Logout') {
       props.navigation.closeDrawer();
@@ -109,34 +92,56 @@ export const CustomDrawerContent: React.FC<
 
   const handleOnSelectProject = (id: string, name: string) => {
     dispatch(getProjectName(name));
-    handleNavigation('projectDetails');
+    // 1. Fetch project details
     dispatch(
       getProjectById({
         projectId: id,
-        // handleSuccess,
       }),
     );
-  };
+    dispatch(getSprintsThunk({ project_id: id }));
+    console.log('drawer');
+    // 2. Extract active/last sprint and trigger sprintById API
+    const targetProject = projects?.find(
+      (p: any) => (p.id?.toString() || p._id?.toString()) === id,
+    );
+    console.log('targetProject', targetProject, 'sprints', sprints);
+    // Type assertion to resolve TS error when 'sprints' is missing on Project interface
+    const projectSprints: Sprint[] = (targetProject as any)?.sprints || [];
 
-  const handleSuccess = () => {
+    if (projectSprints.length > 0) {
+      const activeSprint = projectSprints.find(
+        (s: any) => s.status === 'active',
+      );
+      const targetSprint =
+        activeSprint || projectSprints[projectSprints.length - 1];
+
+      const sprintId =
+        targetSprint?.id?.toString() || (targetSprint as any)?._id?.toString();
+      console.log('sprintId', sprintId, 'targetSprint', targetSprint);
+      if (sprintId) {
+        dispatch(
+          getSprintByIdThunk({
+            project_id: id,
+            sprint_id: sprintId,
+          }),
+        );
+      }
+    }
     handleNavigation('projectDetails');
   };
 
   return (
     <Screen scroll={false} backgroundColor={colors.primary}>
-      {/* 1. Header Profile Section (Blue Background) */}
+      {/* 1. Header Profile Section */}
       <View
         style={{
-          backgroundColor: colors.primary, // Primary Jira Blue
+          backgroundColor: colors.primary,
           paddingHorizontal: layout.paddingHorizontal,
           paddingTop: layout.paddingTop,
           paddingBottom: layout.paddingTop,
         }}
       >
-        <TouchableOpacity
-          activeOpacity={0.8}
-          // onPress={() => handleNavigation('Profile')}
-        >
+        <TouchableOpacity activeOpacity={0.8}>
           {/* Avatar Circle */}
           <View
             style={{
@@ -180,7 +185,7 @@ export const CustomDrawerContent: React.FC<
             }}
             className='font-bold'
           >
-            {user?.name || 'John Doe'}
+            {user?.name}
           </AppText>
 
           <AppText
@@ -189,7 +194,7 @@ export const CustomDrawerContent: React.FC<
             className='mt-0.5'
             numberOfLines={1}
           >
-            {user?.email || 'john@example.com'}
+            {user?.email}
           </AppText>
         </TouchableOpacity>
       </View>
@@ -222,7 +227,6 @@ export const CustomDrawerContent: React.FC<
                 </AppText>
               </TouchableOpacity>
 
-              {/* Dividers added after Home (id: 1) and after Notifications (id: 6) */}
               {(item.id === 1 || item.id === 6) && (
                 <View
                   className='mx-5 my-1.5 h-px'

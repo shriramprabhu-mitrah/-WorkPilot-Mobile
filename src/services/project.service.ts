@@ -5,6 +5,7 @@ import {
   GET_PROJECT_BY_ID,
   GET_PROJECTS,
   GET_USERSTORY,
+  GET_RECENT_PROJECTS,
   UPDATE_PROJECT,
 } from '../constants/apiServiceEndpoint';
 import {
@@ -14,6 +15,7 @@ import {
   GetProjectByIdResponse,
   GetProjectsParams,
   GetProjectsResponse,
+  GetRecentProjectResponse,
   GetUserStoriesPayload,
   GetUserStoriesResponse,
   UpdateProjectPayload,
@@ -61,6 +63,17 @@ export const deleteProjectService = async (
 
   return await del<DeleteProjectResponse>(url);
 };
+
+export const recentProjectService =
+  async (): Promise<GetRecentProjectResponse> => {
+    try {
+      return await get<GetRecentProjectResponse>(GET_RECENT_PROJECTS);
+    } catch (error) {
+      console.error('Get Recent Projects API failed:', error);
+
+      throw error;
+    }
+  };
 
 export const getUserStorieService = async (
   projectId: string,

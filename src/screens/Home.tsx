@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { DrawerParamList } from '../navigation/DrawerNavigator';
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
@@ -19,43 +20,31 @@ import {
   getOrganizationDetail,
   getUserProfileInfo,
 } from '../store/auth_store/action/auth.thunks';
-import { setActiveTab } from '../store/home_store/reducer/home.reducer';
+
+import {
+  setActiveTab,
+  resetAuditData,
+} from '../store/home_store/reducer/home.reducer';
+
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import { getAudit } from '../store/home_store/action/home.thunk';
+import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
+import {
+  getAllProjectInfo,
+  getProjectById,
+  getRecentProjects,
+  getSprintByIdThunk,
+  getSprintsThunk,
+} from '../store/project_store/action/project_thunk';
+import { Sprint } from '../types/project.type';
+import { getProjectName } from '../store/project_store/reducer/project_reducer';
 
-// Static Data for Recent Projects
-const RECENT_PROJECTS_DATA = [
-  {
-    id: '1',
-    name: 'Mobile App Redesign',
-    category: 'Software',
-    key: 'MAR',
-  },
-  {
-    id: '2',
-    name: 'Marketing Campaign',
-    category: 'Business',
-    key: 'MC',
-  },
-  {
-    id: '3',
-    name: 'Backend API Migration',
-    category: 'Engineering',
-    key: 'BAM',
-  },
-  {
-    id: '4',
-    name: 'UI Design System',
-    category: 'Design',
-    key: 'UDS',
-  },
-];
-
-// Helper function to extract initials from user/project name
 const getInitials = (name?: string): string => {
-  if (!name) return 'U';
+  if (!name) {
+    return 'U';
+  }
   const words = name.trim().split(' ');
   if (words.length >= 2) {
     return (words[0][0] + words[1][0]).toUpperCase();
@@ -63,13 +52,16 @@ const getInitials = (name?: string): string => {
   return name.substring(0, 2).toUpperCase();
 };
 
-// Helper function to format API ISO dates into "13 Aug 2026"
 const formatDate = (isoString?: string): string => {
-  if (!isoString) return 'Recently';
+  if (!isoString) {
+    return 'Recently';
+  }
   try {
     const date = new Date(isoString);
     const day = date.getDate();
-    const month = date.toLocaleString('en-US', { month: 'short' });
+    const month = date.toLocaleString('en-US', {
+      month: 'short',
+    });
     const year = date.getFullYear();
     return `${day} ${month} ${year}`;
   } catch {
@@ -77,69 +69,214 @@ const formatDate = (isoString?: string): string => {
   }
 };
 
-// Helper function to clean up API action names
 const formatAction = (action?: string): string => {
-  if (!action) return 'viewed';
-  return action.replace(/^project_|^task_|^tasks_/, '').replace(/_/g, ' ');
+  if (!action) {
+    return 'viewed';
+  }
+  return action
+    .replace(/^project_|^task_|^tasks_|^sprint_/, '')
+    .replace(/_/g, ' ');
 };
 
 export const Home: React.FC = () => {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
-
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
-
   const { user } = useAppSelector(state => state.auth);
+  const { project, projects, recentProjects, include_sprints, sprints } =
+    useAppSelector(state => state.projects);
   const {
     activities,
     user: homeUser,
     activeTab,
     loading,
+    meta,
   } = useAppSelector(state => state.home);
 
-  // Pagination state for activities (kept for local state consistency, but pagination logic is commented out)
-  const [page, setPage] = useState(1);
+  const [projectSheetVisible, setProjectSheetVisible] = useState(false);
+  const [isRecentLoading, setIsRecentLoading] = useState(true);
+
+  const currentPageRef = useRef(1);
+  const fetchingRef = useRef(false);
+  const lastRequestedPageRef = useRef<number | null>(null);
+  const currentTabRef = useRef<'viewed' | 'activity'>(activeTab);
+  currentTabRef.current = activeTab;
+
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+
+  // Safe navigation helper function aligned with CustomDrawerContent
+  const handleNavigation = (routeName: string) => {
+    if (navigation && typeof (navigation as any).navigate === 'function') {
+      (navigation as any).navigate(routeName);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
+      currentPageRef.current = 1;
+      lastRequestedPageRef.current = null;
+      fetchingRef.current = false;
+      setIsFetchingMore(false);
+      setIsRecentLoading(true);
+
+      dispatch(resetAuditData());
       dispatch(getUserProfileInfo());
       dispatch(getOrganizationDetail());
-      dispatch(getAudit({ type: activeTab, page: 1 }));
-    }, [dispatch, activeTab]),
+
+      dispatch(getRecentProjects())
+        .unwrap()
+        .catch(error => {
+          console.error('Failed to fetch recent projects:', error);
+        })
+        .finally(() => {
+          setIsRecentLoading(false);
+        });
+
+      dispatch(
+        getAudit({
+          type: currentTabRef.current,
+          page: 1,
+        }),
+      );
+
+      return () => {
+        fetchingRef.current = false;
+        setIsFetchingMore(false);
+      };
+    }, [dispatch]), // Removed activeTab to avoid re-triggering when changing tabs
   );
 
   const handleOpenDrawer = () => {
     navigation.openDrawer();
   };
 
-  /* 
-    Pagination load-more function is commented out to stop page number 
-    and further API requests from increasing upon scroll.
-  */
-  const handleLoadMore = () => {
-    /*
-    if (hasMore && !isFetchingMore && !loading) {
-      setIsFetchingMore(true);
-      const nextPage = page + 1;
-      dispatch(getAudit({ type: activeTab, page: nextPage }))
-        .unwrap()
-        .then((res: any) => {
-          if (!res?.activities || res.activities.length === 0) {
-            setHasMore(false);
-          } else {
-            setPage(nextPage);
-          }
-        })
-        .catch(() => setHasMore(false))
-        .finally(() => setIsFetchingMore(false));
+  const handleTabChange = (tab: 'viewed' | 'activity') => {
+    if (activeTab === tab) {
+      return;
     }
-    */
+    currentPageRef.current = 1;
+    lastRequestedPageRef.current = null;
+    fetchingRef.current = false;
+    currentTabRef.current = tab;
+    setIsFetchingMore(false);
+
+    dispatch(resetAuditData());
+    dispatch(setActiveTab(tab));
+
+    // Fetch audit logs for the newly selected tab directly
+    dispatch(
+      getAudit({
+        type: tab,
+        page: 1,
+      }),
+    );
   };
 
-  /* Render Header Section containing Recent Projects & Tabs */
+  const handleOnSelectProject = async (id: string, name: string) => {
+    if (!id) {
+      return;
+    }
+
+    // 1. Dispatch project name & navigate immediately
+    dispatch(getProjectName(name));
+    handleNavigation('projectDetails');
+
+    // 2. Fetch API data asynchronously in the background
+    try {
+      const [, sprintsData] = await Promise.all([
+        dispatch(getProjectById({ projectId: id })).unwrap(),
+        dispatch(getSprintsThunk({ project_id: id })).unwrap(),
+      ]);
+
+      // Bypasses strict interface checks to safely extract sprint array properties
+      const response = sprintsData as any;
+      const projectSprints: Sprint[] = Array.isArray(response)
+        ? response
+        : response?.data || response?.items || [];
+
+      if (projectSprints.length > 0) {
+        const activeSprint = projectSprints.find(
+          (s: any) => s.status === 'active',
+        );
+        const targetSprint =
+          activeSprint || projectSprints[projectSprints.length - 1];
+
+        const sprintId =
+          targetSprint?.id?.toString() ||
+          (targetSprint as any)?._id?.toString();
+
+        if (sprintId) {
+          await dispatch(
+            getSprintByIdThunk({
+              project_id: id,
+              sprint_id: sprintId,
+            }),
+          ).unwrap();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch project details:', error);
+    }
+  };
+
+  const handleLoadMore = useCallback(() => {
+    if (fetchingRef.current) {
+      return;
+    }
+    if (loading && activities.length === 0) {
+      return;
+    }
+    const currentPage = currentPageRef.current;
+    const hasNextPage =
+      meta?.has_next !== undefined
+        ? meta.has_next
+        : meta?.total_pages !== undefined
+          ? currentPage < meta.total_pages
+          : true;
+    if (!hasNextPage) {
+      return;
+    }
+    const nextPage = currentPage + 1;
+    if (lastRequestedPageRef.current === nextPage) {
+      return;
+    }
+    fetchingRef.current = true;
+
+    lastRequestedPageRef.current = nextPage;
+
+    setIsFetchingMore(true);
+    dispatch(
+      getAudit({
+        type: activeTab,
+        page: nextPage,
+      }),
+    )
+      .unwrap()
+      .then(response => {
+        const responsePage = response?.meta?.page;
+        if (typeof responsePage === 'number' && responsePage >= nextPage) {
+          currentPageRef.current = responsePage;
+        } else {
+          currentPageRef.current = nextPage;
+        }
+      })
+      .catch(error => {
+        console.log('Load more error:', error);
+        lastRequestedPageRef.current = null;
+      })
+      .finally(() => {
+        fetchingRef.current = false;
+        setIsFetchingMore(false);
+      });
+  }, [activeTab, activities.length, loading, meta, dispatch]);
+
+  const handleViewAll = () => {
+    const params = { include_sprints: include_sprints };
+    dispatch(getAllProjectInfo(params));
+    setProjectSheetVisible(true);
+  };
+
   const renderHeader = () => (
     <View
       style={{
@@ -148,11 +285,17 @@ export const Home: React.FC = () => {
         marginBottom: layout.elementGap,
       }}
     >
-      {/* ================= RECENT PROJECTS SECTION ================= */}
-      <View style={{ gap: layout.elementGap }}>
+      {/* Recent Projects */}
+      <View
+        style={{
+          gap: layout.elementGap,
+        }}
+      >
         <View
           className='flex-row items-center justify-between'
-          style={{ marginBottom: layout.tightGap }}
+          style={{
+            marginBottom: layout.tightGap,
+          }}
         >
           <AppText
             variant='caption'
@@ -161,7 +304,8 @@ export const Home: React.FC = () => {
           >
             RECENT PROJECTS
           </AppText>
-          <TouchableOpacity activeOpacity={0.7}>
+
+          <TouchableOpacity activeOpacity={0.7} onPress={handleViewAll}>
             <AppText
               variant='caption'
               className='font-semibold'
@@ -172,67 +316,106 @@ export const Home: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Horizontal List of Projects */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: layout.mediumGap }}
+          contentContainerStyle={{
+            gap: layout.mediumGap,
+          }}
         >
-          {RECENT_PROJECTS_DATA.map(project => (
-            <TouchableOpacity
-              key={project.id}
-              activeOpacity={0.8}
-              className='flex-row items-center rounded-xl border p-3'
+          {isRecentLoading ? (
+            <View
+              className='flex-row items-center justify-center rounded-xl border p-3'
               style={{
                 backgroundColor: colors.background,
                 borderColor: colors.border,
                 width: moderateScale(200),
-                gap: layout.elementGap,
+                height: moderateScale(64),
               }}
             >
-              <View
-                className='items-center justify-center rounded-lg'
-                style={{
-                  width: moderateScale(40),
-                  height: moderateScale(40),
-                  backgroundColor: colors.primary,
-                }}
-              >
-                <AppText
-                  className='font-bold'
+              <ActivityIndicator size='small' color={colors.primary} />
+            </View>
+          ) : recentProjects && recentProjects.length > 0 ? (
+            recentProjects.map((proj: any) => {
+              const projectId = proj.project_id || proj.id;
+              const projectName = proj.project_name || proj.name || 'Untitled';
+              const projectStatus = proj.status
+                ? proj.status.replace('_', ' ')
+                : '';
+              const projectRole = proj.role ? proj.role.replace('_', ' ') : '';
+
+              return (
+                <TouchableOpacity
+                  key={projectId}
+                  activeOpacity={0.8}
+                  onPress={() => handleOnSelectProject(projectId, projectName)}
+                  className='flex-row items-center rounded-xl border p-3'
                   style={{
-                    fontSize: moderateScale(14),
-                    color: colors.white,
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    width: moderateScale(200),
+                    gap: layout.elementGap,
                   }}
                 >
-                  {getInitials(project.name)}
-                </AppText>
-              </View>
+                  <View
+                    className='items-center justify-center rounded-lg'
+                    style={{
+                      width: moderateScale(40),
+                      height: moderateScale(40),
+                      backgroundColor: colors.primary,
+                    }}
+                  >
+                    <AppText
+                      className='font-bold'
+                      style={{
+                        fontSize: moderateScale(14),
+                        color: colors.white,
+                      }}
+                    >
+                      {getInitials(projectName)}
+                    </AppText>
+                  </View>
 
-              <View className='flex-1'>
-                <AppText
-                  variant='body'
-                  className='font-semibold'
-                  color={colors.text}
-                  numberOfLines={1}
-                >
-                  {project.name}
-                </AppText>
-                <AppText
-                  variant='caption'
-                  color={colors.textSecondary}
-                  numberOfLines={1}
-                >
-                  {project.category} • {project.key}
-                </AppText>
-              </View>
-            </TouchableOpacity>
-          ))}
+                  <View className='flex-1'>
+                    <AppText
+                      variant='body'
+                      className='font-semibold'
+                      color={colors.text}
+                      numberOfLines={1}
+                    >
+                      {projectName}
+                    </AppText>
+
+                    <AppText
+                      variant='caption'
+                      color={colors.textSecondary}
+                      numberOfLines={1}
+                      className='capitalize'
+                    >
+                      {projectStatus}
+                      {projectStatus && projectRole ? ' • ' : ''}
+                      {projectRole}
+                    </AppText>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <View className='py-2'>
+              <AppText variant='caption' color={colors.textSecondary}>
+                No recent projects
+              </AppText>
+            </View>
+          )}
         </ScrollView>
       </View>
 
-      {/* ================= SEGMENTED TAB CONTROL ================= */}
-      <View style={{ marginBottom: layout.tightGap }}>
+      {/* Tabs */}
+      <View
+        style={{
+          marginBottom: layout.tightGap,
+        }}
+      >
         <View
           className='flex-row rounded-full border p-1'
           style={{
@@ -240,14 +423,10 @@ export const Home: React.FC = () => {
             borderColor: colors.border,
           }}
         >
+          {/* Viewed */}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => {
-              setPage(1);
-              setHasMore(true);
-              dispatch(setActiveTab('viewed'));
-              dispatch(getAudit({ type: 'viewed', page: 1 }));
-            }}
+            onPress={() => handleTabChange('viewed')}
             className='flex-1 items-center rounded-full py-1.5'
             style={{
               backgroundColor:
@@ -265,14 +444,10 @@ export const Home: React.FC = () => {
             </AppText>
           </TouchableOpacity>
 
+          {/* Activity */}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => {
-              setPage(1);
-              setHasMore(true);
-              dispatch(setActiveTab('activity'));
-              dispatch(getAudit({ type: 'activity', page: 1 }));
-            }}
+            onPress={() => handleTabChange('activity')}
             className='flex-1 items-center rounded-full py-1.5'
             style={{
               backgroundColor:
@@ -292,8 +467,8 @@ export const Home: React.FC = () => {
         </View>
       </View>
 
-      {/* Section Sub-header */}
-      <View>
+      {/* Today Header & Clickable Current Project Chip */}
+      <View className='flex-row items-center justify-between'>
         <AppText
           variant='caption'
           className='font-bold tracking-wider'
@@ -301,11 +476,46 @@ export const Home: React.FC = () => {
         >
           TODAY
         </AppText>
+
+        {/* Interactive Current Project Chip */}
+        {project && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              if (!project) return;
+              const projectId =
+                project?.id?.toString() || (project as any)?._id?.toString();
+              if (projectId) {
+                handleOnSelectProject(projectId, project?.name);
+              }
+            }}
+            className='flex-row items-center rounded-full border px-3 py-1.5 shadow-sm'
+            style={{
+              backgroundColor: colors.surface,
+              borderColor: colors.primary,
+              gap: 6,
+            }}
+          >
+            <Ionicons
+              name='briefcase-outline'
+              size={moderateScale(13)}
+              color={colors.primary}
+            />
+            <AppText
+              variant='caption'
+              className='font-bold'
+              color={colors.primary}
+              numberOfLines={1}
+              style={{ maxWidth: moderateScale(140) }}
+            >
+              {project?.name || 'Select Project'}
+            </AppText>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
 
-  /* Render Single Activity Item */
   const renderActivityItem = ({ item }: { item: any }) => {
     const activityUser = homeUser || user;
     const userName = activityUser?.name || 'User';
@@ -313,7 +523,6 @@ export const Home: React.FC = () => {
     const actionText = formatAction(item.action);
     const formattedDate = formatDate(item.created_at);
     const resourceType = item.resource_type || 'task';
-
     const title = item.title || item.details || 'Activity Details';
     const key = item.task_key || item.key || '';
 
@@ -367,7 +576,10 @@ export const Home: React.FC = () => {
             <AppText
               variant='caption'
               color={colors.textSecondary}
-              style={{ fontSize: moderateScale(11), marginBottom: 2 }}
+              style={{
+                fontSize: moderateScale(11),
+                marginBottom: 2,
+              }}
               numberOfLines={1}
             >
               {userName} {actionText} {resourceType} • {formattedDate}
@@ -390,7 +602,10 @@ export const Home: React.FC = () => {
               <AppText
                 variant='caption'
                 color={colors.textSecondary}
-                style={{ fontSize: moderateScale(12), marginTop: 2 }}
+                style={{
+                  fontSize: moderateScale(12),
+                  marginTop: 2,
+                }}
                 numberOfLines={1}
               >
                 {key}
@@ -402,7 +617,6 @@ export const Home: React.FC = () => {
     );
   };
 
-  /* Render Single Viewed Item (Shows Title FIRST, then Icon + Resource Type below) */
   const renderViewedItem = ({ item }: { item: any }) => {
     const title =
       item.title ||
@@ -423,7 +637,6 @@ export const Home: React.FC = () => {
         }}
       >
         <View className='flex-row items-center'>
-          {/* Two letters derived from Title */}
           <View
             className='mr-3.5 items-center justify-center rounded-lg'
             style={{
@@ -444,7 +657,6 @@ export const Home: React.FC = () => {
           </View>
 
           <View className='flex-1 justify-center'>
-            {/* 1. Title Display (FIRST) */}
             <AppText
               variant='body'
               className='font-bold'
@@ -459,8 +671,12 @@ export const Home: React.FC = () => {
               {title}
             </AppText>
 
-            {/* 2. Resource Type with Icon (BELOW TITLE) */}
-            <View className='flex-row items-center' style={{ gap: 4 }}>
+            <View
+              className='flex-row items-center'
+              style={{
+                gap: 4,
+              }}
+            >
               <WorkItemIcon
                 type={resourceType}
                 size={moderateScale(12)}
@@ -470,7 +686,9 @@ export const Home: React.FC = () => {
                 variant='caption'
                 className='font-medium capitalize'
                 color={colors.textSecondary}
-                style={{ fontSize: moderateScale(11) }}
+                style={{
+                  fontSize: moderateScale(11),
+                }}
               >
                 {resourceType}
               </AppText>
@@ -490,9 +708,15 @@ export const Home: React.FC = () => {
         onRightActionPress={() => {}}
       />
 
-      {loading ? (
-        <View style={{ paddingHorizontal: layout.paddingHorizontal }}>
+      {/* Initial loading */}
+      {loading && activities.length === 0 ? (
+        <View
+          style={{
+            paddingHorizontal: layout.paddingHorizontal,
+          }}
+        >
           {renderHeader()}
+
           <View className='mt-4'>
             <ListSkeleton
               count={5}
@@ -515,7 +739,7 @@ export const Home: React.FC = () => {
           ListHeaderComponent={renderHeader}
           contentContainerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
-            paddingBottom: isSmallHeight ? hp(20) : hp(20),
+            paddingBottom: hp(20),
           }}
           renderItem={
             activeTab === 'viewed' ? renderViewedItem : renderActivityItem
@@ -530,7 +754,7 @@ export const Home: React.FC = () => {
             </View>
           }
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={0.2}
           ListFooterComponent={
             isFetchingMore ? (
               <View className='items-center justify-center py-4'>
@@ -540,6 +764,11 @@ export const Home: React.FC = () => {
           }
         />
       )}
+      <ProjectListBottomSheet
+        visible={projectSheetVisible}
+        onDismiss={() => setProjectSheetVisible(false)}
+        onSelectProject={(id, name) => handleOnSelectProject(id, name)}
+      />
     </Screen>
   );
 };

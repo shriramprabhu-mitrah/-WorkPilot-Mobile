@@ -10,63 +10,101 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './AppText';
-import AppInput from './Input/AppInput'; // Adjust import path if needed
+import AppInput from './Input/AppInput';
 import ProjectCard from '../common/ProjectCard';
 import ListSkeleton from '../skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../skeleton/ProjectCardSkeleton';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { moderateScale } from '../../utils/responsive';
-import { useAppSelector } from '../../store';
+import { useAppDispatch, useAppSelector } from '../../store';
 
 export interface ProjectListBottomSheetProps {
   visible: boolean;
   onDismiss: () => void;
   title?: string;
-  //   projects: any[];
-  //   loading?: boolean;
+  isSprint?: boolean; // Prop to toggle between sprint mode and project mode
   onSelectProject?: (projectId: string, projectName: string) => void;
+  onSelectSprint?: (sprintId: string) => void; // Separate onPress handler for sprint
   // Pagination props
   onEndReached?: () => void;
   hasMore?: boolean;
   isFetchingMore?: boolean;
 }
 
+// Helper to format date strings into readable format
+const formatDate = (dateString?: string) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return dateString;
+  }
+};
+
 export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   visible,
   onDismiss,
-  title = 'Select Project',
-  //   projects = [],
-  //   loading = false,
+  title,
+  isSprint = false,
   onSelectProject,
+  onSelectSprint,
   onEndReached,
   hasMore = false,
   isFetchingMore = false,
 }) => {
   const { colors, strings } = useTheme();
+  const dispatch = useAppDispatch();
   const { layout } = useAuthLayout();
   const insets = useSafeAreaInsets();
   const closeIconSize = moderateScale(20);
   const bottomPadding = Math.max(insets.bottom, 16);
-  const { projects, loading } = useAppSelector(state => state.projects);
 
+  // Redux state - fetch both projects list and current selected project (for sprints)
+  const { projects, project, loading } = useAppSelector(
+    state => state.projects,
+  );
   const [search, setSearch] = useState('');
 
-  // Filter projects based on search query
-  const filteredProjects = useMemo(() => {
-    if (!projects) return [];
+  // Determine list source based on isSprint flag
+  const listData = isSprint ? project?.sprints || [] : projects || [];
+
+  // Dynamic default title
+  const sheetTitle = title || (isSprint ? 'Select Sprint' : 'Select Project');
+
+  // Dynamic search placeholder
+  const searchPlaceholder = isSprint
+    ? 'Search sprints...'
+    : strings?.projects?.searchPlaceholder || 'Search projects...';
+
+  // Filter items based on search query
+  const filteredData = useMemo(() => {
+    if (!listData) return [];
     const query = search.trim().toLowerCase();
-    return projects.filter(project => {
+    return listData.filter((item: any) => {
+      const name = item.name || item.title || item.sprint_name || '';
+      const desc = item.description || '';
       return (
         !query ||
-        project.name?.toLowerCase().includes(query) ||
-        project.description?.toLowerCase().includes(query)
+        name.toLowerCase().includes(query) ||
+        desc.toLowerCase().includes(query)
       );
     });
-  }, [projects, search]);
+  }, [listData, search]);
 
+  // Separate onPress handler based on isSprint prop
   const handleSelect = (id: string, name: string) => {
-    onSelectProject?.(id, name);
+    if (isSprint) {
+      onSelectSprint?.(id);
+    } else {
+      onSelectProject?.(id, name);
+    }
     onDismiss();
   };
 
@@ -88,7 +126,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
             backgroundColor: colors.surface,
             paddingBottom: bottomPadding + 16,
             borderColor: colors.border,
-            maxHeight: '80%', // Caps sheet height at 80% screen height
+            maxHeight: '80%',
           }}
           className='w-full rounded-t-3xl border px-5 pt-3 shadow-xl'
         >
@@ -108,7 +146,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
               style={{ fontSize: moderateScale(20) }}
               className='font-bold'
             >
-              {title}
+              {sheetTitle}
             </AppText>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -131,9 +169,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
           {/* Search Bar */}
           <View className='pb-3'>
             <AppInput
-              placeholder={
-                strings?.projects?.searchPlaceholder || 'Search projects...'
-              }
+              placeholder={searchPlaceholder}
               value={search}
               onChangeText={setSearch}
               leftIcon={
@@ -157,17 +193,120 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
             </View>
           ) : (
             <FlatList
-              data={filteredProjects}
-              keyExtractor={item => item.id.toString()}
+              data={filteredData}
+              keyExtractor={(item: any) =>
+                item.id?.toString() || item._id?.toString()
+              }
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps='handled'
               contentContainerStyle={{
                 gap: layout.elementGap - 2,
                 paddingBottom: 16,
               }}
-              renderItem={({ item }) => (
-                <ProjectCard item={item} onPress={handleSelect} />
-              )}
+              renderItem={({ item }: { item: any }) => {
+                const id = item.id?.toString() || item._id?.toString();
+
+                if (isSprint) {
+                  const startDate = item.start_date || item.startDate;
+                  const endDate = item.end_date || item.endDate;
+                  const status =
+                    item.status || (item.is_active ? 'active' : '');
+
+                  return (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => handleSelect(id, item.name)}
+                      className='flex-row items-center justify-between rounded-xl border p-4'
+                      style={{
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      }}
+                    >
+                      <View className='flex-1 pr-2'>
+                        {/* Sprint Name & Status Badge */}
+                        <View className='flex-row items-center justify-between pr-2'>
+                          <AppText
+                            variant='title'
+                            color={colors.text}
+                            className='flex-1 font-semibold'
+                          >
+                            {item.name ||
+                              item.title ||
+                              item.sprint_name ||
+                              `Sprint ${id}`}
+                          </AppText>
+
+                          {status ? (
+                            <View
+                              style={{
+                                backgroundColor:
+                                  status.toLowerCase() === 'active'
+                                    ? '#DCFCE7'
+                                    : '#F1F5F9',
+                              }}
+                              className='ml-2 rounded-full px-2.5 py-0.5'
+                            >
+                              <AppText
+                                variant='caption'
+                                style={{
+                                  color:
+                                    status.toLowerCase() === 'active'
+                                      ? '#15803D'
+                                      : colors.textSecondary,
+                                  fontSize: moderateScale(11),
+                                }}
+                                className='font-medium capitalize'
+                              >
+                                {status}
+                              </AppText>
+                            </View>
+                          ) : null}
+                        </View>
+
+                        {/* Sprint Description (if available) */}
+                        {item.description ? (
+                          <AppText
+                            variant='body'
+                            color={colors.textSecondary}
+                            numberOfLines={1}
+                            className='mt-1'
+                          >
+                            {item.description}
+                          </AppText>
+                        ) : null}
+
+                        {/* Sprint Start & End Date */}
+                        {(startDate || endDate) && (
+                          <View className='mt-2 flex-row items-center gap-1.5'>
+                            <Ionicons
+                              name='calendar-outline'
+                              size={moderateScale(14)}
+                              color={colors.textSecondary}
+                            />
+                            <AppText
+                              variant='caption'
+                              color={colors.textSecondary}
+                              style={{ fontSize: moderateScale(12) }}
+                            >
+                              {formatDate(startDate)}
+                              {startDate && endDate ? ' — ' : ''}
+                              {formatDate(endDate)}
+                            </AppText>
+                          </View>
+                        )}
+                      </View>
+                      {/* 
+                      <Ionicons
+                        name='chevron-forward-outline'
+                        size={moderateScale(18)}
+                        color={colors.textSecondary}
+                      /> */}
+                    </TouchableOpacity>
+                  );
+                }
+
+                return <ProjectCard item={item} onPress={handleSelect} />;
+              }}
               /* Pagination Props */
               onEndReached={() => {
                 if (hasMore && !isFetchingMore && onEndReached) {
@@ -192,7 +331,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                   }}
                 >
                   <Ionicons
-                    name='folder-open-outline'
+                    name={isSprint ? 'time-outline' : 'folder-open-outline'}
                     size={layout.iconSize * 2.5}
                     color={colors.placeholder || colors.textSecondary}
                   />
@@ -201,15 +340,20 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                     color={colors.text}
                     className='font-semibold'
                   >
-                    {strings?.projects?.noResultsTitle || 'No projects found'}
+                    {isSprint
+                      ? 'No sprints found'
+                      : strings?.projects?.noResultsTitle ||
+                        'No projects found'}
                   </AppText>
                   <AppText
                     variant='body'
                     color={colors.textSecondary}
                     className='text-center'
                   >
-                    {strings?.projects?.noResultsSubtitle ||
-                      'Try searching for a different name.'}
+                    {isSprint
+                      ? 'Try searching for a different name.'
+                      : strings?.projects?.noResultsSubtitle ||
+                        'Try searching for a different name.'}
                   </AppText>
                 </View>
               }

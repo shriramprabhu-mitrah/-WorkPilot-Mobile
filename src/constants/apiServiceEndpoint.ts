@@ -24,9 +24,13 @@ export const CREATE_PROJECT = `/project/create`;
 export const GET_PROJECT_BY_ID = `/project/{project_id}/detail`;
 export const UPDATE_PROJECT = `/project/update/{project_id}`;
 export const DELETE_PROJECT = `/project/{project_id}`;
-
+export const GET_RECENT_PROJECTS = `/project/recent`;
 //Activity
 export const GET_AUDIT = `/audit`;
 
 //UserStory
 export const GET_USERSTORY = `project/{project_id}/user-stories`;
+
+//SPRINT
+export const GET_SPRINTS = `/projects/{project_id}/sprint`;
+export const GET_SPRINT_BY_Id = `projects/{project_id}/sprint/{sprint_id}`;
