@@ -79,6 +79,27 @@ const projectBoardSlice = createSlice({
       }
     },
 
+    moveColumnRight: (state, action: PayloadAction<string>) => {
+      const columnIndex = state.columns.findIndex(
+        column => column.id === action.payload,
+      );
+
+      if (columnIndex === -1) {
+        return;
+      }
+
+      // Already last column
+      if (columnIndex === state.columns.length - 1) {
+        return;
+      }
+
+      const currentColumn = state.columns[columnIndex];
+      const nextColumn = state.columns[columnIndex + 1];
+
+      state.columns[columnIndex] = nextColumn;
+      state.columns[columnIndex + 1] = currentColumn;
+    },
+
     /**
      * Delete column
      */
@@ -184,6 +205,11 @@ const projectBoardSlice = createSlice({
         return;
       }
 
+      // Don't do anything if moving to same column
+      if (fromColumnId === toColumnId) {
+        return;
+      }
+
       const cardIndex = fromColumn.cards.findIndex(card => card.id === cardId);
 
       if (cardIndex === -1) {
@@ -231,6 +257,7 @@ export const {
   setColumns,
   addColumn,
   updateColumn,
+  moveColumnRight,
   deleteColumn,
   addCard,
   updateCard,

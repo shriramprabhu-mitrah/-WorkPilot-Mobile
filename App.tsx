@@ -18,6 +18,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import { mmkv, store } from './src/store';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/config/toastConfig';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSelector } from 'react-redux';
 import { RootState } from './src/store';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -57,21 +58,19 @@ function App() {
 
   return (
     // <KeyboardProvider>
-    <Provider store={store}>
-      <ThemeProvider>
-        <SafeAreaProvider>
-          <PaperProvider>
-            {/* <StatusBar
-              translucent
-              backgroundColor='transparent'
-              barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-            /> */}
-            <AppContent />
-          </PaperProvider>
-        </SafeAreaProvider>
-      </ThemeProvider>
-      <Toast config={toastConfig} />
-    </Provider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+        <ThemeProvider>
+          <SafeAreaProvider>
+            <PaperProvider>
+              <AppContent />
+            </PaperProvider>
+          </SafeAreaProvider>
+        </ThemeProvider>
+
+        <Toast config={toastConfig} />
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
 
