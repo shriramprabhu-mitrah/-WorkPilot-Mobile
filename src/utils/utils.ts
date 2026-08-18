@@ -1,8 +1,5 @@
 import Toast from 'react-native-toast-message';
 
-// export const API_URL =
-//   'https://cf27-2405-201-e019-c0-b495-360b-134a-b237.ngrok-free.app/api/v1';
-
 export const API_URL = 'https://workpilot-backend-arxt.onrender.com/api/v1';
 
 export const showSuccessToast = (message: string, type: string) => {
@@ -51,3 +48,9 @@ export const ONBOARDING_DATA = [
     animationSource: require('../assets/animations/onBoarding5.json'),
   },
 ];
+
+export const SIGN_UP =
+  'https://workpilot-frontend-4vak.onrender.com/signup?source=mobile';
+
+export const LOGIN_URL =
+  'https://workpilot-frontend-4vak.onrender.com/signin?source=mobile';

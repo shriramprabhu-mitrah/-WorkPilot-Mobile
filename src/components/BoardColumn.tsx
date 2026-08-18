@@ -4,41 +4,81 @@ import { Pressable, ScrollView, View } from 'react-native';
 import BoardCard from './BoardCard';
 import BoardColumnHeader from './BoardColumnHeader';
 
-import { BoardColumn as BoardColumnType } from '../types/projectBoard.type';
+import {
+  BoardColumn as BoardColumnType,
+  BoardCard as BoardCardType,
+} from '../types/projectBoard.type';
+
 import AppText from './common/AppText';
 
 interface Props {
   column: BoardColumnType;
+  boardHeight?: number;
+
   onCardPress?: (cardId: string) => void;
   onAddCard?: (columnId: string) => void;
-  onMorePress?: (columnId: string) => void;
+
+  onRename?: (columnId: string) => void;
+  onMoveRight?: (columnId: string) => void;
+  onDelete?: (columnId: string) => void;
+
+  onDragStart?: (card: BoardCardType, x: number, y: number) => void;
+
+  onDrag?: (card: BoardCardType, x: number, y: number) => void;
+
+  onDragEnd?: (card: BoardCardType, x: number, y: number) => void;
+
+  draggingCardId?: string | null;
 }
 
 const BoardColumn = ({
   column,
+  boardHeight = 600,
   onCardPress,
   onAddCard,
-  onMorePress,
+  onRename,
+  onMoveRight,
+  onDelete,
+  onDragStart,
+  onDrag,
+  onDragEnd,
+  draggingCardId,
 }: Props) => {
   return (
-    <View className='mr-4 h-[600px] w-[300px] rounded-xl bg-gray-100 p-3'>
+    <View
+      className='w-[300px] rounded-xl bg-gray-100 p-3'
+      style={{
+        height: boardHeight,
+      }}
+    >
       <BoardColumnHeader
         title={column.title}
         count={column.cards.length}
-        onMorePress={() => onMorePress?.(column.id)}
+        onRename={() => onRename?.(column.id)}
+        onMoveRight={() => onMoveRight?.(column.id)}
+        onDelete={() => onDelete?.(column.id)}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled>
+      <ScrollView
+        style={{
+          flex: 1,
+        }}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+      >
         {column.cards.map(card => (
           <BoardCard
             key={card.id}
             card={card}
+            isDragging={draggingCardId === card.id}
             onPress={() => onCardPress?.(card.id)}
+            onDragStart={onDragStart}
+            onDrag={onDrag}
+            onDragEnd={(card, x, y) => onDragEnd?.(card, x, y)}
           />
         ))}
       </ScrollView>
 
-      {/* Only To Do can add tasks */}
       {column.id === 'todo' && (
         <Pressable
           onPress={() => onAddCard?.(column.id)}

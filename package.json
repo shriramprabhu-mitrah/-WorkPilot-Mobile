@@ -33,6 +33,7 @@
     "react": "19.2.3",
     "react-native": "0.86.0",
     "react-native-calendars": "^1.1314.0",
+    "react-native-chart-kit": "^7.0.2",
     "react-native-config": "^1.6.1",
     "react-native-draganddrop-board": "^1.0.4",
     "react-native-gesture-handler": "^3.0.2",

@@ -11,94 +11,179 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+
 import { RootStackParamList } from '../types/navigationTypes';
+import { useTheme } from '../theme/ThemeProvider';
+import { useResponsive } from '../utils/responsive';
+import { LOGIN_URL } from '../utils/utils';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-const LOGIN_URL =
-  'https://workpilot-frontend-4vak.onrender.com/signin?source=mobile';
-
 const WebLoginScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+
   const [loading, setLoading] = useState(true);
 
+  const { colors } = useTheme();
+  const { moderateScale, fontScale } = useResponsive();
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+        },
+      ]}
+      edges={['top', 'left', 'right']}
+    >
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
+      <View
+        style={[
+          styles.header,
+          {
+            height: moderateScale(56),
+            paddingHorizontal: moderateScale(16),
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
+        {/* Back Button */}
+        <TouchableOpacity
+          style={[
+            styles.backButton,
+            {
+              minWidth: moderateScale(70),
+              minHeight: moderateScale(44),
+            },
+          ]}
+          activeOpacity={0.7}
+          onPress={() => navigation.goBack()}
+        >
+          <Text
+            style={[
+              styles.backText,
+              {
+                fontSize: fontScale(16),
+                color: colors.primary,
+              },
+            ]}
+          >
+            ← Back
+          </Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>WorkPilot Login</Text>
+        {/* Title */}
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.title,
+            {
+              fontSize: fontScale(18),
+              color: colors.text,
+            },
+          ]}
+        >
+          WorkPilot Login
+        </Text>
 
-        <View style={{ width: 50 }} />
+        {/* Right Spacer */}
+        <View
+          style={{
+            width: moderateScale(70),
+          }}
+        />
       </View>
 
-      {/* Loading Indicator */}
-      {loading && (
-        <View style={styles.loader}>
-          <ActivityIndicator size='large' color='#1976D2' />
-        </View>
-      )}
+      {/* WebView Container */}
+      <View style={styles.webViewContainer}>
+        {/* Loading Indicator */}
+        {loading && (
+          <View
+            style={[
+              styles.loader,
+              {
+                backgroundColor: colors.background,
+              },
+            ]}
+          >
+            <ActivityIndicator size='large' color={colors.primary} />
 
-      {/* WebView */}
-      <WebView
-        source={{ uri: LOGIN_URL }}
-        javaScriptEnabled
-        domStorageEnabled
-        sharedCookiesEnabled
-        thirdPartyCookiesEnabled
-        cacheEnabled
-        startInLoadingState={false}
+            <Text
+              style={[
+                styles.loadingText,
+                {
+                  marginTop: moderateScale(10),
+                  fontSize: fontScale(14),
+                  color: colors.textSecondary,
+                },
+              ]}
+            >
+              Loading...
+            </Text>
+          </View>
+        )}
 
-        onLoadStart={({ nativeEvent }) => {
-          console.log('[WEBVIEW] LOAD START:', nativeEvent.url);
-        }}
+        {/* WebView */}
+        <WebView
+          source={{ uri: LOGIN_URL }}
+          style={styles.webView}
+          javaScriptEnabled
+          domStorageEnabled
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
+          cacheEnabled={false}
+          startInLoadingState={false}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          automaticallyAdjustContentInsets={false}
+          onLoadStart={({ nativeEvent }) => {
+            console.log('[WEBVIEW] LOAD START:', nativeEvent.url);
+            setLoading(true);
+          }}
+          onLoadEnd={({ nativeEvent }) => {
+            console.log('[WEBVIEW] LOAD END:', nativeEvent.url);
+            setLoading(false);
+          }}
+          onError={({ nativeEvent }) => {
+            console.log('[WEBVIEW] ERROR:', {
+              url: nativeEvent.url,
+              description: nativeEvent.description,
+            });
 
-        onLoadEnd={({ nativeEvent }) => {
-          console.log('[WEBVIEW] LOAD END:', nativeEvent.url);
-          setLoading(false);
-        }}
+            setLoading(false);
+          }}
+          onHttpError={({ nativeEvent }) => {
+            console.log('[WEBVIEW] HTTP ERROR:', {
+              url: nativeEvent.url,
+              statusCode: nativeEvent.statusCode,
+            });
+          }}
+          onShouldStartLoadWithRequest={request => {
+            const url = request.url;
 
-        onError={({ nativeEvent }) => {
-          console.log('[WEBVIEW] ERROR:', {
-            url: nativeEvent.url,
-            description: nativeEvent.description,
-          });
-        }}
+            console.log('[WEBVIEW] NAVIGATION:', url);
 
-        onHttpError={({ nativeEvent }) => {
-          console.log('[WEBVIEW] HTTP ERROR:', {
-            url: nativeEvent.url,
-            statusCode: nativeEvent.statusCode,
-          });
-        }}
+            if (url.startsWith('workpilot://auth')) {
+              console.log('[WEBVIEW] AUTH CALLBACK DETECTED');
 
-        onShouldStartLoadWithRequest={request => {
-          const url = request.url;
+              Linking.openURL(url);
 
-          console.log('[WEBVIEW] NAVIGATION:', url);
+              return false;
+            }
 
-          if (url.startsWith('workpilot://auth')) {
-            console.log('[WEBVIEW] AUTH CALLBACK DETECTED');
-
-            Linking.openURL(url);
-
-            return false;
-          }
-
-          return true;
-        }}
-
-        onNavigationStateChange={navState => {
-          console.log('[WEBVIEW] STATE:', {
-            url: navState.url,
-            loading: navState.loading,
-            canGoBack: navState.canGoBack,
-          });
-        }}
-      />
+            return true;
+          }}
+          onNavigationStateChange={navState => {
+            console.log('[WEBVIEW] STATE:', {
+              url: navState.url,
+              loading: navState.loading,
+              canGoBack: navState.canGoBack,
+            });
+          }}
+        />
+      </View>
     </SafeAreaView>
   );
 };
@@ -108,38 +193,49 @@ export default WebLoginScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
 
   header: {
-    height: 56,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
+  },
+
+  backButton: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
 
   backText: {
-    fontSize: 16,
     fontWeight: '600',
-    color: '#1976D2',
-    width: 50,
   },
 
   title: {
-    fontSize: 18,
+    flex: 1,
+    textAlign: 'center',
     fontWeight: '700',
-    color: '#222',
+  },
+
+  webViewContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+
+  webView: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
 
   loader: {
     ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     zIndex: 10,
+  },
+
+  loadingText: {
+    fontWeight: '400',
   },
 });

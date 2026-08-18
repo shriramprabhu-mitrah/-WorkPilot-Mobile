@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../types/navigationTypes';
+import { View, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+
+import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../theme/ThemeProvider';
 import AppText from './common/AppText';
 import { useAuthLayout } from '../hooks/useAuthLayout';
@@ -12,9 +13,20 @@ const TaskCard = ({ item }: any) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
+
+  const openIssue = () => {
+    const rootNavigation = navigation.getParent()?.getParent()?.getParent();
+
+    if (rootNavigation) {
+      rootNavigation.navigate('issue', {
+        id: item.id,
+      });
+    }
+  };
+
   return (
     <TouchableOpacity
-      onPress={() => navigation.navigate('issue', { id: item.id })}
+      onPress={openIssue}
       className='border shadow'
       style={{
         gap: layout.elementGap,
@@ -34,6 +46,7 @@ const TaskCard = ({ item }: any) => {
       >
         {item.title}
       </AppText>
+
       <View className='flex-row items-center justify-between'>
         <View
           className='flex-row items-center'
@@ -55,6 +68,7 @@ const TaskCard = ({ item }: any) => {
               {item.avatar}
             </AppText>
           </View>
+
           <AppText
             variant='caption'
             className='font-semibold'
@@ -63,6 +77,7 @@ const TaskCard = ({ item }: any) => {
             {item.id}
           </AppText>
         </View>
+
         <View
           className='flex-row items-center'
           style={{ gap: layout.elementGap }}
@@ -75,6 +90,7 @@ const TaskCard = ({ item }: any) => {
             }}
             className='rounded-full'
           />
+
           <View
             style={{
               backgroundColor: colors.surface,

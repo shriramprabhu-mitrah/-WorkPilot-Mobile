@@ -5,10 +5,12 @@ import { moderateScale } from '../utils/responsive';
 import Summary from '../screens/projectScreens/summary';
 import Board from '../screens/projectScreens/board';
 import List from '../screens/projectScreens/list';
-import Backlogs from '../screens/projectScreens/backlog';
 import Settings, { ViewState } from '../screens/projectScreens/setting';
 import Report from '../screens/projectScreens/report';
 import { ProjectTopTabParamList } from '../types/navigationTypes';
+import ProjectBoardScreen from '../screens/ProjectBoardScreen';
+import Backlogs from '../screens/backlog';
+import ProjectDeatailsScreen from '../screens/projectsDetailScreen';
 
 interface ProjectTopNavigatorProps {
   settingsView: ViewState;
@@ -44,7 +46,7 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
         tabBarScrollEnabled: true,
         tabBarItemStyle: {
           width: 'auto',
-          paddingHorizontal: moderateScale(12),
+          paddingHorizontal: moderateScale(15),
         },
         tabBarIndicatorStyle: {
           backgroundColor: colors.primary,
@@ -60,10 +62,16 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
       }}
     >
       <TopTab.Screen name='Summary' component={Summary} />
-      <TopTab.Screen name='Board' component={Board} />
+      <TopTab.Screen
+        name='Board'
+        component={ProjectDeatailsScreen}
+        options={{
+          swipeEnabled: false,
+        }}
+      />
       <TopTab.Screen name='List' component={List} />
       <TopTab.Screen name='Report' component={Report} />
-      <TopTab.Screen name='Backlogs' component={Backlogs} />
+      {/* <TopTab.Screen name='Backlogs' component={Backlogs} /> */}
       <TopTab.Screen name='Settings'>
         {props => (
           <Settings

@@ -118,7 +118,7 @@ const IssueDetailScreen = () => {
           paddingBottom: layout.paddingBottom,
         }}
       >
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.navigate('projectDetails')}>
           <Ionicons
             name='arrow-back'
             size={layout.iconSize}
