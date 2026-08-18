@@ -140,3 +140,79 @@ export interface DeleteProjectPayload {
   onError?: (errorMessage?: string) => void;
   onFinally?: () => void;
 }
+
+export interface UserStory {
+  id: string;
+  project_id: string;
+  sprint_id: string;
+  sprint_name: string;
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  story_points: number;
+  assignee_id: string;
+  assignee_name: string;
+  reporter_id: string;
+  reporter_name: string;
+
+  reporter: UserStoryReporter;
+  assignee: UserStoryAssignee;
+
+  backlog_order: number;
+  total_tasks: number;
+  completed_tasks: number;
+  progress: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserStoryReporter {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url: string;
+  role: string;
+}
+
+export interface UserStoryAssignee {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface UserStoryMeta {
+  page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
+export interface GetUserStoriesResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: UserStory[];
+  meta: UserStoryMeta;
+}
+
+export interface GetUserStoriesPayload {
+  page?: number;
+  page_size?: number;
+  sort_by?: string;
+  sort_order?: string;
+  status?: string;
+  assignee_id?: string;
+  reporter_id?: string;
+  sprint_id?: string;
+  priority?: string;
+  search?: string;
+}
+
+export interface GetUserStorieThunkArgs {
+  projectId: string;
+  payload?: GetUserStoriesPayload;
+}

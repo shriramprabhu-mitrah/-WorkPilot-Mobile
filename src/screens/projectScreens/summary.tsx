@@ -8,11 +8,18 @@ import { Radius } from '../../constants/Radius';
 import { AppText } from '../../components';
 import Screen from '../../components/common/ScreenWapper';
 import { useTheme } from '../../theme/ThemeProvider';
+import SummarySkeleton from '../../components/skeleton/summarySkeleton';
 
 export const Summary: React.FC = () => {
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
-  const { project } = useAppSelector((state: RootState) => state?.projects);
+  const { project, loading } = useAppSelector(
+    (state: RootState) => state?.projects,
+  );
+  if (loading || !project) {
+    return <SummarySkeleton />;
+  }
+
   const totalTasks = project?.metrics?.total_tasks;
   const completedTasks = project?.metrics?.completed_tasks;
   const updatedTasks = project?.metrics?.pending_tasks;
@@ -80,7 +87,7 @@ export const Summary: React.FC = () => {
               {completedTasks} completed
             </AppText>
             <AppText variant='caption' color={colors.textSecondary}>
-              in the last 7 days 🎉
+              in the last 7 days
             </AppText>
           </View>
 

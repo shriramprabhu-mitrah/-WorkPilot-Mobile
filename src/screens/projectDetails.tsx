@@ -9,14 +9,19 @@ import { RootState, useAppDispatch, useAppSelector } from '../store';
 import { getProjectById } from '../store/project_store/action/project_thunk';
 import { ViewState } from '../screens/projectScreens/setting';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
+import { useTheme } from '../theme/ThemeProvider';
+import { getProjectName } from '../store/project_store/reducer/project_reducer';
 
 const ProjectDetails = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
   const [settingsView, setSettingsView] = useState<ViewState>('MAIN_SETTINGS');
   const [activeTab, setActiveTab] = useState<string>('Summary');
+  const { colors } = useTheme();
 
-  const { project } = useAppSelector((state: RootState) => state?.projects);
+  const { project, projectName } = useAppSelector(
+    (state: RootState) => state?.projects,
+  );
   const dispatch = useAppDispatch();
 
   useFocusEffect(
@@ -30,7 +35,8 @@ const ProjectDetails = () => {
     // navigation.navigate('projectDetails');
   };
 
-  const handleOnSelectProject = (id: string) => {
+  const handleOnSelectProject = (id: string, name: string) => {
+    dispatch(getProjectName(name));
     setProjectSheetVisible(false);
     dispatch(
       getProjectById({
@@ -50,7 +56,7 @@ const ProjectDetails = () => {
         return 'Features';
       }
     }
-    return project?.name || 'My Software Team';
+    return projectName || project?.name || 'My Software Team';
   };
 
   const handleBackPress = () => {
@@ -65,7 +71,7 @@ const ProjectDetails = () => {
   // const canShowDropdown = settingsView === 'MAIN_SETTINGS';
 
   return (
-    <Screen scroll={false}>
+    <Screen scroll={false} backgroundColor={colors.surface}>
       <CommonHeader
         variant='projectdetails'
         title={getHeaderTitle()}
