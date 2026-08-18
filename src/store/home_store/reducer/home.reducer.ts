@@ -1,7 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Activity, User } from '../../../types/home.type';
+import { Activity, PaginationMeta, User } from '../../../types/home.type';
 import { getAudit } from '../action/home.thunk';
-
 export interface QuickAccessItem {
   id: string;
   title: string;
@@ -19,6 +18,7 @@ interface HomeState {
   isProjectSheetVisible: boolean;
   user: User | null;
   activities: Activity[];
+  meta: PaginationMeta | null;
 }
 
 const initialState: HomeState = {
@@ -31,6 +31,7 @@ const initialState: HomeState = {
   isProjectSheetVisible: false,
   user: null,
   activities: [],
+  meta: null,
 };
 
 const MAX_LIMIT = 6;
@@ -47,7 +48,9 @@ const homeSlice = createSlice({
     },
     setIsSearching: (state, action: PayloadAction<boolean>) => {
       state.isSearching = action.payload;
-      if (!action.payload) state.searchQuery = '';
+      if (!action.payload) {
+        state.searchQuery = '';
+      }
     },
     setSearchQuery: (state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
@@ -57,6 +60,11 @@ const homeSlice = createSlice({
     },
     setProjectSheetVisible: (state, action: PayloadAction<boolean>) => {
       state.isProjectSheetVisible = action.payload;
+    },
+    resetAuditData: state => {
+      state.activities = [];
+      state.meta = null;
+      state.loading = false;
     },
     addQuickAccessItem: (state, action: PayloadAction<QuickAccessItem>) => {
       const exists = state.quickAccessItems.some(
@@ -81,10 +89,33 @@ const homeSlice = createSlice({
       })
       .addCase(getAudit.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload) {
-          state.user = action.payload.user ?? null;
-          state.activities = action.payload.activities ?? [];
+        if (!action.payload) {
+          return;
         }
+        const newActivities = action.payload.data.activities ?? [];
+        const currentMeta = action.payload.meta ?? null;
+        state.user = action.payload.data.user ?? state.user;
+        const requestedPage = action.meta.arg.page;
+        if (requestedPage === 1) {
+          state.activities = newActivities;
+        } else {
+          const existingIds = new Set(
+            state.activities.map(item => item.id?.toString()),
+          );
+          const uniqueActivities = newActivities.filter(item => {
+            if (!item.id) {
+              return true;
+            }
+            const id = item.id.toString();
+            if (existingIds.has(id)) {
+              return false;
+            }
+            existingIds.add(id);
+            return true;
+          });
+          state.activities = [...state.activities, ...uniqueActivities];
+        }
+        state.meta = currentMeta;
       })
       .addCase(getAudit.rejected, state => {
         state.loading = false;
@@ -99,6 +130,7 @@ export const {
   setSearchQuery,
   setSelectedFilter,
   setProjectSheetVisible,
+  resetAuditData,
   addQuickAccessItem,
   removeQuickAccessItem,
 } = homeSlice.actions;

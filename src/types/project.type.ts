@@ -1,12 +1,24 @@
 import { ApiResponse } from './auth.type';
 
 export interface GetProjectsResponse extends ApiResponse {}
-
+export interface GetSprintResponse extends ApiResponse {}
+export interface GetSprintByIdResponse extends ApiResponse {}
 export interface GetProjectsParams {
   page?: number;
   page_size?: number;
   name?: string;
   status?: string;
+  include_sprints?: boolean;
+}
+export interface GetRecentProjectResponse extends ApiResponse {
+  data: {
+    user_id: string;
+    user_name: string;
+    full_name: string;
+    email: string;
+    role: string;
+    project: RecentProject[];
+  };
 }
 
 export interface Project {
@@ -20,14 +32,48 @@ export interface Project {
   sprint_count: number;
 }
 
+export interface Sprint {
+  id: string;
+  name: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+}
+
+export interface GetSprintByIdParams {
+  project_id: string;
+  sprint_id: string;
+}
+
+export interface GetSprintsParams {
+  project_id: string;
+  page?: number;
+  page_size?: number;
+  status?: string;
+  search?: string;
+  sort_by?: string;
+  sort_order?: string;
+  fieldName?: string;
+}
+
+export interface RecentProject {
+  project_id: string;
+  role: string;
+  project_name: string;
+  status: string;
+}
 export interface ProjectState {
   projects: Project[];
   project: ProjectDetails | null;
   loading: boolean;
   isFetchingMore: boolean;
+  include_sprints: boolean;
   page: number;
   hasMore: boolean;
   error: string | null;
+  sprints: Sprint[];
+  currentSprint: Sprint;
+  recentProjects: RecentProject[] | null;
 }
 export interface CreateProjectPayload {
   name: string;

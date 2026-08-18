@@ -1,8 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Project, ProjectState } from '../../../types/project.type';
+import { Project, ProjectState, Sprint } from '../../../types/project.type';
 import {
   getAllProjectInfo,
   getProjectById,
+  getRecentProjects,
+  getSprintByIdThunk,
+  getSprintsThunk,
   getUserStorie,
 } from '../action/project_thunk';
 
@@ -83,10 +86,13 @@ const initialState: ProjectState & {
   project: null,
   loading: false,
   isFetchingMore: false,
+  include_sprints: true,
   page: 1,
   hasMore: true,
   error: null,
-
+  sprints: [],
+  currentSprint: {} as Sprint,
+  recentProjects: [],
   // Calendar & Task States
   tasks: mockTasks as TaskItem[],
   selectedDate: '2026-08-13',
@@ -201,6 +207,43 @@ const projectSlice = createSlice({
         state.loading = false;
         state.error = action.payload ?? 'Failed to fetch project';
         state.project = null;
+      })
+      .addCase(getSprintsThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        state.sprints = action.payload.data;
+      })
+      .addCase(getSprintsThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload ?? 'Failed to fetch sprints';
+      })
+      .addCase(getSprintsThunk.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getSprintByIdThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        state.currentSprint = action.payload.data;
+      })
+      .addCase(getSprintByIdThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload ?? 'Failed to fetch sprint';
+      })
+      .addCase(getSprintByIdThunk.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getRecentProjects.pending, state => {
+        state.error = null;
+      })
+
+      .addCase(getRecentProjects.fulfilled, (state, action) => {
+        state.recentProjects = action.payload;
+      })
+
+      .addCase(getRecentProjects.rejected, (state, action) => {
+        state.error = action.payload ?? 'Failed to get recent projects';
       })
       .addCase(getUserStorie.pending, state => {
         state.userStoryLoading = true;

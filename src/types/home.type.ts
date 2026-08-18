@@ -31,8 +31,10 @@ export interface ViewedItem {
 export interface PaginationMeta {
   page: number;
   page_size: number;
-  total: number;
   total_pages: number;
+  total_items: number;
+  has_next: boolean;
+  has_previous: boolean;
 }
 
 export interface AuditResponse {
@@ -44,6 +46,7 @@ export interface AuditResponse {
     activities: Activity[];
     pagination?: PaginationMeta;
   };
+  meta: PaginationMeta;
 }
 
 // Legacy types kept for backward compat
