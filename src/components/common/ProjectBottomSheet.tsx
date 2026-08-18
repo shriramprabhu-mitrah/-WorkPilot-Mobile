@@ -25,7 +25,7 @@ export interface ProjectListBottomSheetProps {
   title?: string;
   //   projects: any[];
   //   loading?: boolean;
-  onSelectProject?: (projectId: string) => void;
+  onSelectProject?: (projectId: string, projectName: string) => void;
   // Pagination props
   onEndReached?: () => void;
   hasMore?: boolean;
@@ -65,8 +65,8 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     });
   }, [projects, search]);
 
-  const handleSelect = (id: string) => {
-    onSelectProject?.(id);
+  const handleSelect = (id: string, name: string) => {
+    onSelectProject?.(id, name);
     onDismiss();
   };
 

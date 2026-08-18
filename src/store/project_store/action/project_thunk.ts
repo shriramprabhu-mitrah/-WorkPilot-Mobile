@@ -6,6 +6,8 @@ import {
   GetProjectByIdThunkPayload,
   GetProjectsParams,
   GetProjectsResponse,
+  GetUserStoriesResponse,
+  GetUserStorieThunkArgs,
   ProjectDetails,
   UpdateProjectResponse,
   UpdateProjectThunkPayload,
@@ -15,6 +17,7 @@ import {
   deleteProjectService,
   getProjectByIdService,
   getProjectService,
+  getUserStorieService,
   updateProjectService,
 } from '../../../services/project.service';
 import { handleLoading } from '../../auth_store/reducer/auth.reducer';
@@ -143,6 +146,25 @@ export const deleteProject = createAsyncThunk(
       return rejectWithValue(errorMessage);
     } finally {
       onFinally?.();
+    }
+  },
+);
+
+export const getUserStorie = createAsyncThunk<
+  { response: GetUserStoriesResponse; page: number },
+  GetUserStorieThunkArgs,
+  { rejectValue: string }
+>(
+  'project/user-stories',
+  async ({ projectId, payload }, { rejectWithValue }) => {
+    try {
+      const response = await getUserStorieService(projectId, payload);
+      console.log(response);
+      return { response, page: payload?.page || 1 };
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch user stories',
+      );
     }
   },
 );

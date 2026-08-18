@@ -4,6 +4,7 @@ import {
   DELETE_PROJECT,
   GET_PROJECT_BY_ID,
   GET_PROJECTS,
+  GET_USERSTORY,
   UPDATE_PROJECT,
 } from '../constants/apiServiceEndpoint';
 import {
@@ -13,6 +14,8 @@ import {
   GetProjectByIdResponse,
   GetProjectsParams,
   GetProjectsResponse,
+  GetUserStoriesPayload,
+  GetUserStoriesResponse,
   UpdateProjectPayload,
   UpdateProjectResponse,
 } from '../types/project.type';
@@ -57,4 +60,24 @@ export const deleteProjectService = async (
   const url = DELETE_PROJECT.replace('{project_id}', projectId);
 
   return await del<DeleteProjectResponse>(url);
+};
+
+export const getUserStorieService = async (
+  projectId: string,
+  payload?: GetUserStoriesPayload,
+): Promise<GetUserStoriesResponse> => {
+  try {
+    const url = GET_USERSTORY.replace('{project_id}', projectId);
+    const cleanedParams = payload
+      ? Object.fromEntries(
+          Object.entries(payload).filter(
+            ([_, val]) => Boolean(val) && val !== '--',
+          ),
+        )
+      : undefined;
+    return await get<GetUserStoriesResponse>(url, { params: cleanedParams });
+  } catch (error) {
+    console.error('Get User Stories API failed:', error);
+    throw error;
+  }
 };

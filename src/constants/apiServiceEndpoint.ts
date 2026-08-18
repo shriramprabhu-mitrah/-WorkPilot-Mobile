@@ -27,3 +27,6 @@ export const DELETE_PROJECT = `/project/{project_id}`;
 
 //Activity
 export const GET_AUDIT = `/audit`;
+
+//UserStory
+export const GET_USERSTORY = `project/{project_id}/user-stories`;

@@ -21,7 +21,7 @@ export interface ProjectCardItem {
 
 interface Props {
   item: ProjectCardItem;
-  onPress?: (id: string) => void;
+  onPress?: (id: string, name: string) => void;
   onToggleStar?: () => void;
 }
 
@@ -32,11 +32,12 @@ const ProjectCard = ({ item, onPress, onToggleStar }: Props) => {
 
   const handlePress = () => {
     const targetId = item.id;
-    if (!targetId) {
+    const projectName = item.name;
+    if (!targetId && !projectName) {
       return;
     }
     if (onPress) {
-      onPress(targetId);
+      onPress(targetId, projectName);
     }
   };
 

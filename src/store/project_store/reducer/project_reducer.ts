@@ -1,6 +1,10 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Project, ProjectState } from '../../../types/project.type';
-import { getAllProjectInfo, getProjectById } from '../action/project_thunk';
+import {
+  getAllProjectInfo,
+  getProjectById,
+  getUserStorie,
+} from '../action/project_thunk';
 
 const mockTasks = [
   {
@@ -65,10 +69,16 @@ export interface TaskFilterState {
 
 // Extended Initial State
 const initialState: ProjectState & {
+  projectName: string;
   tasks: TaskItem[];
   selectedDate: string;
   filters: TaskFilterState;
+  userStories: unknown[];
+  userStoryMeta: unknown | null;
+  userStoryLoading: boolean;
+  userStoryError: string | null;
 } = {
+  projectName: '',
   projects: [],
   project: null,
   loading: false,
@@ -86,6 +96,11 @@ const initialState: ProjectState & {
     priority: null,
     type: null,
   },
+
+  userStories: [],
+  userStoryMeta: null,
+  userStoryLoading: false,
+  userStoryError: null,
 };
 
 const projectSlice = createSlice({
@@ -93,6 +108,9 @@ const projectSlice = createSlice({
   initialState,
 
   reducers: {
+    getProjectName: (state, action: PayloadAction<string>) => {
+      state.projectName = action.payload;
+    },
     resetProjects: state => {
       state.projects = [];
       state.project = null;
@@ -183,11 +201,26 @@ const projectSlice = createSlice({
         state.loading = false;
         state.error = action.payload ?? 'Failed to fetch project';
         state.project = null;
+      })
+      .addCase(getUserStorie.pending, state => {
+        state.userStoryLoading = true;
+        state.userStoryError = null;
+      })
+      .addCase(getUserStorie.fulfilled, (state, action) => {
+        state.userStoryLoading = false;
+        state.userStoryError = null;
+        state.userStories = action.payload.response.data || [];
+        state.userStoryMeta = action.payload.response.meta || null;
+      })
+      .addCase(getUserStorie.rejected, (state, action) => {
+        state.userStoryLoading = false;
+        state.userStoryError = action.payload ?? 'Failed to fetch user stories';
       });
   },
 });
 
 export const {
+  getProjectName,
   resetProjects,
   setSelectedDate,
   setFilter,

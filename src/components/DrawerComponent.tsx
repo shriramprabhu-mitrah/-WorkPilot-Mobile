@@ -21,6 +21,7 @@ import {
 import CustomBottomSheet from '../components/common/CustomBottomDialog';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
+import { getProjectName } from '../store/project_store/reducer/project_reducer';
 
 export const CustomDrawerContent: React.FC<
   DrawerContentComponentProps
@@ -106,7 +107,8 @@ export const CustomDrawerContent: React.FC<
     dispatch(logoutUser(showSuccessToast));
   };
 
-  const handleOnSelectProject = (id: string) => {
+  const handleOnSelectProject = (id: string, name: string) => {
+    dispatch(getProjectName(name));
     handleNavigation('projectDetails');
     dispatch(
       getProjectById({
