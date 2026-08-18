@@ -1,12 +1,21 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Project, ProjectState, Sprint } from '../../../types/project.type';
+import {
+  GetTaskByIdResponse,
+  Project,
+  ProjectState,
+  Sprint,
+  TaskData,
+  UserStoryDetail,
+} from '../../../types/project.type';
 import {
   getAllProjectInfo,
   getProjectById,
   getRecentProjects,
   getSprintByIdThunk,
   getSprintsThunk,
+  getTaskById,
   getUserStorie,
+  getUserStoryById,
 } from '../action/project_thunk';
 
 const mockTasks = [
@@ -80,6 +89,12 @@ const initialState: ProjectState & {
   userStoryMeta: unknown | null;
   userStoryLoading: boolean;
   userStoryError: string | null;
+  selectedUserStory: UserStoryDetail | null;
+  userStoryDetailLoading: boolean;
+  userStoryDetailError: string | null;
+  selectedTask: TaskData | null;
+  taskDetailLoading: boolean;
+  taskDetailError: string | null;
 } = {
   projectName: '',
   projects: [],
@@ -107,6 +122,12 @@ const initialState: ProjectState & {
   userStoryMeta: null,
   userStoryLoading: false,
   userStoryError: null,
+  selectedUserStory: null,
+  userStoryDetailLoading: false,
+  userStoryDetailError: null,
+  selectedTask: null,
+  taskDetailLoading: false,
+  taskDetailError: null,
 };
 
 const projectSlice = createSlice({
@@ -258,6 +279,37 @@ const projectSlice = createSlice({
       .addCase(getUserStorie.rejected, (state, action) => {
         state.userStoryLoading = false;
         state.userStoryError = action.payload ?? 'Failed to fetch user stories';
+      })
+      .addCase(getUserStoryById.pending, state => {
+        state.userStoryDetailLoading = true;
+        state.userStoryDetailError = null;
+      })
+      .addCase(getUserStoryById.fulfilled, (state, action) => {
+        state.userStoryDetailLoading = false;
+        state.userStoryDetailError = null;
+        state.selectedUserStory = action.payload.data;
+      })
+      .addCase(getUserStoryById.rejected, (state, action) => {
+        state.userStoryDetailLoading = false;
+        state.userStoryDetailError =
+          action.payload ?? 'Failed to fetch user story details';
+      })
+      .addCase(getTaskById.pending, state => {
+        state.taskDetailLoading = true;
+        state.taskDetailError = null;
+      })
+      .addCase(
+        getTaskById.fulfilled,
+        (state, action: PayloadAction<GetTaskByIdResponse>) => {
+          state.taskDetailLoading = false;
+          state.taskDetailError = null;
+          state.selectedTask = action.payload.data;
+        },
+      )
+      .addCase(getTaskById.rejected, (state, action) => {
+        state.taskDetailLoading = false;
+        state.taskDetailError =
+          action.payload ?? 'Failed to fetch task details';
       });
   },
 });

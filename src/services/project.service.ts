@@ -6,7 +6,9 @@ import {
   GET_PROJECTS,
   GET_USERSTORY,
   GET_RECENT_PROJECTS,
+  GET_USERSTORY_BY_ID,
   UPDATE_PROJECT,
+  GET_TASK_BY_ID,
 } from '../constants/apiServiceEndpoint';
 import {
   CreateProjectPayload,
@@ -16,8 +18,12 @@ import {
   GetProjectsParams,
   GetProjectsResponse,
   GetRecentProjectResponse,
+  GetTaskByIdParams,
+  GetTaskByIdResponse,
   GetUserStoriesPayload,
   GetUserStoriesResponse,
+  GetUserStoryByIdParams,
+  GetUserStoryByIdResponse,
   UpdateProjectPayload,
   UpdateProjectResponse,
 } from '../types/project.type';
@@ -91,6 +97,39 @@ export const getUserStorieService = async (
     return await get<GetUserStoriesResponse>(url, { params: cleanedParams });
   } catch (error) {
     console.error('Get User Stories API failed:', error);
+    throw error;
+  }
+};
+
+export const getUserStoryByIdService = async ({
+  projectId,
+  userStoryId,
+}: GetUserStoryByIdParams): Promise<GetUserStoryByIdResponse> => {
+  try {
+    const url = GET_USERSTORY_BY_ID.replace('{project_id}', projectId).replace(
+      '{user_story_id}',
+      userStoryId,
+    );
+
+    return await get<GetUserStoryByIdResponse>(url);
+  } catch (error) {
+    console.error('Get User Story By ID API failed:', error);
+    throw error;
+  }
+};
+
+export const getTaskByIdService = async ({
+  projectId,
+  taskId,
+}: GetTaskByIdParams): Promise<GetTaskByIdResponse> => {
+  try {
+    const url = GET_TASK_BY_ID.replace('{project_id}', projectId).replace(
+      '{task_id}',
+      taskId,
+    );
+    return await get<GetTaskByIdResponse>(url);
+  } catch (error) {
+    console.error('Get Task By ID API failed:', error);
     throw error;
   }
 };

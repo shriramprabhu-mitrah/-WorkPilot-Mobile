@@ -1,5 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -16,136 +21,218 @@ import { RootState, useAppDispatch, useAppSelector } from '../store';
 import {
   setDescription,
   setIsEditingDescription,
-  setIssues,
 } from '../store/issue_store/reducer/issue.reducer';
 import {
-  getComments,
-  getDetails,
-  subtasks,
-  statusOptions,
-  getStatusColors,
-  getMyIssues,
-  Issue,
-  Comment,
-} from '../data/issuesDetailsScreenData';
+  getUserStoryById,
+  getTaskById,
+} from '../store/project_store/action/project_thunk';
+import {
+  getStatusLabel,
+  getStatusThemeColor,
+  IssueStatus,
+  STATUS_OPTIONS,
+  TASK_STATUS_LABELS,
+} from '../utils/enum';
+import CommonHeader from '../components/common/CommonHeader';
+import { fetchUserStoryComments } from '../store/comments_store/action/comments.thunk';
 
 const IssueDetailScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<any>();
-  const issueId = route.params?.id;
+
+  // Support route params for both User Stories and Tasks
+  const projectId = route.params?.projectId || route.params?.id;
+  const taskId = route.params?.taskId || route.params?.id2;
+  const userStoryId =
+    route.params?.userStoryId || (!taskId ? route.params?.id : null);
+
   const { colors } = useTheme();
   const { layout, isSmallHeight, hp } = useAuthLayout();
   const dispatch = useAppDispatch();
-  const myIssues = useMemo(() => getMyIssues(colors), [colors]);
-  const { issues, isEditingDescription } = useAppSelector(
+
+  const { isEditingDescription } = useAppSelector(
     (state: RootState) => state.issue,
   );
-  const issue = issues.find((item: Issue) => item.id === issueId);
-  const currentDescription = issue?.description ?? '';
+
+  const {
+    selectedUserStory,
+    userStoryDetailLoading,
+    selectedTask,
+    taskDetailLoading,
+  } = useAppSelector((state: RootState) => state.projects);
+
+  // Redux state selector for comments
+  const { comments: apiComments, loading: commentsLoading } = useAppSelector(
+    (state: RootState) => state.comments || { comments: [], loading: false },
+  );
+
   const [comment, setComment] = useState<string>('');
-  const [status, setStatus] = useState(issue?.status);
+  const [status, setStatus] = useState<IssueStatus | string>('');
   const [showStatusPicker, setShowStatusPicker] = useState(false);
-  const [subtaskDone, setSubtaskDone] = useState<Record<string, boolean>>({
-    'CLOUD-330a': true,
-  });
+  const [activeTab, setActiveTab] = useState<'All' | 'Comments' | 'History'>(
+    'All',
+  );
+
+  // Check if current view is loading task or story
+  const isTaskView = Boolean(taskId);
+  const isLoading = isTaskView ? taskDetailLoading : userStoryDetailLoading;
+
+  // Unified item reference for active display data
+  const currentItem = isTaskView ? selectedTask : selectedUserStory;
+
+  // Dispatch API Calls based on whether taskId or userStoryId is present
+  useEffect(() => {
+    if (projectId) {
+      if (taskId) {
+        dispatch(getTaskById({ projectId, taskId }));
+      } else if (userStoryId) {
+        dispatch(getUserStoryById({ projectId, userStoryId }));
+        dispatch(
+          fetchUserStoryComments({
+            projectId,
+            userStoryId,
+            page: 1,
+            pageSize: 10,
+          }),
+        );
+      }
+    }
+  }, [dispatch, projectId, taskId, userStoryId]);
 
   useEffect(() => {
-    if (issues.length === 0) {
-      dispatch(setIssues(myIssues));
+    if (currentItem?.status) {
+      setStatus(currentItem.status);
     }
-  }, [dispatch, issues.length, myIssues]);
+  }, [currentItem]);
 
-  const comments = useMemo(() => getComments(colors), [colors]);
-  const [localComments, setLocalComments] = useState<Comment[]>(comments);
-  const details = useMemo(() => getDetails(colors), [colors]);
-  const statusColors = useMemo(() => getStatusColors(colors), [colors]);
+  const currentDescription =
+    (currentItem && 'description' in currentItem
+      ? (currentItem as any).description
+      : '') || '';
+
+  const activeStatusColor = useMemo(
+    () => getStatusThemeColor(status || currentItem?.status, colors),
+    [status, currentItem, colors],
+  );
+
+  const details = useMemo(() => {
+    if (!currentItem) {
+      return [];
+    }
+
+    const assigneeName =
+      ('assignee_name' in currentItem && currentItem.assignee_name) ||
+      currentItem.reporter?.name ||
+      'Unassigned';
+
+    const assigneeInitials =
+      assigneeName !== 'Unassigned'
+        ? assigneeName
+            .split(' ')
+            .map((n: string) => n[0])
+            .join('')
+            .toUpperCase()
+        : 'U';
+
+    const reporterName = currentItem.reporter_name || 'N/A';
+
+    return [
+      {
+        label: 'Assignee',
+        value: assigneeName,
+        initials: assigneeInitials,
+        color: colors.primary,
+      },
+      {
+        label: 'Reporter',
+        value: reporterName,
+        initials:
+          reporterName !== 'N/A'
+            ? reporterName
+                .split(' ')
+                .map((n: string) => n[0])
+                .join('')
+                .toUpperCase()
+            : 'N/A',
+        color: colors.secondary,
+      },
+      {
+        label: 'Priority',
+        value: currentItem.priority
+          ? currentItem.priority.charAt(0).toUpperCase() +
+            currentItem.priority.slice(1)
+          : 'Medium',
+        dot: colors.warning,
+      },
+      {
+        label: 'Story pts',
+        value: currentItem.story_points?.toString() || '0',
+      },
+    ];
+  }, [currentItem, colors]);
+
   const handleOpenEditModal = () => {
     dispatch(setIsEditingDescription(true));
   };
+
   const handleCloseEditModal = () => {
     dispatch(setIsEditingDescription(false));
   };
+
   const handleSaveDescription = (newDescription: string) => {
-    if (!issueId) return;
+    const targetId = taskId || userStoryId;
+    if (!targetId) return;
     dispatch(
       setDescription({
-        issueId,
+        issueId: targetId,
         description: newDescription,
       }),
     );
     dispatch(setIsEditingDescription(false));
   };
+
   const handleSendComment = () => {
     if (!comment.trim()) return;
-    const newComment = {
-      id: Date.now(),
-      author: 'Alex Johnson',
-      avatar: 'AJ',
-      color: colors.warning || colors.primary,
-      time: 'Just now',
-      text: comment.trim(),
-    };
-    setLocalComments((prev: Comment[]) => [...prev, newComment]);
+    // Handle comment creation API dispatch here when required
     setComment('');
   };
-  const completedCount = subtasks.filter(item => {
-    return subtaskDone[item.id] !== undefined
-      ? subtaskDone[item.id]
-      : item.done;
-  }).length;
 
-  const totalCount = subtasks.length;
-  const allSelected = subtasks.every(
-    item => (subtaskDone[item.id] ?? item.done) === true,
-  );
-  const handleSelectAll = () => {
-    const updatedState: Record<string, boolean> = {};
-    subtasks.forEach(item => {
-      updatedState[item.id] = !allSelected;
-    });
-    setSubtaskDone(updatedState);
-  };
+  const subtasks = selectedUserStory?.tasks || [];
+
+  if (isLoading) {
+    return (
+      <Screen scroll={false} backgroundColor={colors.surface}>
+        <View className='flex-1 items-center justify-center'>
+          <ActivityIndicator size='large' color={colors.primary} />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
-      <View
-        className='flex-row items-center justify-between border-b'
-        style={{
-          backgroundColor: colors.card || colors.surface,
-          borderColor: colors.border,
-          paddingHorizontal: layout.paddingHorizontal,
-          paddingTop: layout.paddingTop,
-          paddingBottom: layout.paddingBottom,
-        }}
-      >
-        <TouchableOpacity onPress={() => navigation.navigate('projectDetails')}>
-          <Ionicons
-            name='arrow-back'
-            size={layout.iconSize}
-            color={colors.text}
-          />
-        </TouchableOpacity>
-        <View
-          className='flex-row items-center'
-          style={{ gap: layout.largeSectionGap }}
-        >
+      {/* Top Header */}
+      <CommonHeader
+        variant='custom'
+        title={currentItem?.title}
+        onBackPress={() => navigation.navigate('projectDetails')}
+        rightComponent={
           <AppText
-            variant='body'
+            variant='caption'
             color={colors.textSecondary}
-            className='font-semibold'
+            className='text-xs font-semibold'
+            numberOfLines={1}
           >
-            {issue?.id}
+            {currentItem?.formatted_serial_number ||
+              ('key' in (currentItem || {})
+                ? currentItem?.key
+                : currentItem?.id)}
           </AppText>
-          <TouchableOpacity>
-            <Ionicons
-              name='ellipsis-horizontal'
-              size={layout.iconSize}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
+
       <ScrollView className='flex-1' showsVerticalScrollIndicator={false}>
+        {/* Title and Dynamic Enum Status Dropdown */}
         <View
           className='border-b'
           style={{
@@ -156,70 +243,55 @@ const IssueDetailScreen = () => {
             gap: layout.elementGap,
           }}
         >
-          <View
-            className='flex-row items-center'
-            style={{ gap: layout.elementGap }}
+          <AppText
+            variant='title'
+            color={colors.text}
+            className='text-xl font-bold'
           >
-            <View
-              className='items-center justify-center rounded'
-              style={{
-                width: layout.avatarSizeSmall,
-                height: layout.avatarSizeSmall,
-                backgroundColor: `${issue?.avatarColor}`,
-              }}
-            >
-              <AppText
-                variant='caption'
-                color={colors.white}
-                className='font-bold'
-              >
-                {issue?.avatar}
-              </AppText>
-            </View>
-            <AppText
-              variant='body'
-              color={colors.textSecondary}
-              className='font-medium'
-            >
-              {issue?.type} • {issue?.id}
-            </AppText>
-          </View>
-
-          <AppText variant='title' color={colors.text} className='font-bold'>
-            {issue?.title}
+            {currentItem?.title}
           </AppText>
+
           <View>
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => setShowStatusPicker(!showStatusPicker)}
               className='flex-row items-center self-start rounded-lg border'
               style={{
-                backgroundColor: `${colors.primary}1A`,
+                backgroundColor: `${activeStatusColor}1A`,
                 borderColor: colors.border,
                 paddingHorizontal: layout.paddingHorizontal,
                 paddingVertical: layout.elementGap,
                 gap: layout.tightGap,
               }}
             >
+              <View
+                className='mr-1 rounded-full'
+                style={{
+                  width: 8,
+                  height: 8,
+                  backgroundColor: activeStatusColor,
+                }}
+              />
               <AppText
                 variant='body'
-                color={colors.info}
+                color={activeStatusColor}
                 className='font-semibold'
               >
-                {status}
+                {getStatusLabel(status || currentItem?.status)}
               </AppText>
               <Ionicons
                 name='chevron-down'
                 size={layout.controlSize * 0.8}
-                color={colors.info}
+                color={activeStatusColor}
               />
             </TouchableOpacity>
+
             {showStatusPicker && (
               <View
                 className='absolute left-0 top-14 border'
                 style={{
                   borderRadius: Radius.lg,
-                  width: '50%',
+                  width: '55%',
                   backgroundColor: colors.card || colors.surface,
                   borderColor: colors.border,
                   paddingHorizontal: layout.paddingHorizontal,
@@ -231,17 +303,16 @@ const IssueDetailScreen = () => {
                   zIndex: 999,
                 }}
               >
-                {statusOptions.map(item => {
-                  const isSelected = status === item;
-                  const itemColor =
-                    statusColors[item as keyof typeof statusColors]?.text ||
-                    colors.text;
+                {STATUS_OPTIONS.map(enumKey => {
+                  const isSelected =
+                    (status || currentItem?.status)?.toLowerCase() === enumKey;
+                  const itemColor = getStatusThemeColor(enumKey, colors);
                   return (
                     <TouchableOpacity
-                      key={item}
+                      key={enumKey}
                       activeOpacity={0.8}
                       onPress={() => {
-                        setStatus(item);
+                        setStatus(enumKey);
                         setShowStatusPicker(false);
                       }}
                       className='flex-row items-center'
@@ -253,17 +324,17 @@ const IssueDetailScreen = () => {
                       <View
                         className='rounded-full'
                         style={{
-                          width: layout.tightGap * 4,
-                          height: layout.tightGap * 4,
+                          width: 8,
+                          height: 8,
                           backgroundColor: itemColor,
                         }}
                       />
                       <AppText
                         variant='body'
-                        color={isSelected ? colors.info : colors.text}
-                        className={isSelected ? 'font-semibold' : 'font-normal'}
+                        color={isSelected ? itemColor : colors.text}
+                        className={isSelected ? 'font-bold' : 'font-normal'}
                       >
-                        {item}
+                        {TASK_STATUS_LABELS[enumKey]}
                       </AppText>
                     </TouchableOpacity>
                   );
@@ -272,6 +343,8 @@ const IssueDetailScreen = () => {
             )}
           </View>
         </View>
+
+        {/* Details Section */}
         <View
           className='mt-3'
           style={{ backgroundColor: colors.card || colors.surface }}
@@ -297,7 +370,7 @@ const IssueDetailScreen = () => {
                   style={{ gap: layout.elementGap }}
                 >
                   <Avatar
-                    size='medium'
+                    size='small'
                     initials={item.initials}
                     color={item.color || colors.primary}
                   />
@@ -310,16 +383,9 @@ const IssueDetailScreen = () => {
                   className='flex-row items-center'
                   style={{ gap: layout.elementGap }}
                 >
-                  <View
-                    className='rounded-full'
-                    style={{
-                      width: layout.tightGap * 4,
-                      height: layout.tightGap * 4,
-                      backgroundColor: item.dot,
-                    }}
-                  />
+                  <Ionicons name='flag' size={14} color={item.dot} />
                   <AppText variant='body' color={colors.text}>
-                    {issue?.priority || item.value}
+                    {item.value}
                   </AppText>
                 </View>
               ) : (
@@ -330,6 +396,8 @@ const IssueDetailScreen = () => {
             </View>
           ))}
         </View>
+
+        {/* Description Section */}
         <View
           className='mt-3'
           style={{
@@ -356,9 +424,11 @@ const IssueDetailScreen = () => {
             </TouchableOpacity>
           </View>
           <AppText variant='body' color={colors.text} className='leading-6'>
-            {currentDescription}
+            {currentDescription || 'No description provided.'}
           </AppText>
         </View>
+
+        {/* Attachments Section */}
         <View
           className='mt-3'
           style={{
@@ -367,70 +437,189 @@ const IssueDetailScreen = () => {
             paddingVertical: layout.sectionGap,
           }}
         >
+          <AppText
+            variant='bodyLarge'
+            color={colors.text}
+            className='mb-3 font-bold'
+          >
+            Attachments
+          </AppText>
+
           <View
-            className='flex-row items-center justify-between'
+            className='items-center justify-center rounded-lg border border-dashed p-6'
+            style={{ borderColor: colors.border }}
+          >
+            <AppText
+              variant='body'
+              color={colors.textSecondary}
+              className='font-semibold'
+            >
+              No attachments
+            </AppText>
+            <AppText
+              variant='caption'
+              color={colors.placeholder}
+              className='mt-1'
+            >
+              Attachments coming soon
+            </AppText>
+          </View>
+        </View>
+
+        {/* Child Tickets Section (Only shown when viewing a User Story) */}
+        {!isTaskView && (
+          <View
+            className='mt-3'
             style={{
+              backgroundColor: colors.card || colors.surface,
+              paddingHorizontal: layout.paddingHorizontal,
               paddingVertical: layout.sectionGap,
-              backgroundColor: colors.card,
-              paddingBottom: layout.paddingBottom,
             }}
           >
-            <TouchableOpacity
-              className='flex-row items-center'
-              style={{
-                gap: isSmallHeight
-                  ? layout.largeSectionGap + 3
-                  : layout.sectionGap - 2,
-              }}
-              onPress={handleSelectAll}
-            >
-              <Ionicons
-                name={allSelected ? 'checkbox' : 'checkbox-outline'}
-                size={layout.iconSize}
-                color={allSelected ? colors.success : colors.placeholder}
-              />
+            <View className='mb-3 flex-row items-center justify-between'>
               <AppText
-                variant='body'
-                className='font-semibold'
+                variant='bodyLarge'
                 color={colors.text}
+                className='font-bold'
               >
-                Child Story
+                Child Story ({subtasks.length})
               </AppText>
-            </TouchableOpacity>
-            <AppText variant='body' color={colors.textSecondary}>
-              {completedCount}/{totalCount}
-            </AppText>
+            </View>
+
+            {subtasks.length > 0 ? (
+              <View style={{ gap: layout.elementGap || 10 }}>
+                {subtasks.map(item => {
+                  const rawStatus = (
+                    item.status ||
+                    item.status_id ||
+                    ''
+                  ).toLowerCase();
+
+                  const displayStatus =
+                    TASK_STATUS_LABELS[
+                      rawStatus as keyof typeof TASK_STATUS_LABELS
+                    ] ||
+                    getStatusLabel(rawStatus) ||
+                    item.status ||
+                    'To Do';
+
+                  const subtaskStatusColor = getStatusThemeColor(
+                    rawStatus,
+                    colors,
+                  );
+
+                  const avatarLetter = (item.title || 'D')
+                    .charAt(0)
+                    .toUpperCase();
+
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        navigation.navigate('issue', {
+                          projectId: projectId,
+                          taskId: item.id,
+                        })
+                      }
+                      className='flex-row items-center justify-between rounded-2xl border p-4'
+                      style={{
+                        borderColor: colors.border,
+                        backgroundColor: colors.card || colors.surface,
+                      }}
+                    >
+                      <View
+                        className='flex-1 flex-row items-center'
+                        style={{ gap: 12 }}
+                      >
+                        <View
+                          className='h-12 w-12 items-center justify-center rounded-xl'
+                          style={{
+                            backgroundColor: colors.primary || '#0066FF',
+                          }}
+                        >
+                          <AppText
+                            variant='title'
+                            color='#FFFFFF'
+                            className='text-lg font-bold'
+                          >
+                            {avatarLetter}
+                          </AppText>
+                        </View>
+
+                        <View
+                          className='flex-1 justify-center'
+                          style={{ gap: 2 }}
+                        >
+                          <AppText
+                            variant='body'
+                            color={colors.text}
+                            className='text-base font-bold'
+                            numberOfLines={1}
+                          >
+                            {item.title || 'demooooo'}
+                          </AppText>
+
+                          <AppText
+                            variant='caption'
+                            color={colors.textSecondary}
+                            className='text-xs'
+                            numberOfLines={1}
+                          >
+                            {item.key || item.formatted_serial_number || 'demo'}
+                          </AppText>
+
+                          <View
+                            className='mt-1 flex-row items-center'
+                            style={{ gap: 8 }}
+                          >
+                            <AppText
+                              variant='caption'
+                              color={colors.textSecondary}
+                              className='text-xs'
+                            >
+                              {item.created_at
+                                ? new Date(item.created_at).toLocaleDateString(
+                                    'en-US',
+                                    {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                    },
+                                  )
+                                : '-'}
+                            </AppText>
+                          </View>
+                        </View>
+                      </View>
+
+                      <View
+                        className='mt-1 self-start rounded-full px-3 py-1'
+                        style={{
+                          backgroundColor: `${subtaskStatusColor}15`,
+                        }}
+                      >
+                        <AppText
+                          variant='caption'
+                          color={subtaskStatusColor}
+                          className='text-xs font-semibold capitalize'
+                        >
+                          {displayStatus}
+                        </AppText>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : (
+              <AppText variant='body' color={colors.textSecondary}>
+                No child tickets.
+              </AppText>
+            )}
           </View>
-          {subtasks.map(item => {
-            const checked =
-              subtaskDone[item.id] !== undefined
-                ? subtaskDone[item.id]
-                : item.done;
-            return (
-              <TouchableOpacity
-                key={item.id}
-                activeOpacity={0.8}
-                className='mb-4 flex-row items-center'
-                onPress={() =>
-                  setSubtaskDone(prev => ({ ...prev, [item.id]: !checked }))
-                }
-              >
-                <Ionicons
-                  name={checked ? 'checkbox' : 'square-outline'}
-                  size={layout.iconSize}
-                  color={checked ? colors.success : colors.placeholder}
-                />
-                <AppText
-                  variant='body'
-                  color={checked ? colors.textSecondary : colors.text}
-                  className={`ml-3 flex-1 ${checked ? 'line-through' : ''}`}
-                >
-                  {item.title}
-                </AppText>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        )}
+
+        {/* Activity Section */}
         <View
           className='mt-3'
           style={{
@@ -439,119 +628,114 @@ const IssueDetailScreen = () => {
             paddingVertical: layout.sectionGap,
           }}
         >
-          <View
-            className='mb-4 flex-row items-center'
-            style={{ gap: layout.elementGap }}
+          <AppText
+            variant='bodyLarge'
+            color={colors.text}
+            className='mb-3 font-bold'
           >
-            <Ionicons
-              name='attach'
-              size={layout.iconSize}
-              color={colors.textSecondary}
-            />
-            <AppText
-              variant='bodyLarge'
-              color={colors.text}
-              className='text-lg font-bold'
-            >
-              Attachments
-            </AppText>
-          </View>
-          <View className='flex-row' style={{ gap: layout.elementGap }}>
-            {['crash_log.txt', 'auth_flow.png'].map(file => (
+            Activity
+          </AppText>
+
+          <View
+            className='mb-4 flex-row border-b'
+            style={{ borderColor: colors.border }}
+          >
+            {(['All', 'Comments', 'History'] as const).map(tab => (
               <TouchableOpacity
-                key={file}
-                activeOpacity={0.8}
-                className='flex-1 flex-row items-center rounded-lg border'
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                className='mr-4 pb-2'
                 style={{
-                  backgroundColor: colors.surface || colors.background,
-                  borderColor: colors.border,
-                  paddingHorizontal: layout.paddingHorizontal,
-                  paddingVertical: layout.elementGap,
-                  marginBottom: layout.elementGap,
-                  gap: layout.elementGap,
+                  borderBottomWidth: activeTab === tab ? 2 : 0,
+                  borderBottomColor: colors.primary,
                 }}
               >
-                <Ionicons
-                  name='attach'
-                  size={layout.iconSize}
-                  color={colors.textSecondary}
-                />
                 <AppText
-                  variant='caption'
-                  color={colors.text}
-                  className='flex-1'
-                  numberOfLines={1}
+                  variant='body'
+                  color={
+                    activeTab === tab ? colors.primary : colors.textSecondary
+                  }
+                  className={activeTab === tab ? 'font-bold' : 'font-normal'}
                 >
-                  {file}
+                  {tab}
                 </AppText>
               </TouchableOpacity>
             ))}
           </View>
-        </View>
-        <View
-          className='mt-3'
-          style={{
-            backgroundColor: colors.card || colors.surface,
-            paddingHorizontal: layout.paddingHorizontal,
-            paddingVertical: layout.sectionGap,
-          }}
-        >
-          <View
-            className='mb-5 flex-row items-center'
-            style={{ gap: layout.sectionGap }}
-          >
-            <Ionicons
-              name='chatbox-outline'
-              size={layout.iconSize}
-              color={colors.textSecondary}
-            />
-            <AppText
-              variant='bodyLarge'
-              color={colors.text}
-              className='font-bold'
-            >
-              Activity ({localComments.length})
-            </AppText>
-          </View>
-          {localComments.map(item => (
-            <View
-              key={item.id}
-              style={{ gap: layout.largeSectionGap }}
-              className='mb-5 flex-row'
-            >
-              <Avatar
-                size='medium'
-                initials={item.avatar}
-                color={item.color || colors.primary}
+
+          {activeTab === 'Comments' || activeTab === 'All' ? (
+            commentsLoading ? (
+              <ActivityIndicator
+                size='small'
+                color={colors.primary}
+                className='my-4'
               />
-              <View className='flex-1' style={{ gap: layout.tightGap }}>
-                <View
-                  className='flex-row items-center'
-                  style={{ gap: layout.elementGap }}
-                >
-                  <AppText
-                    variant='body'
-                    color={colors.text}
-                    className='font-bold'
+            ) : apiComments && apiComments.length > 0 ? (
+              apiComments.map((item: any) => {
+                const authorName = item.user?.name || item.author || 'User';
+                const avatarInitials = authorName
+                  .split(' ')
+                  .map((n: string) => n[0])
+                  .join('')
+                  .toUpperCase();
+
+                return (
+                  <View
+                    key={item.id}
+                    style={{ gap: layout.largeSectionGap }}
+                    className='mb-5 flex-row'
                   >
-                    {item.author}
-                  </AppText>
-                  <AppText variant='caption' color={colors.textSecondary}>
-                    {item.time}
-                  </AppText>
-                </View>
-                <AppText
-                  variant='body'
-                  color={colors.text}
-                  className='leading-6'
-                >
-                  {item.text}
-                </AppText>
-              </View>
-            </View>
-          ))}
+                    <Avatar
+                      size='medium'
+                      initials={avatarInitials}
+                      color={colors.primary}
+                    />
+                    <View className='flex-1' style={{ gap: layout.tightGap }}>
+                      <View
+                        className='flex-row items-center'
+                        style={{ gap: layout.elementGap }}
+                      >
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          className='font-bold'
+                        >
+                          {authorName}
+                        </AppText>
+                        <AppText variant='caption' color={colors.textSecondary}>
+                          {item.created_at
+                            ? new Date(item.created_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : item.time || ''}
+                        </AppText>
+                      </View>
+                      <AppText
+                        variant='body'
+                        color={colors.text}
+                        className='leading-6'
+                      >
+                        {item.comment || item.text || ''}
+                      </AppText>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <AppText variant='body' color={colors.textSecondary}>
+                No comments yet.
+              </AppText>
+            )
+          ) : (
+            <AppText variant='body' color={colors.textSecondary}>
+              Showing history...
+            </AppText>
+          )}
         </View>
       </ScrollView>
+
+      {/* Add Comment Input */}
       <View
         className='flex-row items-center border-t'
         style={{
@@ -593,6 +777,7 @@ const IssueDetailScreen = () => {
           />
         </View>
       </View>
+
       <PopupModel
         visible={isEditingDescription}
         initialDescription={currentDescription}

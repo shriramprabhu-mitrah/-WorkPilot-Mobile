@@ -15,12 +15,11 @@ const TaskCard = ({ item }: any) => {
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
 
   const openIssue = () => {
+    navigation.navigate('issue');
     const rootNavigation = navigation.getParent()?.getParent()?.getParent();
 
     if (rootNavigation) {
-      rootNavigation.navigate('issue', {
-        id: item.id,
-      });
+      rootNavigation.navigate('issue');
     }
   };
 
