@@ -24,7 +24,8 @@ export type HeaderVariant =
   | 'project'
   | 'quickAccess'
   | 'custom'
-  | 'projectdetails';
+  | 'projectdetails'
+  | 'taskDetails';
 
 export interface HeaderProps {
   /** Screen variant to control layout automatically */
@@ -230,7 +231,24 @@ export const CommonHeader: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         );
       default:
-        return null;
+        return onBackPress ? (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onBackPress}
+            className='items-center justify-center rounded-full'
+            style={{
+              width: moderateScale(36),
+              height: moderateScale(36),
+              backgroundColor: colors.background,
+            }}
+          >
+            <Ionicons
+              name='arrow-back'
+              size={layout.iconSize}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        ) : null;
     }
   };
 

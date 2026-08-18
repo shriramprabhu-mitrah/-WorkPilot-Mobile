@@ -13,10 +13,14 @@ import {
   GetSprintByIdResponse,
   GetSprintResponse,
   GetSprintsParams,
+  GetUserStoryByIdParams,
+  GetUserStoryByIdResponse,
   ProjectDetails,
   RecentProject,
   UpdateProjectResponse,
   UpdateProjectThunkPayload,
+  GetTaskByIdResponse,
+  GetTaskByIdParams,
 } from '../../../types/project.type';
 import {
   createNewProjectService,
@@ -25,7 +29,9 @@ import {
   getProjectService,
   getUserStorieService,
   recentProjectService,
+  getUserStoryByIdService,
   updateProjectService,
+  getTaskByIdService,
 } from '../../../services/project.service';
 import { handleLoading } from '../../auth_store/reducer/auth.reducer';
 import { getSprintById, getSprints } from '../../../services/sprint.service';
@@ -230,6 +236,38 @@ export const getRecentProjects = createAsyncThunk<
       error?.response?.data?.message ||
         error?.message ||
         'Failed to get recent projects',
+    );
+  }
+});
+
+export const getUserStoryById = createAsyncThunk<
+  GetUserStoryByIdResponse,
+  GetUserStoryByIdParams,
+  { rejectValue: string }
+>('project/user-story-by-id', async (params, { rejectWithValue }) => {
+  try {
+    const response = await getUserStoryByIdService(params);
+    console.log(response);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(
+      error.response?.data?.message || 'Failed to fetch user story details',
+    );
+  }
+});
+
+export const getTaskById = createAsyncThunk<
+  GetTaskByIdResponse,
+  GetTaskByIdParams,
+  { rejectValue: string }
+>('project/task-by-id', async (params, { rejectWithValue }) => {
+  try {
+    const response = await getTaskByIdService(params);
+    console.log(response);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(
+      error.response?.data?.message || 'Failed to fetch task details',
     );
   }
 });

@@ -8,6 +8,7 @@ import issueReducer from './issue_store/reducer/issue.reducer';
 import homeReducer from './home_store/reducer/home.reducer';
 import projectReducer from './project_store/reducer/project_reducer';
 import projectBoardReducer from './project_store/reducer/projectBoard.reducer';
+import commentsReducer from './comments_store/reducer/comments_reducer';
 
 export const mmkv = createMMKV();
 
@@ -69,6 +70,7 @@ const rootReducer = combineReducers({
   home: homeReducer,
   projects: projectReducer,
   projectBoard: projectBoardReducer,
+  comments: commentsReducer,
   // audit: persistReducer(auditPersistConfig, auditSlice),
   // response: persistReducer(responsePersistConfig, responseSlice),
   // submission: submissionSlice,

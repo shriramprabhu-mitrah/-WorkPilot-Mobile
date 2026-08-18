@@ -34,3 +34,13 @@ export const GET_USERSTORY = `project/{project_id}/user-stories`;
 //SPRINT
 export const GET_SPRINTS = `/projects/{project_id}/sprint`;
 export const GET_SPRINT_BY_Id = `projects/{project_id}/sprint/{sprint_id}`;
+export const GET_USERSTORY_BY_ID = `/projects/{project_id}/user-stories/{user_story_id}`;
+
+//TASK
+export const GET_TASK_BY_ID = `/projects/{project_id}/tasks/{task_id}`;
+
+//COMMENT
+export const GET_USERSTORIES_COMMENT = `/projects/{project_id}/user-stories/{user_story_id}/comments`;
+export const TASK_COMMENT = `/task/{task_id}/comments`;
+export const TASK_COMMENT_REPLIES = `/task/{task_id}/comments/replies/{parent_comment_id}`;
+export const TASK_COMMENT_ID = `/task/{task_id}/comments/{comment_id}`;
