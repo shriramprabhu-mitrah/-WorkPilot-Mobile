@@ -7,8 +7,9 @@ import {
   GET_USERSTORY,
   GET_RECENT_PROJECTS,
   GET_USERSTORY_BY_ID,
-  UPDATE_PROJECT,
   GET_TASK_BY_ID,
+  UPDATE_PROJECT,
+  UPDATE_USER_STORY,
 } from '../constants/apiServiceEndpoint';
 import {
   CreateProjectPayload,
@@ -26,6 +27,8 @@ import {
   GetUserStoryByIdResponse,
   UpdateProjectPayload,
   UpdateProjectResponse,
+  UpdateUserStoryPayload,
+  UpdateUserStoryResponse,
 } from '../types/project.type';
 
 export const getProjectService = async (
@@ -132,4 +135,20 @@ export const getTaskByIdService = async ({
     console.error('Get Task By ID API failed:', error);
     throw error;
   }
+};
+
+export const updateUserStoryService = async (
+  projectId: string,
+  userStoryId: string,
+  payload: UpdateUserStoryPayload,
+): Promise<UpdateUserStoryResponse> => {
+  const url = UPDATE_USER_STORY.replace('{project_id}', projectId).replace(
+    '{user_story_id}',
+    userStoryId,
+  );
+
+  return await patch<UpdateUserStoryResponse, UpdateUserStoryPayload>(
+    url,
+    payload,
+  );
 };

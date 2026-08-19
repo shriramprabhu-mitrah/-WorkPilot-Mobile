@@ -175,6 +175,8 @@ const Strings = {
     inReview: 'IN REVIEW',
     done: 'DONE',
     addIssue: 'Add issue',
+    testing: 'Testing',
+    blocked: 'Blocked',
   },
 
   projectCard: {

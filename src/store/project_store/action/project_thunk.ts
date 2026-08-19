@@ -19,6 +19,8 @@ import {
   RecentProject,
   UpdateProjectResponse,
   UpdateProjectThunkPayload,
+  UpdateUserStoryResponse,
+  UpdateUserStoryPayload,
   GetTaskByIdResponse,
   GetTaskByIdParams,
 } from '../../../types/project.type';
@@ -31,6 +33,7 @@ import {
   recentProjectService,
   getUserStoryByIdService,
   updateProjectService,
+  updateUserStoryService,
   getTaskByIdService,
 } from '../../../services/project.service';
 import { handleLoading } from '../../auth_store/reducer/auth.reducer';
@@ -165,7 +168,7 @@ export const deleteProject = createAsyncThunk(
   },
 );
 
-export const getUserStorie = createAsyncThunk<
+export const getUserStories = createAsyncThunk<
   { response: GetUserStoriesResponse; page: number },
   GetUserStorieThunkArgs,
   { rejectValue: string }
@@ -271,3 +274,49 @@ export const getTaskById = createAsyncThunk<
     );
   }
 });
+
+export interface UpdateUserStoryThunkPayload {
+  projectId: string;
+  userStoryId: string;
+  payload: UpdateUserStoryPayload;
+  onSuccess?: (response: UpdateUserStoryResponse) => void;
+  onError?: (message: string) => void;
+  onFinally?: () => void;
+}
+
+export const updateUserStory = createAsyncThunk<
+  UpdateUserStoryResponse,
+  UpdateUserStoryThunkPayload,
+  {
+    rejectValue: string;
+  }
+>(
+  'project/updateUserStory',
+  async (
+    { projectId, userStoryId, payload, onSuccess, onError, onFinally },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await updateUserStoryService(
+        projectId,
+        userStoryId,
+        payload,
+      );
+
+      onSuccess?.(response);
+
+      return response;
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to update user story';
+
+      onError?.(errorMessage);
+
+      return rejectWithValue(errorMessage);
+    } finally {
+      onFinally?.();
+    }
+  },
+);

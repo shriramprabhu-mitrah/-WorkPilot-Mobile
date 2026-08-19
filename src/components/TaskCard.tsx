@@ -9,13 +9,13 @@ import AppText from './common/AppText';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { Radius } from '../constants/Radius';
 
-const TaskCard = ({ item }: any) => {
+const TaskCard = ({ item, projectId }: any) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
 
   const openIssue = () => {
-    navigation.navigate('issue');
+    navigation.navigate('issue', { projectId, taskId: item?.id });
     const rootNavigation = navigation.getParent()?.getParent()?.getParent();
 
     if (rootNavigation) {
