@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Modal,
-  TouchableOpacity,
   View,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
@@ -9,13 +8,11 @@ import {
   ScrollView,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import AppText from './common/AppText';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { moderateScale } from '../utils/responsive';
 import { PrimaryButton } from './common/Button';
 import { AppInput } from './common/Input';
-import { Radius } from '../constants/Radius';
 import { useAppDispatch, useAppSelector } from '../store';
 import { showSuccessToast } from '../utils/utils';
 import {

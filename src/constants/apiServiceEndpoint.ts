@@ -25,11 +25,13 @@ export const GET_PROJECT_BY_ID = `/project/{project_id}/detail`;
 export const UPDATE_PROJECT = `/project/update/{project_id}`;
 export const DELETE_PROJECT = `/project/{project_id}`;
 export const GET_RECENT_PROJECTS = `/project/recent`;
+export const UPDATE_USER_STORY = `/projects/{project_id}/user-stories/{user_story_id}`;
+
 //Activity
 export const GET_AUDIT = `/audit`;
 
 //UserStory
-export const GET_USERSTORY = `project/{project_id}/user-stories`;
+export const GET_USERSTORY = `/projects/{project_id}/user-stories`;
 
 //SPRINT
 export const GET_SPRINTS = `/projects/{project_id}/sprint`;

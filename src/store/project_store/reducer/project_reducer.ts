@@ -14,7 +14,7 @@ import {
   getSprintByIdThunk,
   getSprintsThunk,
   getTaskById,
-  getUserStorie,
+  getUserStories,
   getUserStoryById,
 } from '../action/project_thunk';
 
@@ -266,17 +266,17 @@ const projectSlice = createSlice({
       .addCase(getRecentProjects.rejected, (state, action) => {
         state.error = action.payload ?? 'Failed to get recent projects';
       })
-      .addCase(getUserStorie.pending, state => {
+      .addCase(getUserStories.pending, state => {
         state.userStoryLoading = true;
         state.userStoryError = null;
       })
-      .addCase(getUserStorie.fulfilled, (state, action) => {
+      .addCase(getUserStories.fulfilled, (state, action) => {
         state.userStoryLoading = false;
         state.userStoryError = null;
         state.userStories = action.payload.response.data || [];
         state.userStoryMeta = action.payload.response.meta || null;
       })
-      .addCase(getUserStorie.rejected, (state, action) => {
+      .addCase(getUserStories.rejected, (state, action) => {
         state.userStoryLoading = false;
         state.userStoryError = action.payload ?? 'Failed to fetch user stories';
       })
