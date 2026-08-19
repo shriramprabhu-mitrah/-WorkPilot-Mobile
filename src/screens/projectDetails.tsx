@@ -128,7 +128,7 @@ const ProjectDetails = () => {
       />
 
       {/* Project Name and Sprint Name Dropdowns in Flex Row */}
-      {settingsView === 'MAIN_SETTINGS' && (
+      {(settingsView === 'MAIN_SETTINGS' || settingsView === 'DETAILS') && (
         <View
           className='flex-row items-center justify-between gap-3 border-b px-4 py-2'
           style={{

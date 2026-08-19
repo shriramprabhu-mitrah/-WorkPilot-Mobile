@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, ScrollView } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { DonutChart } from 'react-native-chart-kit/v2';
 import { RootState, useAppSelector } from '../../store';
@@ -42,7 +42,10 @@ export const Summary: React.FC = () => {
         ? 'dark'
         : 'system';
   return (
-    <Screen scroll={true} backgroundColor={colors.surface}>
+    <ScrollView
+      className='flex-1'
+      style={{ backgroundColor: colors.surface, paddingTop: moderateScale(20) }}
+    >
       <View
         style={{
           paddingHorizontal: layout.paddingHorizontal,
@@ -308,7 +311,7 @@ export const Summary: React.FC = () => {
           ))}
         </View>
       </View>
-    </Screen>
+    </ScrollView>
   );
 };
 

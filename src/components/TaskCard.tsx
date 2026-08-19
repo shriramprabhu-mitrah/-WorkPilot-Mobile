@@ -15,7 +15,7 @@ const TaskCard = ({ item, projectId }: any) => {
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
 
   const openIssue = () => {
-    navigation.navigate('issue', { projectId, taskId: item?.id });
+    navigation.navigate('issue', { projectId: projectId, taskId: item?.id });
     const rootNavigation = navigation.getParent()?.getParent()?.getParent();
 
     if (rootNavigation) {

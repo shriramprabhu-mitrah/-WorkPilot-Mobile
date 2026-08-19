@@ -269,17 +269,17 @@ const projectSlice = createSlice({
         state.error = action.payload ?? 'Failed to get recent projects';
       })
       .addCase(getUserStories.pending, state => {
-        state.userStoryLoading = true;
+        state.loading = true;
         state.userStoryError = null;
       })
       .addCase(getUserStories.fulfilled, (state, action) => {
-        state.userStoryLoading = false;
+        state.loading = false;
         state.userStoryError = null;
         state.userStories = action.payload.response.data || [];
         state.userStoryMeta = action.payload.response.meta || null;
       })
       .addCase(getUserStories.rejected, (state, action) => {
-        state.userStoryLoading = false;
+        state.loading = false;
         state.userStoryError = action.payload ?? 'Failed to fetch user stories';
       })
       .addCase(getUserStoryById.pending, state => {
@@ -297,19 +297,19 @@ const projectSlice = createSlice({
           action.payload ?? 'Failed to fetch user story details';
       })
       .addCase(getTaskById.pending, state => {
-        state.taskDetailLoading = true;
+        state.loading = true;
         state.taskDetailError = null;
       })
       .addCase(
         getTaskById.fulfilled,
         (state, action: PayloadAction<GetTaskByIdResponse>) => {
-          state.taskDetailLoading = false;
+          state.loading = false;
           state.taskDetailError = null;
           state.selectedTask = action.payload.data;
         },
       )
       .addCase(getTaskById.rejected, (state, action) => {
-        state.taskDetailLoading = false;
+        state.loading = false;
         state.taskDetailError =
           action.payload ?? 'Failed to fetch task details';
       });

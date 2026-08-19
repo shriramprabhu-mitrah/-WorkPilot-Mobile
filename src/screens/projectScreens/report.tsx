@@ -16,6 +16,7 @@ import {
   TimeFilterOption,
   Y_AXIS_TICKS,
 } from '../../utils/reportData';
+import { ScrollView } from 'react-native';
 
 interface FilterCheckboxProps {
   label: string;
@@ -90,7 +91,10 @@ const Report = () => {
   const activeChartData = CHART_DATA_BY_FILTER[selectedTimeFilter];
   const LEGEND_ITEMS = getLegendItems(colors);
   return (
-    <Screen className='p-4 pb-16' scroll>
+    <ScrollView
+      className='flex-1 p-4 pb-16 pt-6'
+      style={{ backgroundColor: colors.surface }}
+    >
       <View
         className='mb-4 shadow-sm'
         style={{
@@ -415,7 +419,7 @@ const Report = () => {
           )}
         </TouchableOpacity>
       </Modal>
-    </Screen>
+    </ScrollView>
   );
 };
 
