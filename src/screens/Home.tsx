@@ -530,6 +530,7 @@ export const Home: React.FC = () => {
       <TouchableOpacity
         activeOpacity={0.8}
         className='mb-3 rounded-2xl border p-4'
+        // onPress =
         style={{
           backgroundColor: colors.background,
           borderColor: colors.border,
@@ -561,13 +562,13 @@ export const Home: React.FC = () => {
               style={{
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
-                padding: 1.5,
+                padding: 2,
               }}
             >
               <WorkItemIcon
                 type={resourceType}
                 size={moderateScale(11)}
-                color={colors.primary}
+                // color={colors.primary}
               />
             </View>
           </View>
@@ -625,7 +626,6 @@ export const Home: React.FC = () => {
       (item.action ? formatAction(item.action) : 'Viewed Item');
 
     const resourceType = item.resource_type || item.type || 'task';
-    const titleInitials = getInitials(title);
 
     return (
       <TouchableOpacity
@@ -640,20 +640,12 @@ export const Home: React.FC = () => {
           <View
             className='mr-3.5 items-center justify-center rounded-lg'
             style={{
-              width: moderateScale(40),
-              height: moderateScale(40),
-              backgroundColor: colors.primary,
+              width: moderateScale(30),
+              height: moderateScale(30),
+              backgroundColor: colors.surface,
             }}
           >
-            <AppText
-              className='font-bold'
-              style={{
-                fontSize: moderateScale(15),
-                color: colors.white,
-              }}
-            >
-              {titleInitials}
-            </AppText>
+            <WorkItemIcon type={resourceType} size={moderateScale(20)} />
           </View>
 
           <View className='flex-1 justify-center'>
@@ -677,11 +669,11 @@ export const Home: React.FC = () => {
                 gap: 4,
               }}
             >
-              <WorkItemIcon
+              {/* <WorkItemIcon
                 type={resourceType}
                 size={moderateScale(12)}
                 color={colors.textSecondary}
-              />
+              /> */}
               <AppText
                 variant='caption'
                 className='font-medium capitalize'
