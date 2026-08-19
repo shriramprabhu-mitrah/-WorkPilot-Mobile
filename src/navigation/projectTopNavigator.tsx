@@ -40,6 +40,13 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
         },
       }}
       screenOptions={{
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
         tabBarContentContainerStyle: {
           backgroundColor: colors.surface,
         },
@@ -51,6 +58,8 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
         tabBarIndicatorStyle: {
           backgroundColor: colors.primary,
           height: 2,
+          borderBottomColor: colors.primary,
+          borderBottomWidth: 4,
         },
         tabBarLabelStyle: {
           fontSize: moderateScale(14),

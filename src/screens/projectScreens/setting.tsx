@@ -98,7 +98,7 @@ export const Settings: React.FC<SettingsProps> = ({
   );
 
   return (
-    <View className='flex-1' style={{ backgroundColor: colors.surface }}>
+    <View className='flex-1 pt-2' style={{ backgroundColor: colors.surface }}>
       {currentView === 'MAIN_SETTINGS' && renderMainSettings()}
       {currentView === 'DETAILS' && (
         <UpdateProjectDetails initialProjectName={projectNameValue} />

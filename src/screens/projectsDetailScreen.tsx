@@ -36,6 +36,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import { UserStoryStatus } from '../types/project.type';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { ScrollView } from 'react-native';
 
 type ProjectDetailsRouteProp = RouteProp<RootStackParamList, 'projectDetails'>;
 
@@ -637,7 +638,7 @@ const ProjectDeatailsScreen = () => {
   console.log('USER STORIES:', userStories);
 
   return (
-    <Screen scroll={false} backgroundColor={colors.surface}>
+    <ScrollView className='flex-1' style={{ backgroundColor: colors.surface }}>
       <Animated.ScrollView
         ref={verticalScrollRef}
         showsVerticalScrollIndicator={false}
@@ -781,7 +782,7 @@ const ProjectDeatailsScreen = () => {
           })}
         </Animated.ScrollView>
       </Animated.ScrollView>
-    </Screen>
+    </ScrollView>
   );
 };
 

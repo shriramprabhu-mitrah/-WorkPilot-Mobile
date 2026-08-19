@@ -1,5 +1,10 @@
 import React, { useState, useLayoutEffect } from 'react';
-import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
@@ -156,7 +161,10 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
   };
 
   return (
-    <Screen scroll={true} className='flex-1 px-6 py-4'>
+    <ScrollView
+      className='flex-1 px-6 py-4'
+      style={{ backgroundColor: colors.surface }}
+    >
       {/* Project Initials Avatar Section */}
       <View className='my-2 items-center justify-center'>
         <View
@@ -237,7 +245,7 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
             style={{
               backgroundColor: colors.surface,
               borderWidth: 1,
-              borderColor: isDropdownOpen ? '#0E6FFF' : colors.border,
+              borderColor: isDropdownOpen ? colors.primary : colors.border,
               borderRadius: Radius.md,
               paddingHorizontal: layout.paddingHorizontal / 1.5,
             }}
@@ -338,6 +346,6 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
           )}
         </TouchableOpacity>
       </View>
-    </Screen>
+    </ScrollView>
   );
 };

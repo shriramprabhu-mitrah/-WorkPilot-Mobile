@@ -5,6 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -141,7 +142,7 @@ const List = () => {
   };
 
   return (
-    <Screen scroll={false} backgroundColor={colors.surface}>
+    <ScrollView className='pt-3' style={{ backgroundColor: colors.surface }}>
       <View className='flex-1 px-4 pt-3'>
         {/* Search Bar */}
         <View
@@ -361,7 +362,7 @@ const List = () => {
           </View>
         )}
       </View>
-    </Screen>
+    </ScrollView>
   );
 };
 
