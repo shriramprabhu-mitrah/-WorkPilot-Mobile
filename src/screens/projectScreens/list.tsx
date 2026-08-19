@@ -1,97 +1,162 @@
-import React, { useState } from 'react';
-import { View, TextInput, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { AppText } from '../../components';
 import Screen from '../../components/common/ScreenWapper';
-import { useTheme } from '../../theme/ThemeProvider';
+import { useTheme } from '../../hooks/useTheme';
+import { useAuthLayout } from '../../hooks/useAuthLayout';
+import { Radius } from '../../constants/Radius';
 import { WorkItemIcon } from '../../components/common/getWorkItemIcon';
-
-// Expanded static task data to demonstrate vertical scrolling
-const STATIC_TASKS = [
-  {
-    id: '1',
-    title: 'Task2',
-    key: 'WORK-2',
-    status: 'To Do',
-    type: 'task',
-  },
-  {
-    id: '2',
-    title: 'Task1',
-    key: 'WORK-1',
-    status: 'In Progress',
-    type: 'task',
-  },
-  {
-    id: '3',
-    title: 'Fix Authentication Flow',
-    key: 'WORK-3',
-    status: 'In Progress',
-    type: 'bug',
-  },
-  {
-    id: '4',
-    title: 'Design System Guidelines',
-    key: 'WORK-4',
-    status: 'To Do',
-    type: 'task',
-  },
-  {
-    id: '5',
-    title: 'API Integration for Work Items',
-    key: 'WORK-5',
-    status: 'In Review',
-    type: 'story',
-  },
-  {
-    id: '6',
-    title: 'Update Navigation Bar Icons',
-    key: 'WORK-6',
-    status: 'Done',
-    type: 'task',
-  },
-  {
-    id: '7',
-    title: 'Database Schema Optimization',
-    key: 'WORK-7',
-    status: 'To Do',
-    type: 'task',
-  },
-  {
-    id: '8',
-    title: 'Setup Push Notifications',
-    key: 'WORK-8',
-    status: 'In Progress',
-    type: 'story',
-  },
-];
+import { useAppDispatch, useAppSelector } from '../../store';
+import { getUserStories } from '../../store/project_store/action/project_thunk';
+import { Sprint, UserStory } from '../../types/project.type';
+import ListSkeleton from '../../components/skeleton/ListSkeleton';
+import ProjectCardSkeleton from '../../components/skeleton/ProjectCardSkeleton';
+import { RootStackParamList } from '../../types/navigationTypes';
 
 const List = () => {
   const { colors } = useTheme();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { moderateScale, layout } = useAuthLayout();
+  const dispatch = useAppDispatch();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  // Filter tasks locally by title or key
-  const filteredTasks = STATIC_TASKS.filter(
-    task =>
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.key.toLowerCase().includes(searchQuery.toLowerCase()),
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+
+  const {
+    userStories,
+    currentSprint,
+    project,
+    userStoryLoading,
+    userStoryMeta,
+  } = useAppSelector(state => state.projects);
+
+  const activeSprint =
+    currentSprint ||
+    project?.sprints?.find((sprint: Sprint) => sprint.status === 'active') ||
+    project?.sprints?.find((sprint: Sprint) => sprint.status === 'planning');
+
+  const projectId = project?.id;
+  const showSkeleton = userStoryLoading && !isFetchingNextPage;
+  const showFooterSpinner = userStoryLoading && isFetchingNextPage;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!projectId || !activeSprint?.id) {
+        return;
+      }
+      setIsFetchingNextPage(false);
+      dispatch(
+        getUserStories({
+          projectId,
+          payload: {
+            page: 1,
+            page_size: 10,
+            sprint_id: activeSprint.id,
+          },
+        }),
+      );
+    }, [dispatch, projectId, activeSprint?.id]),
   );
+
+  const handleLoadMore = async () => {
+    if (
+      !userStoryLoading &&
+      !isFetchingNextPage &&
+      userStoryMeta?.has_next &&
+      projectId &&
+      activeSprint?.id
+    ) {
+      try {
+        setIsFetchingNextPage(true);
+        await dispatch(
+          getUserStories({
+            projectId,
+            payload: {
+              page: (userStoryMeta.page || 1) + 1,
+              page_size: userStoryMeta.page_size || 10,
+              sprint_id: activeSprint.id,
+            },
+          }),
+        );
+      } catch (error) {
+        console.error('Failed to load next page:', error);
+      } finally {
+        setIsFetchingNextPage(false);
+      }
+    }
+  };
+
+  const rawStories = (userStories as UserStory[]) || [];
+
+  const filteredStories = rawStories.filter(story => {
+    const title = story?.title || '';
+    const serial = story?.formatted_serial_number || '';
+    const sprint = story?.sprint_name || '';
+    const status = story?.status || '';
+    const query = searchQuery.toLowerCase();
+
+    return (
+      title.toLowerCase().includes(query) ||
+      serial.toLowerCase().includes(query) ||
+      sprint.toLowerCase().includes(query) ||
+      status.toLowerCase().includes(query)
+    );
+  });
+
+  const getPriorityConfig = (priority?: string) => {
+    const p = (priority || '').toLowerCase();
+    switch (p) {
+      case 'highest':
+      case 'high':
+        return { label: 'High', color: colors.error, bgColor: '#FEE2E2' };
+      case 'medium':
+        return { label: 'Medium', color: '#F59E0B', bgColor: '#FEF3C7' };
+      case 'low':
+      case 'lowest':
+        return { label: 'Low', color: '#10B981', bgColor: '#D1FAE5' };
+      default:
+        return {
+          label: priority || 'Normal',
+          color: colors.textSecondary,
+          bgColor: colors.surface,
+        };
+    }
+  };
+
+  const renderFooter = () => {
+    if (!showFooterSpinner) return null;
+    return (
+      <View className='items-center justify-center py-4'>
+        <ActivityIndicator size='small' color={colors.primary} />
+      </View>
+    );
+  };
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <View className='flex-1 px-4 pt-3'>
-        {/* ================= SEARCH BAR ================= */}
+        {/* Search Bar */}
         <View
-          className='mb-4 flex-row items-center rounded-2xl border px-3.5 py-2.5'
+          className='mb-4 flex-row items-center border px-3.5 py-2.5'
           style={{
-            backgroundColor: colors.background,
+            backgroundColor: colors.card,
             borderColor: colors.border,
+            borderRadius: Radius.md,
           }}
         >
           <View className='mr-2.5'>
             <AppText color={colors.textSecondary}>🔍</AppText>
           </View>
           <TextInput
-            placeholder='Search work items'
+            placeholder='Search user stories, sprint, status...'
             placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -100,137 +165,199 @@ const List = () => {
           />
         </View>
 
-        {/* ================= RESULT COUNT ================= */}
-        <View className='mb-3'>
-          <AppText
-            variant='caption'
-            className='font-medium'
-            color={colors.textSecondary}
-          >
-            {filteredTasks.length} results
-          </AppText>
-        </View>
-
-        {/* ================= SCROLLABLE TASK LIST CONTAINER ================= */}
-        {filteredTasks.length > 0 ? (
+        {/* User Stories Count Header */}
+        {!showSkeleton && filteredStories.length > 0 ? (
           <View
-            className='flex-1 overflow-hidden rounded-3xl border'
-            style={{
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-            }}
+            className='mb-3 flex-row items-center'
+            style={{ gap: layout.elementGap }}
           >
-            <FlatList
-              data={filteredTasks}
-              keyExtractor={item => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 16 }}
-              ItemSeparatorComponent={() => (
-                <View
-                  className='my-1 ml-12 h-[1px]'
-                  style={{ backgroundColor: colors.border }}
-                />
-              )}
-              renderItem={({ item }) => {
-                const isInProgress = item.status === 'In Progress';
-                const isDone = item.status === 'Done';
-
-                // Determine badge background and text colors
-                const getBadgeStyle = () => {
-                  if (isInProgress) {
-                    return {
-                      bg: colors.primary,
-                      text: colors.white,
-                    };
-                  }
-                  if (isDone) {
-                    return {
-                      bg: colors.accentOrange || colors.primary,
-                      text: colors.white,
-                    };
-                  }
-                  return {
-                    bg: colors.surface,
-                    text: colors.textSecondary,
-                  };
-                };
-
-                const badgeStyle = getBadgeStyle();
-
-                return (
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    className='flex-row items-start p-4'
-                  >
-                    {/* Task Type Icon Container */}
-                    <View
-                      className='mr-3 mt-0.5 h-7 w-7 items-center justify-center rounded-md border'
-                      style={{
-                        backgroundColor: colors.surface,
-                        borderColor: colors.border,
-                      }}
-                    >
-                      <WorkItemIcon
-                        type={item.type}
-                        size={14}
-                        color={colors.primary}
-                      />
-                    </View>
-
-                    {/* Task Info */}
-                    <View className='flex-1 justify-center'>
-                      <AppText
-                        variant='body'
-                        className='mb-1 text-base font-bold'
-                        color={colors.text}
-                      >
-                        {item.title}
-                      </AppText>
-
-                      {/* Key, Priority Icon, and Status Badge */}
-                      <View className='flex-row items-center'>
-                        <AppText
-                          variant='caption'
-                          className='mr-2 font-semibold'
-                          color={colors.textSecondary}
-                        >
-                          {item.key}
-                        </AppText>
-
-                        {/* Priority / Equal indicator */}
-                        <AppText
-                          variant='caption'
-                          className='mr-2.5 font-bold'
-                          color={colors.accentOrange || colors.primary}
-                        >
-                          =
-                        </AppText>
-
-                        {/* Theme Adaptive Status Badge */}
-                        <View
-                          className='rounded-md px-2.5 py-0.5'
-                          style={{ backgroundColor: badgeStyle.bg }}
-                        >
-                          <AppText
-                            variant='caption'
-                            className='text-xs font-semibold'
-                            color={badgeStyle.text}
-                          >
-                            {item.status}
-                          </AppText>
-                        </View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
+            <AppText
+              variant='caption'
+              className='font-bold tracking-wider'
+              color={colors.textSecondary}
+            >
+              User Stories
+            </AppText>
+            <View
+              className='items-center justify-center'
+              style={{
+                minWidth: moderateScale(22),
+                height: moderateScale(22),
+                paddingHorizontal: 6,
+                backgroundColor: colors.primary,
+                borderRadius: Radius.circle,
               }}
+            >
+              <AppText
+                variant='caption'
+                className='text-xs font-bold'
+                color={colors.white}
+              >
+                {userStoryMeta?.total_items || filteredStories.length}
+              </AppText>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Story List / Loading / Empty State */}
+        {showSkeleton ? (
+          <View className='py-10'>
+            <ListSkeleton
+              count={5}
+              containerStyle={{ gap: layout.elementGap - 2 }}
+              renderItem={index => <ProjectCardSkeleton key={index} />}
             />
           </View>
+        ) : filteredStories.length > 0 ? (
+          <FlatList
+            data={filteredStories}
+            keyExtractor={item => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            ItemSeparatorComponent={() => <View className='h-3' />}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            renderItem={({ item }: { item: UserStory }) => {
+              const priorityConfig = getPriorityConfig(item.priority);
+
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  className='flex-row items-center border p-3.5'
+                  onPress={() =>
+                    navigation.navigate('issue', {
+                      projectId,
+                      userStoryId: item?.id,
+                    })
+                  }
+                  style={{
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    borderRadius: Radius.md,
+                    gap: layout.elementGap,
+                  }}
+                >
+                  {/* Left Avatar Icon Box */}
+                  <View
+                    className='items-center justify-center'
+                    style={{
+                      width: moderateScale(44),
+                      height: moderateScale(44),
+                      backgroundColor: colors.primary,
+                      borderRadius: Radius.sm,
+                    }}
+                  >
+                    <WorkItemIcon
+                      type='userStory'
+                      size={20}
+                      color={colors.white}
+                    />
+                  </View>
+
+                  {/* Middle Details Section */}
+                  <View className='flex-1' style={{ gap: layout.mediumGap }}>
+                    <AppText
+                      variant='caption'
+                      color={colors.textSecondary}
+                      numberOfLines={1}
+                    >
+                      {item.formatted_serial_number || `#${item.serial_number}`}
+                      {item.sprint_name ? ` • ${item.sprint_name}` : ''}
+                    </AppText>
+                    <AppText
+                      variant='bodyLarge'
+                      color={colors.text}
+                      className='font-bold'
+                      numberOfLines={1}
+                    >
+                      {item.title
+                        ? item.title.charAt(0).toUpperCase() +
+                          item.title.slice(1)
+                        : ''}
+                    </AppText>
+                  </View>
+
+                  {/* Right Status Badge */}
+                  <View
+                    className='flex-row items-center'
+                    style={{ gap: layout.elementGap }}
+                  >
+                    <View
+                      className='rounded-md px-3 py-1'
+                      style={{ backgroundColor: priorityConfig.bgColor }}
+                    >
+                      <AppText
+                        variant='caption'
+                        className='text-xs font-semibold capitalize'
+                        style={{ color: priorityConfig.color }}
+                      >
+                        {priorityConfig.label}
+                      </AppText>
+                    </View>
+                    <View
+                      className='items-center justify-center px-3 py-1'
+                      style={{
+                        backgroundColor: colors.surface,
+                        borderRadius: Radius.circle,
+                      }}
+                    >
+                      <AppText
+                        variant='caption'
+                        style={{ color: colors.primary }}
+                        className='font-semibold'
+                      >
+                        {item.status}
+                      </AppText>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
         ) : (
-          <View className='flex-1 items-center justify-center py-10'>
-            <AppText variant='body' color={colors.textSecondary}>
-              No tasks found
+          /* Empty State */
+          <View className='flex-1 items-center justify-center px-6 py-12'>
+            <AppText
+              variant='body'
+              className='mb-1 text-center text-lg font-bold'
+              color={colors.text}
+            >
+              {searchQuery.trim()
+                ? 'No Matching Stories'
+                : 'No User Stories Found'}
             </AppText>
+
+            <AppText
+              variant='caption'
+              className='mb-5 text-center text-sm leading-5'
+              color={colors.textSecondary}
+            >
+              {searchQuery.trim()
+                ? `We couldn't find any stories matching "${searchQuery}". Check for typos or try another search.`
+                : 'There are no user stories created or assigned to this sprint yet.'}
+            </AppText>
+
+            {searchQuery.trim() ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setSearchQuery('')}
+                className='border px-4 py-2'
+                style={{
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  borderRadius: Radius.md,
+                }}
+              >
+                <AppText
+                  variant='caption'
+                  className='font-bold'
+                  color={colors.primary}
+                >
+                  Clear Search
+                </AppText>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
       </View>

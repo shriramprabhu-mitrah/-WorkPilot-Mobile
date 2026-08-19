@@ -5,7 +5,9 @@ import {
   ProjectState,
   Sprint,
   TaskData,
+  UserStory,
   UserStoryDetail,
+  UserStoryMeta,
 } from '../../../types/project.type';
 import {
   getAllProjectInfo,
@@ -85,8 +87,8 @@ const initialState: ProjectState & {
   tasks: TaskItem[];
   selectedDate: string;
   filters: TaskFilterState;
-  userStories: unknown[];
-  userStoryMeta: unknown | null;
+  userStories: UserStory[];
+  userStoryMeta: UserStoryMeta | null;
   userStoryLoading: boolean;
   userStoryError: string | null;
   selectedUserStory: UserStoryDetail | null;
