@@ -34,7 +34,7 @@ export const IssueDetailSkeleton = () => {
   const skeletonBg = colors.border || '#E5E7EB';
 
   return (
-    <Screen scroll={false} backgroundColor={colors.surface}>
+    <Screen scroll={false} className='pb-12' backgroundColor={colors.surface}>
       {/* Header matching custom variant with back arrow, title placeholder, and serial # */}
 
       <ScrollView className='flex-1 p-4' showsVerticalScrollIndicator={false}>

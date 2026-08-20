@@ -125,3 +125,10 @@ export interface DeleteCommentResponse {
     comment_id: string;
   };
 }
+
+export interface GetTaskCommentRepliesParams {
+  taskId?: string;
+  parentCommentId?: string;
+  page?: number;
+  pageSize?: number;
+}

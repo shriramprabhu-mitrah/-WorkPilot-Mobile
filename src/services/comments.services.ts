@@ -3,6 +3,7 @@ import {
   GET_USERSTORIES_COMMENT,
   TASK_COMMENT,
   TASK_COMMENT_ID,
+  TASK_COMMENT_REPLIES,
 } from '../constants/apiServiceEndpoint';
 import {
   CreateTaskCommentParams,
@@ -10,6 +11,7 @@ import {
   CreateTaskCommentResponse,
   DeleteCommentParams,
   DeleteCommentResponse,
+  GetTaskCommentRepliesParams,
   GetTaskCommentsParams,
   GetTaskCommentsResponse,
   GetUserStoryCommentsParams,
@@ -132,6 +134,32 @@ export const deleteTaskCommentService = async ({
     return await del<DeleteCommentResponse>(url);
   } catch (error) {
     console.error('Delete Comment API failed:', error);
+    throw error;
+  }
+};
+
+export const getTaskCommentRepliesService = async ({
+  taskId,
+  parentCommentId,
+  page = 1,
+  pageSize = 10,
+}: GetTaskCommentRepliesParams): Promise<GetTaskCommentsResponse> => {
+  try {
+    if (!taskId || !parentCommentId) {
+      throw new Error('Missing required parameters: taskId or parentCommentId');
+    }
+    const url = TASK_COMMENT_REPLIES.replace('{task_id}', taskId).replace(
+      '{parent_comment_id}',
+      parentCommentId,
+    );
+    return await get<GetTaskCommentsResponse>(url, {
+      params: {
+        page,
+        page_size: pageSize,
+      },
+    });
+  } catch (error) {
+    console.error('Get Task Comment Replies API failed:', error);
     throw error;
   }
 };

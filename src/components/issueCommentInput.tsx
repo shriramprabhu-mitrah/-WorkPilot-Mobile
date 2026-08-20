@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import AppText from './common/AppText';
 import Avatar from './Avatar';
 import { AppInput } from '.';
@@ -16,6 +16,8 @@ export const IssueCommentInput: React.FC<Props> = ({ hooks }) => {
     setComment,
     editingCommentId,
     setEditingCommentId,
+    replyingToId,
+    setReplyingToId,
     isSubmittingComment,
     handleSendComment,
     handleUpdateComment,
@@ -39,7 +41,7 @@ export const IssueCommentInput: React.FC<Props> = ({ hooks }) => {
 
   return (
     <View
-      className='flex-row items-center border-t'
+      className='border-t'
       style={{
         paddingHorizontal: layout.paddingHorizontal,
         paddingTop: layout.paddingTop,
@@ -49,46 +51,75 @@ export const IssueCommentInput: React.FC<Props> = ({ hooks }) => {
         paddingBottom: isSmallHeight ? hp(8.75) : hp(8),
       }}
     >
-      <Avatar
-        size='medium'
-        initials={avatarInitials}
-        color={colors.avatarBg || colors.primary}
-      />
-      <View className='flex-1'>
-        <AppInput
-          value={comment}
-          onChangeText={setComment}
-          placeholder={
-            editingCommentId ? 'Edit your comment...' : 'Add a comment...'
-          }
-          style={{ fontSize: layout.bodyFontSize }}
-          rightSendButton={
-            <View className='flex-row items-center' style={{ gap: 12 }}>
-              {editingCommentId && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setEditingCommentId(null);
-                    setComment('');
-                  }}
-                >
-                  <AppText
-                    variant='body'
-                    color={colors.textSecondary}
-                    className='font-medium'
+      {/* {replyingToId && !editingCommentId && (
+        <View
+          className='mb-2 flex-row items-center justify-between rounded-lg px-3 py-1.5'
+          style={{ backgroundColor: colors.surface }}
+        >
+          <AppText
+            variant='caption'
+            color={colors.primary}
+            className='font-medium'
+          >
+            Replying to comment...
+          </AppText>
+          <TouchableOpacity onPress={() => setReplyingToId(null)}>
+            <Ionicons name='close' size={14} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      )} */}
+
+      <View
+        className='flex-row items-center'
+        style={{
+          gap: isSmallHeight ? layout.largeSectionGap : layout.sectionGap,
+        }}
+      >
+        <Avatar
+          size='medium'
+          initials={avatarInitials}
+          color={colors.primary}
+        />
+        <View className='flex-1'>
+          <AppInput
+            value={comment}
+            onChangeText={setComment}
+            placeholder={
+              editingCommentId
+                ? 'Edit your comment...'
+                : replyingToId
+                  ? 'Write a reply...'
+                  : 'Add a comment...'
+            }
+            style={{ fontSize: layout.bodyFontSize }}
+            rightSendButton={
+              <View className='flex-row items-center' style={{ gap: 12 }}>
+                {(editingCommentId || replyingToId) && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEditingCommentId(null);
+                      setReplyingToId(null);
+                      setComment('');
+                    }}
                   >
-                    Cancel
-                  </AppText>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                disabled={!comment.trim() || isSubmittingComment}
-                onPress={
-                  editingCommentId ? handleUpdateComment : handleSendComment
-                }
-              >
-                {isSubmittingComment ? (
-                  <ActivityIndicator size='small' color={colors.primary} />
-                ) : (
+                    <AppText
+                      variant='body'
+                      color={colors.textSecondary}
+                      className='font-medium'
+                    >
+                      Cancel
+                    </AppText>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  disabled={!comment.trim() || isSubmittingComment}
+                  onPress={
+                    editingCommentId ? handleUpdateComment : handleSendComment
+                  }
+                >
+                  {/* {isSubmittingComment ? (
+                    <ActivityIndicator size='small' color={colors.primary} />
+                  ) : ( */}
                   <AppText
                     variant='body'
                     color={comment.trim() ? colors.primary : colors.secondary}
@@ -96,11 +127,12 @@ export const IssueCommentInput: React.FC<Props> = ({ hooks }) => {
                   >
                     {editingCommentId ? 'Save' : 'Send'}
                   </AppText>
-                )}
-              </TouchableOpacity>
-            </View>
-          }
-        />
+                  {/* )} */}
+                </TouchableOpacity>
+              </View>
+            }
+          />
+        </View>
       </View>
     </View>
   );

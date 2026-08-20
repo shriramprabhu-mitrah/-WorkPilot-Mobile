@@ -20,6 +20,12 @@ import {
   updateTaskComment,
   deleteTaskComment,
 } from '../store/comments_store/action/comments.thunk';
+import {
+  deleteCommentLocally,
+  setComments,
+  updateCommentLocally,
+  addCommentLocally,
+} from '../store/comments_store/reducer/comments_reducer';
 
 type IssueDetailRouteProp = RouteProp<RootStackParamList, 'issue'>;
 
@@ -169,22 +175,40 @@ export const useIssueDetails = () => {
     if (!trimmed || isSubmittingComment) {
       return;
     }
+    const previousComments = [...apiComments];
+    const authorName =
+      (currentItem &&
+        'reporter_name' in currentItem &&
+        currentItem.reporter_name) ||
+      currentItem?.reporter?.name ||
+      'User';
+    const tempComment = {
+      id: 'temp-' + Date.now(),
+      task_id: taskId,
+      content: trimmed,
+      full_name: authorName,
+      user_name: authorName,
+      created_at: new Date().toISOString(),
+      is_deleted: false,
+      replies_count: 0,
+    };
+    setComment('');
+    setIsSubmittingComment(true);
+    dispatch(addCommentLocally(tempComment));
     try {
-      setIsSubmittingComment(true);
       if (taskId) {
-        dispatch(createTaskComment({ taskId, content: trimmed }));
-        dispatch(fetchTaskComments({ taskId, page: 1, pageSize: 10 }));
-      } else if (userStoryId && projectId) {
-        dispatch(
-          fetchUserStoryComments({
-            projectId,
-            userStoryId,
-            page: 1,
-            pageSize: 10,
-          }),
+        const result = await dispatch(
+          createTaskComment({ taskId, content: trimmed }),
         );
+
+        if (result.meta.requestStatus !== 'fulfilled') {
+          dispatch(setComments(previousComments));
+          console.error('Failed to create comment on server, reverted.');
+        }
       }
-      setComment('');
+    } catch (error) {
+      dispatch(setComments(previousComments));
+      console.error('Error creating comment:', error);
     } finally {
       setIsSubmittingComment(false);
     }
@@ -192,37 +216,61 @@ export const useIssueDetails = () => {
 
   const handleUpdateComment = async () => {
     const trimmed = comment.trim();
-    if (!trimmed || !editingCommentId || isSubmittingComment) return;
+    if (!trimmed || !editingCommentId || isSubmittingComment) {
+      return;
+    }
+    const commentIdToUpdate = editingCommentId;
+    const previousComments = [...apiComments];
+    setComment('');
+    setEditingCommentId(null);
+    dispatch(
+      updateCommentLocally({ commentId: commentIdToUpdate, content: trimmed }),
+    );
+
     try {
-      setIsSubmittingComment(true);
       if (taskId) {
-        dispatch(
+        const result = await dispatch(
           updateTaskComment({
             taskId,
-            commentId: editingCommentId,
+            commentId: commentIdToUpdate,
             content: trimmed,
           }),
         );
-        dispatch(fetchTaskComments({ taskId, page: 1, pageSize: 10 }));
+        if (result.meta.requestStatus !== 'fulfilled') {
+          dispatch(setComments(previousComments));
+          console.error('Failed to update comment on server, reverted.');
+        }
       }
-      setComment('');
-      setEditingCommentId(null);
-    } finally {
-      setIsSubmittingComment(false);
+    } catch (error) {
+      dispatch(setComments(previousComments));
+      console.error('Error updating comment:', error);
     }
   };
 
   const handleDeleteComment = useCallback(
     async (commentId: string) => {
-      if (!taskId) return;
+      if (!taskId) {
+        return;
+      }
+      const previousComments = [...apiComments];
+      dispatch(deleteCommentLocally(commentId));
       try {
-        dispatch(deleteTaskComment({ taskId, commentId }));
-        dispatch(fetchTaskComments({ taskId, page: 1, pageSize: 10 }));
+        const result = await dispatch(
+          deleteTaskComment({
+            taskId,
+            commentId,
+          }),
+        );
+        if (result.meta.requestStatus !== 'fulfilled') {
+          dispatch(setComments(previousComments));
+          console.error('Failed to delete comment on server, reverted.');
+        }
       } catch (error) {
+        dispatch(setComments(previousComments));
         console.error('Error deleting comment:', error);
       }
     },
-    [dispatch, taskId],
+    [dispatch, taskId, apiComments],
   );
 
   return {

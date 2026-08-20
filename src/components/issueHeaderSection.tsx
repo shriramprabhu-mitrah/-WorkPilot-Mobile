@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  View,
-  TouchableOpacity,
-  Modal,
-  TouchableWithoutFeedback,
-} from 'react-native';
+import { View, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from '../components/common/AppText';
 import { Radius } from '../constants/Radius';
@@ -38,12 +33,12 @@ export const IssueHeaderSection: React.FC<Props> = ({ hooks }) => {
       <AppText
         variant='title'
         color={colors.text}
-        className='text-xl font-bold'
+        className='text-xl font-bold capitalize'
       >
         {hooks.currentItem?.title}
       </AppText>
 
-      <View className='relative z-20'>
+      <View className='relative z-50'>
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => hooks.setShowStatusPicker((prev: boolean) => !prev)}
@@ -72,83 +67,74 @@ export const IssueHeaderSection: React.FC<Props> = ({ hooks }) => {
             {getStatusLabel(hooks.status || hooks.currentItem?.status)}
           </AppText>
           <Ionicons
-            name='chevron-down'
+            name={hooks.showStatusPicker ? 'chevron-up' : 'chevron-down'}
             size={layout.controlSize * 0.8}
             color={hooks.activeStatusColor}
           />
         </TouchableOpacity>
 
+        {/* Inline Dropdown Option Box */}
         {hooks.showStatusPicker && (
-          <Modal
-            transparent
-            visible={hooks.showStatusPicker}
-            animationType='fade'
-            onRequestClose={() => hooks.setShowStatusPicker(false)}
-          >
+          <>
+            {/* Backdrop layer to capture outside clicks and close the dropdown */}
             <TouchableWithoutFeedback
               onPress={() => hooks.setShowStatusPicker(false)}
             >
-              <View className='flex-1 items-center justify-center bg-black/20 px-6'>
-                <TouchableWithoutFeedback>
-                  <View
-                    className='w-full border'
+              <View
+                className='absolute inset-0 z-40'
+                style={{ width: 1000, height: 1000, left: -500, top: -500 }}
+              />
+            </TouchableWithoutFeedback>
+
+            <View
+              className='absolute left-0 top-12 z-50 w-48 border'
+              style={{
+                borderRadius: Radius.sm,
+                backgroundColor: colors.card || colors.surface,
+                borderColor: colors.border,
+                paddingHorizontal: layout.paddingHorizontal,
+                paddingVertical: layout.elementGap,
+                gap: 4,
+              }}
+            >
+              {STATUS_OPTIONS.map(enumKey => {
+                const isSelected =
+                  (hooks.status || hooks.currentItem?.status)?.toLowerCase() ===
+                  enumKey;
+                const itemColor = getStatusThemeColor(enumKey, colors);
+                return (
+                  <TouchableOpacity
+                    key={enumKey}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      hooks.setStatus(enumKey);
+                      hooks.setShowStatusPicker(false);
+                    }}
+                    className='flex-row items-center rounded-md px-2 py-2'
                     style={{
-                      borderRadius: Radius.lg,
-                      backgroundColor: colors.card || colors.surface,
-                      borderColor: colors.border,
-                      paddingHorizontal: layout.paddingHorizontal,
-                      paddingVertical: layout.elementGap,
-                      shadowColor: colors.black,
-                      shadowOpacity: 0.12,
-                      shadowRadius: 10,
-                      shadowOffset: { width: 0, height: 4 },
-                      elevation: 5,
+                      gap: 12,
                     }}
                   >
-                    {STATUS_OPTIONS.map(enumKey => {
-                      const isSelected =
-                        (
-                          hooks.status || hooks.currentItem?.status
-                        )?.toLowerCase() === enumKey;
-                      const itemColor = getStatusThemeColor(enumKey, colors);
-                      return (
-                        <TouchableOpacity
-                          key={enumKey}
-                          activeOpacity={0.8}
-                          onPress={() => {
-                            hooks.setStatus(enumKey);
-                            hooks.setShowStatusPicker(false);
-                          }}
-                          className='flex-row items-center'
-                          style={{
-                            paddingVertical: layout.elementGap,
-                            gap: layout.largeSectionGap,
-                          }}
-                        >
-                          <View
-                            className='rounded-full'
-                            style={{
-                              width: 8,
-                              height: 8,
-                              backgroundColor: itemColor,
-                            }}
-                          />
-                          <AppText
-                            variant='body'
-                            color={isSelected ? itemColor : colors.text}
-                            className={isSelected ? 'font-bold' : 'font-normal'}
-                          >
-                            {TASK_STATUS_LABELS[enumKey] ||
-                              getStatusLabel(enumKey)}
-                          </AppText>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </TouchableWithoutFeedback>
-              </View>
-            </TouchableWithoutFeedback>
-          </Modal>
+                    <View
+                      className='rounded-full'
+                      style={{
+                        width: 8,
+                        height: 8,
+                        backgroundColor: itemColor,
+                      }}
+                    />
+                    <AppText
+                      variant='body'
+                      color={isSelected ? itemColor : colors.text}
+                      className={isSelected ? 'font-bold' : 'font-normal'}
+                    >
+                      {TASK_STATUS_LABELS[enumKey] || getStatusLabel(enumKey)}
+                    </AppText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
         )}
       </View>
     </View>
