@@ -51,7 +51,7 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
         />
       );
     case 'story':
-    case 'User_story':
+    case 'user_story':
     case 'userStory':
       return (
         <Ionicons

@@ -30,6 +30,7 @@ const List = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+  const [isFocusLoading, setIsFocusLoading] = useState(true);
 
   const {
     userStories,
@@ -45,15 +46,23 @@ const List = () => {
     project?.sprints?.find((sprint: Sprint) => sprint.status === 'planning');
 
   const projectId = project?.id;
-  const showSkeleton = userStoryLoading && !isFetchingNextPage;
+
+  // Force skeleton during screen focus or initial page 1 Redux load
+  const showSkeleton =
+    isFocusLoading || (userStoryLoading && !isFetchingNextPage);
   const showFooterSpinner = userStoryLoading && isFetchingNextPage;
 
   useFocusEffect(
     useCallback(() => {
       if (!projectId || !activeSprint?.id) {
+        setIsFocusLoading(false);
         return;
       }
+
+      let isMounted = true;
+      setIsFocusLoading(true);
       setIsFetchingNextPage(false);
+
       dispatch(
         getUserStories({
           projectId,
@@ -63,7 +72,15 @@ const List = () => {
             sprint_id: activeSprint.id,
           },
         }),
-      );
+      ).finally(() => {
+        if (isMounted) {
+          setIsFocusLoading(false);
+        }
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }, [dispatch, projectId, activeSprint?.id]),
   );
 
@@ -71,6 +88,7 @@ const List = () => {
     if (
       !userStoryLoading &&
       !isFetchingNextPage &&
+      !isFocusLoading &&
       userStoryMeta?.has_next &&
       projectId &&
       activeSprint?.id

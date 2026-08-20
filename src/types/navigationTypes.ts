@@ -16,7 +16,7 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   resetPassword: undefined;
   BackLogs: undefined;
-  projectDetails: { id: string } | undefined;
+  projectDetails: { projectId: string; projectName: string } | undefined;
   issue:
     | { id?: string; projectId?: string; userStoryId?: string; taskId?: string }
     | undefined;

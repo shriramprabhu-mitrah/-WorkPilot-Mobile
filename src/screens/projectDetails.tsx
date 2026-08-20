@@ -5,13 +5,19 @@ import ProjectTopNavigator from '../navigation/projectTopNavigator';
 import CommonHeader from '../components/common/CommonHeader';
 import AppText from '../components/common/AppText';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  useNavigation,
+  useFocusEffect,
+  useRoute,
+  RouteProp,
+} from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import {
   getProjectById,
   getSprintByIdThunk,
+  getSprintsThunk,
 } from '../store/project_store/action/project_thunk';
 import { ViewState } from '../screens/projectScreens/setting';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
@@ -22,9 +28,13 @@ import { getProjectName } from '../store/project_store/reducer/project_reducer';
 
 const ProjectDetails = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'projectDetails'>>();
+  const routeProjectId = route.params?.projectId;
+  const routeProjectName = route.params?.projectName;
+
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
-  const { project, projectName } = useAppSelector(
+  const { project, projectName, currentSprint } = useAppSelector(
     (state: RootState) => state?.projects,
   );
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
@@ -33,13 +43,66 @@ const ProjectDetails = () => {
   const [activeTab, setActiveTab] = useState<string>('Summary');
   const [selectedSprint, setSelectedSprint] = useState<Sprint | any>(null);
 
+  const fetchProjectDetailsData = async (id: string) => {
+    try {
+      const [, sprintsData] = await Promise.all([
+        dispatch(
+          getProjectById({
+            projectId: id,
+            handleSuccess: () => setSettingsView('MAIN_SETTINGS'),
+          }),
+        ).unwrap(),
+        dispatch(getSprintsThunk({ project_id: id })).unwrap(),
+      ]);
+
+      const response = sprintsData as any;
+      const projectSprints: Sprint[] = Array.isArray(response)
+        ? response
+        : response?.data || response?.items || [];
+
+      if (projectSprints.length > 0) {
+        const activeSprint = projectSprints.find(
+          (s: any) => s.status?.toLowerCase() === 'active' || s.is_active,
+        );
+        const targetSprint =
+          activeSprint || projectSprints[projectSprints.length - 1];
+        const sprintId =
+          targetSprint?.id?.toString() ||
+          (targetSprint as any)?._id?.toString();
+
+        if (sprintId) {
+          await dispatch(
+            getSprintByIdThunk({
+              project_id: id,
+              sprint_id: sprintId,
+            }),
+          ).unwrap();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch project details:', error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       setSettingsView('MAIN_SETTINGS');
-    }, []),
+
+      const targetProjectId =
+        routeProjectId ||
+        project?.id?.toString() ||
+        (project as any)?._id?.toString();
+
+      if (routeProjectName) {
+        dispatch(getProjectName(routeProjectName));
+      }
+
+      if (targetProjectId) {
+        fetchProjectDetailsData(targetProjectId);
+      }
+    }, [routeProjectId, routeProjectName, dispatch]),
   );
 
-  // Auto-select active sprint or default to the last sprint on initial load/project change
   useEffect(() => {
     const sprints: Sprint[] = project?.sprints || [];
     if (sprints.length > 0) {
@@ -58,17 +121,17 @@ const ProjectDetails = () => {
   };
 
   const handleOnSelectProject = (id: string, name: string) => {
+    const currentId =
+      project?.id?.toString() || (project as any)?._id?.toString();
+    if (!id || id === currentId) return;
+
     dispatch(getProjectName(name));
     setProjectSheetVisible(false);
-    dispatch(
-      getProjectById({
-        projectId: id,
-        handleSuccess,
-      }),
-    );
+    fetchProjectDetailsData(id);
   };
 
   const handleSelectSprint = (sprintId: string) => {
+    if (!sprintId || sprintId === currentSprint?.id?.toString()) return;
     setSprintListVisible(false);
     const sprints: Sprint[] = project?.sprints || [];
     const foundSprint = sprints.find(
@@ -118,6 +181,9 @@ const ProjectDetails = () => {
       ? `Sprint ${selectedSprint.id || selectedSprint._id}`
       : 'Select Sprint');
 
+  const currentProjectId =
+    project?.id?.toString() || (project as any)?._id?.toString();
+
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <CommonHeader
@@ -127,7 +193,6 @@ const ProjectDetails = () => {
         showDropdownIcon={false}
       />
 
-      {/* Project Name and Sprint Name Dropdowns in Flex Row */}
       {(settingsView === 'MAIN_SETTINGS' || settingsView === 'DETAILS') && (
         <View
           className='flex-row items-center justify-between gap-3 border-b px-4 py-2'
@@ -175,44 +240,42 @@ const ProjectDetails = () => {
           </TouchableOpacity>
 
           {/* Sprint Name Dropdown */}
-          {
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setSprintListVisible(true)}
-              className='flex-1 flex-row items-center justify-between rounded-xl border px-3 py-2'
-              style={{
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              }}
-            >
-              <View className='flex-1 pr-1'>
-                <AppText
-                  variant='caption'
-                  color={colors.textSecondary}
-                  style={{ fontSize: moderateScale(11) }}
-                >
-                  Sprint
-                </AppText>
-                <AppText
-                  variant='body'
-                  color={colors.primary}
-                  className='font-semibold'
-                  numberOfLines={1}
-                >
-                  {currentSprintName}
-                </AppText>
-              </View>
-              <Ionicons
-                name={
-                  sprintListVisible
-                    ? 'chevron-up-outline'
-                    : 'chevron-down-outline'
-                }
-                size={moderateScale(16)}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setSprintListVisible(true)}
+            className='flex-1 flex-row items-center justify-between rounded-xl border px-3 py-2'
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            }}
+          >
+            <View className='flex-1 pr-1'>
+              <AppText
+                variant='caption'
                 color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-          }
+                style={{ fontSize: moderateScale(11) }}
+              >
+                Sprint
+              </AppText>
+              <AppText
+                variant='body'
+                color={colors.primary}
+                className='font-semibold'
+                numberOfLines={1}
+              >
+                {currentSprintName}
+              </AppText>
+            </View>
+            <Ionicons
+              name={
+                sprintListVisible
+                  ? 'chevron-up-outline'
+                  : 'chevron-down-outline'
+              }
+              size={moderateScale(16)}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -223,17 +286,19 @@ const ProjectDetails = () => {
         setActiveTab={setActiveTab}
       />
 
-      {/* Project Selector Bottom Sheet */}
+      {/* Project Bottom Sheet */}
       <ProjectListBottomSheet
         visible={projectSheetVisible}
+        mode='projects'
         onDismiss={() => setProjectSheetVisible(false)}
         onSelectProject={handleOnSelectProject}
       />
 
-      {/* Sprint Selector Bottom Sheet */}
+      {/* Sprint Bottom Sheet */}
       <ProjectListBottomSheet
-        isSprint={true}
         visible={sprintListVisible}
+        mode='sprints'
+        projectId={currentProjectId}
         onDismiss={() => setSprintListVisible(false)}
         title='Select Sprint'
         onSelectSprint={handleSelectSprint}

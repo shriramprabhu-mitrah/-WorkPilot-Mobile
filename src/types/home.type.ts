@@ -9,6 +9,7 @@ export interface User {
 export interface Activity {
   id: string;
   project_id: string;
+  project_name: string;
   organization_id: string;
   action: string;
   resource_type: string;
