@@ -35,7 +35,7 @@ export const IssueChildTasksSection: React.FC<Props> = ({
     >
       <View className='mb-3 flex-row items-center justify-between'>
         <AppText variant='bodyLarge' color={colors.text} className='font-bold'>
-          Child Story ({subtasks.length})
+          Tasks ({subtasks.length})
         </AppText>
       </View>
 

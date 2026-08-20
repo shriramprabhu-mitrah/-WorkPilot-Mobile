@@ -4,6 +4,7 @@ import {
   CreateTaskCommentResponse,
   DeleteCommentParams,
   DeleteCommentResponse,
+  GetTaskCommentRepliesParams,
   GetTaskCommentsParams,
   GetTaskCommentsResponse,
   GetUserStoryCommentsParams,
@@ -14,6 +15,7 @@ import {
 import {
   createTaskCommentService,
   deleteTaskCommentService,
+  getTaskCommentRepliesService,
   getTaskCommentsService,
   getUserStoryCommentsService,
   updateCommentService,
@@ -129,6 +131,23 @@ export const deleteTaskComment = createAsyncThunk<
       error.response?.data?.message ||
       error.message ||
       'Failed to delete comment';
+    return rejectWithValue(errorMessage);
+  }
+});
+
+export const fetchTaskCommentReplies = createAsyncThunk<
+  GetTaskCommentsResponse,
+  GetTaskCommentRepliesParams,
+  { rejectValue: string }
+>('comments/fetchTaskCommentReplies', async (params, { rejectWithValue }) => {
+  try {
+    const response = await getTaskCommentRepliesService(params);
+    return response;
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message ||
+      error.message ||
+      'Failed to fetch comment replies';
     return rejectWithValue(errorMessage);
   }
 });

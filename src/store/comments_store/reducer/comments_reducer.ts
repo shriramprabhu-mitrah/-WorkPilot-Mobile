@@ -8,6 +8,8 @@ import {
   fetchUserStoryComments,
   fetchTaskComments,
   createTaskComment,
+  updateTaskComment,
+  deleteTaskComment,
 } from '../action/comments.thunk';
 
 const initialState: CommentsState = {
@@ -26,6 +28,26 @@ const commentsSlice = createSlice({
       state.meta = null;
       state.loading = false;
       state.error = null;
+    },
+    updateCommentLocally: (
+      state,
+      action: PayloadAction<{ commentId: string; content: string }>,
+    ) => {
+      const index = state.comments.findIndex(
+        c => c.id === action.payload.commentId,
+      );
+      if (index !== -1) {
+        state.comments[index].content = action.payload.content;
+      }
+    },
+    deleteCommentLocally: (state, action: PayloadAction<string>) => {
+      state.comments = state.comments.filter(c => c.id !== action.payload);
+    },
+    setComments: (state, action: PayloadAction<any[]>) => {
+      state.comments = action.payload;
+    },
+    addCommentLocally: (state, action: PayloadAction<any>) => {
+      state.comments.unshift(action.payload);
     },
   },
   extraReducers: builder => {
@@ -63,7 +85,6 @@ const commentsSlice = createSlice({
         state.error = action.payload || 'Failed to fetch task comments';
       })
       .addCase(createTaskComment.pending, state => {
-        state.loading = true;
         state.error = null;
       })
       .addCase(createTaskComment.fulfilled, state => {
@@ -72,9 +93,21 @@ const commentsSlice = createSlice({
       .addCase(createTaskComment.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to create task comment';
+      })
+      .addCase(updateTaskComment.rejected, (state, action) => {
+        state.error = action.payload || 'Failed to update comment';
+      })
+      .addCase(deleteTaskComment.rejected, (state, action) => {
+        state.error = action.payload || 'Failed to delete comment';
       });
   },
 });
 
-export const { clearCommentsState } = commentsSlice.actions;
+export const {
+  clearCommentsState,
+  updateCommentLocally,
+  deleteCommentLocally,
+  setComments,
+  addCommentLocally,
+} = commentsSlice.actions;
 export default commentsSlice.reducer;
