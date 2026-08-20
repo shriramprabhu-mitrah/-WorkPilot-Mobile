@@ -20,12 +20,10 @@ import {
   getOrganizationDetail,
   getUserProfileInfo,
 } from '../store/auth_store/action/auth.thunks';
-
 import {
   setActiveTab,
   resetAuditData,
 } from '../store/home_store/reducer/home.reducer';
-
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
@@ -33,13 +31,12 @@ import { getAudit } from '../store/home_store/action/home.thunk';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
 import {
   getAllProjectInfo,
-  getProjectById,
   getRecentProjects,
-  getSprintByIdThunk,
-  getSprintsThunk,
 } from '../store/project_store/action/project_thunk';
-import { Sprint } from '../types/project.type';
 import { getProjectName } from '../store/project_store/reducer/project_reducer';
+import { Activity } from '../types/home.type';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../types/navigationTypes';
 
 const getInitials = (name?: string): string => {
   if (!name) {
@@ -80,12 +77,15 @@ const formatAction = (action?: string): string => {
 
 export const Home: React.FC = () => {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const stackNavigation =
+    useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
   const { user } = useAppSelector(state => state.auth);
-  const { project, projects, recentProjects, include_sprints, sprints } =
-    useAppSelector(state => state.projects);
+  const { project, recentProjects, include_sprints } = useAppSelector(
+    state => state.projects,
+  );
   const {
     activities,
     user: homeUser,
@@ -93,24 +93,20 @@ export const Home: React.FC = () => {
     loading,
     meta,
   } = useAppSelector(state => state.home);
-
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
   const [isRecentLoading, setIsRecentLoading] = useState(true);
-
   const currentPageRef = useRef(1);
   const fetchingRef = useRef(false);
   const lastRequestedPageRef = useRef<number | null>(null);
   const currentTabRef = useRef<'viewed' | 'activity'>(activeTab);
   currentTabRef.current = activeTab;
-
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
-  // Safe navigation helper function aligned with CustomDrawerContent
-  const handleNavigation = (routeName: string) => {
-    if (navigation && typeof (navigation as any).navigate === 'function') {
-      (navigation as any).navigate(routeName);
-    }
-  };
+  // const handleNavigation = (routeName: string) => {
+  //   if (navigation && typeof (navigation as any).navigate === 'function') {
+  //     (navigation as any).navigate(routeName);
+  //   }
+  // };
 
   useFocusEffect(
     useCallback(() => {
@@ -119,11 +115,9 @@ export const Home: React.FC = () => {
       fetchingRef.current = false;
       setIsFetchingMore(false);
       setIsRecentLoading(true);
-
       dispatch(resetAuditData());
       dispatch(getUserProfileInfo());
       dispatch(getOrganizationDetail());
-
       dispatch(getRecentProjects())
         .unwrap()
         .catch(error => {
@@ -132,19 +126,17 @@ export const Home: React.FC = () => {
         .finally(() => {
           setIsRecentLoading(false);
         });
-
       dispatch(
         getAudit({
           type: currentTabRef.current,
           page: 1,
         }),
       );
-
       return () => {
         fetchingRef.current = false;
         setIsFetchingMore(false);
       };
-    }, [dispatch]), // Removed activeTab to avoid re-triggering when changing tabs
+    }, [dispatch]),
   );
 
   const handleOpenDrawer = () => {
@@ -160,11 +152,8 @@ export const Home: React.FC = () => {
     fetchingRef.current = false;
     currentTabRef.current = tab;
     setIsFetchingMore(false);
-
     dispatch(resetAuditData());
     dispatch(setActiveTab(tab));
-
-    // Fetch audit logs for the newly selected tab directly
     dispatch(
       getAudit({
         type: tab,
@@ -172,54 +161,18 @@ export const Home: React.FC = () => {
       }),
     );
   };
-
-  const handleOnSelectProject = async (id: string, name: string) => {
+  const handleOnSelectProject = (id: string, name?: string) => {
     if (!id) {
       return;
     }
-
-    // 1. Dispatch project name & navigate immediately
-    dispatch(getProjectName(name));
-    handleNavigation('projectDetails');
-
-    // 2. Fetch API data asynchronously in the background
-    try {
-      const [, sprintsData] = await Promise.all([
-        dispatch(getProjectById({ projectId: id })).unwrap(),
-        dispatch(getSprintsThunk({ project_id: id })).unwrap(),
-      ]);
-
-      // Bypasses strict interface checks to safely extract sprint array properties
-      const response = sprintsData as any;
-      const projectSprints: Sprint[] = Array.isArray(response)
-        ? response
-        : response?.data || response?.items || [];
-
-      if (projectSprints.length > 0) {
-        const activeSprint = projectSprints.find(
-          (s: any) => s.status === 'active',
-        );
-        const targetSprint =
-          activeSprint || projectSprints[projectSprints.length - 1];
-
-        const sprintId =
-          targetSprint?.id?.toString() ||
-          (targetSprint as any)?._id?.toString();
-
-        if (sprintId) {
-          await dispatch(
-            getSprintByIdThunk({
-              project_id: id,
-              sprint_id: sprintId,
-            }),
-          ).unwrap();
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch project details:', error);
+    if (name) {
+      dispatch(getProjectName(name));
     }
+    stackNavigation.navigate('projectDetails', {
+      projectId: id,
+      projectName: name ?? '',
+    });
   };
-
   const handleLoadMore = useCallback(() => {
     if (fetchingRef.current) {
       return;
@@ -242,9 +195,7 @@ export const Home: React.FC = () => {
       return;
     }
     fetchingRef.current = true;
-
     lastRequestedPageRef.current = nextPage;
-
     setIsFetchingMore(true);
     dispatch(
       getAudit({
@@ -277,145 +228,156 @@ export const Home: React.FC = () => {
     setProjectSheetVisible(true);
   };
 
-  const renderHeader = () => (
+  const handleListNavigation = (item: Activity) => {
+    const resourceType = item?.resource_type?.toLowerCase();
+
+    if (resourceType === 'project' || resourceType === 'sprint') {
+      const projectId = item?.project_id?.toString() || item?.id?.toString();
+      if (!projectId) return;
+      handleOnSelectProject(projectId, item?.project_name);
+    } else if (resourceType === 'user_story' || resourceType === 'userstory') {
+      stackNavigation.navigate('issue', {
+        projectId: item?.project_id,
+        userStoryId: item?.resource_id,
+      });
+    } else if (resourceType === 'task') {
+      stackNavigation.navigate('issue', {
+        projectId: item?.project_id,
+        taskId: item?.resource_id,
+      });
+    } else {
+      // Do not allow navigation for unsupported resource types (e.g., 'comment', undefined)
+      return;
+    }
+  };
+
+  const renderRecentProjectsHeader = () => (
     <View
       style={{
-        gap: layout.sectionGap,
+        gap: layout.elementGap,
         paddingTop: layout.elementGap,
         marginBottom: layout.elementGap,
       }}
     >
-      {/* Recent Projects */}
       <View
-        style={{
-          gap: layout.elementGap,
-        }}
+        className='flex-row items-center justify-between'
+        style={{ marginBottom: layout.tightGap }}
       >
-        <View
-          className='flex-row items-center justify-between'
-          style={{
-            marginBottom: layout.tightGap,
-          }}
+        <AppText
+          variant='caption'
+          className='font-bold tracking-wider'
+          color={colors.textSecondary}
         >
+          RECENT PROJECTS
+        </AppText>
+        <TouchableOpacity activeOpacity={0.7} onPress={handleViewAll}>
           <AppText
             variant='caption'
-            className='font-bold tracking-wider'
-            color={colors.textSecondary}
+            className='font-semibold'
+            color={colors.primary}
           >
-            RECENT PROJECTS
+            View all
           </AppText>
-
-          <TouchableOpacity activeOpacity={0.7} onPress={handleViewAll}>
-            <AppText
-              variant='caption'
-              className='font-semibold'
-              color={colors.primary}
-            >
-              View all
-            </AppText>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            gap: layout.mediumGap,
-          }}
-        >
-          {isRecentLoading ? (
-            <View
-              className='flex-row items-center justify-center rounded-xl border p-3'
-              style={{
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-                width: moderateScale(200),
-                height: moderateScale(64),
-              }}
-            >
-              <ActivityIndicator size='small' color={colors.primary} />
-            </View>
-          ) : recentProjects && recentProjects.length > 0 ? (
-            recentProjects.map((proj: any) => {
-              const projectId = proj.project_id || proj.id;
-              const projectName = proj.project_name || proj.name || 'Untitled';
-              const projectStatus = proj.status
-                ? proj.status.replace('_', ' ')
-                : '';
-              const projectRole = proj.role ? proj.role.replace('_', ' ') : '';
-
-              return (
-                <TouchableOpacity
-                  key={projectId}
-                  activeOpacity={0.8}
-                  onPress={() => handleOnSelectProject(projectId, projectName)}
-                  className='flex-row items-center rounded-xl border p-3'
-                  style={{
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    width: moderateScale(200),
-                    gap: layout.elementGap,
-                  }}
-                >
-                  <View
-                    className='items-center justify-center rounded-lg'
-                    style={{
-                      width: moderateScale(40),
-                      height: moderateScale(40),
-                      backgroundColor: colors.primary,
-                    }}
-                  >
-                    <AppText
-                      className='font-bold'
-                      style={{
-                        fontSize: moderateScale(14),
-                        color: colors.white,
-                      }}
-                    >
-                      {getInitials(projectName)}
-                    </AppText>
-                  </View>
-
-                  <View className='flex-1'>
-                    <AppText
-                      variant='body'
-                      className='font-semibold'
-                      color={colors.text}
-                      numberOfLines={1}
-                    >
-                      {projectName}
-                    </AppText>
-
-                    <AppText
-                      variant='caption'
-                      color={colors.textSecondary}
-                      numberOfLines={1}
-                      className='capitalize'
-                    >
-                      {projectStatus}
-                      {projectStatus && projectRole ? ' • ' : ''}
-                      {projectRole}
-                    </AppText>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          ) : (
-            <View className='py-2'>
-              <AppText variant='caption' color={colors.textSecondary}>
-                No recent projects
-              </AppText>
-            </View>
-          )}
-        </ScrollView>
+        </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
-      <View
-        style={{
-          marginBottom: layout.tightGap,
-        }}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: layout.mediumGap }}
       >
+        {isRecentLoading ? (
+          <View
+            className='flex-row items-center justify-center rounded-xl border p-3'
+            style={{
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+              width: moderateScale(200),
+              height: moderateScale(64),
+            }}
+          >
+            <ActivityIndicator size='small' color={colors.primary} />
+          </View>
+        ) : recentProjects && recentProjects.length > 0 ? (
+          recentProjects.map((proj: any) => {
+            const projectId = proj.project_id || proj.id;
+            const projectName = proj.project_name || proj.name || 'Untitled';
+            const projectStatus = proj.status
+              ? proj.status.replace('_', ' ')
+              : '';
+            const projectRole = proj.role ? proj.role.replace('_', ' ') : '';
+
+            return (
+              <TouchableOpacity
+                key={projectId}
+                activeOpacity={0.8}
+                onPress={() => handleOnSelectProject(projectId, projectName)}
+                className='flex-row items-center rounded-xl border p-3'
+                style={{
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  width: moderateScale(200),
+                  gap: layout.elementGap,
+                }}
+              >
+                <View
+                  className='mr-3.5 items-center justify-center rounded-lg'
+                  style={{
+                    width: moderateScale(30),
+                    height: moderateScale(30),
+                    backgroundColor: colors.surface,
+                  }}
+                >
+                  <WorkItemIcon type='project' size={moderateScale(20)} />
+                </View>
+                <View className='flex-1'>
+                  <AppText
+                    variant='body'
+                    style={{
+                      fontSize: moderateScale(15),
+                      lineHeight: moderateScale(20),
+                    }}
+                    className='font-bold capitalize'
+                    color={colors.text}
+                    numberOfLines={1}
+                  >
+                    {projectName}
+                  </AppText>
+                  <AppText
+                    variant='caption'
+                    color={colors.textSecondary}
+                    numberOfLines={1}
+                    className='capitalize'
+                  >
+                    {projectStatus}
+                    {projectStatus && projectRole ? ' • ' : ''}
+                    {projectRole}
+                  </AppText>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <View className='py-2'>
+            <AppText variant='caption' color={colors.textSecondary}>
+              No recent projects
+            </AppText>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+
+  const renderStickyTabsHeader = () => (
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        paddingTop: layout.tightGap,
+        paddingBottom: layout.tightGap,
+        marginBottom: layout.elementGap,
+      }}
+    >
+      <View style={{ marginBottom: layout.elementGap }}>
         <View
           className='flex-row rounded-full border p-1'
           style={{
@@ -423,7 +385,6 @@ export const Home: React.FC = () => {
             borderColor: colors.border,
           }}
         >
-          {/* Viewed */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => handleTabChange('viewed')}
@@ -444,7 +405,6 @@ export const Home: React.FC = () => {
             </AppText>
           </TouchableOpacity>
 
-          {/* Activity */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => handleTabChange('activity')}
@@ -466,8 +426,6 @@ export const Home: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Today Header & Clickable Current Project Chip */}
       <View className='flex-row items-center justify-between'>
         <AppText
           variant='caption'
@@ -476,8 +434,6 @@ export const Home: React.FC = () => {
         >
           TODAY
         </AppText>
-
-        {/* Interactive Current Project Chip */}
         {project && (
           <TouchableOpacity
             activeOpacity={0.7}
@@ -503,12 +459,12 @@ export const Home: React.FC = () => {
             />
             <AppText
               variant='caption'
-              className='font-bold'
+              className='font-bold capitalize'
               color={colors.primary}
               numberOfLines={1}
               style={{ maxWidth: moderateScale(140) }}
             >
-              {project?.name || 'Select Project'}
+              {project?.name}
             </AppText>
           </TouchableOpacity>
         )}
@@ -525,16 +481,15 @@ export const Home: React.FC = () => {
     const resourceType = item.resource_type || 'task';
     const title = item.title || item.details || 'Activity Details';
     const key = item.task_key || item.key || '';
-
     return (
       <TouchableOpacity
         activeOpacity={0.8}
         className='mb-3 rounded-2xl border p-4'
-        // onPress =
         style={{
           backgroundColor: colors.background,
           borderColor: colors.border,
         }}
+        onPress={() => handleListNavigation(item)}
       >
         <View className='flex-row items-center'>
           <View className='relative mr-3.5 self-center'>
@@ -565,14 +520,9 @@ export const Home: React.FC = () => {
                 padding: 2,
               }}
             >
-              <WorkItemIcon
-                type={resourceType}
-                size={moderateScale(11)}
-                // color={colors.primary}
-              />
+              <WorkItemIcon type={resourceType} size={moderateScale(11)} />
             </View>
           </View>
-
           <View className='flex-1 justify-center'>
             <AppText
               variant='caption'
@@ -583,12 +533,18 @@ export const Home: React.FC = () => {
               }}
               numberOfLines={1}
             >
-              {userName} {actionText} {resourceType} • {formattedDate}
+              <AppText
+                className='capitalize'
+                variant='caption'
+                color={colors.textSecondary}
+              >
+                {userName}
+              </AppText>{' '}
+              {actionText} {resourceType} • {formattedDate}
             </AppText>
-
             <AppText
               variant='body'
-              className='font-bold'
+              className='font-bold capitalize'
               color={colors.text}
               style={{
                 fontSize: moderateScale(15),
@@ -598,7 +554,6 @@ export const Home: React.FC = () => {
             >
               {title}
             </AppText>
-
             {key ? (
               <AppText
                 variant='caption'
@@ -624,9 +579,7 @@ export const Home: React.FC = () => {
       item.name ||
       item.details ||
       (item.action ? formatAction(item.action) : 'Viewed Item');
-
     const resourceType = item.resource_type || item.type || 'task';
-
     return (
       <TouchableOpacity
         activeOpacity={0.8}
@@ -635,6 +588,7 @@ export const Home: React.FC = () => {
           backgroundColor: colors.background,
           borderColor: colors.border,
         }}
+        onPress={() => handleListNavigation(item)}
       >
         <View className='flex-row items-center'>
           <View
@@ -647,11 +601,10 @@ export const Home: React.FC = () => {
           >
             <WorkItemIcon type={resourceType} size={moderateScale(20)} />
           </View>
-
           <View className='flex-1 justify-center'>
             <AppText
               variant='body'
-              className='font-bold'
+              className='font-bold capitalize'
               color={colors.text}
               style={{
                 fontSize: moderateScale(15),
@@ -662,25 +615,12 @@ export const Home: React.FC = () => {
             >
               {title}
             </AppText>
-
-            <View
-              className='flex-row items-center'
-              style={{
-                gap: 4,
-              }}
-            >
-              {/* <WorkItemIcon
-                type={resourceType}
-                size={moderateScale(12)}
-                color={colors.textSecondary}
-              /> */}
+            <View className='flex-row items-center' style={{ gap: 4 }}>
               <AppText
                 variant='caption'
-                className='font-medium capitalize'
+                className='font-medium'
                 color={colors.textSecondary}
-                style={{
-                  fontSize: moderateScale(11),
-                }}
+                style={{ fontSize: moderateScale(11) }}
               >
                 {resourceType}
               </AppText>
@@ -689,6 +629,38 @@ export const Home: React.FC = () => {
         </View>
       </TouchableOpacity>
     );
+  };
+
+  const listData = [
+    { id: 'RECENT_PROJECTS_HEADER', type: 'header_recent' },
+    { id: 'TABS_HEADER', type: 'header_tabs' },
+    ...(activities.length === 0 && !loading
+      ? [{ id: 'EMPTY_STATE', type: 'empty' }]
+      : activities),
+  ];
+
+  const renderListItem = ({ item }: { item: any }) => {
+    if (item.type === 'header_recent') {
+      return renderRecentProjectsHeader();
+    }
+    if (item.type === 'header_tabs') {
+      return renderStickyTabsHeader();
+    }
+    if (item.type === 'empty') {
+      return (
+        <View className='items-center justify-center py-10'>
+          <AppText variant='body' color={colors.textSecondary}>
+            {activeTab === 'viewed'
+              ? 'No recently viewed items'
+              : 'No recent activity'}
+          </AppText>
+        </View>
+      );
+    }
+
+    return activeTab === 'viewed'
+      ? renderViewedItem({ item })
+      : renderActivityItem({ item });
   };
 
   return (
@@ -700,15 +672,10 @@ export const Home: React.FC = () => {
         onRightActionPress={() => {}}
       />
 
-      {/* Initial loading */}
       {loading && activities.length === 0 ? (
-        <View
-          style={{
-            paddingHorizontal: layout.paddingHorizontal,
-          }}
-        >
-          {renderHeader()}
-
+        <View style={{ paddingHorizontal: layout.paddingHorizontal }}>
+          {renderRecentProjectsHeader()}
+          {renderStickyTabsHeader()}
           <View className='mt-4'>
             <ListSkeleton
               count={5}
@@ -723,28 +690,20 @@ export const Home: React.FC = () => {
         </View>
       ) : (
         <FlatList
-          data={activities}
-          keyExtractor={(item, index) =>
-            item.id?.toString() || index.toString()
-          }
+          data={listData}
+          stickyHeaderIndices={[1]}
+          keyExtractor={(item: any, index: number) => {
+            if (item.type === 'header_recent') return 'header_recent';
+            if (item.type === 'header_tabs') return 'header_tabs';
+            if (item.type === 'empty') return 'empty_state';
+            return item.id?.toString() || index.toString();
+          }}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={renderHeader}
           contentContainerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
             paddingBottom: hp(20),
           }}
-          renderItem={
-            activeTab === 'viewed' ? renderViewedItem : renderActivityItem
-          }
-          ListEmptyComponent={
-            <View className='items-center justify-center py-10'>
-              <AppText variant='body' color={colors.textSecondary}>
-                {activeTab === 'viewed'
-                  ? 'No recently viewed items'
-                  : 'No recent activity'}
-              </AppText>
-            </View>
-          }
+          renderItem={renderListItem}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.2}
           ListFooterComponent={

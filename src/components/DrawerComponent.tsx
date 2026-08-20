@@ -91,6 +91,7 @@ export const CustomDrawerContent: React.FC<
   };
 
   const handleOnSelectProject = (id: string, name: string) => {
+    if (id === project?.id) return;
     dispatch(getProjectName(name));
     // 1. Fetch project details
     dispatch(
