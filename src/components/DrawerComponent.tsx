@@ -25,10 +25,15 @@ import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
 import { getProjectName } from '../store/project_store/reducer/project_reducer';
 import { Sprint } from '../types/project.type';
+import { RootStackParamList } from '../types/navigationTypes';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native';
 
 export const CustomDrawerContent: React.FC<
   DrawerContentComponentProps
 > = props => {
+  const stackNavigation =
+    useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
   const dispatch = useAppDispatch();
   const { moderateScale, layout } = useAuthLayout();
@@ -90,45 +95,57 @@ export const CustomDrawerContent: React.FC<
     dispatch(logoutUser(showSuccessToast));
   };
 
-  const handleOnSelectProject = (id: string, name: string) => {
-    if (id === project?.id) return;
-    dispatch(getProjectName(name));
-    // 1. Fetch project details
-    dispatch(
-      getProjectById({
-        projectId: id,
-      }),
-    );
-    dispatch(getSprintsThunk({ project_id: id }));
-    console.log('drawer');
-    // 2. Extract active/last sprint and trigger sprintById API
-    const targetProject = projects?.find(
-      (p: any) => (p.id?.toString() || p._id?.toString()) === id,
-    );
-    console.log('targetProject', targetProject, 'sprints', sprints);
-    // Type assertion to resolve TS error when 'sprints' is missing on Project interface
-    const projectSprints: Sprint[] = (targetProject as any)?.sprints || [];
+  // const handleOnSelectProject = (id: string, name: string) => {
+  //   dispatch(getProjectName(name));
+  //   // 1. Fetch project details
+  //   dispatch(
+  //     getProjectById({
+  //       projectId: id,
+  //     }),
+  //   );
+  //   dispatch(getSprintsThunk({ project_id: id }));
+  //   console.log('drawer');
+  //   // 2. Extract active/last sprint and trigger sprintById API
+  //   const targetProject = projects?.find(
+  //     (p: any) => (p.id?.toString() || p._id?.toString()) === id,
+  //   );
+  //   console.log('targetProject', targetProject, 'sprints', sprints);
+  //   // Type assertion to resolve TS error when 'sprints' is missing on Project interface
+  //   const projectSprints: Sprint[] = (targetProject as any)?.sprints || [];
 
-    if (projectSprints.length > 0) {
-      const activeSprint = projectSprints.find(
-        (s: any) => s.status === 'active',
-      );
-      const targetSprint =
-        activeSprint || projectSprints[projectSprints.length - 1];
+  //   if (projectSprints.length > 0) {
+  //     const activeSprint = projectSprints.find(
+  //       (s: any) => s.status === 'active',
+  //     );
+  //     const targetSprint =
+  //       activeSprint || projectSprints[projectSprints.length - 1];
 
-      const sprintId =
-        targetSprint?.id?.toString() || (targetSprint as any)?._id?.toString();
-      console.log('sprintId', sprintId, 'targetSprint', targetSprint);
-      if (sprintId) {
-        dispatch(
-          getSprintByIdThunk({
-            project_id: id,
-            sprint_id: sprintId,
-          }),
-        );
-      }
+  //     const sprintId =
+  //       targetSprint?.id?.toString() || (targetSprint as any)?._id?.toString();
+  //     console.log('sprintId', sprintId, 'targetSprint', targetSprint);
+  //     if (sprintId) {
+  //       dispatch(
+  //         getSprintByIdThunk({
+  //           project_id: id,
+  //           sprint_id: sprintId,
+  //         }),
+  //       );
+  //     }
+  //   }
+  //   handleNavigation('projectDetails');
+  // };
+
+  const handleOnSelectProject = (id: string, name?: string) => {
+    if (!id) {
+      return;
     }
-    handleNavigation('projectDetails');
+    if (name) {
+      dispatch(getProjectName(name));
+    }
+    stackNavigation.navigate('projectDetails', {
+      projectId: id,
+      projectName: name ?? '',
+    });
   };
 
   return (
@@ -260,6 +277,28 @@ export const CustomDrawerContent: React.FC<
         showCloseIcon={true}
         confirmTextColor={colors.white}
       />
+      {/* App Version Footer */}
+      <View
+        style={{
+          backgroundColor: colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: colors.border || '#EBECF0',
+          paddingVertical: 14,
+          paddingHorizontal: layout.paddingHorizontal,
+          alignItems: 'center',
+        }}
+      >
+        <AppText
+          variant='caption'
+          style={{
+            color: colors.textSecondary || '#9CA3AF',
+            fontSize: moderateScale(12),
+            letterSpacing: 0.3,
+          }}
+        >
+          Version 0.0.3
+        </AppText>
+      </View>
     </Screen>
   );
 };

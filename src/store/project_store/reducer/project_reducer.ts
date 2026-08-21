@@ -19,6 +19,9 @@ import {
   getUserStories,
   getUserStoryById,
 } from '../action/project_thunk';
+import { CustomStatus } from '../../../types/customstatus.type';
+import { getCustomStatusData } from '../../customStatus_store/action/customstatus.thunk';
+import { updateTaskThunk } from '../../task_store/action/task.thunk';
 
 const mockTasks = [
   {
@@ -97,6 +100,12 @@ const initialState: ProjectState & {
   selectedTask: TaskData | null;
   taskDetailLoading: boolean;
   taskDetailError: string | null;
+  customStatuses: CustomStatus[];
+  customStatusLoading: boolean;
+  customStatusError: string | null;
+  taskUpdateLoading: boolean;
+  taskUpdateError: string | null;
+  getCurrentSprintLoading: boolean;
 } = {
   projectName: '',
   projects: [],
@@ -130,6 +139,13 @@ const initialState: ProjectState & {
   selectedTask: null,
   taskDetailLoading: false,
   taskDetailError: null,
+  customStatuses: [],
+  customStatusLoading: false,
+  customStatusError: null,
+
+  taskUpdateLoading: false,
+  taskUpdateError: null,
+  getCurrentSprintLoading: false,
 };
 
 const projectSlice = createSlice({
@@ -245,16 +261,16 @@ const projectSlice = createSlice({
         state.error = null;
       })
       .addCase(getSprintByIdThunk.fulfilled, (state, action) => {
-        state.loading = false;
+        state.getCurrentSprintLoading = false;
         state.error = null;
         state.currentSprint = action.payload.data;
       })
       .addCase(getSprintByIdThunk.rejected, (state, action) => {
-        state.loading = false;
+        state.getCurrentSprintLoading = false;
         state.error = action.payload ?? 'Failed to fetch sprint';
       })
       .addCase(getSprintByIdThunk.pending, state => {
-        state.loading = true;
+        state.getCurrentSprintLoading = true;
         state.error = null;
       })
       .addCase(getRecentProjects.pending, state => {
@@ -312,6 +328,36 @@ const projectSlice = createSlice({
         state.loading = false;
         state.taskDetailError =
           action.payload ?? 'Failed to fetch task details';
+      })
+      .addCase(getCustomStatusData.pending, state => {
+        state.customStatusLoading = true;
+        state.customStatusError = null;
+      })
+
+      .addCase(getCustomStatusData.fulfilled, (state, action) => {
+        state.customStatusLoading = false;
+        state.customStatusError = null;
+        state.customStatuses = action.payload.data || [];
+      })
+
+      .addCase(getCustomStatusData.rejected, (state, action) => {
+        state.customStatusLoading = false;
+        state.customStatusError =
+          action.payload ?? 'Failed to fetch custom statuses';
+      })
+      .addCase(updateTaskThunk.pending, state => {
+        state.taskUpdateLoading = true;
+        state.taskUpdateError = null;
+      })
+
+      .addCase(updateTaskThunk.fulfilled, state => {
+        state.taskUpdateLoading = false;
+        state.taskUpdateError = null;
+      })
+
+      .addCase(updateTaskThunk.rejected, (state, action) => {
+        state.taskUpdateLoading = false;
+        state.taskUpdateError = action.payload ?? 'Failed to update task';
       });
   },
 });
