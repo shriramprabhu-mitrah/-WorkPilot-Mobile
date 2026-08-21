@@ -61,9 +61,9 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   projectId,
   onSelectProject,
   onSelectSprint,
-  onEndReached,
-  hasMore = false,
-  isFetchingMore = false,
+  onEndReached: onEndReachedProp,
+  hasMore: hasMoreProp,
+  isFetchingMore: isFetchingMoreProp,
 }) => {
   const dispatch = useAppDispatch();
   const { colors, strings } = useTheme();
@@ -72,29 +72,71 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const closeIconSize = moderateScale(20);
   const bottomPadding = Math.max(insets.bottom, 16);
 
-  const { projects, project, sprints, loading } = useAppSelector(
-    (state: RootState) => state.projects,
-  );
+  // Extract pagination states from Redux
+  const {
+    projects,
+    project,
+    sprints,
+    loading,
+    isFetchingMore: reduxIsFetchingMore,
+    hasMore: reduxHasMore,
+  } = useAppSelector((state: RootState) => state.projects);
 
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const isSprint = mode === 'sprints';
+
+  // Effective state combining props and Redux store values
+  const effectiveHasMore = hasMoreProp ?? reduxHasMore;
+  const effectiveIsFetchingMore = isFetchingMoreProp || reduxIsFetchingMore;
 
   // Resolved active project ID from props or store fallback
   const resolvedProjectId =
     projectId || project?.id?.toString() || (project as any)?._id?.toString();
 
-  // API Dispatch using useFocusEffect
+  // Reset page and trigger initial fetch when modal becomes visible or mode/projectId changes
   useFocusEffect(
     useCallback(() => {
       if (visible) {
+        setPage(1);
         if (mode === 'projects') {
           dispatch(getAllProjectInfo({ page: 1 }));
         } else if (mode === 'sprints' && resolvedProjectId) {
-          dispatch(getSprintsThunk({ project_id: resolvedProjectId }));
+          dispatch(getSprintsThunk({ project_id: resolvedProjectId, page: 1 }));
         }
       }
     }, [visible, mode, resolvedProjectId, dispatch]),
   );
+
+  // Handle loading next page when scrolling reaches threshold
+  const handleLoadMore = useCallback(() => {
+    // Avoid triggering pagination if searching locally, already fetching, or no more data
+    if (search.trim() !== '') return;
+    if (loading || effectiveIsFetchingMore || !effectiveHasMore) return;
+
+    const nextPage = page + 1;
+    setPage(nextPage);
+
+    if (mode === 'projects') {
+      dispatch(getAllProjectInfo({ page: nextPage }));
+    } else if (mode === 'sprints' && resolvedProjectId) {
+      dispatch(
+        getSprintsThunk({ project_id: resolvedProjectId, page: nextPage }),
+      );
+    }
+
+    onEndReachedProp?.();
+  }, [
+    search,
+    loading,
+    effectiveIsFetchingMore,
+    effectiveHasMore,
+    page,
+    mode,
+    resolvedProjectId,
+    dispatch,
+    onEndReachedProp,
+  ]);
 
   const listData = isSprint
     ? sprints?.length
@@ -200,7 +242,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
             />
           </View>
 
-          {loading ? (
+          {loading && page === 1 ? (
             <View className='pt-2'>
               <ListSkeleton
                 count={5}
@@ -261,10 +303,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                           {status ? (
                             <View
                               style={{
-                                backgroundColor:
-                                  status.toLowerCase() === 'active'
-                                    ? '#DCFCE7'
-                                    : '#F1F5F9',
+                                backgroundColor: colors.surface,
                               }}
                               className='ml-2 rounded-full px-2.5 py-0.5'
                             >
@@ -273,7 +312,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                                 style={{
                                   color:
                                     status.toLowerCase() === 'active'
-                                      ? '#15803D'
+                                      ? colors.primary
                                       : colors.textSecondary,
                                   fontSize: moderateScale(11),
                                 }}
@@ -324,14 +363,10 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                   />
                 );
               }}
-              onEndReached={() => {
-                if (hasMore && !isFetchingMore && onEndReached) {
-                  onEndReached();
-                }
-              }}
-              onEndReachedThreshold={0.5}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.4}
               ListFooterComponent={
-                isFetchingMore ? (
+                effectiveIsFetchingMore ? (
                   <View className='items-center justify-center py-4'>
                     <ActivityIndicator size='small' color={colors.primary} />
                   </View>

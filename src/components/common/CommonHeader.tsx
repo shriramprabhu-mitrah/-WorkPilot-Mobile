@@ -3,7 +3,6 @@ import {
   View,
   TouchableOpacity,
   Image,
-  TextInput,
   ScrollView,
   StyleProp,
   ViewStyle,
@@ -12,6 +11,7 @@ import Ionicons, {
   IoniconsIconName,
 } from '@react-native-vector-icons/ionicons';
 import AppText from './AppText';
+import AppInput from './Input/AppInput';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
@@ -28,37 +28,23 @@ export type HeaderVariant =
   | 'taskDetails';
 
 export interface HeaderProps {
-  /** Screen variant to control layout automatically */
   variant?: HeaderVariant;
-
-  /** Dynamic Title (e.g., dynamic Project Name, Screen Title) */
   title?: string;
-
-  /** Alignment for header title: 'center' (default) or 'left' */
   titleAlignment?: 'center' | 'left';
-
   onBackPress?: () => void;
   onRightActionPress?: () => void;
   rightIconName?: IoniconsIconName;
-
-  /** Project Viewing Specific Props */
   onProjectTitlePress?: () => void;
   showDropdownIcon?: boolean; // <--- Controls dropdown arrow visibility
   onSprintTitlePress?: () => void; // <--- Added optional Sprint Press
-
-  /** Home Variant Specific Props */
   user?: User;
   workspaceName?: string;
   onProfilePress?: () => void;
   onDrawerPress?: () => void;
   onSearchPress?: () => void;
-
-  /** Tab Variant Specific Props */
   tabs?: string[];
   activeTab?: string;
   onTabChange?: (tab: string) => void;
-
-  /** Fallback Custom Slots */
   leftComponent?: React.ReactNode;
   centerComponent?: React.ReactNode;
   rightComponent?: React.ReactNode;
@@ -92,13 +78,8 @@ export const CommonHeader: React.FC<HeaderProps> = ({
 }) => {
   const { colors, strings } = useTheme();
   const { layout, moderateScale } = useAuthLayout();
-
-  // Grab the project details directly from reducer
   const { project } = useAppSelector((state: RootState) => state?.projects);
-
   const isLeftAligned = titleAlignment === 'left' && variant !== 'home';
-
-  // --- RENDER HELPERS BASED ON SCREEN VARIANT ---
 
   const renderLeft = () => {
     if (leftComponent) return leftComponent;
@@ -312,9 +293,6 @@ export const CommonHeader: React.FC<HeaderProps> = ({
         );
 
       case 'projectdetails':
-        const sprintsCount = project?.sprints?.length || 0;
-        const hasSprintsData = project?.sprints !== undefined;
-
         return (
           <TouchableOpacity
             activeOpacity={0.7}
@@ -401,30 +379,21 @@ export const CommonHeader: React.FC<HeaderProps> = ({
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={onSearchPress}
-          className='mt-3 flex-row items-center rounded-full border px-3 py-2'
-          style={{
-            backgroundColor: colors.background,
-            borderColor: colors.border,
-          }}
+          className='mt-3'
         >
-          <Ionicons
-            name='search-outline'
-            size={moderateScale(18)}
-            color={colors.textSecondary}
-            style={{ marginRight: layout.tightGap }}
-          />
-          <TextInput
-            placeholder={strings.home?.searchPlaceholder || 'Search'}
-            placeholderTextColor={colors.textSecondary}
-            editable={false}
-            pointerEvents='none'
-            style={{
-              flex: 1,
-              color: colors.text,
-              fontSize: moderateScale(14),
-              padding: 0,
-            }}
-          />
+          <View pointerEvents='none'>
+            <AppInput
+              placeholder={strings.home?.searchPlaceholder || 'Search'}
+              editable={false}
+              leftIcon={
+                <Ionicons
+                  name='search-outline'
+                  size={moderateScale(18)}
+                  color={colors.textSecondary}
+                />
+              }
+            />
+          </View>
         </TouchableOpacity>
       );
     }
