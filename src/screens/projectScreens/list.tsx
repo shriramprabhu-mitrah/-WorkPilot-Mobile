@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
   View,
-  TextInput,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
@@ -9,8 +8,8 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { AppText } from '../../components';
-import Screen from '../../components/common/ScreenWapper';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { AppText, AppInput } from '../../components';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
@@ -163,24 +162,18 @@ const List = () => {
     <ScrollView className='pt-3' style={{ backgroundColor: colors.surface }}>
       <View className='flex-1 px-4 pt-3'>
         {/* Search Bar */}
-        <View
-          className='mb-4 flex-row items-center border px-3.5 py-2.5'
-          style={{
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-            borderRadius: Radius.md,
-          }}
-        >
-          <View className='mr-2.5'>
-            <AppText color={colors.textSecondary}>🔍</AppText>
-          </View>
-          <TextInput
+        <View className='mb-4'>
+          <AppInput
             placeholder='Search user stories, sprint, status...'
-            placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            className='flex-1 p-0 text-base'
-            style={{ color: colors.text }}
+            leftIcon={
+              <Ionicons
+                name='search-outline'
+                size={moderateScale(18)}
+                color={colors.textSecondary}
+              />
+            }
           />
         </View>
 

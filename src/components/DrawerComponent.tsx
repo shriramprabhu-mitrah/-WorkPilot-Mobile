@@ -32,8 +32,6 @@ import { useNavigation } from '@react-navigation/native';
 export const CustomDrawerContent: React.FC<
   DrawerContentComponentProps
 > = props => {
-  const stackNavigation =
-    useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
   const dispatch = useAppDispatch();
   const { moderateScale, layout } = useAuthLayout();
@@ -41,6 +39,8 @@ export const CustomDrawerContent: React.FC<
   const { projects, project, loading, sprints } = useAppSelector(
     state => state.projects,
   );
+  const stackNavigation =
+    useNavigation<StackNavigationProp<RootStackParamList>>();
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [include_sprints, setInclude_sprints] = useState(true);
@@ -93,6 +93,7 @@ export const CustomDrawerContent: React.FC<
 
   const handleLogoutConfirm = () => {
     dispatch(logoutUser(showSuccessToast));
+    console.log('project', project);
   };
 
   // const handleOnSelectProject = (id: string, name: string) => {
@@ -277,28 +278,6 @@ export const CustomDrawerContent: React.FC<
         showCloseIcon={true}
         confirmTextColor={colors.white}
       />
-      {/* App Version Footer */}
-      <View
-        style={{
-          backgroundColor: colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: colors.border || '#EBECF0',
-          paddingVertical: 14,
-          paddingHorizontal: layout.paddingHorizontal,
-          alignItems: 'center',
-        }}
-      >
-        <AppText
-          variant='caption'
-          style={{
-            color: colors.textSecondary || '#9CA3AF',
-            fontSize: moderateScale(12),
-            letterSpacing: 0.3,
-          }}
-        >
-          Version 0.0.3
-        </AppText>
-      </View>
     </Screen>
   );
 };

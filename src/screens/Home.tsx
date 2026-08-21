@@ -1,11 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  ScrollView,
-  FlatList,
-  ActivityIndicator,
-} from 'react-native';
+import { View, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -37,43 +31,7 @@ import { getProjectName } from '../store/project_store/reducer/project_reducer';
 import { Activity } from '../types/home.type';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
-
-const getInitials = (name?: string): string => {
-  if (!name) {
-    return 'U';
-  }
-  const words = name.trim().split(' ');
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
-};
-
-const formatDate = (isoString?: string): string => {
-  if (!isoString) {
-    return 'Recently';
-  }
-  try {
-    const date = new Date(isoString);
-    const day = date.getDate();
-    const month = date.toLocaleString('en-US', {
-      month: 'short',
-    });
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
-  } catch {
-    return 'Recently';
-  }
-};
-
-const formatAction = (action?: string): string => {
-  if (!action) {
-    return 'viewed';
-  }
-  return action
-    .replace(/^project_|^task_|^tasks_|^sprint_/, '')
-    .replace(/_/g, ' ');
-};
+import { formatAction, formatDate, getInitials } from '../utils/utils';
 
 export const Home: React.FC = () => {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
@@ -101,12 +59,6 @@ export const Home: React.FC = () => {
   const currentTabRef = useRef<'viewed' | 'activity'>(activeTab);
   currentTabRef.current = activeTab;
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-
-  // const handleNavigation = (routeName: string) => {
-  //   if (navigation && typeof (navigation as any).navigate === 'function') {
-  //     (navigation as any).navigate(routeName);
-  //   }
-  // };
 
   useFocusEffect(
     useCallback(() => {
@@ -161,6 +113,7 @@ export const Home: React.FC = () => {
       }),
     );
   };
+
   const handleOnSelectProject = (id: string, name?: string) => {
     if (!id) {
       return;
@@ -173,6 +126,7 @@ export const Home: React.FC = () => {
       projectName: name ?? '',
     });
   };
+
   const handleLoadMore = useCallback(() => {
     if (fetchingRef.current) {
       return;
@@ -246,7 +200,6 @@ export const Home: React.FC = () => {
         taskId: item?.resource_id,
       });
     } else {
-      // Do not allow navigation for unsupported resource types (e.g., 'comment', undefined)
       return;
     }
   };
@@ -287,17 +240,14 @@ export const Home: React.FC = () => {
         contentContainerStyle={{ gap: layout.mediumGap }}
       >
         {isRecentLoading ? (
-          <View
-            className='flex-row items-center justify-center rounded-xl border p-3'
-            style={{
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-              width: moderateScale(200),
-              height: moderateScale(64),
-            }}
-          >
-            <ActivityIndicator size='small' color={colors.primary} />
-          </View>
+          Array.from({ length: 3 }).map((_, idx) => (
+            <View
+              key={`recent_skeleton_${idx}`}
+              style={{ width: moderateScale(200) }}
+            >
+              <ProjectCardSkeleton />
+            </View>
+          ))
         ) : recentProjects && recentProjects.length > 0 ? (
           recentProjects.map((proj: any) => {
             const projectId = proj.project_id || proj.id;
@@ -708,8 +658,8 @@ export const Home: React.FC = () => {
           onEndReachedThreshold={0.2}
           ListFooterComponent={
             isFetchingMore ? (
-              <View className='items-center justify-center py-4'>
-                <ActivityIndicator size='small' color={colors.primary} />
+              <View className='py-2'>
+                <ProjectCardSkeleton />
               </View>
             ) : null
           }

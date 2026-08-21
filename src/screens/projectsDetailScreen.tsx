@@ -464,31 +464,14 @@ const DraggableTask = ({
 // Main Screen Component
 const ProjectDeatailsScreen = () => {
   const dispatch = useAppDispatch();
-
   const route = useRoute<ProjectDetailsRouteProp>();
-
   const { colors } = useTheme();
-
   const hasInitializedStories = useRef(false);
-
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
-
-  // ============================================================
-  // SCROLL REFS
-  // ============================================================
-
   const verticalScrollRef = useAnimatedRef<Animated.ScrollView>();
-
   const horizontalScrollRef = useAnimatedRef<Animated.ScrollView>();
-
   const horizontalScrollOffset = useSharedValue(0);
-
   const verticalScrollOffset = useSharedValue(0);
-
-  // ============================================================
-  // REDUX
-  // ============================================================
-
   const {
     project,
     userStories,
@@ -496,78 +479,43 @@ const ProjectDeatailsScreen = () => {
     currentSprint,
     getCurrentSprintLoading,
   } = useAppSelector((state: RootState) => state.projects);
-
   const projectId = project?.id;
-
-  // ============================================================
-  // LOCAL STATE
-  // ============================================================
-
   const [localUserStories, setLocalUserStories] = useState<BoardUserStory[]>(
     [],
   );
-
   const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
-
   const [expandedStories, setExpandedStories] = useState<
     Record<string, boolean>
   >({});
-
-  /**
-   * Measured drop zones.
-   *
-   * Every cell is:
-   * User Story + Status
-   */
   const [dropZones, setDropZones] = useState<DropZone[]>([]);
-
-  /**
-   * Cell currently under the dragged task.
-   */
   const [activeDropZone, setActiveDropZone] = useState<{
     storyId: string;
     statusId: string;
   } | null>(null);
-
-  /**
-   * Cell where task was successfully dropped.
-   */
   const [dropSuccessZone, setDropSuccessZone] = useState<{
     storyId: string;
     statusId: string;
   } | null>(null);
-
-  // ============================================================
-  // LOAD CUSTOM STATUSES + INITIAL SPRINT
-  // ============================================================
-
   useFocusEffect(
     useCallback(() => {
       if (!projectId) {
         return;
       }
-
       dispatch(
         getCustomStatusData({
           projectId,
         }),
       );
-
       if (currentSprint?.id) {
         setSelectedSprintId(currentSprint.id);
       }
     }, [dispatch, projectId, currentSprint?.id]),
   );
 
-  // ============================================================
-  // LOAD USER STORIES
-  // ============================================================
-
   useEffect(() => {
     if (!projectId) {
       return;
     }
-
     const payload: {
       page: number;
       page_size: number;
@@ -576,11 +524,9 @@ const ProjectDeatailsScreen = () => {
       page: 1,
       page_size: 100,
     };
-
     if (selectedSprintId) {
       payload.sprint_id = selectedSprintId;
     }
-
     dispatch(
       getUserStories({
         projectId,
@@ -589,37 +535,23 @@ const ProjectDeatailsScreen = () => {
     );
   }, [dispatch, projectId, selectedSprintId]);
 
-  // ============================================================
-  // RESET LOCAL BOARD WHEN PROJECT / SPRINT CHANGES
-  // ============================================================
-
   useEffect(() => {
     hasInitializedStories.current = false;
-
     setLocalUserStories([]);
     setDropZones([]);
     setActiveDropZone(null);
     setDropSuccessZone(null);
   }, [projectId, selectedSprintId]);
 
-  // ============================================================
-  // COPY REDUX STORIES TO LOCAL STATE
-  // ============================================================
-
   useEffect(() => {
     if (!userStories?.length) {
       return;
     }
-
     if (!hasInitializedStories.current) {
       setLocalUserStories(userStories);
       hasInitializedStories.current = true;
     }
   }, [userStories]);
-
-  // ============================================================
-  // EXPAND / COLLAPSE STORY
-  // ============================================================
 
   const toggleStory = useCallback((storyId: string) => {
     setExpandedStories(prev => ({
@@ -628,75 +560,50 @@ const ProjectDeatailsScreen = () => {
     }));
   }, []);
 
-  // ============================================================
-  // REGISTER DROP ZONE
-  // ============================================================
-
   const registerTaskDropZone = useCallback((zone: DropZone) => {
     setDropZones(prev => {
       const index = prev.findIndex(
         item =>
           item.storyId === zone.storyId && item.statusId === zone.statusId,
       );
-
       if (index === -1) {
         return [...prev, zone];
       }
-
       const updated = [...prev];
-
       updated[index] = zone;
-
       return updated;
     });
   }, []);
-  // ============================================================
-  // FIND DROP ZONE
-  // ============================================================
 
   const findDropZone = useCallback(
     (absoluteX: number, absoluteY: number): DropZone | null => {
       const currentX = horizontalScrollOffset.value;
       const currentY = verticalScrollOffset.value;
-
       const zone = dropZones.find(item => {
         const adjustedX = item.x - (currentX - item.scrollXAtMeasure);
         const adjustedY = item.y - (currentY - item.scrollYAtMeasure);
-
         const insideX =
           absoluteX >= adjustedX && absoluteX <= adjustedX + item.width;
         const insideY =
           absoluteY >= adjustedY && absoluteY <= adjustedY + item.height;
-
         return insideX && insideY;
       });
-
       return zone ?? null;
     },
     [dropZones, horizontalScrollOffset, verticalScrollOffset],
   );
 
-  // ============================================================
-  // HOVER DROP ZONE
-  // ============================================================
-
   const handleHoverDropZone = useCallback(
     (absoluteX: number, absoluteY: number) => {
-      /**
-       * Invalid coordinates means drag ended.
-       */
       if (absoluteX < 0 || absoluteY < 0) {
         setActiveDropZone(null);
         return;
       }
-
       const targetZone = findDropZone(absoluteX, absoluteY);
-
       if (!targetZone) {
         setActiveDropZone(null);
         return;
       }
-
       setActiveDropZone({
         storyId: targetZone.storyId,
         statusId: targetZone.statusId,
@@ -704,10 +611,6 @@ const ProjectDeatailsScreen = () => {
     },
     [findDropZone],
   );
-
-  // ============================================================
-  // UPDATE LOCAL TASK STATE
-  // ============================================================
 
   const updateTaskLocalState = useCallback(
     (
@@ -720,29 +623,19 @@ const ProjectDeatailsScreen = () => {
         const sourceStory = prevStories.find(
           story => story.id === sourceStoryId,
         );
-
         if (!sourceStory) {
           return prevStories;
         }
-
         const movedTask = sourceStory.tasks?.find(task => task.id === taskId);
-
         if (!movedTask) {
           console.log('Task not found:', taskId);
           return prevStories;
         }
-
-        // ======================================================
-        // SAME USER STORY
-        // Only status changes
-        // ======================================================
-
         if (sourceStoryId === targetStoryId) {
           return prevStories.map(story => {
             if (story.id !== sourceStoryId) {
               return story;
             }
-
             return {
               ...story,
               tasks: (story.tasks ?? []).map(task =>
@@ -756,13 +649,7 @@ const ProjectDeatailsScreen = () => {
             };
           });
         }
-
-        // ======================================================
-        // DIFFERENT USER STORY
-        // ======================================================
-
         return prevStories.map(story => {
-          // Remove from source story
           if (story.id === sourceStoryId) {
             return {
               ...story,
@@ -770,8 +657,6 @@ const ProjectDeatailsScreen = () => {
               totalTasks: Math.max(0, (story.totalTasks ?? 0) - 1),
             };
           }
-
-          // Add to target story
           if (story.id === targetStoryId) {
             return {
               ...story,
@@ -785,17 +670,12 @@ const ProjectDeatailsScreen = () => {
               totalTasks: (story.totalTasks ?? 0) + 1,
             };
           }
-
           return story;
         });
       });
     },
     [],
   );
-
-  // ============================================================
-  // HANDLE TASK DROP
-  // ============================================================
 
   const handleTaskDrop = useCallback(
     (
@@ -805,27 +685,14 @@ const ProjectDeatailsScreen = () => {
       absoluteX: number,
       absoluteY: number,
     ) => {
-      // --------------------------------------------------------
-      // Clear hover indication
-      // --------------------------------------------------------
-
       setActiveDropZone(null);
-
-      // --------------------------------------------------------
-      // Find actual target cell
-      // --------------------------------------------------------
-
       const targetZone = findDropZone(absoluteX, absoluteY);
-
       if (!targetZone) {
         console.log('❌ No valid drop zone', absoluteX, absoluteY);
-
         return;
       }
-
       const targetStoryId = targetZone.storyId;
       const targetStatusId = targetZone.statusId;
-
       console.log('🎯 DROP TARGET', {
         taskId: task.id,
         sourceStoryId,
@@ -835,11 +702,6 @@ const ProjectDeatailsScreen = () => {
         absoluteX,
         absoluteY,
       });
-
-      // --------------------------------------------------------
-      // Same cell
-      // --------------------------------------------------------
-
       if (
         sourceStoryId === targetStoryId &&
         sourceStatusId === targetStatusId
@@ -847,128 +709,73 @@ const ProjectDeatailsScreen = () => {
         console.log('Dropped in same cell');
         return;
       }
-
-      // --------------------------------------------------------
-      // Find source task
-      // --------------------------------------------------------
-
       const sourceStory = localUserStories.find(
         story => story.id === sourceStoryId,
       );
-
       const sourceTask = sourceStory?.tasks?.find(item => item.id === task.id);
-
       if (!sourceTask) {
         console.log('❌ Source task not found:', task.id);
-
         return;
       }
-
-      // --------------------------------------------------------
-      // Show success indication
-      // --------------------------------------------------------
-
       setDropSuccessZone({
         storyId: targetStoryId,
         statusId: targetStatusId,
       });
-
-      // --------------------------------------------------------
-      // Optimistic local update
-      // --------------------------------------------------------
-
       updateTaskLocalState(
         task.id,
         sourceStoryId,
         targetStoryId,
         targetStatusId,
       );
-
-      // --------------------------------------------------------
-      // API
-      // --------------------------------------------------------
-
       if (!projectId) {
         setDropSuccessZone(null);
         return;
       }
-
       dispatch(
         updateTaskThunk({
           projectId,
           taskId: task.id,
-
           payload: {
             user_story_id: targetStoryId,
             status_id: targetStatusId,
           },
-
-          // ====================================================
-          // SUCCESS
-          // ====================================================
-
           onSuccess: response => {
             console.log('✅ Task updated successfully:', response);
-
             setTimeout(() => {
               setDropSuccessZone(null);
             }, 700);
           },
-
-          // ====================================================
-          // ERROR
-          // ====================================================
-
           onError: error => {
             console.error('❌ Failed to update task:', error);
-
             setDropSuccessZone(null);
-
-            // ----------------------------------------------
-            // Rollback
-            // ----------------------------------------------
-
             setLocalUserStories(prevStories =>
               prevStories.map(story => {
-                // Remove from target
                 if (story.id === targetStoryId) {
                   return {
                     ...story,
-
                     tasks: (story.tasks ?? []).filter(
                       item => item.id !== task.id,
                     ),
-
                     totalTasks:
                       sourceStoryId === targetStoryId
                         ? story.totalTasks
                         : Math.max(0, (story.totalTasks ?? 0) - 1),
                   };
                 }
-
-                // Restore source
                 if (story.id === sourceStoryId) {
                   return {
                     ...story,
-
                     tasks: [...(story.tasks ?? []), sourceTask],
-
                     totalTasks:
                       sourceStoryId === targetStoryId
                         ? story.totalTasks
                         : (story.totalTasks ?? 0) + 1,
                   };
                 }
-
                 return story;
               }),
             );
           },
-
-          // ====================================================
-          // FINALLY
-          // ====================================================
-
           onFinally: () => {
             console.log('Task update completed');
           },
@@ -977,13 +784,7 @@ const ProjectDeatailsScreen = () => {
     },
     [dispatch, findDropZone, localUserStories, projectId, updateTaskLocalState],
   );
-
-  // ============================================================
-  // RENDER
-  // ============================================================
-
   console.log('LINE973', getCurrentSprintLoading);
-
   return (
     <ScrollView
       className='flex-1'
@@ -992,10 +793,6 @@ const ProjectDeatailsScreen = () => {
         paddingTop: moderateScale(20),
       }}
     >
-      {/* ======================================================
-          BOARD HEADER
-          ====================================================== */}
-
       <View
         style={{
           paddingHorizontal: layout.paddingHorizontal,
@@ -1017,11 +814,6 @@ const ProjectDeatailsScreen = () => {
           Visualize and manage your team's tasks across workflow stages
         </AppText>
       </View>
-
-      {/* ======================================================
-          VERTICAL BOARD SCROLL
-          ====================================================== */}
-
       <Animated.ScrollView
         ref={verticalScrollRef}
         showsVerticalScrollIndicator={false}
@@ -1036,10 +828,6 @@ const ProjectDeatailsScreen = () => {
           paddingBottom: isSmallHeight ? hp(20) : hp(12),
         }}
       >
-        {/* ====================================================
-            HORIZONTAL BOARD SCROLL
-            ==================================================== */}
-
         <Animated.ScrollView
           ref={horizontalScrollRef}
           horizontal
@@ -1054,10 +842,6 @@ const ProjectDeatailsScreen = () => {
           }}
         >
           <View>
-            {/* ==================================================
-                BOARD HEADER
-                ================================================== */}
-
             <View
               style={{
                 flexDirection: 'row',
@@ -1065,8 +849,6 @@ const ProjectDeatailsScreen = () => {
                 borderBottomColor: '#D1D5DB',
               }}
             >
-              {/* User Stories Header */}
-
               <View
                 style={{
                   width: USER_STORY_WIDTH,
@@ -1077,9 +859,6 @@ const ProjectDeatailsScreen = () => {
                   User Stories
                 </AppText>
               </View>
-
-              {/* Status Headers */}
-
               {customStatuses?.map(status => (
                 <View
                   key={status.id}
@@ -1105,7 +884,6 @@ const ProjectDeatailsScreen = () => {
                         marginRight: 8,
                       }}
                     />
-
                     <AppText variant='body' className='font-bold'>
                       {status.name}
                     </AppText>
@@ -1113,12 +891,7 @@ const ProjectDeatailsScreen = () => {
                 </View>
               ))}
             </View>
-
-            {/* ==================================================
-                USER STORY ROWS
-                ================================================== */}
-
-            {localUserStories.map(story => (
+            {localUserStories?.map(story => (
               <UserStoryBoardRow
                 key={story.id}
                 story={story}
@@ -1155,10 +928,8 @@ const TaskDropZone = ({
   verticalScrollOffset,
 }: TaskDropZoneProps) => {
   const dropZoneRef = useRef<View>(null);
-
   const measureZone = useCallback(() => {
     if (!dropZoneRef.current) return;
-
     dropZoneRef.current.measureInWindow((x, y, width, height) => {
       onRegister({
         storyId,

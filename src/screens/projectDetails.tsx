@@ -31,7 +31,6 @@ const ProjectDetails = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'projectDetails'>>();
   const routeProjectId = route.params?.projectId;
   const routeProjectName = route.params?.projectName;
-
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
   const { project, projectName, currentSprint } = useAppSelector(
@@ -222,7 +221,7 @@ const ProjectDetails = () => {
               <AppText
                 variant='body'
                 color={colors.primary}
-                className='font-semibold'
+                className='font-semibold capitalize'
                 numberOfLines={1}
               >
                 {getHeaderTitle()}
@@ -260,7 +259,7 @@ const ProjectDetails = () => {
               <AppText
                 variant='body'
                 color={colors.primary}
-                className='font-semibold'
+                className='font-semibold capitalize'
                 numberOfLines={1}
               >
                 {currentSprintName}
