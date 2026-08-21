@@ -23,6 +23,25 @@ const TaskCard = ({ item, projectId }: any) => {
     }
   };
 
+  const getPriorityColor = (priority?: string) => {
+    switch (priority?.toLowerCase()) {
+      case 'high':
+        return '#EF4444'; // Red
+
+      case 'medium':
+        return '#F59E0B'; // Orange
+
+      case 'low':
+        return '#22C55E'; // Green
+
+      case 'urgent':
+        return '#DC2626'; // Dark red
+
+      default:
+        return colors.textSecondary;
+    }
+  };
+
   return (
     <TouchableOpacity
       onPress={openIssue}
@@ -71,9 +90,11 @@ const TaskCard = ({ item, projectId }: any) => {
           <AppText
             variant='caption'
             className='font-semibold'
-            style={{ color: colors.textSecondary }}
+            style={{
+              color: getPriorityColor(item.priority),
+            }}
           >
-            {item.id}
+            {item.priority}
           </AppText>
         </View>
 

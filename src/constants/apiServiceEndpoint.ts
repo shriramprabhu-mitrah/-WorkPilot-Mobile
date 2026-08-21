@@ -46,3 +46,12 @@ export const GET_USERSTORIES_COMMENT = `/projects/{project_id}/user-stories/{use
 export const TASK_COMMENT = `/task/{task_id}/comments`;
 export const TASK_COMMENT_REPLIES = `/task/{task_id}/comments/replies/{parent_comment_id}`;
 export const TASK_COMMENT_ID = `/task/{task_id}/comments/{comment_id}`;
+
+//CustomStatus
+export const GET_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses`;
+export const CREATE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses`;
+export const DELETE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses/{status_id}`;
+export const UPDATE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses/{status_id}`;
+
+//Tasks
+export const UPDATE_TASKS = `/projects/{project_id}/tasks/{task_id}`;

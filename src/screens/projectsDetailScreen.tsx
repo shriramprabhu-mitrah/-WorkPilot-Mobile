@@ -1,9 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, LayoutChangeEvent, TouchableOpacity } from 'react-native';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  ScrollView,
+  findNodeHandle,
+  UIManager,
+} from 'react-native';
+import { useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
-import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import TaskCard from '../components/TaskCard';
 
@@ -11,18 +16,10 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 
-import {
-  mapUserStoriesToColumns,
-  BoardUserStory,
-  Task,
-} from '../data/projectDetailScreenData';
+import { BoardUserStory, Task } from '../data/projectDetailScreenData';
 
-import { Radius } from '../constants/Radius';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
-import {
-  getUserStories,
-  updateUserStory,
-} from '../store/project_store/action/project_thunk';
+import { getUserStories } from '../store/project_store/action/project_thunk';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -34,208 +31,384 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { scheduleOnRN } from 'react-native-worklets';
-import { UserStoryStatus } from '../types/project.type';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { ScrollView } from 'react-native';
+import { getCustomStatusData } from '../store/customStatus_store/action/customstatus.thunk';
+import { CustomStatus } from '../types/customstatus.type';
+import { updateTaskThunk } from '../store/task_store/action/task.thunk';
 
-type ProjectDetailsRouteProp = RouteProp<RootStackParamList, 'projectDetails'>;
-
-const EDGE_THRESHOLD = 60;
-const SCROLL_SPEED = 12;
-
-// Inner Draggable Card Component
-const DraggableUserStory = ({
-  story,
-  sourceColumnTitle,
-  projectId,
-  columnLayouts,
-  onDropStory,
-  setHoveredColumn,
-  horizontalScrollRef,
-  verticalScrollRef,
-  horizontalScrollOffset,
-  verticalScrollOffset,
-  expanded,
-  onToggle,
-}: {
+type UserStoryBoardRowProps = {
   story: BoardUserStory;
-  sourceColumnTitle: string;
   projectId: string;
+  customStatuses: CustomStatus[];
+  expanded: boolean;
 
-  columnLayouts: Record<
-    string,
-    {
-      xMin: number;
-      xMax: number;
-    }
-  >;
+  onToggle: () => void;
 
-  onDropStory: (
-    storyId: string,
-    sourceTitle: string,
-    targetTitle: string,
+  onRegisterDropZone: (storyId: string, statusId: string, ref: View) => void;
+
+  onTaskDrop: (
+    task: Task,
+    sourceStoryId: string,
+    sourceStatusId: string,
+    absoluteX: number,
+    absoluteY: number,
   ) => void;
 
-  setHoveredColumn: (title: string | null) => void;
+  onHoverDropZone: (absoluteX: number, absoluteY: number) => void;
+
+  activeDropZone: {
+    storyId: string;
+    statusId: string;
+  } | null;
+
+  dropSuccessZone: {
+    storyId: string;
+    statusId: string;
+  } | null;
 
   horizontalScrollRef: AnimatedRef<Animated.ScrollView>;
   verticalScrollRef: AnimatedRef<Animated.ScrollView>;
 
   horizontalScrollOffset: SharedValue<number>;
   verticalScrollOffset: SharedValue<number>;
+};
 
-  expanded: boolean;
-  onToggle: () => void;
-}) => {
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+type TaskDropZoneProps = {
+  storyId: string;
+  statusId: string;
+  onRegister: (zone: DropZone) => void;
+  isActive?: boolean;
+  isSuccess?: boolean;
+  children?: React.ReactNode;
+  horizontalScrollOffset: SharedValue<number>;
+  verticalScrollOffset: SharedValue<number>;
+};
+
+type DraggableTaskProps = {
+  task: Task;
+
+  sourceStoryId: string;
+  sourceStatusId: string;
+
+  projectId: string;
+
+  onDrop: (
+    task: Task,
+    sourceStoryId: string,
+    sourceStatusId: string,
+    absoluteX: number,
+    absoluteY: number,
+  ) => void;
+
+  onHoverDropZone: (absoluteX: number, absoluteY: number) => void;
+
+  horizontalScrollRef: AnimatedRef<Animated.ScrollView>;
+  verticalScrollRef: AnimatedRef<Animated.ScrollView>;
+
+  horizontalScrollOffset: SharedValue<number>;
+  verticalScrollOffset: SharedValue<number>;
+};
+
+type DropZone = {
+  storyId: string;
+  statusId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scrollXAtMeasure: number;
+  scrollYAtMeasure: number;
+};
+
+type ProjectDetailsRouteProp = RouteProp<RootStackParamList, 'projectDetails'>;
+
+const USER_STORY_WIDTH = 250;
+const STATUS_COLUMN_WIDTH = 260;
+
+const EDGE_THRESHOLD = 60;
+const SCROLL_SPEED = 12;
+
+const UserStoryBoardRow = ({
+  story,
+  projectId,
+  customStatuses,
+  expanded,
+  onToggle,
+  onRegisterDropZone,
+  onTaskDrop,
+  onHoverDropZone,
+  activeDropZone,
+  dropSuccessZone,
+  horizontalScrollRef,
+  verticalScrollRef,
+  horizontalScrollOffset,
+  verticalScrollOffset,
+}: UserStoryBoardRowProps) => {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        minHeight: expanded ? 250 : 100,
+      }}
+    >
+      {/* USER STORY */}
+
+      <TouchableOpacity
+        onPress={onToggle}
+        activeOpacity={0.7}
+        style={{
+          width: USER_STORY_WIDTH,
+          padding: 12,
+          backgroundColor: '#F9FAFB',
+        }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+          }}
+        >
+          <AppText
+            variant='body'
+            style={{
+              marginRight: 8,
+            }}
+          >
+            {expanded ? '▼' : '▶'}
+          </AppText>
+
+          <View
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: 6,
+              backgroundColor: story.status_color ?? '#9CA3AF',
+              marginTop: 5,
+              marginRight: 8,
+            }}
+          />
+
+          <View style={{ flex: 1 }}>
+            <AppText variant='body' className='font-semibold'>
+              {story.title}
+            </AppText>
+
+            <AppText variant='caption' color='#6B7280'>
+              {story.tasks?.length ?? 0} tasks · {story.story_points ?? 0} pts
+            </AppText>
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* STATUS COLUMNS */}
+
+      {customStatuses.map(status => {
+        const tasks =
+          story.tasks?.filter(task => task.status_id === status.id) ?? [];
+
+        const isActive =
+          activeDropZone?.storyId === story.id &&
+          activeDropZone?.statusId === status.id;
+
+        const isSuccess =
+          dropSuccessZone?.storyId === story.id &&
+          dropSuccessZone?.statusId === status.id;
+
+        return (
+          <TaskDropZone
+            key={`${story.id}-${status.id}`}
+            storyId={story.id}
+            statusId={status.id}
+            onRegister={onRegisterDropZone}
+            isActive={isActive}
+            isSuccess={isSuccess}
+            horizontalScrollOffset={horizontalScrollOffset}
+            verticalScrollOffset={verticalScrollOffset}
+          >
+            {expanded &&
+              tasks.map(task => (
+                <DraggableTask
+                  key={task.id}
+                  task={task}
+                  sourceStoryId={story.id}
+                  sourceStatusId={status.id}
+                  projectId={projectId}
+                  onDrop={onTaskDrop}
+                  onHoverDropZone={onHoverDropZone}
+                  horizontalScrollRef={horizontalScrollRef}
+                  verticalScrollRef={verticalScrollRef}
+                  horizontalScrollOffset={horizontalScrollOffset}
+                  verticalScrollOffset={verticalScrollOffset}
+                />
+              ))}
+          </TaskDropZone>
+        );
+      })}
+    </View>
+  );
+};
+
+const DraggableTask = ({
+  task,
+  sourceStoryId,
+  sourceStatusId,
+  projectId,
+  onDrop,
+  onHoverDropZone,
+  horizontalScrollRef,
+  verticalScrollRef,
+  horizontalScrollOffset,
+  verticalScrollOffset,
+}: DraggableTaskProps) => {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+
   const isDragging = useSharedValue(false);
 
-  const dragAbsoluteX = useSharedValue(0);
-  const dragAbsoluteY = useSharedValue(0);
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
 
-  const initialScrollX = useSharedValue(0);
-  const initialScrollY = useSharedValue(0);
+  const startScrollX = useSharedValue(0);
+  const startScrollY = useSharedValue(0);
 
   /**
-   * Auto scroll
+   * =========================================
+   * AUTO SCROLL
+   * =========================================
    */
+
+  // Inside DraggableTask:
   useAnimatedReaction(
     () => ({
-      x: dragAbsoluteX.value,
-      y: dragAbsoluteY.value,
-      active: isDragging.value,
+      x: dragX.value,
+      y: dragY.value,
+      dragging: isDragging.value,
     }),
     current => {
-      if (!current.active) {
-        return;
-      }
+      if (!current.dragging) return;
+
+      const currentXOffset = horizontalScrollOffset?.value ?? 0;
+      const currentYOffset = verticalScrollOffset?.value ?? 0;
 
       // Horizontal auto scroll
       if (current.x > 350) {
-        horizontalScrollOffset.value += SCROLL_SPEED;
-
-        scrollTo(horizontalScrollRef, horizontalScrollOffset.value, 0, false);
+        const nextX = currentXOffset + SCROLL_SPEED;
+        horizontalScrollOffset.value = nextX;
+        scrollTo(horizontalScrollRef, nextX, 0, false);
       } else if (current.x < EDGE_THRESHOLD) {
-        horizontalScrollOffset.value = Math.max(
-          0,
-          horizontalScrollOffset.value - SCROLL_SPEED,
-        );
-
-        scrollTo(horizontalScrollRef, horizontalScrollOffset.value, 0, false);
+        const nextX = Math.max(0, currentXOffset - SCROLL_SPEED);
+        horizontalScrollOffset.value = nextX;
+        scrollTo(horizontalScrollRef, nextX, 0, false);
       }
 
       // Vertical auto scroll
       if (current.y > 700) {
-        verticalScrollOffset.value += SCROLL_SPEED;
-
-        scrollTo(verticalScrollRef, 0, verticalScrollOffset.value, false);
+        const nextY = currentYOffset + SCROLL_SPEED;
+        verticalScrollOffset.value = nextY;
+        scrollTo(verticalScrollRef, 0, nextY, false);
       } else if (current.y < EDGE_THRESHOLD) {
-        verticalScrollOffset.value = Math.max(
-          0,
-          verticalScrollOffset.value - SCROLL_SPEED,
-        );
-
-        scrollTo(verticalScrollRef, 0, verticalScrollOffset.value, false);
+        const nextY = Math.max(0, currentYOffset - SCROLL_SPEED);
+        verticalScrollOffset.value = nextY;
+        scrollTo(verticalScrollRef, 0, nextY, false);
       }
     },
   );
 
   /**
-   * Find target column
-   *
-   * IMPORTANT:
-   * This function executes on JS thread because
-   * it calls React setState.
+   * =========================================
+   * DRAG GESTURE
+   * =========================================
    */
-  const updateHoveredColumn = (absoluteX: number) => {
-    const currentX = absoluteX + horizontalScrollOffset.value;
 
-    let target: string | null = null;
-
-    Object.entries(columnLayouts).forEach(([columnTitle, bounds]) => {
-      if (currentX >= bounds.xMin && currentX <= bounds.xMax) {
-        target = columnTitle;
-      }
-    });
-
-    setHoveredColumn(target);
-  };
-
-  /**
-   * Pan gesture
-   */
   const panGesture = Gesture.Pan()
     .activateAfterLongPress(150)
 
     .onStart(event => {
       isDragging.value = true;
 
-      initialScrollX.value = horizontalScrollOffset.value;
+      // Save scroll position when drag starts
+      startScrollX.value = horizontalScrollOffset.value;
 
-      initialScrollY.value = verticalScrollOffset.value;
+      startScrollY.value = verticalScrollOffset.value;
 
-      dragAbsoluteX.value = event.absoluteX;
-      dragAbsoluteY.value = event.absoluteY;
+      dragX.value = event.absoluteX;
+      dragY.value = event.absoluteY;
+
+      // Immediately detect current cell
+      scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
     })
 
     .onUpdate(event => {
-      const scrollDiffX = horizontalScrollOffset.value - initialScrollX.value;
+      /**
+       * Difference caused by auto-scroll.
+       */
+      const scrollDiffX = horizontalScrollOffset.value - startScrollX.value;
 
-      const scrollDiffY = verticalScrollOffset.value - initialScrollY.value;
+      const scrollDiffY = verticalScrollOffset.value - startScrollY.value;
 
+      /**
+       * Move dragged card.
+       */
       translateX.value = event.translationX + scrollDiffX;
 
       translateY.value = event.translationY + scrollDiffY;
 
-      dragAbsoluteX.value = event.absoluteX;
-      dragAbsoluteY.value = event.absoluteY;
+      /**
+       * Current absolute finger position.
+       */
+      dragX.value = event.absoluteX;
+      dragY.value = event.absoluteY;
 
       /**
-       * JS thread
+       * Update highlighted drop zone.
        */
-      scheduleOnRN(updateHoveredColumn, event.absoluteX);
+      scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
     })
 
     .onEnd(event => {
-      const dropX = event.absoluteX + horizontalScrollOffset.value;
-
-      let targetColumn: string | null = null;
-
-      Object.entries(columnLayouts).forEach(([columnTitle, bounds]) => {
-        if (dropX >= bounds.xMin && dropX <= bounds.xMax) {
-          targetColumn = columnTitle;
-        }
-      });
-
       /**
-       * Clear hover
+       * Send final absolute position.
        */
-      scheduleOnRN(setHoveredColumn, null);
+      scheduleOnRN(
+        onDrop,
+        task,
+        sourceStoryId,
+        sourceStatusId,
+        event.absoluteX,
+        event.absoluteY,
+      );
 
-      /**
-       * Move story
-       */
-      if (targetColumn) {
-        scheduleOnRN(onDropStory, story.id, sourceColumnTitle, targetColumn);
-      }
-
-      /**
-       * Reset animation
-       */
       translateX.value = 0;
       translateY.value = 0;
 
       isDragging.value = false;
 
-      dragAbsoluteX.value = 0;
-      dragAbsoluteY.value = 0;
+      dragX.value = 0;
+      dragY.value = 0;
+    })
+
+    .onFinalize(() => {
+      /**
+       * Remove hover indication.
+       */
+      scheduleOnRN(onHoverDropZone, -1, -1);
+
+      translateX.value = 0;
+      translateY.value = 0;
+
+      isDragging.value = false;
+
+      dragX.value = 0;
+      dragY.value = 0;
     });
 
   /**
-   * Animated style
+   * =========================================
+   * DRAGGED CARD STYLE
+   * =========================================
    */
+
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
@@ -256,138 +429,26 @@ const DraggableUserStory = ({
     };
   });
 
-  console.log('LINE258', story.tasks);
+  /**
+   * =========================================
+   * RENDER
+   * =========================================
+   */
 
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View style={animatedStyle}>
-        <View
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderWidth: 1,
-            borderColor: '#E5E7EB',
-            borderRadius: Radius.sm,
-            padding: 12,
+        <TaskCard
+          item={{
+            id: task.id,
+            title: task.title,
+            priority: task.priority,
+            points: `${task.story_points ?? 0}p`,
+            avatar: task.assignee_name?.charAt(0)?.toUpperCase() || '?',
+            avatarColor: '#6366F1',
           }}
-        >
-          {/* USER STORY HEADER */}
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() =>
-              navigation.navigate('issue', {
-                projectId,
-                userStoryId: story?.id,
-              })
-            }
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'flex-start',
-                justifyContent: 'space-between',
-              }}
-            >
-              <View
-                style={{
-                  flex: 1,
-                }}
-              >
-                <AppText
-                  variant='body'
-                  className='font-semibold'
-                  onPress={onToggle}
-                >
-                  {expanded ? '▼' : '▶'} {story.title}
-                </AppText>
-
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
-                    marginTop: 8,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: story.statusColor,
-                    }}
-                  />
-
-                  <AppText variant='caption' color='#6B7280'>
-                    {story.status}
-                  </AppText>
-
-                  <AppText variant='caption' color='#6B7280'>
-                    {story.points}
-                  </AppText>
-                </View>
-              </View>
-            </View>
-
-            {/* TASK SUMMARY */}
-
-            <View
-              style={{
-                marginTop: 10,
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-              }}
-            >
-              <AppText variant='caption' color='#6B7280'>
-                {story.completedTasks} / {story.totalTasks} tasks
-              </AppText>
-
-              <AppText variant='caption' color='#6B7280'>
-                {story.progress}%
-              </AppText>
-            </View>
-          </TouchableOpacity>
-
-          {/* EXPANDED TASKS */}
-
-          {expanded && story.tasks?.length > 0 && (
-            <View
-              style={{
-                marginTop: 12,
-                gap: 8,
-              }}
-            >
-              {story.tasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  item={{
-                    id: task?.key,
-                    title: task.title,
-                    priority: task.priority,
-                    points: `${task?.story_points ?? 0}p`,
-                    avatar:
-                      task?.assignee_name?.charAt(0)?.toUpperCase() || '?',
-                    avatarColor: '#6366F1',
-                  }}
-                  projectId={projectId}
-                />
-              ))}
-            </View>
-          )}
-
-          {expanded && (!story.tasks || story.tasks.length === 0) && (
-            <View
-              style={{
-                marginTop: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <AppText variant='caption' color='#6B7280'>
-                No tasks available
-              </AppText>
-            </View>
-          )}
-        </View>
+          projectId={projectId}
+        />
       </Animated.View>
     </GestureDetector>
   );
@@ -399,9 +460,15 @@ const ProjectDeatailsScreen = () => {
 
   const route = useRoute<ProjectDetailsRouteProp>();
 
-  const { colors, strings } = useTheme();
+  const { colors } = useTheme();
+
+  const hasInitializedStories = useRef(false);
 
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
+
+  // ============================================================
+  // SCROLL REFS
+  // ============================================================
 
   const verticalScrollRef = useAnimatedRef<Animated.ScrollView>();
 
@@ -411,234 +478,543 @@ const ProjectDeatailsScreen = () => {
 
   const verticalScrollOffset = useSharedValue(0);
 
-  const { project, userStories } = useAppSelector(
-    (state: RootState) => state.projects,
-  );
+  // ============================================================
+  // REDUX
+  // ============================================================
 
-  const columnStatuses: UserStoryStatus[] = [
-    'todo',
-    'in_progress',
-    'in_review',
-    'completed',
-    'testing',
-    'blocked',
-  ];
+  const {
+    project,
+    userStories,
+    customStatuses,
+    currentSprint,
+    getCurrentSprintLoading,
+  } = useAppSelector((state: RootState) => state.projects);
 
-  const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
+  const projectId = project?.id;
+
+  // ============================================================
+  // LOCAL STATE
+  // ============================================================
+
   const [localUserStories, setLocalUserStories] = useState<BoardUserStory[]>(
     [],
   );
 
-  /*
-   * Store expanded state by USER STORY ID.
-   */
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+
   const [expandedStories, setExpandedStories] = useState<
     Record<string, boolean>
   >({});
 
-  const [columnLayouts, setColumnLayouts] = useState<
-    Record<
-      string,
-      {
-        xMin: number;
-        xMax: number;
+  /**
+   * Measured drop zones.
+   *
+   * Every cell is:
+   * User Story + Status
+   */
+  const [dropZones, setDropZones] = useState<DropZone[]>([]);
+
+  /**
+   * Cell currently under the dragged task.
+   */
+  const [activeDropZone, setActiveDropZone] = useState<{
+    storyId: string;
+    statusId: string;
+  } | null>(null);
+
+  /**
+   * Cell where task was successfully dropped.
+   */
+  const [dropSuccessZone, setDropSuccessZone] = useState<{
+    storyId: string;
+    statusId: string;
+  } | null>(null);
+
+  // ============================================================
+  // LOAD CUSTOM STATUSES + INITIAL SPRINT
+  // ============================================================
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!projectId) {
+        return;
       }
-    >
-  >({});
 
-  /*
-   * Convert API response into:
-   *
-   * TO DO
-   *   -> User Stories
-   *
-   * IN PROGRESS
-   *   -> User Stories
-   *
-   * etc.
-   */
+      dispatch(
+        getCustomStatusData({
+          projectId,
+        }),
+      );
 
-  const projectId = project?.id;
+      if (currentSprint?.id) {
+        setSelectedSprintId(currentSprint.id);
+      }
+    }, [dispatch, projectId, currentSprint?.id]),
+  );
 
-  /*
-   * Get active/planning sprint.
-   */
-  const activeSprint =
-    project?.sprints?.find(sprint => sprint.status === 'active') ??
-    project?.sprints?.find(sprint => sprint.status === 'planning');
+  // ============================================================
+  // LOAD USER STORIES
+  // ============================================================
 
-  /*
-   * Fetch user stories.
-   */
   useEffect(() => {
     if (!projectId) {
-      console.log('No project found');
       return;
     }
 
-    if (!activeSprint?.id) {
-      console.log('No sprint found');
-      return;
-    }
+    const payload: {
+      page: number;
+      page_size: number;
+      sprint_id?: string;
+    } = {
+      page: 1,
+      page_size: 100,
+    };
 
-    console.log('Fetching user stories:', {
-      projectId,
-      sprintId: activeSprint.id,
-    });
+    if (selectedSprintId) {
+      payload.sprint_id = selectedSprintId;
+    }
 
     dispatch(
       getUserStories({
         projectId,
-        payload: {
-          page: 1,
-          page_size: 100,
-          sprint_id: activeSprint.id,
-        },
+        payload,
       }),
     );
-  }, [dispatch, projectId, activeSprint?.id]);
+  }, [dispatch, projectId, selectedSprintId]);
+
+  // ============================================================
+  // RESET LOCAL BOARD WHEN PROJECT / SPRINT CHANGES
+  // ============================================================
 
   useEffect(() => {
-    if (userStories) {
+    hasInitializedStories.current = false;
+
+    setLocalUserStories([]);
+    setDropZones([]);
+    setActiveDropZone(null);
+    setDropSuccessZone(null);
+  }, [projectId, selectedSprintId]);
+
+  // ============================================================
+  // COPY REDUX STORIES TO LOCAL STATE
+  // ============================================================
+
+  useEffect(() => {
+    if (!userStories?.length) {
+      return;
+    }
+
+    if (!hasInitializedStories.current) {
       setLocalUserStories(userStories);
+      hasInitializedStories.current = true;
     }
   }, [userStories]);
 
-  const boardColumns = useMemo(() => {
-    return mapUserStoriesToColumns(localUserStories, strings, colors);
-  }, [localUserStories, strings, colors]);
-  /*
-   * Expand / collapse USER STORY.
-   */
-  const toggleStory = (storyId: string) => {
+  // ============================================================
+  // EXPAND / COLLAPSE STORY
+  // ============================================================
+
+  const toggleStory = useCallback((storyId: string) => {
     setExpandedStories(prev => ({
       ...prev,
       [storyId]: !prev[storyId],
     }));
-  };
+  }, []);
 
-  /*
-   * Column layout.
-   */
-  const handleColumnLayout = (title: string, event: LayoutChangeEvent) => {
-    const { x, width } = event.nativeEvent.layout;
+  // ============================================================
+  // REGISTER DROP ZONE
+  // ============================================================
 
-    setColumnLayouts(prev => ({
-      ...prev,
-      [title]: {
-        xMin: x,
-        xMax: x + width,
-      },
-    }));
-  };
+  const registerTaskDropZone = useCallback((zone: DropZone) => {
+    setDropZones(prev => {
+      const index = prev.findIndex(
+        item =>
+          item.storyId === zone.storyId && item.statusId === zone.statusId,
+      );
 
-  /*
-   * Move USER STORY between columns.
-   *
-   * NOTE:
-   * This currently changes local board state only.
-   * To persist the status, you'll need a backend
-   * update-user-story API.
-   */
-  const handleDropStory = (
-    storyId: string,
-    sourceTitle: string,
-    targetTitle: string,
-  ) => {
-    if (sourceTitle === targetTitle) {
-      return;
-    }
+      if (index === -1) {
+        return [...prev, zone];
+      }
 
-    const targetColumnIndex = boardColumns.findIndex(
-      column => column.title === targetTitle,
-    );
+      const updated = [...prev];
 
-    if (targetColumnIndex === -1) {
-      return;
-    }
+      updated[index] = zone;
 
-    const newStatus = columnStatuses[targetColumnIndex];
-
-    // Find the story before changing it
-    const story = localUserStories.find(item => item.id === storyId);
-
-    if (!story) {
-      return;
-    }
-
-    const previousStatus = story.status;
-
-    console.log('Moving user story:', {
-      storyId,
-      previousStatus,
-      newStatus,
+      return updated;
     });
+  }, []);
+  // ============================================================
+  // FIND DROP ZONE
+  // ============================================================
 
-    // --------------------------------------------------
-    // 1. Update UI immediately
-    // --------------------------------------------------
+  const findDropZone = useCallback(
+    (absoluteX: number, absoluteY: number): DropZone | null => {
+      const currentX = horizontalScrollOffset.value;
+      const currentY = verticalScrollOffset.value;
 
-    setLocalUserStories(prevStories =>
-      prevStories.map(item => {
-        if (item.id !== storyId) {
-          return item;
+      const zone = dropZones.find(item => {
+        const adjustedX = item.x - (currentX - item.scrollXAtMeasure);
+        const adjustedY = item.y - (currentY - item.scrollYAtMeasure);
+
+        const insideX =
+          absoluteX >= adjustedX && absoluteX <= adjustedX + item.width;
+        const insideY =
+          absoluteY >= adjustedY && absoluteY <= adjustedY + item.height;
+
+        return insideX && insideY;
+      });
+
+      return zone ?? null;
+    },
+    [dropZones, horizontalScrollOffset, verticalScrollOffset],
+  );
+
+  // ============================================================
+  // HOVER DROP ZONE
+  // ============================================================
+
+  const handleHoverDropZone = useCallback(
+    (absoluteX: number, absoluteY: number) => {
+      /**
+       * Invalid coordinates means drag ended.
+       */
+      if (absoluteX < 0 || absoluteY < 0) {
+        setActiveDropZone(null);
+        return;
+      }
+
+      const targetZone = findDropZone(absoluteX, absoluteY);
+
+      if (!targetZone) {
+        setActiveDropZone(null);
+        return;
+      }
+
+      setActiveDropZone({
+        storyId: targetZone.storyId,
+        statusId: targetZone.statusId,
+      });
+    },
+    [findDropZone],
+  );
+
+  // ============================================================
+  // UPDATE LOCAL TASK STATE
+  // ============================================================
+
+  const updateTaskLocalState = useCallback(
+    (
+      taskId: string,
+      sourceStoryId: string,
+      targetStoryId: string,
+      targetStatusId: string,
+    ) => {
+      setLocalUserStories(prevStories => {
+        const sourceStory = prevStories.find(
+          story => story.id === sourceStoryId,
+        );
+
+        if (!sourceStory) {
+          return prevStories;
         }
 
-        return {
-          ...item,
-          status: newStatus,
-        };
-      }),
-    );
+        const movedTask = sourceStory.tasks?.find(task => task.id === taskId);
 
-    // --------------------------------------------------
-    // 2. Update backend
-    // --------------------------------------------------
+        if (!movedTask) {
+          console.log('Task not found:', taskId);
+          return prevStories;
+        }
 
-    dispatch(
-      updateUserStory({
-        projectId: project?.id as string,
-        userStoryId: storyId,
+        // ======================================================
+        // SAME USER STORY
+        // Only status changes
+        // ======================================================
 
-        payload: {
-          status: newStatus,
-        },
+        if (sourceStoryId === targetStoryId) {
+          return prevStories.map(story => {
+            if (story.id !== sourceStoryId) {
+              return story;
+            }
 
-        onSuccess: response => {
-          console.log('User story status updated successfully:', response);
-        },
+            return {
+              ...story,
+              tasks: (story.tasks ?? []).map(task =>
+                task.id === taskId
+                  ? {
+                      ...task,
+                      status_id: targetStatusId,
+                    }
+                  : task,
+              ),
+            };
+          });
+        }
 
-        onError: error => {
-          console.error('Failed to update user story status:', error);
+        // ======================================================
+        // DIFFERENT USER STORY
+        // ======================================================
 
-          // --------------------------------------------------
-          // 3. Rollback UI if API fails
-          // --------------------------------------------------
+        return prevStories.map(story => {
+          // Remove from source story
+          if (story.id === sourceStoryId) {
+            return {
+              ...story,
+              tasks: (story.tasks ?? []).filter(task => task.id !== taskId),
+              totalTasks: Math.max(0, (story.totalTasks ?? 0) - 1),
+            };
+          }
 
-          setLocalUserStories(prevStories =>
-            prevStories.map(item => {
-              if (item.id !== storyId) {
-                return item;
-              }
+          // Add to target story
+          if (story.id === targetStoryId) {
+            return {
+              ...story,
+              tasks: [
+                ...(story.tasks ?? []),
+                {
+                  ...movedTask,
+                  status_id: targetStatusId,
+                },
+              ],
+              totalTasks: (story.totalTasks ?? 0) + 1,
+            };
+          }
 
-              return {
-                ...item,
-                status: previousStatus,
-              };
-            }),
-          );
-        },
+          return story;
+        });
+      });
+    },
+    [],
+  );
 
-        onFinally: () => {
-          console.log('Update user story API completed');
-        },
-      }),
-    );
-  };
-  console.log('USER STORIES:', userStories);
+  // ============================================================
+  // HANDLE TASK DROP
+  // ============================================================
+
+  const handleTaskDrop = useCallback(
+    (
+      task: Task,
+      sourceStoryId: string,
+      sourceStatusId: string,
+      absoluteX: number,
+      absoluteY: number,
+    ) => {
+      // --------------------------------------------------------
+      // Clear hover indication
+      // --------------------------------------------------------
+
+      setActiveDropZone(null);
+
+      // --------------------------------------------------------
+      // Find actual target cell
+      // --------------------------------------------------------
+
+      const targetZone = findDropZone(absoluteX, absoluteY);
+
+      if (!targetZone) {
+        console.log('❌ No valid drop zone', absoluteX, absoluteY);
+
+        return;
+      }
+
+      const targetStoryId = targetZone.storyId;
+      const targetStatusId = targetZone.statusId;
+
+      console.log('🎯 DROP TARGET', {
+        taskId: task.id,
+        sourceStoryId,
+        sourceStatusId,
+        targetStoryId,
+        targetStatusId,
+        absoluteX,
+        absoluteY,
+      });
+
+      // --------------------------------------------------------
+      // Same cell
+      // --------------------------------------------------------
+
+      if (
+        sourceStoryId === targetStoryId &&
+        sourceStatusId === targetStatusId
+      ) {
+        console.log('Dropped in same cell');
+        return;
+      }
+
+      // --------------------------------------------------------
+      // Find source task
+      // --------------------------------------------------------
+
+      const sourceStory = localUserStories.find(
+        story => story.id === sourceStoryId,
+      );
+
+      const sourceTask = sourceStory?.tasks?.find(item => item.id === task.id);
+
+      if (!sourceTask) {
+        console.log('❌ Source task not found:', task.id);
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // Show success indication
+      // --------------------------------------------------------
+
+      setDropSuccessZone({
+        storyId: targetStoryId,
+        statusId: targetStatusId,
+      });
+
+      // --------------------------------------------------------
+      // Optimistic local update
+      // --------------------------------------------------------
+
+      updateTaskLocalState(
+        task.id,
+        sourceStoryId,
+        targetStoryId,
+        targetStatusId,
+      );
+
+      // --------------------------------------------------------
+      // API
+      // --------------------------------------------------------
+
+      if (!projectId) {
+        setDropSuccessZone(null);
+        return;
+      }
+
+      dispatch(
+        updateTaskThunk({
+          projectId,
+          taskId: task.id,
+
+          payload: {
+            user_story_id: targetStoryId,
+            status_id: targetStatusId,
+          },
+
+          // ====================================================
+          // SUCCESS
+          // ====================================================
+
+          onSuccess: response => {
+            console.log('✅ Task updated successfully:', response);
+
+            setTimeout(() => {
+              setDropSuccessZone(null);
+            }, 700);
+          },
+
+          // ====================================================
+          // ERROR
+          // ====================================================
+
+          onError: error => {
+            console.error('❌ Failed to update task:', error);
+
+            setDropSuccessZone(null);
+
+            // ----------------------------------------------
+            // Rollback
+            // ----------------------------------------------
+
+            setLocalUserStories(prevStories =>
+              prevStories.map(story => {
+                // Remove from target
+                if (story.id === targetStoryId) {
+                  return {
+                    ...story,
+
+                    tasks: (story.tasks ?? []).filter(
+                      item => item.id !== task.id,
+                    ),
+
+                    totalTasks:
+                      sourceStoryId === targetStoryId
+                        ? story.totalTasks
+                        : Math.max(0, (story.totalTasks ?? 0) - 1),
+                  };
+                }
+
+                // Restore source
+                if (story.id === sourceStoryId) {
+                  return {
+                    ...story,
+
+                    tasks: [...(story.tasks ?? []), sourceTask],
+
+                    totalTasks:
+                      sourceStoryId === targetStoryId
+                        ? story.totalTasks
+                        : (story.totalTasks ?? 0) + 1,
+                  };
+                }
+
+                return story;
+              }),
+            );
+          },
+
+          // ====================================================
+          // FINALLY
+          // ====================================================
+
+          onFinally: () => {
+            console.log('Task update completed');
+          },
+        }),
+      );
+    },
+    [dispatch, findDropZone, localUserStories, projectId, updateTaskLocalState],
+  );
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
+  console.log('LINE973', getCurrentSprintLoading);
 
   return (
-    <ScrollView className='flex-1' style={{ backgroundColor: colors.surface }}>
+    <ScrollView
+      className='flex-1'
+      style={{
+        backgroundColor: colors.surface,
+        paddingTop: moderateScale(20),
+      }}
+    >
+      {/* ======================================================
+          BOARD HEADER
+          ====================================================== */}
+
+      <View
+        style={{
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingTop: layout.tightGap,
+          paddingBottom: moderateScale(12),
+        }}
+      >
+        <AppText variant='title' className='font-bold'>
+          Kanban Board
+        </AppText>
+
+        <AppText
+          variant='body'
+          style={{
+            marginTop: moderateScale(4),
+            opacity: 0.5,
+          }}
+        >
+          Visualize and manage your team's tasks across workflow stages
+        </AppText>
+      </View>
+
+      {/* ======================================================
+          VERTICAL BOARD SCROLL
+          ====================================================== */}
+
       <Animated.ScrollView
         ref={verticalScrollRef}
         showsVerticalScrollIndicator={false}
@@ -653,6 +1029,10 @@ const ProjectDeatailsScreen = () => {
           paddingBottom: isSmallHeight ? hp(20) : hp(12),
         }}
       >
+        {/* ====================================================
+            HORIZONTAL BOARD SCROLL
+            ==================================================== */}
+
         <Animated.ScrollView
           ref={horizontalScrollRef}
           horizontal
@@ -663,126 +1043,154 @@ const ProjectDeatailsScreen = () => {
           }}
           contentContainerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
-
             paddingTop: layout.tightGap,
           }}
         >
-          {boardColumns.map(column => {
-            const isFocused = hoveredColumn === column.title;
+          <View>
+            {/* ==================================================
+                BOARD HEADER
+                ================================================== */}
 
-            return (
+            <View
+              style={{
+                flexDirection: 'row',
+                borderBottomWidth: 1,
+                borderBottomColor: '#D1D5DB',
+              }}
+            >
+              {/* User Stories Header */}
+
               <View
-                key={column.title}
-                onLayout={event => handleColumnLayout(column.title, event)}
                 style={{
-                  width: moderateScale(280),
-
-                  paddingRight: layout.elementGap,
-
-                  gap: layout.tightGap,
-
-                  backgroundColor: isFocused
-                    ? `${colors.primary}12`
-                    : 'transparent',
-
-                  borderWidth: isFocused ? 2 : 0,
-
-                  borderColor: colors.primary,
-
-                  borderRadius: Radius.md,
-
-                  padding: isFocused ? layout.tightGap : 0,
+                  width: USER_STORY_WIDTH,
+                  padding: 12,
                 }}
               >
-                {/* =========================================
-                      COLUMN HEADER
-                  ========================================= */}
+                <AppText variant='body' className='font-bold'>
+                  User Stories
+                </AppText>
+              </View>
 
+              {/* Status Headers */}
+
+              {customStatuses.map(status => (
                 <View
-                  className='flex-row items-center justify-between'
+                  key={status.id}
                   style={{
-                    paddingHorizontal: layout.paddingHorizontal * 0.25,
-
-                    paddingTop: layout.paddingTop,
-
-                    paddingBottom: layout.paddingBottom,
+                    width: STATUS_COLUMN_WIDTH,
+                    padding: 12,
+                    borderLeftWidth: 1,
+                    borderLeftColor: '#E5E7EB',
                   }}
                 >
                   <View
-                    className='flex-row items-center'
                     style={{
-                      gap: layout.sectionGap,
+                      flexDirection: 'row',
+                      alignItems: 'center',
                     }}
                   >
                     <View
                       style={{
-                        borderRadius: Radius.circle,
-
-                        width: moderateScale(10),
-
-                        height: moderateScale(10),
-
-                        backgroundColor: column.color,
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: status.color,
+                        marginRight: 8,
                       }}
                     />
 
-                    <AppText
-                      variant='body'
-                      color={colors.text}
-                      className='font-bold'
-                    >
-                      {column.title}
+                    <AppText variant='body' className='font-bold'>
+                      {status.name}
                     </AppText>
-
-                    <View
-                      style={{
-                        backgroundColor: colors.border,
-
-                        paddingHorizontal: layout.paddingHorizontal * 0.25,
-
-                        borderRadius: Radius.circle,
-                      }}
-                    >
-                      <AppText variant='caption' color={colors.textSecondary}>
-                        {column.userStories.length}
-                      </AppText>
-                    </View>
                   </View>
                 </View>
+              ))}
+            </View>
 
-                {/* =========================================
-                      USER STORIES
-                  ========================================= */}
+            {/* ==================================================
+                USER STORY ROWS
+                ================================================== */}
 
-                <View
-                  style={{
-                    gap: layout.elementGap,
-                  }}
-                >
-                  {column.userStories.map(story => (
-                    <DraggableUserStory
-                      key={story.id}
-                      story={story}
-                      projectId={project?.id || ''}
-                      sourceColumnTitle={column.title}
-                      columnLayouts={columnLayouts}
-                      onDropStory={handleDropStory}
-                      setHoveredColumn={setHoveredColumn}
-                      horizontalScrollRef={horizontalScrollRef}
-                      verticalScrollRef={verticalScrollRef}
-                      horizontalScrollOffset={horizontalScrollOffset}
-                      verticalScrollOffset={verticalScrollOffset}
-                      expanded={!!expandedStories[story.id]}
-                      onToggle={() => toggleStory(story.id)}
-                    />
-                  ))}
-                </View>
-              </View>
-            );
-          })}
+            {localUserStories.map(story => (
+              <UserStoryBoardRow
+                key={story.id}
+                story={story}
+                projectId={projectId ?? ''}
+                customStatuses={customStatuses}
+                expanded={!!expandedStories[story.id]}
+                onToggle={() => toggleStory(story.id)}
+                onRegisterDropZone={registerTaskDropZone}
+                onTaskDrop={handleTaskDrop}
+                onHoverDropZone={handleHoverDropZone}
+                activeDropZone={activeDropZone}
+                dropSuccessZone={dropSuccessZone}
+                horizontalScrollRef={horizontalScrollRef}
+                verticalScrollRef={verticalScrollRef}
+                horizontalScrollOffset={horizontalScrollOffset}
+                verticalScrollOffset={verticalScrollOffset}
+              />
+            ))}
+          </View>
         </Animated.ScrollView>
       </Animated.ScrollView>
     </ScrollView>
+  );
+};
+
+const TaskDropZone = ({
+  storyId,
+  statusId,
+  onRegister,
+  isActive,
+  isSuccess,
+  children,
+  horizontalScrollOffset,
+  verticalScrollOffset,
+}: TaskDropZoneProps) => {
+  const dropZoneRef = useRef<View>(null);
+
+  const measureZone = useCallback(() => {
+    if (!dropZoneRef.current) return;
+
+    dropZoneRef.current.measureInWindow((x, y, width, height) => {
+      onRegister({
+        storyId,
+        statusId,
+        x,
+        y,
+        width,
+        height,
+        scrollXAtMeasure: horizontalScrollOffset?.value ?? 0,
+        scrollYAtMeasure: verticalScrollOffset?.value ?? 0,
+      });
+    });
+  }, [
+    storyId,
+    statusId,
+    onRegister,
+    horizontalScrollOffset,
+    verticalScrollOffset,
+  ]);
+
+  return (
+    <View
+      ref={dropZoneRef}
+      onLayout={measureZone}
+      style={{
+        width: STATUS_COLUMN_WIDTH,
+        minHeight: 100,
+        padding: 8,
+        borderLeftWidth: 1,
+        borderLeftColor: '#E5E7EB',
+        backgroundColor: isSuccess
+          ? '#D1FAE5'
+          : isActive
+            ? '#E0E7FF'
+            : 'transparent',
+      }}
+    >
+      {children}
+    </View>
   );
 };
 

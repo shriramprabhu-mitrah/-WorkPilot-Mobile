@@ -294,16 +294,16 @@ export const mapUserStoriesToColumns = (
       color: colors.textSecondary,
       userStories: [],
     },
-    {
-      title: strings.projectDetails?.inProgress || 'IN PROGRESS',
-      color: colors.primary,
-      userStories: [],
-    },
-    {
-      title: strings.projectDetails?.inReview || 'IN REVIEW',
-      color: colors.accentPurple,
-      userStories: [],
-    },
+    // {
+    //   title: strings.projectDetails?.inProgress || 'IN PROGRESS',
+    //   color: colors.primary,
+    //   userStories: [],
+    // },
+    // {
+    //   title: strings.projectDetails?.inReview || 'IN REVIEW',
+    //   color: colors.accentPurple,
+    //   userStories: [],
+    // },
     {
       title: strings.projectDetails?.done || 'DONE',
       color: colors.success,

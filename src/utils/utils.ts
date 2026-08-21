@@ -50,7 +50,7 @@ export const ONBOARDING_DATA = [
 ];
 
 export const SIGN_UP =
-  'https://workpilot-frontend-4vak.onrender.com/signup?source=mobile';
+  'https://workpilot-frontend-1.onrender.com/signup?source=mobile';
 
 export const LOGIN_URL =
-  'https://workpilot-frontend-4vak.onrender.com/signin?source=mobile';
+  'https://workpilot-frontend-1.onrender.com/signin?source=mobile';
