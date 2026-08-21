@@ -34,6 +34,8 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { getCustomStatusData } from '../store/customStatus_store/action/customstatus.thunk';
 import { CustomStatus } from '../types/customstatus.type';
 import { updateTaskThunk } from '../store/task_store/action/task.thunk';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native';
 
 type UserStoryBoardRowProps = {
   story: BoardUserStory;
@@ -143,6 +145,8 @@ const UserStoryBoardRow = ({
   horizontalScrollOffset,
   verticalScrollOffset,
 }: UserStoryBoardRowProps) => {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+
   return (
     <View
       style={{
@@ -155,7 +159,9 @@ const UserStoryBoardRow = ({
       {/* USER STORY */}
 
       <TouchableOpacity
-        onPress={onToggle}
+        onPress={() =>
+          navigation.navigate('issue', { projectId, userStoryId: story?.id })
+        }
         activeOpacity={0.7}
         style={{
           width: USER_STORY_WIDTH,
@@ -174,6 +180,7 @@ const UserStoryBoardRow = ({
             style={{
               marginRight: 8,
             }}
+            onPress={onToggle}
           >
             {expanded ? '▼' : '▶'}
           </AppText>
@@ -203,7 +210,7 @@ const UserStoryBoardRow = ({
 
       {/* STATUS COLUMNS */}
 
-      {customStatuses.map(status => {
+      {customStatuses?.map(status => {
         const tasks =
           story.tasks?.filter(task => task.status_id === status.id) ?? [];
 
@@ -1073,7 +1080,7 @@ const ProjectDeatailsScreen = () => {
 
               {/* Status Headers */}
 
-              {customStatuses.map(status => (
+              {customStatuses?.map(status => (
                 <View
                   key={status.id}
                   style={{

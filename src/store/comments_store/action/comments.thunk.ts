@@ -2,23 +2,38 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
   CreateTaskCommentParams,
   CreateTaskCommentResponse,
+  CreateUserStoryCommentParams,
+  CreateUserStoryCommentResponse,
   DeleteCommentParams,
   DeleteCommentResponse,
+  DeleteUserStoryCommentParams,
+  DeleteUserStoryCommentResponse,
   GetTaskCommentRepliesParams,
   GetTaskCommentsParams,
   GetTaskCommentsResponse,
+  GetUserStoryCommentByIdParams,
+  GetUserStoryCommentByIdResponse,
+  GetUserStoryCommentRepliesParams,
+  GetUserStoryCommentRepliesResponse,
   GetUserStoryCommentsParams,
   GetUserStoryCommentsResponse,
   UpdateCommentParams,
   UpdateCommentResponse,
+  UpdateUserStoryCommentParams,
+  UpdateUserStoryCommentResponse,
 } from '../../../types/comments.type';
 import {
   createTaskCommentService,
   deleteTaskCommentService,
   getTaskCommentRepliesService,
   getTaskCommentsService,
+  getUserStoryCommentByIdService,
+  getUserStoryCommentRepliesService,
   getUserStoryCommentsService,
   updateCommentService,
+  createUserStoryCommentService,
+  deleteUserStoryCommentService,
+  updateUserStoryCommentService,
 } from '../../../services/comments.services';
 
 export const fetchUserStoryComments = createAsyncThunk<
@@ -43,6 +58,120 @@ export const fetchUserStoryComments = createAsyncThunk<
     return rejectWithValue(errorMessage);
   }
 });
+
+export const createUserStoryComment = createAsyncThunk<
+  CreateUserStoryCommentResponse,
+  CreateUserStoryCommentParams,
+  { rejectValue: string }
+>('comments/createUserStoryComment', async (params, { rejectWithValue }) => {
+  try {
+    if (!params.projectId || !params.userStoryId) {
+      return rejectWithValue(
+        'Cannot create comment: Invalid projectId or userStoryId',
+      );
+    }
+    const response = await createUserStoryCommentService(params);
+    console.log('Response', response);
+    return response;
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message ||
+      error.message ||
+      'Failed to create user story comment';
+    return rejectWithValue(errorMessage);
+  }
+});
+
+export const getUserStoryCommentById = createAsyncThunk<
+  GetUserStoryCommentByIdResponse,
+  GetUserStoryCommentByIdParams,
+  { rejectValue: string }
+>('comments/getUserStoryCommentById', async (params, { rejectWithValue }) => {
+  try {
+    if (!params.projectId || !params.userStoryId || !params.commentId) {
+      return rejectWithValue(
+        'Cannot fetch comment: Invalid projectId, userStoryId, or commentId',
+      );
+    }
+    const response = await getUserStoryCommentByIdService(params);
+    return response;
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message ||
+      error.message ||
+      'Failed to fetch user story comment';
+    return rejectWithValue(errorMessage);
+  }
+});
+
+export const updateUserStoryComment = createAsyncThunk<
+  UpdateUserStoryCommentResponse,
+  UpdateUserStoryCommentParams,
+  { rejectValue: string }
+>('comments/updateUserStoryComment', async (params, { rejectWithValue }) => {
+  try {
+    if (!params.projectId || !params.userStoryId || !params.commentId) {
+      return rejectWithValue(
+        'Cannot update comment: Missing projectId, userStoryId, or commentId',
+      );
+    }
+    if (!params.content.trim()) {
+      return rejectWithValue('Cannot update comment: Content cannot be empty');
+    }
+    const response = await updateUserStoryCommentService(params);
+    console.log('Update Comment API Response:', response);
+    return response;
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message ||
+      error.message ||
+      'Failed to update user story comment';
+    return rejectWithValue(errorMessage);
+  }
+});
+
+export const deleteUserStoryComment = createAsyncThunk<
+  DeleteUserStoryCommentResponse,
+  DeleteUserStoryCommentParams,
+  { rejectValue: string }
+>('comments/deleteUserStoryComment', async (params, { rejectWithValue }) => {
+  try {
+    if (!params.projectId || !params.userStoryId || !params.commentId) {
+      return rejectWithValue(
+        'Cannot delete comment: Missing projectId, userStoryId, or commentId',
+      );
+    }
+    const response = await deleteUserStoryCommentService(params);
+    console.log('Delete Comment API Response:', response);
+    return response;
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message ||
+      error.message ||
+      'Failed to delete user story comment';
+    return rejectWithValue(errorMessage);
+  }
+});
+
+export const fetchUserStoryCommentReplies = createAsyncThunk<
+  GetUserStoryCommentRepliesResponse,
+  GetUserStoryCommentRepliesParams,
+  { rejectValue: string }
+>(
+  'comments/fetchUserStoryCommentReplies',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await getUserStoryCommentRepliesService(params);
+      return response;
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to fetch user story comment replies';
+      return rejectWithValue(errorMessage);
+    }
+  },
+);
 
 export const createTaskComment = createAsyncThunk<
   CreateTaskCommentResponse,

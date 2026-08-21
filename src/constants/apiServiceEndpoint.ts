@@ -42,7 +42,9 @@ export const GET_USERSTORY_BY_ID = `/projects/{project_id}/user-stories/{user_st
 export const GET_TASK_BY_ID = `/projects/{project_id}/tasks/{task_id}`;
 
 //COMMENT
-export const GET_USERSTORIES_COMMENT = `/projects/{project_id}/user-stories/{user_story_id}/comments`;
+export const USERSTORIES_COMMENT = `/projects/{project_id}/user-stories/{user_story_id}/comments`; //post user story API
+export const USERSTORIES_COMMENT_BY_ID = `/projects/{project_id}/user-stories/{user_story_id}/comments/{comment_id}`; //get by ID and Update by Id delete by ID
+export const USER_STORIES_COMMENT_REPLIES = `/projects/{project_id}/user-stories/{user_story_id}/comments/replies/{comment_id}`; //get by replise Id API Call
 export const TASK_COMMENT = `/task/{task_id}/comments`;
 export const TASK_COMMENT_REPLIES = `/task/{task_id}/comments/replies/{parent_comment_id}`;
 export const TASK_COMMENT_ID = `/task/{task_id}/comments/{comment_id}`;
