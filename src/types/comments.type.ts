@@ -18,12 +18,12 @@ export interface GetUserStoryCommentsResponse {
   success: boolean;
   status_code: number;
   message: string;
-  data: unknown[];
+  data: CommentItem[];
   meta: CommentMeta;
 }
 
 export interface CommentsState {
-  comments: unknown[];
+  comments: CommentItem[];
   meta: CommentMeta | null;
   loading: boolean;
   error: string | null;
@@ -40,6 +40,7 @@ export interface TaskCommentUserData {
   user_name: string;
   full_name: string;
   avatar_url: string | null;
+  parent_comment_id?: string | null;
 }
 
 export interface CreateTaskCommentResponse {
@@ -61,9 +62,10 @@ export interface GetTaskCommentsParams {
   pageSize?: number;
 }
 
-export interface TaskCommentItem {
+export interface CommentItem {
   id: string;
-  task_id: string;
+  task_id?: string;
+  user_story_id?: string;
   user_id: string;
   user_name: string;
   full_name: string;
@@ -74,13 +76,14 @@ export interface TaskCommentItem {
   updated_at: string;
   is_deleted: boolean;
   replies_count: number;
+  parent_comment_id?: string | null;
 }
 
 export interface GetTaskCommentsResponse {
   success: boolean;
   status_code: number;
   message: string;
-  data: TaskCommentItem[];
+  data: CommentItem[];
   meta: {
     page: number;
     page_size: number;
@@ -131,4 +134,90 @@ export interface GetTaskCommentRepliesParams {
   parentCommentId?: string;
   page?: number;
   pageSize?: number;
+}
+
+export interface CreateUserStoryCommentRequest {
+  content: string;
+  parent_comment_id?: string | null;
+}
+
+export interface UserStoryCommentUserData {
+  id: string;
+  user_id: string;
+  user_name: string;
+  full_name: string;
+  avatar_url: string | null;
+  parent_comment_id?: string | null;
+}
+
+export interface CreateUserStoryCommentResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: UserStoryCommentUserData;
+}
+
+export interface CreateUserStoryCommentParams {
+  projectId: string;
+  userStoryId: string;
+  content: string;
+  parentCommentId?: string | null;
+}
+
+export interface GetUserStoryCommentByIdParams {
+  projectId: string;
+  userStoryId: string;
+  commentId: string;
+}
+
+export interface GetUserStoryCommentByIdResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: CommentItem[];
+}
+
+export interface UpdateUserStoryCommentParams {
+  projectId: string;
+  userStoryId: string;
+  commentId: string;
+  content: string;
+}
+
+export interface UpdateUserStoryCommentResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: UpdatedCommentUserData;
+}
+
+export interface DeleteUserStoryCommentParams {
+  projectId: string;
+  userStoryId: string;
+  commentId: string;
+}
+
+export interface DeleteUserStoryCommentResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: {
+    comment_id: string;
+  };
+}
+
+export interface GetUserStoryCommentRepliesParams {
+  projectId: string;
+  userStoryId: string;
+  commentId: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface GetUserStoryCommentRepliesResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: CommentItem[];
+  meta: CommentMeta;
 }

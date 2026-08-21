@@ -9,14 +9,29 @@ import {
   getStatusThemeColor,
   STATUS_OPTIONS,
   TASK_STATUS_LABELS,
+  IssueStatus,
 } from '../utils/enum';
+import { ThemeColors } from '../constants/Colors';
 
 interface Props {
-  hooks: any;
+  colors: ThemeColors;
+  currentItem: any;
+  status: string;
+  activeStatusColor: string;
+  showStatusPicker: boolean;
+  onToggleStatusPicker: () => void;
+  onSelectStatus: (status: IssueStatus | string) => void;
 }
 
-export const IssueHeaderSection: React.FC<Props> = ({ hooks }) => {
-  const { colors } = hooks;
+export const IssueHeaderSection: React.FC<Props> = ({
+  colors,
+  currentItem,
+  status,
+  activeStatusColor,
+  showStatusPicker,
+  onToggleStatusPicker,
+  onSelectStatus,
+}) => {
   const { layout } = useAuthLayout();
 
   return (
@@ -35,16 +50,16 @@ export const IssueHeaderSection: React.FC<Props> = ({ hooks }) => {
         color={colors.text}
         className='text-xl font-bold capitalize'
       >
-        {hooks.currentItem?.title}
+        {currentItem?.title}
       </AppText>
 
       <View className='relative z-50'>
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => hooks.setShowStatusPicker((prev: boolean) => !prev)}
+          onPress={onToggleStatusPicker}
           className='flex-row items-center self-start rounded-lg border'
           style={{
-            backgroundColor: `${hooks.activeStatusColor}1A`,
+            backgroundColor: `${activeStatusColor}1A`,
             borderColor: colors.border,
             paddingHorizontal: layout.paddingHorizontal,
             paddingVertical: layout.elementGap,
@@ -56,30 +71,28 @@ export const IssueHeaderSection: React.FC<Props> = ({ hooks }) => {
             style={{
               width: 8,
               height: 8,
-              backgroundColor: hooks.activeStatusColor,
+              backgroundColor: activeStatusColor,
             }}
           />
           <AppText
             variant='body'
-            color={hooks.activeStatusColor}
+            color={activeStatusColor}
             className='font-semibold'
           >
-            {getStatusLabel(hooks.status || hooks.currentItem?.status)}
+            {getStatusLabel(status || currentItem?.status)}
           </AppText>
           <Ionicons
-            name={hooks.showStatusPicker ? 'chevron-up' : 'chevron-down'}
+            name={showStatusPicker ? 'chevron-up' : 'chevron-down'}
             size={layout.controlSize * 0.8}
-            color={hooks.activeStatusColor}
+            color={activeStatusColor}
           />
         </TouchableOpacity>
 
         {/* Inline Dropdown Option Box */}
-        {hooks.showStatusPicker && (
+        {showStatusPicker && (
           <>
             {/* Backdrop layer to capture outside clicks and close the dropdown */}
-            <TouchableWithoutFeedback
-              onPress={() => hooks.setShowStatusPicker(false)}
-            >
+            <TouchableWithoutFeedback onPress={onToggleStatusPicker}>
               <View
                 className='absolute inset-0 z-40'
                 style={{ width: 1000, height: 1000, left: -500, top: -500 }}
@@ -99,17 +112,13 @@ export const IssueHeaderSection: React.FC<Props> = ({ hooks }) => {
             >
               {STATUS_OPTIONS.map(enumKey => {
                 const isSelected =
-                  (hooks.status || hooks.currentItem?.status)?.toLowerCase() ===
-                  enumKey;
+                  (status || currentItem?.status)?.toLowerCase() === enumKey;
                 const itemColor = getStatusThemeColor(enumKey, colors);
                 return (
                   <TouchableOpacity
                     key={enumKey}
                     activeOpacity={0.8}
-                    onPress={() => {
-                      hooks.setStatus(enumKey);
-                      hooks.setShowStatusPicker(false);
-                    }}
+                    onPress={() => onSelectStatus(enumKey)}
                     className='flex-row items-center rounded-md px-2 py-2'
                     style={{
                       gap: 12,
