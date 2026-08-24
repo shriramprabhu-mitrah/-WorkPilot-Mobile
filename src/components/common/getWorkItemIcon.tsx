@@ -34,6 +34,14 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
           color={colors?.accentPurple || '#B084F9'}
         />
       );
+    case 'sprint':
+      return (
+        <Ionicons
+          name='repeat-outline'
+          size={size}
+          color={color || colors?.primary || '#F59E0B'}
+        />
+      );
     case 'task':
       return (
         <Ionicons
@@ -42,12 +50,14 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
           color={colors?.secondary || '#3B82F6'}
         />
       );
+    case 'story':
+    case 'user_story':
     case 'userStory':
       return (
         <Ionicons
           name='bookmark-outline'
           size={size}
-          color={colors?.success || '#10B981'}
+          color={color || colors?.success || '#10B981'}
         />
       );
     case 'bug':
@@ -60,6 +70,15 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
           name='flash-outline'
           size={size}
           color={colors?.accentPurple || '#A855F7'}
+        />
+      );
+    case 'comment':
+    case 'Comment':
+      return (
+        <Ionicons
+          name='chatbubble-outline'
+          size={size}
+          color={color || colors?.textSecondary || colors.textSecondary}
         />
       );
     case 'chevron-up':

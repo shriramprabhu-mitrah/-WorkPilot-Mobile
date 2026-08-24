@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Modal,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useFocusEffect } from '@react-navigation/native';
 import AppText from './AppText';
 import AppInput from './Input/AppInput';
 import ProjectCard from '../common/ProjectCard';
@@ -17,35 +18,26 @@ import ProjectCardSkeleton from '../skeleton/ProjectCardSkeleton';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { moderateScale } from '../../utils/responsive';
-<<<<<<< Updated upstream
-import { useAppDispatch, useAppSelector } from '../../store';
-=======
 import { RootState, useAppDispatch, useAppSelector } from '../../store';
 import {
   getAllProjectInfo,
   getSprintsThunk,
 } from '../../store/project_store/action/project_thunk';
-import {
-  resetProjects,
-  resetSprints,
-} from '../../store/project_store/reducer/project_reducer';
 import { WorkItemIcon } from './getWorkItemIcon';
->>>>>>> Stashed changes
 
 export interface ProjectListBottomSheetProps {
   visible: boolean;
   onDismiss: () => void;
   title?: string;
-  isSprint?: boolean; // Prop to toggle between sprint mode and project mode
+  mode?: 'projects' | 'sprints';
+  projectId?: string;
   onSelectProject?: (projectId: string, projectName: string) => void;
-  onSelectSprint?: (sprintId: string) => void; // Separate onPress handler for sprint
-  // Pagination props
+  onSelectSprint?: (sprintId: string) => void;
   onEndReached?: () => void;
   hasMore?: boolean;
   isFetchingMore?: boolean;
 }
 
-// Helper to format date strings into readable format
 const formatDate = (dateString?: string) => {
   if (!dateString) return '';
   try {
@@ -65,25 +57,21 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   visible,
   onDismiss,
   title,
-  isSprint = false,
+  mode = 'projects',
+  projectId,
   onSelectProject,
   onSelectSprint,
-  onEndReached,
-  hasMore = false,
-  isFetchingMore = false,
+  onEndReached: onEndReachedProp,
+  hasMore: hasMoreProp,
+  isFetchingMore: isFetchingMoreProp,
 }) => {
-  const { colors, strings } = useTheme();
   const dispatch = useAppDispatch();
+  const { colors, strings } = useTheme();
   const { layout } = useAuthLayout();
   const insets = useSafeAreaInsets();
   const closeIconSize = moderateScale(20);
   const bottomPadding = Math.max(insets.bottom, 16);
 
-<<<<<<< Updated upstream
-  // Redux state - fetch both projects list and current selected project (for sprints)
-  const { projects, project, loading } = useAppSelector(
-    state => state.projects,
-=======
   // Extract pagination states from Redux
   const {
     projects,
@@ -112,30 +100,55 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
       if (visible) {
         setPage(1);
         if (mode === 'projects') {
-          dispatch(resetProjects());
           dispatch(getAllProjectInfo({ page: 1 }));
         } else if (mode === 'sprints' && resolvedProjectId) {
-          dispatch(resetSprints());
           dispatch(getSprintsThunk({ project_id: resolvedProjectId, page: 1 }));
         }
       }
     }, [visible, mode, resolvedProjectId, dispatch]),
->>>>>>> Stashed changes
   );
-  const [search, setSearch] = useState('');
 
-  // Determine list source based on isSprint flag
-  const listData = isSprint ? project?.sprints || [] : projects || [];
+  // Handle loading next page when scrolling reaches threshold
+  const handleLoadMore = useCallback(() => {
+    // Avoid triggering pagination if searching locally, already fetching, or no more data
+    if (search.trim() !== '') return;
+    if (loading || effectiveIsFetchingMore || !effectiveHasMore) return;
 
-  // Dynamic default title
+    const nextPage = page + 1;
+    setPage(nextPage);
+
+    if (mode === 'projects') {
+      dispatch(getAllProjectInfo({ page: nextPage }));
+    } else if (mode === 'sprints' && resolvedProjectId) {
+      dispatch(
+        getSprintsThunk({ project_id: resolvedProjectId, page: nextPage }),
+      );
+    }
+
+    onEndReachedProp?.();
+  }, [
+    search,
+    loading,
+    effectiveIsFetchingMore,
+    effectiveHasMore,
+    page,
+    mode,
+    resolvedProjectId,
+    dispatch,
+    onEndReachedProp,
+  ]);
+
+  const listData = isSprint
+    ? sprints?.length
+      ? sprints
+      : project?.sprints || []
+    : projects || [];
+
   const sheetTitle = title || (isSprint ? 'Select Sprint' : 'Select Project');
-
-  // Dynamic search placeholder
   const searchPlaceholder = isSprint
     ? 'Search sprints...'
     : strings?.projects?.searchPlaceholder || 'Search projects...';
 
-  // Filter items based on search query
   const filteredData = useMemo(() => {
     if (!listData) return [];
     const query = search.trim().toLowerCase();
@@ -150,8 +163,8 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     });
   }, [listData, search]);
 
-  // Separate onPress handler based on isSprint prop
   const handleSelect = (id: string, name: string) => {
+    if (!id) return;
     if (isSprint) {
       onSelectSprint?.(id);
     } else {
@@ -169,10 +182,8 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
       statusBarTranslucent
     >
       <View className='flex-1 justify-end bg-black/50'>
-        {/* Backdrop Press Area */}
         <Pressable className='flex-1' onPress={onDismiss} />
 
-        {/* Sheet Body */}
         <View
           style={{
             backgroundColor: colors.surface,
@@ -182,7 +193,6 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
           }}
           className='w-full rounded-t-3xl border px-5 pt-3 shadow-xl'
         >
-          {/* Top Handle Bar */}
           <View className='items-center pb-2'>
             <View
               style={{ backgroundColor: colors.border || '#E2E8F0' }}
@@ -190,7 +200,6 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
             />
           </View>
 
-          {/* Sheet Header: Title & Close Button */}
           <View className='flex-row items-center justify-between pb-3'>
             <AppText
               variant='h2'
@@ -218,7 +227,6 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Search Bar */}
           <View className='pb-3'>
             <AppInput
               placeholder={searchPlaceholder}
@@ -234,8 +242,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
             />
           </View>
 
-          {/* Main List Area with Loading Skeletons */}
-          {loading ? (
+          {loading && page === 1 ? (
             <View className='pt-2'>
               <ListSkeleton
                 count={5}
@@ -257,44 +264,46 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
               }}
               renderItem={({ item }: { item: any }) => {
                 const id = item.id?.toString() || item._id?.toString();
+                const name = item.name || item.title || item.sprint_name || '';
 
                 if (isSprint) {
                   const startDate = item.start_date || item.startDate;
                   const endDate = item.end_date || item.endDate;
                   const status =
                     item.status || (item.is_active ? 'active' : '');
-
                   return (
                     <TouchableOpacity
                       activeOpacity={0.7}
-                      onPress={() => handleSelect(id, item.name)}
+                      onPress={() => handleSelect(id, name)}
                       className='flex-row items-center justify-between rounded-xl border p-4'
                       style={{
                         backgroundColor: colors.card,
                         borderColor: colors.border,
                       }}
                     >
+                      <View
+                        className='mr-3.5 items-center justify-center rounded-lg'
+                        style={{
+                          width: moderateScale(30),
+                          height: moderateScale(30),
+                          backgroundColor: colors.surface,
+                        }}
+                      >
+                        <WorkItemIcon type='sprint' size={moderateScale(20)} />
+                      </View>
                       <View className='flex-1 pr-2'>
-                        {/* Sprint Name & Status Badge */}
                         <View className='flex-row items-center justify-between pr-2'>
                           <AppText
                             variant='title'
                             color={colors.text}
                             className='flex-1 font-semibold'
                           >
-                            {item.name ||
-                              item.title ||
-                              item.sprint_name ||
-                              `Sprint ${id}`}
+                            {name || `Sprint ${id}`}
                           </AppText>
-
                           {status ? (
                             <View
                               style={{
-                                backgroundColor:
-                                  status.toLowerCase() === 'active'
-                                    ? '#DCFCE7'
-                                    : '#F1F5F9',
+                                backgroundColor: colors.surface,
                               }}
                               className='ml-2 rounded-full px-2.5 py-0.5'
                             >
@@ -303,7 +312,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                                 style={{
                                   color:
                                     status.toLowerCase() === 'active'
-                                      ? '#15803D'
+                                      ? colors.primary
                                       : colors.textSecondary,
                                   fontSize: moderateScale(11),
                                 }}
@@ -314,8 +323,6 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                             </View>
                           ) : null}
                         </View>
-
-                        {/* Sprint Description (if available) */}
                         {item.description ? (
                           <AppText
                             variant='body'
@@ -326,8 +333,6 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                             {item.description}
                           </AppText>
                         ) : null}
-
-                        {/* Sprint Start & End Date */}
                         {(startDate || endDate) && (
                           <View className='mt-2 flex-row items-center gap-1.5'>
                             <Ionicons
@@ -347,33 +352,26 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                           </View>
                         )}
                       </View>
-                      {/* 
-                      <Ionicons
-                        name='chevron-forward-outline'
-                        size={moderateScale(18)}
-                        color={colors.textSecondary}
-                      /> */}
                     </TouchableOpacity>
                   );
                 }
 
-                return <ProjectCard item={item} onPress={handleSelect} />;
+                return (
+                  <ProjectCard
+                    item={item}
+                    onPress={() => handleSelect(id, name)}
+                  />
+                );
               }}
-              /* Pagination Props */
-              onEndReached={() => {
-                if (hasMore && !isFetchingMore && onEndReached) {
-                  onEndReached();
-                }
-              }}
-              onEndReachedThreshold={0.5}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.4}
               ListFooterComponent={
-                isFetchingMore ? (
+                effectiveIsFetchingMore ? (
                   <View className='items-center justify-center py-4'>
                     <ActivityIndicator size='small' color={colors.primary} />
                   </View>
                 ) : null
               }
-              /* Empty State */
               ListEmptyComponent={
                 <View
                   className='items-center justify-center'

@@ -83,9 +83,8 @@ const Report = () => {
   const layout = useAuthLayout();
   const moderateScale = layout?.moderateScale || ((size: number) => size);
 
-  const { burndownData, burndownLoading, project, currentSprint } = useAppSelector(
-    state => state.projects,
-  );
+  const { burndownData, burndownLoading, project, currentSprint } =
+    useAppSelector(state => state.projects);
 
   const [activeModal, setActiveModal] = useState<ActiveModalType>(null);
   const [selectedTimeFilter, setSelectedTimeFilter] =
@@ -102,7 +101,12 @@ const Report = () => {
   useFocusEffect(
     useCallback(() => {
       if (project?.id && currentSprint?.id) {
-        dispatch(getBurndownChartThunk({ projectId: project.id, sprintId: currentSprint.id }));
+        dispatch(
+          getBurndownChartThunk({
+            projectId: project.id,
+            sprintId: currentSprint.id,
+          }),
+        );
       }
     }, [dispatch, project?.id, currentSprint?.id]),
   );
@@ -118,7 +122,11 @@ const Report = () => {
 
   // Parse Burndown Chart API Data into React Native Chart Kit Format
   const getFormattedBurndownData = () => {
-    if (!burndownData || !burndownData.burndown_data || burndownData.burndown_data.length === 0) {
+    if (
+      !burndownData ||
+      !burndownData.burndown_data ||
+      burndownData.burndown_data.length === 0
+    ) {
       return {
         labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5'],
         datasets: [
@@ -134,15 +142,19 @@ const Report = () => {
 
     // Extract labels (dates) and remaining points from API response
     const labels = burndownData.burndown_data.map((point: any) => point.date);
-    const actualData = burndownData.burndown_data.map((point: any) => point.remaining_points ?? 0);
+    const actualData = burndownData.burndown_data.map(
+      (point: any) => point.remaining_points ?? 0,
+    );
 
     // For a burndown chart, ideal data would be a linear reduction from total to 0
     const totalPoints = burndownData.total_story_points || 0;
-    const idealData = burndownData.burndown_data.map((point: any, index: number) => {
-      // Calculate ideal points: start at total, decrease linearly to 0
-      const progress = index / (burndownData.burndown_data.length - 1 || 1);
-      return Math.round(totalPoints * (1 - progress));
-    });
+    const idealData = burndownData.burndown_data.map(
+      (point: any, index: number) => {
+        // Calculate ideal points: start at total, decrease linearly to 0
+        const progress = index / (burndownData.burndown_data.length - 1 || 1);
+        return Math.round(totalPoints * (1 - progress));
+      },
+    );
 
     const datasets = [
       {
@@ -166,15 +178,11 @@ const Report = () => {
   const chartWidth = Dimensions.get('window').width - moderateScale(64);
 
   return (
-<<<<<<< Updated upstream
-    <Screen className='p-4 pb-16' scroll>
-=======
     <ScrollView
       className='flex-1 p-4 pb-16 pt-6'
       style={{ backgroundColor: colors.surface }}
       showsVerticalScrollIndicator={false}
     >
->>>>>>> Stashed changes
       <View
         className='mb-4 shadow-sm'
         style={{
@@ -564,7 +572,7 @@ const Report = () => {
           )}
         </TouchableOpacity>
       </Modal>
-    </Screen>
+    </ScrollView>
   );
 };
 

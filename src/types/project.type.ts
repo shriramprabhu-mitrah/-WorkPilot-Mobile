@@ -207,32 +207,6 @@ export interface DeleteProjectPayload {
   onFinally?: () => void;
 }
 
-export interface UserStory {
-  id: string;
-  project_id: string;
-  sprint_id: string;
-  sprint_name: string;
-  title: string;
-  description: string;
-  priority: string;
-  status: string;
-  story_points: number;
-  assignee_id: string;
-  assignee_name: string;
-  reporter_id: string;
-  reporter_name: string;
-
-  reporter: UserStoryReporter;
-  assignee: UserStoryAssignee;
-
-  backlog_order: number;
-  total_tasks: number;
-  completed_tasks: number;
-  progress: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface UserStoryReporter {
   id: string;
   name: string;
@@ -402,8 +376,6 @@ export interface GetTaskByIdResponse {
   message: string;
   data: TaskData;
 }
-<<<<<<< Updated upstream
-=======
 
 export type UserStoryPriority = 'low' | 'medium' | 'high' | 'critical';
 
@@ -551,4 +523,3 @@ export interface TaskItem {
   reporter: UserProfile;
   assignee: UserProfile;
 }
->>>>>>> Stashed changes

@@ -24,40 +24,12 @@ import { RootState } from './src/store';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './src/types/navigationTypes';
 import { navigate } from './src/navigation/navigationRef';
-// import NetworkErrorScreen from './src/screens/networkErrorScreen';
-// import { setNetworkError } from './src/store/commonSlice';
-// import NetInfo from '@react-native-community/netinfo';
+import NetworkErrorScreen from './src/screens/networkErrorScreen';
+import { setNetworkError } from './src/store/commonSlice';
+import NetInfo from '@react-native-community/netinfo';
 
 function App() {
-  // useEffect(() => {
-  //   const handleDeepLink = async ({ url }: { url: string }) => {
-  //     console.log('Deep Link:', url);
-
-  //     const token = new URL(url).searchParams.get('token');
-
-  //     if (token) {
-  //       await mmkv.set('accessToken', token);
-
-  //       navigate('HomeTabs');
-  //     }
-  //   };
-
-  //   const subscription = Linking.addEventListener('url', handleDeepLink);
-
-  //   Linking.getInitialURL().then(url => {
-  //     if (url) {
-  //       handleDeepLink({ url });
-  //     }
-  //   });
-
-  //   return () => subscription.remove();
-  // }, []);
-  // const isDarkMode = useColorScheme() === 'dark';
-
-  // console.log('LINE56');
-
   return (
-    // <KeyboardProvider>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
         <ThemeProvider>
@@ -78,9 +50,9 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const { mode } = useTheme();
 
-  // const isNetworkError = useSelector(
-  //   (state: RootState) => state.common.isNetworkError,
-  // );
+  const isNetworkError = useSelector(
+    (state: RootState) => state.common.isNetworkError,
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -90,13 +62,13 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
-  // const handleRetry = async () => {
-  //   const state = await NetInfo.fetch();
+  const handleRetry = async () => {
+    const state = await NetInfo.fetch();
 
-  //   if (state.isConnected) {
-  //     store.dispatch(setNetworkError(false));
-  //   }
-  // };
+    if (state.isConnected) {
+      store.dispatch(setNetworkError(false));
+    }
+  };
 
   return (
     <>
@@ -106,14 +78,14 @@ function AppContent() {
         barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
       />
 
-      {/* {isLoading ? (
+      {isLoading ? (
         <SplashScreen />
       ) : isNetworkError ? (
         <NetworkErrorScreen onRetry={handleRetry} />
       ) : (
         <AppNavigator />
-      )} */}
-      {isLoading ? <SplashScreen /> : <AppNavigator />}
+      )}
+      {/* {isLoading ? <SplashScreen /> : <AppNavigator />} */}
     </>
   );
 }

@@ -107,6 +107,7 @@ const AppNavigator = () => {
         {isAuthenticated ? (
           <Stack.Navigator
             key='authenticated-stack'
+            detachInactiveScreens={false}
             screenOptions={{
               headerShown: false,
             }}

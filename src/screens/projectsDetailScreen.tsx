@@ -1,201 +1,461 @@
-import React, { useState } from 'react';
-import { View, LayoutChangeEvent, Dimensions } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  ScrollView,
+  findNodeHandle,
+  UIManager,
+} from 'react-native';
+import { useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+
+import AppText from '../components/common/AppText';
+import TaskCard from '../components/TaskCard';
+
+import { RootStackParamList } from '../types/navigationTypes';
+import { useTheme } from '../hooks/useTheme';
+import { useAuthLayout } from '../hooks/useAuthLayout';
+
+import { BoardUserStory, Task } from '../data/projectDetailScreenData';
+
+import { RootState, useAppDispatch, useAppSelector } from '../store';
+import { getUserStories } from '../store/project_store/action/project_thunk';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  runOnJS,
-  useAnimatedRef,
   useAnimatedReaction,
+  useAnimatedRef,
   scrollTo,
   AnimatedRef,
   SharedValue,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
-import Screen from '../components/common/ScreenWapper';
-import AppText from '../components/common/AppText';
-import TaskCard from '../components/TaskCard';
-import { RootStackParamList } from '../types/navigationTypes';
-import { useTheme } from '../hooks/useTheme';
-import { useAuthLayout } from '../hooks/useAuthLayout';
-import { getColumns, getRecentProjects } from '../data/projectDetailScreenData';
-import { Radius } from '../constants/Radius';
+import { scheduleOnRN } from 'react-native-worklets';
+import { getCustomStatusData } from '../store/customStatus_store/action/customstatus.thunk';
+import { CustomStatus } from '../types/customstatus.type';
+import { updateTaskThunk } from '../store/task_store/action/task.thunk';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native';
+
+type UserStoryBoardRowProps = {
+  story: BoardUserStory;
+  projectId: string;
+  customStatuses: CustomStatus[];
+  expanded: boolean;
+
+  onToggle: () => void;
+
+  onRegisterDropZone: (storyId: string, statusId: string, ref: View) => void;
+
+  onTaskDrop: (
+    task: Task,
+    sourceStoryId: string,
+    sourceStatusId: string,
+    absoluteX: number,
+    absoluteY: number,
+  ) => void;
+
+  onHoverDropZone: (absoluteX: number, absoluteY: number) => void;
+
+  activeDropZone: {
+    storyId: string;
+    statusId: string;
+  } | null;
+
+  dropSuccessZone: {
+    storyId: string;
+    statusId: string;
+  } | null;
+
+  horizontalScrollRef: AnimatedRef<Animated.ScrollView>;
+  verticalScrollRef: AnimatedRef<Animated.ScrollView>;
+
+  horizontalScrollOffset: SharedValue<number>;
+  verticalScrollOffset: SharedValue<number>;
+};
+
+type TaskDropZoneProps = {
+  storyId: string;
+  statusId: string;
+  onRegister: (zone: DropZone) => void;
+  isActive?: boolean;
+  isSuccess?: boolean;
+  children?: React.ReactNode;
+  horizontalScrollOffset: SharedValue<number>;
+  verticalScrollOffset: SharedValue<number>;
+};
+
+type DraggableTaskProps = {
+  task: Task;
+
+  sourceStoryId: string;
+  sourceStatusId: string;
+
+  projectId: string;
+
+  onDrop: (
+    task: Task,
+    sourceStoryId: string,
+    sourceStatusId: string,
+    absoluteX: number,
+    absoluteY: number,
+  ) => void;
+
+  onHoverDropZone: (absoluteX: number, absoluteY: number) => void;
+
+  horizontalScrollRef: AnimatedRef<Animated.ScrollView>;
+  verticalScrollRef: AnimatedRef<Animated.ScrollView>;
+
+  horizontalScrollOffset: SharedValue<number>;
+  verticalScrollOffset: SharedValue<number>;
+};
+
+type DropZone = {
+  storyId: string;
+  statusId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scrollXAtMeasure: number;
+  scrollYAtMeasure: number;
+};
 
 type ProjectDetailsRouteProp = RouteProp<RootStackParamList, 'projectDetails'>;
 
-interface TaskItem {
-  id: string;
-  title: string;
-  priority: string;
-  points: string;
-  avatar: string;
-  avatarColor: string;
-}
-
-interface ColumnData {
-  title: string;
-  color: string;
-  tasks: TaskItem[];
-}
+const USER_STORY_WIDTH = 250;
+const STATUS_COLUMN_WIDTH = 260;
 
 const EDGE_THRESHOLD = 60;
 const SCROLL_SPEED = 12;
 
-// Inner Draggable Card Component
-const DraggableTaskCard = ({
-  item,
-  index,
-  sourceColumnTitle,
-  columnLayouts,
-  onDropTask,
-  setHoveredColumn,
+const UserStoryBoardRow = ({
+  story,
+  projectId,
+  customStatuses,
+  expanded,
+  onToggle,
+  onRegisterDropZone,
+  onTaskDrop,
+  onHoverDropZone,
+  activeDropZone,
+  dropSuccessZone,
   horizontalScrollRef,
   verticalScrollRef,
   horizontalScrollOffset,
   verticalScrollOffset,
-}: {
-  item: TaskItem;
-  index: number;
-  sourceColumnTitle: string;
-  columnLayouts: Record<string, { xMin: number; xMax: number }>;
-  onDropTask: (
-    taskId: string,
-    sourceTitle: string,
-    targetTitle: string,
-    dropY: number,
-  ) => void;
-  setHoveredColumn: (colTitle: string | null) => void;
-  horizontalScrollRef: AnimatedRef<Animated.ScrollView>;
-  verticalScrollRef: AnimatedRef<Animated.ScrollView>;
-  horizontalScrollOffset: SharedValue<number>;
-  verticalScrollOffset: SharedValue<number>;
-}) => {
-  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+}: UserStoryBoardRowProps) => {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        minHeight: expanded ? 250 : 100,
+      }}
+    >
+      {/* USER STORY */}
+
+      <TouchableOpacity
+        onPress={() =>
+          navigation.navigate('issue', { projectId, userStoryId: story?.id })
+        }
+        activeOpacity={0.7}
+        style={{
+          width: USER_STORY_WIDTH,
+          padding: 12,
+          backgroundColor: '#F9FAFB',
+        }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+          }}
+        >
+          <AppText
+            variant='body'
+            style={{
+              marginRight: 8,
+            }}
+            onPress={onToggle}
+          >
+            {expanded ? '▼' : '▶'}
+          </AppText>
+
+          <View
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: 6,
+              backgroundColor: story.status_color ?? '#9CA3AF',
+              marginTop: 5,
+              marginRight: 8,
+            }}
+          />
+
+          <View style={{ flex: 1 }}>
+            <AppText variant='body' className='font-semibold'>
+              {story.title}
+            </AppText>
+
+            <AppText variant='caption' color='#6B7280'>
+              {story.tasks?.length ?? 0} tasks · {story.story_points ?? 0} pts
+            </AppText>
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* STATUS COLUMNS */}
+
+      {customStatuses?.map(status => {
+        const tasks =
+          story.tasks?.filter(task => task.status_id === status.id) ?? [];
+
+        const isActive =
+          activeDropZone?.storyId === story.id &&
+          activeDropZone?.statusId === status.id;
+
+        const isSuccess =
+          dropSuccessZone?.storyId === story.id &&
+          dropSuccessZone?.statusId === status.id;
+
+        return (
+          <TaskDropZone
+            key={`${story.id}-${status.id}`}
+            storyId={story.id}
+            statusId={status.id}
+            onRegister={onRegisterDropZone}
+            isActive={isActive}
+            isSuccess={isSuccess}
+            horizontalScrollOffset={horizontalScrollOffset}
+            verticalScrollOffset={verticalScrollOffset}
+          >
+            {expanded &&
+              tasks.map(task => (
+                <DraggableTask
+                  key={task.id}
+                  task={task}
+                  sourceStoryId={story.id}
+                  sourceStatusId={status.id}
+                  projectId={projectId}
+                  onDrop={onTaskDrop}
+                  onHoverDropZone={onHoverDropZone}
+                  horizontalScrollRef={horizontalScrollRef}
+                  verticalScrollRef={verticalScrollRef}
+                  horizontalScrollOffset={horizontalScrollOffset}
+                  verticalScrollOffset={verticalScrollOffset}
+                />
+              ))}
+          </TaskDropZone>
+        );
+      })}
+    </View>
+  );
+};
+
+const DraggableTask = ({
+  task,
+  sourceStoryId,
+  sourceStatusId,
+  projectId,
+  onDrop,
+  onHoverDropZone,
+  horizontalScrollRef,
+  verticalScrollRef,
+  horizontalScrollOffset,
+  verticalScrollOffset,
+}: DraggableTaskProps) => {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+
   const isDragging = useSharedValue(false);
 
-  // Absolute touch tracking
-  const dragAbsoluteX = useSharedValue(0);
-  const dragAbsoluteY = useSharedValue(0);
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
 
-  // Scroll compensation
-  const initialScrollX = useSharedValue(0);
-  const initialScrollY = useSharedValue(0);
+  const startScrollX = useSharedValue(0);
+  const startScrollY = useSharedValue(0);
 
-  // Auto-scroll loop
+  /**
+   * =========================================
+   * AUTO SCROLL
+   * =========================================
+   */
+
+  // Inside DraggableTask:
   useAnimatedReaction(
     () => ({
-      x: dragAbsoluteX.value,
-      y: dragAbsoluteY.value,
-      active: isDragging.value,
+      x: dragX.value,
+      y: dragY.value,
+      dragging: isDragging.value,
     }),
     current => {
-      if (!current.active) return;
+      if (!current.dragging) return;
 
-      // Horizontal Scroll
-      if (current.x > screenWidth - EDGE_THRESHOLD) {
-        horizontalScrollOffset.value += SCROLL_SPEED;
-        scrollTo(horizontalScrollRef, horizontalScrollOffset.value, 0, false);
+      const currentXOffset = horizontalScrollOffset?.value ?? 0;
+      const currentYOffset = verticalScrollOffset?.value ?? 0;
+
+      // Horizontal auto scroll
+      if (current.x > 350) {
+        const nextX = currentXOffset + SCROLL_SPEED;
+        horizontalScrollOffset.value = nextX;
+        scrollTo(horizontalScrollRef, nextX, 0, false);
       } else if (current.x < EDGE_THRESHOLD) {
-        horizontalScrollOffset.value = Math.max(
-          0,
-          horizontalScrollOffset.value - SCROLL_SPEED,
-        );
-        scrollTo(horizontalScrollRef, horizontalScrollOffset.value, 0, false);
+        const nextX = Math.max(0, currentXOffset - SCROLL_SPEED);
+        horizontalScrollOffset.value = nextX;
+        scrollTo(horizontalScrollRef, nextX, 0, false);
       }
 
-      // Vertical Scroll
-      if (current.y > screenHeight - EDGE_THRESHOLD) {
-        verticalScrollOffset.value += SCROLL_SPEED;
-        scrollTo(verticalScrollRef, 0, verticalScrollOffset.value, false);
+      // Vertical auto scroll
+      if (current.y > 700) {
+        const nextY = currentYOffset + SCROLL_SPEED;
+        verticalScrollOffset.value = nextY;
+        scrollTo(verticalScrollRef, 0, nextY, false);
       } else if (current.y < EDGE_THRESHOLD) {
-        verticalScrollOffset.value = Math.max(
-          0,
-          verticalScrollOffset.value - SCROLL_SPEED,
-        );
-        scrollTo(verticalScrollRef, 0, verticalScrollOffset.value, false);
+        const nextY = Math.max(0, currentYOffset - SCROLL_SPEED);
+        verticalScrollOffset.value = nextY;
+        scrollTo(verticalScrollRef, 0, nextY, false);
       }
     },
   );
 
-  const updateHoveredColumn = (absX: number) => {
-    const currentX = absX + horizontalScrollOffset.value;
-    let target: string | null = null;
-    Object.entries(columnLayouts).forEach(([colTitle, bounds]) => {
-      if (currentX >= bounds.xMin && currentX <= bounds.xMax) {
-        target = colTitle;
-      }
-    });
-    setHoveredColumn(target);
-  };
+  /**
+   * =========================================
+   * DRAG GESTURE
+   * =========================================
+   */
 
   const panGesture = Gesture.Pan()
     .activateAfterLongPress(150)
+
     .onStart(event => {
       isDragging.value = true;
-      initialScrollX.value = horizontalScrollOffset.value;
-      initialScrollY.value = verticalScrollOffset.value;
-      dragAbsoluteX.value = event.absoluteX;
-      dragAbsoluteY.value = event.absoluteY;
-    })
-    .onUpdate(event => {
-      const scrollDiffX = horizontalScrollOffset.value - initialScrollX.value;
-      const scrollDiffY = verticalScrollOffset.value - initialScrollY.value;
 
+      // Save scroll position when drag starts
+      startScrollX.value = horizontalScrollOffset.value;
+
+      startScrollY.value = verticalScrollOffset.value;
+
+      dragX.value = event.absoluteX;
+      dragY.value = event.absoluteY;
+
+      // Immediately detect current cell
+      scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
+    })
+
+    .onUpdate(event => {
+      /**
+       * Difference caused by auto-scroll.
+       */
+      const scrollDiffX = horizontalScrollOffset.value - startScrollX.value;
+
+      const scrollDiffY = verticalScrollOffset.value - startScrollY.value;
+
+      /**
+       * Move dragged card.
+       */
       translateX.value = event.translationX + scrollDiffX;
+
       translateY.value = event.translationY + scrollDiffY;
 
-      dragAbsoluteX.value = event.absoluteX;
-      dragAbsoluteY.value = event.absoluteY;
+      /**
+       * Current absolute finger position.
+       */
+      dragX.value = event.absoluteX;
+      dragY.value = event.absoluteY;
 
-      runOnJS(updateHoveredColumn)(event.absoluteX);
+      /**
+       * Update highlighted drop zone.
+       */
+      scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
     })
+
     .onEnd(event => {
-      const dropX = event.absoluteX + horizontalScrollOffset.value;
-      const dropY = event.absoluteY + verticalScrollOffset.value;
-
-      let targetColumn: string | null = null;
-      Object.entries(columnLayouts).forEach(([colTitle, bounds]) => {
-        if (dropX >= bounds.xMin && dropX <= bounds.xMax) {
-          targetColumn = colTitle;
-        }
-      });
-
-      runOnJS(setHoveredColumn)(null);
-
-      if (targetColumn) {
-        runOnJS(onDropTask)(item.id, sourceColumnTitle, targetColumn, dropY);
-      }
+      /**
+       * Send final absolute position.
+       */
+      scheduleOnRN(
+        onDrop,
+        task,
+        sourceStoryId,
+        sourceStatusId,
+        event.absoluteX,
+        event.absoluteY,
+      );
 
       translateX.value = 0;
       translateY.value = 0;
+
       isDragging.value = false;
-      dragAbsoluteX.value = 0;
-      dragAbsoluteY.value = 0;
+
+      dragX.value = 0;
+      dragY.value = 0;
+    })
+
+    .onFinalize(() => {
+      /**
+       * Remove hover indication.
+       */
+      scheduleOnRN(onHoverDropZone, -1, -1);
+
+      translateX.value = 0;
+      translateY.value = 0;
+
+      isDragging.value = false;
+
+      dragX.value = 0;
+      dragY.value = 0;
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { scale: isDragging.value ? 1.05 : 1 },
-    ],
-    zIndex: isDragging.value ? 9999 : 1,
-    elevation: isDragging.value ? 12 : 0,
-    shadowColor: '#000',
-    shadowOpacity: isDragging.value ? 0.35 : 0,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-  }));
+  /**
+   * =========================================
+   * DRAGGED CARD STYLE
+   * =========================================
+   */
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          translateX: translateX.value,
+        },
+        {
+          translateY: translateY.value,
+        },
+        {
+          scale: isDragging.value ? 1.03 : 1,
+        },
+      ],
+
+      zIndex: isDragging.value ? 9999 : 1,
+
+      elevation: isDragging.value ? 10 : 0,
+    };
+  });
+
+  /**
+   * =========================================
+   * RENDER
+   * =========================================
+   */
 
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View style={animatedStyle}>
-        <TaskCard item={item} />
+        <TaskCard
+          item={{
+            id: task.id,
+            title: task.title,
+            priority: task.priority,
+            points: `${task.story_points ?? 0}p`,
+            avatar: task.assignee_name?.charAt(0)?.toUpperCase() || '?',
+            avatarColor: '#6366F1',
+          }}
+          projectId={projectId}
+        />
       </Animated.View>
     </GestureDetector>
   );
@@ -203,214 +463,512 @@ const DraggableTaskCard = ({
 
 // Main Screen Component
 const ProjectDeatailsScreen = () => {
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const dispatch = useAppDispatch();
   const route = useRoute<ProjectDetailsRouteProp>();
-  const { colors, strings } = useTheme();
+  const { colors } = useTheme();
+  const hasInitializedStories = useRef(false);
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
-
   const verticalScrollRef = useAnimatedRef<Animated.ScrollView>();
   const horizontalScrollRef = useAnimatedRef<Animated.ScrollView>();
   const horizontalScrollOffset = useSharedValue(0);
   const verticalScrollOffset = useSharedValue(0);
-
-  const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
-
-  const [boardColumns, setBoardColumns] = useState<ColumnData[]>(() =>
-    getColumns(strings, colors),
+  const {
+    project,
+    userStories,
+    customStatuses,
+    currentSprint,
+    getCurrentSprintLoading,
+  } = useAppSelector((state: RootState) => state.projects);
+  const projectId = project?.id;
+  const [localUserStories, setLocalUserStories] = useState<BoardUserStory[]>(
+    [],
   );
-  const [columnLayouts, setColumnLayouts] = useState<
-    Record<string, { xMin: number; xMax: number }>
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  const [expandedStories, setExpandedStories] = useState<
+    Record<string, boolean>
   >({});
+  const [dropZones, setDropZones] = useState<DropZone[]>([]);
+  const [activeDropZone, setActiveDropZone] = useState<{
+    storyId: string;
+    statusId: string;
+  } | null>(null);
+  const [dropSuccessZone, setDropSuccessZone] = useState<{
+    storyId: string;
+    statusId: string;
+  } | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!projectId) {
+        return;
+      }
+      dispatch(
+        getCustomStatusData({
+          projectId,
+        }),
+      );
+      if (currentSprint?.id) {
+        setSelectedSprintId(currentSprint.id);
+      }
+    }, [dispatch, projectId, currentSprint?.id]),
+  );
 
-  const projectId = route.params?.id;
-  const recentProjects = getRecentProjects(colors);
-  const project = recentProjects.find(p => p.type === projectId);
+  useEffect(() => {
+    if (!projectId) {
+      return;
+    }
+    const payload: {
+      page: number;
+      page_size: number;
+      sprint_id?: string;
+    } = {
+      page: 1,
+      page_size: 100,
+    };
+    if (selectedSprintId) {
+      payload.sprint_id = selectedSprintId;
+    }
+    dispatch(
+      getUserStories({
+        projectId,
+        payload,
+      }),
+    );
+  }, [dispatch, projectId, selectedSprintId]);
 
-  const handleColumnLayout = (title: string, event: LayoutChangeEvent) => {
-    const { x, width } = event.nativeEvent.layout;
-    setColumnLayouts(prev => ({
+  useEffect(() => {
+    hasInitializedStories.current = false;
+    setLocalUserStories([]);
+    setDropZones([]);
+    setActiveDropZone(null);
+    setDropSuccessZone(null);
+  }, [projectId, selectedSprintId]);
+
+  useEffect(() => {
+    if (!userStories?.length) {
+      return;
+    }
+    if (!hasInitializedStories.current) {
+      setLocalUserStories(userStories);
+      hasInitializedStories.current = true;
+    }
+  }, [userStories]);
+
+  const toggleStory = useCallback((storyId: string) => {
+    setExpandedStories(prev => ({
       ...prev,
-      [title]: { xMin: x, xMax: x + width },
+      [storyId]: !prev[storyId],
     }));
-  };
+  }, []);
 
-  // Handles both cross-column moving and same-column reordering
-  const handleDropTask = (
-    taskId: string,
-    sourceTitle: string,
-    targetTitle: string,
-    dropY: number,
-  ) => {
-    setBoardColumns(prevColumns => {
-      const isSameColumn = sourceTitle === targetTitle;
-
-      if (isSameColumn) {
-        return prevColumns.map(col => {
-          if (col.title === sourceTitle) {
-            const currentTasks = [...col.tasks];
-            const taskIndex = currentTasks.findIndex(t => t.id === taskId);
-            if (taskIndex === -1) return col;
-
-            const [movedTask] = currentTasks.splice(taskIndex, 1);
-
-            // Simple position estimation index shift based on relative touch drag offset
-            const targetIndex = Math.min(
-              Math.max(0, Math.floor(dropY / 120)),
-              currentTasks.length,
-            );
-
-            currentTasks.splice(targetIndex, 0, movedTask);
-            return { ...col, tasks: currentTasks };
-          }
-          return col;
-        });
+  const registerTaskDropZone = useCallback((zone: DropZone) => {
+    setDropZones(prev => {
+      const index = prev.findIndex(
+        item =>
+          item.storyId === zone.storyId && item.statusId === zone.statusId,
+      );
+      if (index === -1) {
+        return [...prev, zone];
       }
-
-      // Cross-column drop
-      let movedTask: TaskItem | undefined;
-      const updated = prevColumns.map(col => {
-        if (col.title === sourceTitle) {
-          movedTask = col.tasks.find(t => t.id === taskId);
-          return { ...col, tasks: col.tasks.filter(t => t.id !== taskId) };
-        }
-        return col;
-      });
-
-      if (movedTask) {
-        return updated.map(col => {
-          if (col.title === targetTitle) {
-            return { ...col, tasks: [...col.tasks, movedTask!] };
-          }
-          return col;
-        });
-      }
-
-      return prevColumns;
+      const updated = [...prev];
+      updated[index] = zone;
+      return updated;
     });
-  };
+  }, []);
 
+  const findDropZone = useCallback(
+    (absoluteX: number, absoluteY: number): DropZone | null => {
+      const currentX = horizontalScrollOffset.value;
+      const currentY = verticalScrollOffset.value;
+      const zone = dropZones.find(item => {
+        const adjustedX = item.x - (currentX - item.scrollXAtMeasure);
+        const adjustedY = item.y - (currentY - item.scrollYAtMeasure);
+        const insideX =
+          absoluteX >= adjustedX && absoluteX <= adjustedX + item.width;
+        const insideY =
+          absoluteY >= adjustedY && absoluteY <= adjustedY + item.height;
+        return insideX && insideY;
+      });
+      return zone ?? null;
+    },
+    [dropZones, horizontalScrollOffset, verticalScrollOffset],
+  );
+
+  const handleHoverDropZone = useCallback(
+    (absoluteX: number, absoluteY: number) => {
+      if (absoluteX < 0 || absoluteY < 0) {
+        setActiveDropZone(null);
+        return;
+      }
+      const targetZone = findDropZone(absoluteX, absoluteY);
+      if (!targetZone) {
+        setActiveDropZone(null);
+        return;
+      }
+      setActiveDropZone({
+        storyId: targetZone.storyId,
+        statusId: targetZone.statusId,
+      });
+    },
+    [findDropZone],
+  );
+
+  const updateTaskLocalState = useCallback(
+    (
+      taskId: string,
+      sourceStoryId: string,
+      targetStoryId: string,
+      targetStatusId: string,
+    ) => {
+      setLocalUserStories(prevStories => {
+        const sourceStory = prevStories.find(
+          story => story.id === sourceStoryId,
+        );
+        if (!sourceStory) {
+          return prevStories;
+        }
+        const movedTask = sourceStory.tasks?.find(task => task.id === taskId);
+        if (!movedTask) {
+          console.log('Task not found:', taskId);
+          return prevStories;
+        }
+        if (sourceStoryId === targetStoryId) {
+          return prevStories.map(story => {
+            if (story.id !== sourceStoryId) {
+              return story;
+            }
+            return {
+              ...story,
+              tasks: (story.tasks ?? []).map(task =>
+                task.id === taskId
+                  ? {
+                      ...task,
+                      status_id: targetStatusId,
+                    }
+                  : task,
+              ),
+            };
+          });
+        }
+        return prevStories.map(story => {
+          if (story.id === sourceStoryId) {
+            return {
+              ...story,
+              tasks: (story.tasks ?? []).filter(task => task.id !== taskId),
+              totalTasks: Math.max(0, (story.totalTasks ?? 0) - 1),
+            };
+          }
+          if (story.id === targetStoryId) {
+            return {
+              ...story,
+              tasks: [
+                ...(story.tasks ?? []),
+                {
+                  ...movedTask,
+                  status_id: targetStatusId,
+                },
+              ],
+              totalTasks: (story.totalTasks ?? 0) + 1,
+            };
+          }
+          return story;
+        });
+      });
+    },
+    [],
+  );
+
+  const handleTaskDrop = useCallback(
+    (
+      task: Task,
+      sourceStoryId: string,
+      sourceStatusId: string,
+      absoluteX: number,
+      absoluteY: number,
+    ) => {
+      setActiveDropZone(null);
+      const targetZone = findDropZone(absoluteX, absoluteY);
+      if (!targetZone) {
+        console.log('❌ No valid drop zone', absoluteX, absoluteY);
+        return;
+      }
+      const targetStoryId = targetZone.storyId;
+      const targetStatusId = targetZone.statusId;
+      console.log('🎯 DROP TARGET', {
+        taskId: task.id,
+        sourceStoryId,
+        sourceStatusId,
+        targetStoryId,
+        targetStatusId,
+        absoluteX,
+        absoluteY,
+      });
+      if (
+        sourceStoryId === targetStoryId &&
+        sourceStatusId === targetStatusId
+      ) {
+        console.log('Dropped in same cell');
+        return;
+      }
+      const sourceStory = localUserStories.find(
+        story => story.id === sourceStoryId,
+      );
+      const sourceTask = sourceStory?.tasks?.find(item => item.id === task.id);
+      if (!sourceTask) {
+        console.log('❌ Source task not found:', task.id);
+        return;
+      }
+      setDropSuccessZone({
+        storyId: targetStoryId,
+        statusId: targetStatusId,
+      });
+      updateTaskLocalState(
+        task.id,
+        sourceStoryId,
+        targetStoryId,
+        targetStatusId,
+      );
+      if (!projectId) {
+        setDropSuccessZone(null);
+        return;
+      }
+      dispatch(
+        updateTaskThunk({
+          projectId,
+          taskId: task.id,
+          payload: {
+            user_story_id: targetStoryId,
+            status_id: targetStatusId,
+          },
+          onSuccess: response => {
+            console.log('✅ Task updated successfully:', response);
+            setTimeout(() => {
+              setDropSuccessZone(null);
+            }, 700);
+          },
+          onError: error => {
+            console.error('❌ Failed to update task:', error);
+            setDropSuccessZone(null);
+            setLocalUserStories(prevStories =>
+              prevStories.map(story => {
+                if (story.id === targetStoryId) {
+                  return {
+                    ...story,
+                    tasks: (story.tasks ?? []).filter(
+                      item => item.id !== task.id,
+                    ),
+                    totalTasks:
+                      sourceStoryId === targetStoryId
+                        ? story.totalTasks
+                        : Math.max(0, (story.totalTasks ?? 0) - 1),
+                  };
+                }
+                if (story.id === sourceStoryId) {
+                  return {
+                    ...story,
+                    tasks: [...(story.tasks ?? []), sourceTask],
+                    totalTasks:
+                      sourceStoryId === targetStoryId
+                        ? story.totalTasks
+                        : (story.totalTasks ?? 0) + 1,
+                  };
+                }
+                return story;
+              }),
+            );
+          },
+          onFinally: () => {
+            console.log('Task update completed');
+          },
+        }),
+      );
+    },
+    [dispatch, findDropZone, localUserStories, projectId, updateTaskLocalState],
+  );
+  console.log('LINE973', getCurrentSprintLoading);
   return (
-    <Screen scroll={false} backgroundColor={colors.surface}>
+    <ScrollView
+      className='flex-1'
+      style={{
+        backgroundColor: colors.surface,
+        paddingTop: moderateScale(20),
+      }}
+    >
+      <View
+        style={{
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingTop: layout.tightGap,
+          paddingBottom: moderateScale(12),
+        }}
+      >
+        <AppText variant='title' className='font-bold'>
+          Kanban Board
+        </AppText>
+
+        <AppText
+          variant='body'
+          style={{
+            marginTop: moderateScale(4),
+            opacity: 0.5,
+          }}
+        >
+          Visualize and manage your team's tasks across workflow stages
+        </AppText>
+      </View>
       <Animated.ScrollView
         ref={verticalScrollRef}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        onScroll={e => {
-          verticalScrollOffset.value = e.nativeEvent.contentOffset.y;
+        onScroll={event => {
+          verticalScrollOffset.value = event.nativeEvent.contentOffset.y;
         }}
-        style={{ flex: 1 }}
+        style={{
+          flex: 1,
+        }}
         contentContainerStyle={{
           paddingBottom: isSmallHeight ? hp(20) : hp(12),
         }}
       >
-        {/* Horizontal Board ScrollView */}
         <Animated.ScrollView
           ref={horizontalScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
-          onScroll={e => {
-            horizontalScrollOffset.value = e.nativeEvent.contentOffset.x;
+          onScroll={event => {
+            horizontalScrollOffset.value = event.nativeEvent.contentOffset.x;
           }}
           contentContainerStyle={{
             paddingHorizontal: layout.paddingHorizontal,
             paddingTop: layout.tightGap,
           }}
         >
-          {boardColumns.map(column => {
-            const isFocused = hoveredColumn === column.title;
-
-            return (
+          <View>
+            <View
+              style={{
+                flexDirection: 'row',
+                borderBottomWidth: 1,
+                borderBottomColor: '#D1D5DB',
+              }}
+            >
               <View
-                key={column.title}
-                onLayout={event => handleColumnLayout(column.title, event)}
                 style={{
-                  width: moderateScale(280),
-                  paddingRight: layout.elementGap,
-                  gap: layout.tightGap,
-                  backgroundColor: isFocused
-                    ? `${colors.primary}12`
-                    : 'transparent',
-                  borderWidth: isFocused ? 2 : 0,
-                  borderColor: colors.primary,
-                  borderRadius: Radius.md,
-                  padding: isFocused ? layout.tightGap : 0,
+                  width: USER_STORY_WIDTH,
+                  padding: 12,
                 }}
               >
-                {/* Column Header */}
+                <AppText variant='body' className='font-bold'>
+                  User Stories
+                </AppText>
+              </View>
+              {customStatuses?.map(status => (
                 <View
-                  className='flex-row items-center justify-between'
+                  key={status.id}
                   style={{
-                    paddingHorizontal: layout.paddingHorizontal * 0.25,
-                    paddingTop: layout.paddingTop,
-                    paddingBottom: layout.paddingBottom,
+                    width: STATUS_COLUMN_WIDTH,
+                    padding: 12,
+                    borderLeftWidth: 1,
+                    borderLeftColor: '#E5E7EB',
                   }}
                 >
                   <View
-                    className='flex-row items-center'
-                    style={{ gap: layout.sectionGap }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}
                   >
                     <View
                       style={{
-                        borderRadius: Radius.circle,
-                        width: moderateScale(10),
-                        height: moderateScale(10),
-                        backgroundColor: column.color,
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: status.color,
+                        marginRight: 8,
                       }}
                     />
-                    <AppText
-                      variant='body'
-                      color={colors.text}
-                      className='font-bold'
-                    >
-                      {column.title}
+                    <AppText variant='body' className='font-bold'>
+                      {status.name}
                     </AppText>
-                    <View
-                      style={{
-                        backgroundColor: colors.border,
-                        paddingHorizontal: layout.paddingHorizontal * 0.25,
-                        borderRadius: Radius.circle,
-                      }}
-                    >
-                      <AppText variant='caption' color={colors.textSecondary}>
-                        {column.tasks.length}
-                      </AppText>
-                    </View>
                   </View>
-
-                  {/* <TouchableOpacity activeOpacity={0.7}>
-                    <Ionicons
-                      name='add'
-                      size={20}
-                      color={colors.textSecondary}
-                    />
-                  </TouchableOpacity> */}
                 </View>
-
-                {/* Task List */}
-                <View style={{ gap: layout.elementGap }}>
-                  {column.tasks.map((item, index) => (
-                    <DraggableTaskCard
-                      key={item.id}
-                      item={item}
-                      index={index}
-                      sourceColumnTitle={column.title}
-                      columnLayouts={columnLayouts}
-                      onDropTask={handleDropTask}
-                      setHoveredColumn={setHoveredColumn}
-                      horizontalScrollRef={horizontalScrollRef}
-                      verticalScrollRef={verticalScrollRef}
-                      horizontalScrollOffset={horizontalScrollOffset}
-                      verticalScrollOffset={verticalScrollOffset}
-                    />
-                  ))}
-                </View>
-              </View>
-            );
-          })}
+              ))}
+            </View>
+            {localUserStories?.map(story => (
+              <UserStoryBoardRow
+                key={story.id}
+                story={story}
+                projectId={projectId ?? ''}
+                customStatuses={customStatuses}
+                expanded={!!expandedStories[story.id]}
+                onToggle={() => toggleStory(story.id)}
+                onRegisterDropZone={registerTaskDropZone}
+                onTaskDrop={handleTaskDrop}
+                onHoverDropZone={handleHoverDropZone}
+                activeDropZone={activeDropZone}
+                dropSuccessZone={dropSuccessZone}
+                horizontalScrollRef={horizontalScrollRef}
+                verticalScrollRef={verticalScrollRef}
+                horizontalScrollOffset={horizontalScrollOffset}
+                verticalScrollOffset={verticalScrollOffset}
+              />
+            ))}
+          </View>
         </Animated.ScrollView>
       </Animated.ScrollView>
-    </Screen>
+    </ScrollView>
+  );
+};
+
+const TaskDropZone = ({
+  storyId,
+  statusId,
+  onRegister,
+  isActive,
+  isSuccess,
+  children,
+  horizontalScrollOffset,
+  verticalScrollOffset,
+}: TaskDropZoneProps) => {
+  const dropZoneRef = useRef<View>(null);
+  const measureZone = useCallback(() => {
+    if (!dropZoneRef.current) return;
+    dropZoneRef.current.measureInWindow((x, y, width, height) => {
+      onRegister({
+        storyId,
+        statusId,
+        x,
+        y,
+        width,
+        height,
+        scrollXAtMeasure: horizontalScrollOffset?.value ?? 0,
+        scrollYAtMeasure: verticalScrollOffset?.value ?? 0,
+      });
+    });
+  }, [
+    storyId,
+    statusId,
+    onRegister,
+    horizontalScrollOffset,
+    verticalScrollOffset,
+  ]);
+
+  return (
+    <View
+      ref={dropZoneRef}
+      onLayout={measureZone}
+      style={{
+        width: STATUS_COLUMN_WIDTH,
+        minHeight: 100,
+        padding: 8,
+        borderLeftWidth: 1,
+        borderLeftColor: '#E5E7EB',
+        backgroundColor: isSuccess
+          ? '#D1FAE5'
+          : isActive
+            ? '#E0E7FF'
+            : 'transparent',
+      }}
+    >
+      {children}
+    </View>
   );
 };
 

@@ -9,17 +9,36 @@ import AppText from './common/AppText';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { Radius } from '../constants/Radius';
 
-const TaskCard = ({ item }: any) => {
+const TaskCard = ({ item, projectId }: any) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
 
   const openIssue = () => {
-    navigation.navigate('issue');
+    navigation.navigate('issue', { projectId: projectId, taskId: item?.id });
     const rootNavigation = navigation.getParent()?.getParent()?.getParent();
 
     if (rootNavigation) {
       rootNavigation.navigate('issue');
+    }
+  };
+
+  const getPriorityColor = (priority?: string) => {
+    switch (priority?.toLowerCase()) {
+      case 'high':
+        return '#EF4444'; // Red
+
+      case 'medium':
+        return '#F59E0B'; // Orange
+
+      case 'low':
+        return '#22C55E'; // Green
+
+      case 'urgent':
+        return '#DC2626'; // Dark red
+
+      default:
+        return colors.textSecondary;
     }
   };
 
@@ -71,9 +90,11 @@ const TaskCard = ({ item }: any) => {
           <AppText
             variant='caption'
             className='font-semibold'
-            style={{ color: colors.textSecondary }}
+            style={{
+              color: getPriorityColor(item.priority),
+            }}
           >
-            {item.id}
+            {item.priority}
           </AppText>
         </View>
 

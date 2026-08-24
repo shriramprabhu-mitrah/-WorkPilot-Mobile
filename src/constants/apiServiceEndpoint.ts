@@ -25,11 +25,13 @@ export const GET_PROJECT_BY_ID = `/project/{project_id}/detail`;
 export const UPDATE_PROJECT = `/project/update/{project_id}`;
 export const DELETE_PROJECT = `/project/{project_id}`;
 export const GET_RECENT_PROJECTS = `/project/recent`;
+export const UPDATE_USER_STORY = `/projects/{project_id}/user-stories/{user_story_id}`;
+
 //Activity
 export const GET_AUDIT = `/audit`;
 
 //UserStory
-export const GET_USERSTORY = `project/{project_id}/user-stories`;
+export const GET_USERSTORY = `/projects/{project_id}/user-stories`;
 
 //SPRINT
 export const GET_SPRINTS = `/projects/{project_id}/sprint`;
@@ -41,7 +43,18 @@ export const GET_BURNDOWN_BY_PROJECT_SPRINT = `/projects/{project_id}/sprint/{sp
 export const GET_TASK_BY_ID = `/projects/{project_id}/tasks/{task_id}`;
 
 //COMMENT
-export const GET_USERSTORIES_COMMENT = `/projects/{project_id}/user-stories/{user_story_id}/comments`;
+export const USERSTORIES_COMMENT = `/projects/{project_id}/user-stories/{user_story_id}/comments`; //post user story API
+export const USERSTORIES_COMMENT_BY_ID = `/projects/{project_id}/user-stories/{user_story_id}/comments/{comment_id}`; //get by ID and Update by Id delete by ID
+export const USER_STORIES_COMMENT_REPLIES = `/projects/{project_id}/user-stories/{user_story_id}/comments/replies/{comment_id}`; //get by replise Id API Call
 export const TASK_COMMENT = `/task/{task_id}/comments`;
 export const TASK_COMMENT_REPLIES = `/task/{task_id}/comments/replies/{parent_comment_id}`;
 export const TASK_COMMENT_ID = `/task/{task_id}/comments/{comment_id}`;
+
+//CustomStatus
+export const GET_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses`;
+export const CREATE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses`;
+export const DELETE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses/{status_id}`;
+export const UPDATE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses/{status_id}`;
+
+//Tasks
+export const UPDATE_TASKS = `/projects/{project_id}/tasks/{task_id}`;

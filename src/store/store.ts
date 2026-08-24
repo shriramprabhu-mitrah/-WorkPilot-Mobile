@@ -40,9 +40,7 @@ const mmkvStorage = {
 
 export const clearStorage = () => {
   const onboardingCompleted = mmkv.getBoolean('onboardingCompleted') ?? false;
-
   mmkv.clearAll();
-
   mmkv.set('onboardingCompleted', onboardingCompleted);
 };
 

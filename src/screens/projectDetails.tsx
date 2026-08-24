@@ -5,13 +5,19 @@ import ProjectTopNavigator from '../navigation/projectTopNavigator';
 import CommonHeader from '../components/common/CommonHeader';
 import AppText from '../components/common/AppText';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  useNavigation,
+  useFocusEffect,
+  useRoute,
+  RouteProp,
+} from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import {
   getProjectById,
   getSprintByIdThunk,
+  getSprintsThunk,
 } from '../store/project_store/action/project_thunk';
 import { ViewState } from '../screens/projectScreens/setting';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
@@ -22,9 +28,12 @@ import { getProjectName } from '../store/project_store/reducer/project_reducer';
 
 const ProjectDetails = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'projectDetails'>>();
+  const routeProjectId = route.params?.projectId;
+  const routeProjectName = route.params?.projectName;
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
-  const { project, projectName } = useAppSelector(
+  const { project, projectName, currentSprint } = useAppSelector(
     (state: RootState) => state?.projects,
   );
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
@@ -32,9 +41,7 @@ const ProjectDetails = () => {
   const [settingsView, setSettingsView] = useState<ViewState>('MAIN_SETTINGS');
   const [activeTab, setActiveTab] = useState<string>('Summary');
   const [selectedSprint, setSelectedSprint] = useState<Sprint | any>(null);
-<<<<<<< Updated upstream
-=======
-  console.log('activeTab', activeTab);
+
   const fetchProjectDetailsData = async (id: string) => {
     try {
       const [, sprintsData] = await Promise.all([
@@ -75,15 +82,26 @@ const ProjectDetails = () => {
       console.error('Failed to fetch project details:', error);
     }
   };
->>>>>>> Stashed changes
 
   useFocusEffect(
     useCallback(() => {
       setSettingsView('MAIN_SETTINGS');
-    }, []),
+
+      const targetProjectId =
+        routeProjectId ||
+        project?.id?.toString() ||
+        (project as any)?._id?.toString();
+
+      if (routeProjectName) {
+        dispatch(getProjectName(routeProjectName));
+      }
+
+      if (targetProjectId) {
+        fetchProjectDetailsData(targetProjectId);
+      }
+    }, [routeProjectId, routeProjectName, dispatch]),
   );
 
-  // Auto-select active sprint or default to the last sprint on initial load/project change
   useEffect(() => {
     const sprints: Sprint[] = project?.sprints || [];
     if (sprints.length > 0) {
@@ -102,17 +120,17 @@ const ProjectDetails = () => {
   };
 
   const handleOnSelectProject = (id: string, name: string) => {
+    const currentId =
+      project?.id?.toString() || (project as any)?._id?.toString();
+    if (!id || id === currentId) return;
+
     dispatch(getProjectName(name));
     setProjectSheetVisible(false);
-    dispatch(
-      getProjectById({
-        projectId: id,
-        handleSuccess,
-      }),
-    );
+    fetchProjectDetailsData(id);
   };
 
   const handleSelectSprint = (sprintId: string) => {
+    if (!sprintId || sprintId === currentSprint?.id?.toString()) return;
     setSprintListVisible(false);
     const sprints: Sprint[] = project?.sprints || [];
     const foundSprint = sprints.find(
@@ -162,6 +180,9 @@ const ProjectDetails = () => {
       ? `Sprint ${selectedSprint.id || selectedSprint._id}`
       : 'Select Sprint');
 
+  const currentProjectId =
+    project?.id?.toString() || (project as any)?._id?.toString();
+
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <CommonHeader
@@ -171,8 +192,7 @@ const ProjectDetails = () => {
         showDropdownIcon={false}
       />
 
-      {/* Project Name and Sprint Name Dropdowns in Flex Row */}
-      {settingsView === 'MAIN_SETTINGS' && (
+      {(settingsView === 'MAIN_SETTINGS' || settingsView === 'DETAILS') && (
         <View
           className='flex-row items-center justify-between gap-3 border-b px-4 py-2'
           style={{
@@ -201,7 +221,7 @@ const ProjectDetails = () => {
               <AppText
                 variant='body'
                 color={colors.primary}
-                className='font-semibold'
+                className='font-semibold capitalize'
                 numberOfLines={1}
               >
                 {getHeaderTitle()}
@@ -219,11 +239,7 @@ const ProjectDetails = () => {
           </TouchableOpacity>
 
           {/* Sprint Name Dropdown */}
-<<<<<<< Updated upstream
           {
-=======
-          {activeTab !== 'Backlogs' && (
->>>>>>> Stashed changes
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => setSprintListVisible(true)}
@@ -244,11 +260,7 @@ const ProjectDetails = () => {
                 <AppText
                   variant='body'
                   color={colors.primary}
-<<<<<<< Updated upstream
                   className='font-semibold'
-=======
-                  className='font-semibold capitalize'
->>>>>>> Stashed changes
                   numberOfLines={1}
                 >
                   {currentSprintName}
@@ -264,11 +276,7 @@ const ProjectDetails = () => {
                 color={colors.textSecondary}
               />
             </TouchableOpacity>
-<<<<<<< Updated upstream
           }
-=======
-          )}
->>>>>>> Stashed changes
         </View>
       )}
 
@@ -279,17 +287,19 @@ const ProjectDetails = () => {
         setActiveTab={setActiveTab}
       />
 
-      {/* Project Selector Bottom Sheet */}
+      {/* Project Bottom Sheet */}
       <ProjectListBottomSheet
         visible={projectSheetVisible}
+        mode='projects'
         onDismiss={() => setProjectSheetVisible(false)}
         onSelectProject={handleOnSelectProject}
       />
 
-      {/* Sprint Selector Bottom Sheet */}
+      {/* Sprint Bottom Sheet */}
       <ProjectListBottomSheet
-        isSprint={true}
         visible={sprintListVisible}
+        mode='sprints'
+        projectId={currentProjectId}
         onDismiss={() => setSprintListVisible(false)}
         title='Select Sprint'
         onSelectSprint={handleSelectSprint}

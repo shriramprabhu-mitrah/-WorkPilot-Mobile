@@ -16,9 +16,10 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   resetPassword: undefined;
   BackLogs: undefined;
-  projectDetails: { id: string } | undefined;
+  projectDetails: { projectId: string; projectName: string } | undefined;
   issue:
-    { projectId: string; userStoryId?: string; taskId?: string } | undefined;
+    | { id?: string; projectId?: string; userStoryId?: string; taskId?: string }
+    | undefined;
   HomeTabs: NavigatorScreenParams<HomeTabParamList> | undefined;
   Home: undefined;
   Project: undefined;

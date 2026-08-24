@@ -1,5 +1,12 @@
-import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import React, { useCallback, useRef } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  ScrollView,
+  Animated,
+  Easing,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { DonutChart } from 'react-native-chart-kit/v2';
 import { RootState, useAppSelector } from '../../store';
@@ -16,6 +23,44 @@ export const Summary: React.FC = () => {
   const { project, loading } = useAppSelector(
     (state: RootState) => state?.projects,
   );
+
+  // Animation values
+  const drawAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Re-run animation whenever the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (!loading && project) {
+        // Reset animation states on focus
+        drawAnim.setValue(0);
+        fadeAnim.setValue(0);
+
+        Animated.parallel([
+          // Smooth fade in
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          // Full 360-degree circular sweep draw effect
+          Animated.timing(drawAnim, {
+            toValue: 1,
+            duration: 1100,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    }, [loading, project, drawAnim, fadeAnim]),
+  );
+
+  // Interpolate rotation from -360deg to 0deg for "circle drawing" effect
+  const circleDraw = drawAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-360deg', '0deg'],
+  });
+
   if (loading || !project) {
     return <SummarySkeleton />;
   }
@@ -41,16 +86,12 @@ export const Summary: React.FC = () => {
       : colors.background === '#121212'
         ? 'dark'
         : 'system';
+
   return (
-<<<<<<< Updated upstream
-    <Screen scroll={true} backgroundColor={colors.surface}>
-=======
     <ScrollView
       className='flex-1'
       style={{ backgroundColor: colors.surface, paddingTop: moderateScale(20) }}
-      showsVerticalScrollIndicator={false}
     >
->>>>>>> Stashed changes
       <View
         style={{
           paddingHorizontal: layout.paddingHorizontal,
@@ -58,6 +99,7 @@ export const Summary: React.FC = () => {
           gap: isSmallHeight ? layout.largeSectionGap * 3 : layout.sectionGap,
         }}
       >
+        {/* Metric Cards */}
         <View
           className='flex-row flex-wrap justify-between'
           style={{ gap: moderateScale(12) }}
@@ -210,6 +252,8 @@ export const Summary: React.FC = () => {
             </AppText>
           </View>
         </View>
+
+        {/* Status Overview Card */}
         <View
           style={{
             backgroundColor: colors.background,
@@ -232,46 +276,56 @@ export const Summary: React.FC = () => {
             in the last 14 days
           </AppText>
 
-          <View className='items-center justify-center'>
-            <DonutChart
-              data={chartData}
-              valueKey='value'
-              labelKey='status'
-              colorKey='color'
-              width={moderateScale(300)}
-              height={moderateScale(260)}
-              legend={false}
-              innerRadius={moderateScale(75)}
-              theme={donutTheme}
-              centerLabel={
-                <View
-                  style={{ alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <AppText
-                    variant='bodyLarge'
-                    className='font-semibold'
-                    style={{
-                      fontSize: moderateScale(22),
-                      color: colors.textSecondary,
-                    }}
-                  >
-                    {chartTotal || totalTasks}
-                  </AppText>
-                  <AppText
-                    variant='body'
-                    style={{
-                      fontSize: moderateScale(13),
-                      color: colors.textSecondary,
-                      marginTop: moderateScale(2),
-                    }}
-                  >
-                    Total Task Count
-                  </AppText>
-                </View>
-              }
-            />
+          {/* Donut Chart Container with Center Label Absolute Positioning */}
+          <View className='relative items-center justify-center'>
+            <Animated.View
+              style={{
+                opacity: fadeAnim,
+                transform: [{ rotate: circleDraw }],
+              }}
+            >
+              <DonutChart
+                data={chartData}
+                valueKey='value'
+                labelKey='status'
+                colorKey='color'
+                width={moderateScale(300)}
+                height={moderateScale(260)}
+                legend={false}
+                innerRadius={moderateScale(75)}
+                theme={donutTheme}
+              />
+            </Animated.View>
+
+            {/* Stationary Center Label (Does not rotate with the ring) */}
+            <View
+              className='absolute items-center justify-center'
+              pointerEvents='none'
+            >
+              <AppText
+                variant='bodyLarge'
+                className='font-semibold'
+                style={{
+                  fontSize: moderateScale(22),
+                  color: colors.textSecondary,
+                }}
+              >
+                {chartTotal || totalTasks}
+              </AppText>
+              <AppText
+                variant='body'
+                style={{
+                  fontSize: moderateScale(13),
+                  color: colors.textSecondary,
+                  marginTop: moderateScale(2),
+                }}
+              >
+                Total Task Count
+              </AppText>
+            </View>
           </View>
 
+          {/* Status Items List */}
           {chartData.map(item => (
             <TouchableOpacity
               key={item.status}
@@ -316,7 +370,7 @@ export const Summary: React.FC = () => {
           ))}
         </View>
       </View>
-    </Screen>
+    </ScrollView>
   );
 };
 

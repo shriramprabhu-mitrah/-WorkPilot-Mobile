@@ -50,7 +50,45 @@ export const ONBOARDING_DATA = [
 ];
 
 export const SIGN_UP =
-  'https://workpilot-frontend-4vak.onrender.com/signup?source=mobile';
+  'https://workpilot-frontend-1.onrender.com/signup?source=mobile';
 
 export const LOGIN_URL =
-  'https://workpilot-frontend-4vak.onrender.com/signin?source=mobile';
+  'https://workpilot-frontend-1.onrender.com/signin?source=mobile';
+('https://workpilot-frontend-4vak.onrender.com/signin?source=mobile');
+
+export const getInitials = (name?: string): string => {
+  if (!name) {
+    return 'U';
+  }
+  const words = name.trim().split(' ');
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+};
+
+export const formatDate = (isoString?: string): string => {
+  if (!isoString) {
+    return 'Recently';
+  }
+  try {
+    const date = new Date(isoString);
+    const day = date.getDate();
+    const month = date.toLocaleString('en-US', {
+      month: 'short',
+    });
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch {
+    return 'Recently';
+  }
+};
+
+export const formatAction = (action?: string): string => {
+  if (!action) {
+    return 'viewed';
+  }
+  return action
+    .replace(/^project_|^task_|^tasks_|^sprint_/, '')
+    .replace(/_/g, ' ');
+};

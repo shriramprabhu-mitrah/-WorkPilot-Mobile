@@ -7,13 +7,10 @@ import {
   GET_USERSTORY,
   GET_RECENT_PROJECTS,
   GET_USERSTORY_BY_ID,
-  UPDATE_PROJECT,
-<<<<<<< Updated upstream
   GET_TASK_BY_ID,
-=======
+  UPDATE_PROJECT,
   UPDATE_USER_STORY,
   GET_BURNDOWN_BY_PROJECT_SPRINT,
->>>>>>> Stashed changes
 } from '../constants/apiServiceEndpoint';
 import {
   CreateProjectPayload,
@@ -33,6 +30,8 @@ import {
   GetUserStoryByIdResponse,
   UpdateProjectPayload,
   UpdateProjectResponse,
+  UpdateUserStoryPayload,
+  UpdateUserStoryResponse,
 } from '../types/project.type';
 
 export const getProjectService = async (
@@ -142,9 +141,6 @@ export const getTaskByIdService = async ({
     throw error;
   }
 };
-<<<<<<< Updated upstream
-=======
-
 export const updateUserStoryService = async (
   projectId: string,
   userStoryId: string,
@@ -176,4 +172,3 @@ export const getBurndownChartService = async ({
     throw error;
   }
 };
->>>>>>> Stashed changes

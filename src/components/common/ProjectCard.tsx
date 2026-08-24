@@ -8,6 +8,7 @@ import { RootStackParamList } from '../../types/navigationTypes';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
+import { WorkItemIcon } from './getWorkItemIcon';
 
 export interface ProjectCardItem {
   id: string;
@@ -60,23 +61,20 @@ const ProjectCard = ({ item, onPress, onToggleStar }: Props) => {
       }}
     >
       <View
-        className='items-center justify-center'
+        className='mr-3.5 items-center justify-center rounded-lg'
         style={{
-          width: moderateScale(44),
-          height: moderateScale(44),
-          backgroundColor: colors.primary,
-          borderRadius: Radius.sm,
+          width: moderateScale(30),
+          height: moderateScale(30),
+          backgroundColor: colors.surface,
         }}
       >
-        <AppText variant='title' className='font-bold' color={colors.white}>
-          {getInitials(item.name)}
-        </AppText>
+        <WorkItemIcon type='project' size={moderateScale(20)} />
       </View>
       <View className='flex-1' style={{ gap: layout.mediumGap }}>
         <AppText
           variant='body'
           color={colors.text}
-          className='font-bold'
+          className='font-bold capitalize'
           numberOfLines={1}
         >
           {item.name}

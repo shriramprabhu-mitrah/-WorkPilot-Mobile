@@ -40,6 +40,18 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
         },
       }}
       screenOptions={{
+        // Removes Android press ripple & iOS click shadow overlay
+        tabBarPressColor: 'transparent',
+        tabBarPressOpacity: 1,
+        // Tab bar container bottom border (Inactive/Base line)
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          elevation: 0,
+          shadowOpacity: 0,
+          shadowColor: 'transparent',
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
         tabBarContentContainerStyle: {
           backgroundColor: colors.surface,
         },
@@ -48,10 +60,13 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
           width: 'auto',
           paddingHorizontal: moderateScale(15),
         },
+        // Selected Tab Bottom Border (Active line)
         tabBarIndicatorStyle: {
           backgroundColor: colors.primary,
           height: 2,
+          bottom: -1, // Positions directly over the container's bottom border
         },
+        // Active vs Inactive Label Styles
         tabBarLabelStyle: {
           fontSize: moderateScale(14),
           textTransform: 'none',

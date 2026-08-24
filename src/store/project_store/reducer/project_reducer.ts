@@ -6,7 +6,9 @@ import {
   ProjectState,
   Sprint,
   TaskData,
+  UserStory,
   UserStoryDetail,
+  UserStoryMeta,
 } from '../../../types/project.type';
 import {
   getAllProjectInfo,
@@ -16,9 +18,12 @@ import {
   getSprintByIdThunk,
   getSprintsThunk,
   getTaskById,
-  getUserStorie,
+  getUserStories,
   getUserStoryById,
 } from '../action/project_thunk';
+import { CustomStatus } from '../../../types/customstatus.type';
+import { getCustomStatusData } from '../../customStatus_store/action/customstatus.thunk';
+import { updateTaskThunk } from '../../task_store/action/task.thunk';
 
 const mockTasks = [
   {
@@ -87,8 +92,8 @@ const initialState: ProjectState & {
   tasks: TaskItem[];
   selectedDate: string;
   filters: TaskFilterState;
-  userStories: unknown[];
-  userStoryMeta: unknown | null;
+  userStories: UserStory[];
+  userStoryMeta: UserStoryMeta | null;
   userStoryLoading: boolean;
   userStoryError: string | null;
   selectedUserStory: UserStoryDetail | null;
@@ -97,8 +102,6 @@ const initialState: ProjectState & {
   selectedTask: TaskData | null;
   taskDetailLoading: boolean;
   taskDetailError: string | null;
-<<<<<<< Updated upstream
-=======
   customStatuses: CustomStatus[];
   customStatusLoading: boolean;
   customStatusError: string | null;
@@ -108,7 +111,6 @@ const initialState: ProjectState & {
   burndownData: GetBurndownResponse['data'] | null;
   burndownLoading: boolean;
   burndownError: string | null;
->>>>>>> Stashed changes
 } = {
   projectName: '',
   projects: [],
@@ -142,8 +144,6 @@ const initialState: ProjectState & {
   selectedTask: null,
   taskDetailLoading: false,
   taskDetailError: null,
-<<<<<<< Updated upstream
-=======
   customStatuses: [],
   customStatusLoading: false,
   customStatusError: null,
@@ -154,7 +154,6 @@ const initialState: ProjectState & {
   burndownData: null,
   burndownLoading: false,
   burndownError: null,
->>>>>>> Stashed changes
 };
 
 const projectSlice = createSlice({
@@ -300,16 +299,16 @@ const projectSlice = createSlice({
         state.error = action.payload ?? 'Failed to fetch sprints';
       })
       .addCase(getSprintByIdThunk.fulfilled, (state, action) => {
-        state.loading = false;
+        state.getCurrentSprintLoading = false;
         state.error = null;
         state.currentSprint = action.payload.data;
       })
       .addCase(getSprintByIdThunk.rejected, (state, action) => {
-        state.loading = false;
+        state.getCurrentSprintLoading = false;
         state.error = action.payload ?? 'Failed to fetch sprint';
       })
       .addCase(getSprintByIdThunk.pending, state => {
-        state.loading = true;
+        state.getCurrentSprintLoading = true;
         state.error = null;
       })
       .addCase(getRecentProjects.pending, state => {
@@ -323,18 +322,18 @@ const projectSlice = createSlice({
       .addCase(getRecentProjects.rejected, (state, action) => {
         state.error = action.payload ?? 'Failed to get recent projects';
       })
-      .addCase(getUserStorie.pending, state => {
-        state.userStoryLoading = true;
+      .addCase(getUserStories.pending, state => {
+        state.loading = true;
         state.userStoryError = null;
       })
-      .addCase(getUserStorie.fulfilled, (state, action) => {
-        state.userStoryLoading = false;
+      .addCase(getUserStories.fulfilled, (state, action) => {
+        state.loading = false;
         state.userStoryError = null;
         state.userStories = action.payload.response.data || [];
         state.userStoryMeta = action.payload.response.meta || null;
       })
-      .addCase(getUserStorie.rejected, (state, action) => {
-        state.userStoryLoading = false;
+      .addCase(getUserStories.rejected, (state, action) => {
+        state.loading = false;
         state.userStoryError = action.payload ?? 'Failed to fetch user stories';
       })
       .addCase(getUserStoryById.pending, state => {
@@ -352,23 +351,21 @@ const projectSlice = createSlice({
           action.payload ?? 'Failed to fetch user story details';
       })
       .addCase(getTaskById.pending, state => {
-        state.taskDetailLoading = true;
+        state.loading = true;
         state.taskDetailError = null;
       })
       .addCase(
         getTaskById.fulfilled,
         (state, action: PayloadAction<GetTaskByIdResponse>) => {
-          state.taskDetailLoading = false;
+          state.loading = false;
           state.taskDetailError = null;
           state.selectedTask = action.payload.data;
         },
       )
       .addCase(getTaskById.rejected, (state, action) => {
-        state.taskDetailLoading = false;
+        state.loading = false;
         state.taskDetailError =
           action.payload ?? 'Failed to fetch task details';
-<<<<<<< Updated upstream
-=======
       })
       .addCase(getCustomStatusData.pending, state => {
         state.customStatusLoading = true;
@@ -415,7 +412,6 @@ const projectSlice = createSlice({
         state.burndownLoading = false;
         state.burndownError =
           action.payload ?? 'Failed to fetch burndown chart data';
->>>>>>> Stashed changes
       });
   },
 });
