@@ -3,10 +3,11 @@ import { View, TouchableOpacity } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
 import { useAuthLayout } from '../hooks/useAuthLayout';
+import { ThemeColors } from '../constants/Colors';
 
 interface Props {
   description: string;
-  colors: any;
+  colors: ThemeColors;
   onEdit: () => void;
 }
 
