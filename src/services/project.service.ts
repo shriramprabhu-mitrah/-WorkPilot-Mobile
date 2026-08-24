@@ -15,6 +15,8 @@ import {
   CreateProjectPayload,
   CreateProjectResponse,
   DeleteProjectResponse,
+  GetBurnbownParams,
+  GetBurndownResponse,
   GetProjectByIdResponse,
   GetProjectsParams,
   GetProjectsResponse,
@@ -90,13 +92,15 @@ export const getUserStorieService = async (
 ): Promise<GetUserStoriesResponse> => {
   try {
     const url = GET_USERSTORY.replace('{project_id}', projectId);
+
     const cleanedParams = payload
       ? Object.fromEntries(
-          Object.entries(payload).filter(
-            ([_, val]) => Boolean(val) && val !== '--',
-          ),
+          Object.entries(payload)
+            .filter(([_, val]) => val !== undefined && val !== '--')
+            .map(([key, val]) => [key, val === null ? 'null' : val]),
         )
       : undefined;
+
     return await get<GetUserStoriesResponse>(url, { params: cleanedParams });
   } catch (error) {
     console.error('Get User Stories API failed:', error);
@@ -136,7 +140,6 @@ export const getTaskByIdService = async ({
     throw error;
   }
 };
-
 export const updateUserStoryService = async (
   projectId: string,
   userStoryId: string,
@@ -151,4 +154,20 @@ export const updateUserStoryService = async (
     url,
     payload,
   );
+};
+
+export const getBurndownChartService = async ({
+  projectId,
+  sprintId,
+}: GetBurnbownParams): Promise<GetBurndownResponse> => {
+  try {
+    const url = GET_BURNDOWN_BY_PROJECT_SPRINT.replace(
+      '{project_id}',
+      projectId,
+    ).replace('{sprint_id}', sprintId);
+    return await get<GetBurndownResponse>(url);
+  } catch (error) {
+    console.error('Get burn down chart API failed:', error);
+    throw error;
+  }
 };

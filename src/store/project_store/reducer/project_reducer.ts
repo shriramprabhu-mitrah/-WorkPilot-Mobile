@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
+  GetBurndownResponse,
   GetTaskByIdResponse,
   Project,
   ProjectState,
@@ -8,10 +9,10 @@ import {
   UserStory,
   UserStoryDetail,
   UserStoryMeta,
-  Task,
 } from '../../../types/project.type';
 import {
   getAllProjectInfo,
+  getBurndownChartThunk,
   getProjectById,
   getRecentProjects,
   getSprintByIdThunk,
@@ -99,6 +100,9 @@ const initialState: ProjectState & {
   taskUpdateLoading: false,
   taskUpdateError: null,
   getCurrentSprintLoading: false,
+  burndownData: null,
+  burndownLoading: false,
+  burndownError: null,
 };
 
 const projectSlice = createSlice({
@@ -112,6 +116,13 @@ const projectSlice = createSlice({
     resetProjects: state => {
       state.projects = [];
       state.project = null;
+      state.page = 1;
+      state.hasMore = true;
+      state.error = null;
+    },
+
+    resetSprints: state => {
+      state.sprints = [];
       state.page = 1;
       state.hasMore = true;
       state.error = null;
@@ -165,6 +176,7 @@ const projectSlice = createSlice({
 
         const fetchedProjects = action.payload.response.data || [];
         const currentPage = action.payload.page;
+        const totalPages = action.payload.response?.meta?.total_pages ?? 1;
 
         if (currentPage === 1) {
           state.projects = fetchedProjects;
@@ -177,8 +189,7 @@ const projectSlice = createSlice({
         }
 
         state.page = currentPage;
-        state.hasMore =
-          fetchedProjects.length >= (action.meta.arg?.page_size || 10);
+        state.hasMore = currentPage < totalPages;
       })
 
       .addCase(getAllProjectInfo.rejected, (state, action) => {
@@ -200,18 +211,41 @@ const projectSlice = createSlice({
         state.error = action.payload ?? 'Failed to fetch project';
         state.project = null;
       })
+      .addCase(getSprintsThunk.pending, (state, action) => {
+        const isFirstPage = (action.meta.arg?.page || 1) === 1;
+        if (isFirstPage) {
+          state.loading = true;
+        } else {
+          state.isFetchingMore = true;
+        }
+        state.error = null;
+      })
       .addCase(getSprintsThunk.fulfilled, (state, action) => {
         state.loading = false;
+        state.isFetchingMore = false;
         state.error = null;
-        state.sprints = action.payload.data;
+
+        const fetchedSprints = action.payload.response.data || [];
+        const currentPage = action.payload.page;
+        const totalPages = action.payload.response.meta?.total_pages ?? 1;
+
+        if (currentPage === 1) {
+          state.sprints = fetchedSprints;
+        } else {
+          const existingIds = new Set(state.sprints.map((s: Sprint) => s.id));
+          const uniqueNewSprints = fetchedSprints.filter(
+            (s: Sprint) => !existingIds.has(s.id),
+          );
+          state.sprints = [...state.sprints, ...uniqueNewSprints];
+        }
+
+        state.page = currentPage;
+        state.hasMore = currentPage < totalPages;
       })
       .addCase(getSprintsThunk.rejected, (state, action) => {
         state.loading = false;
+        state.isFetchingMore = false;
         state.error = action.payload ?? 'Failed to fetch sprints';
-      })
-      .addCase(getSprintsThunk.pending, state => {
-        state.loading = true;
-        state.error = null;
       })
       .addCase(getSprintByIdThunk.fulfilled, (state, action) => {
         state.getCurrentSprintLoading = false;
@@ -281,6 +315,52 @@ const projectSlice = createSlice({
         state.loading = false;
         state.taskDetailError =
           action.payload ?? 'Failed to fetch task details';
+      })
+      .addCase(getCustomStatusData.pending, state => {
+        state.customStatusLoading = true;
+        state.customStatusError = null;
+      })
+
+      .addCase(getCustomStatusData.fulfilled, (state, action) => {
+        state.customStatusLoading = false;
+        state.customStatusError = null;
+        state.customStatuses = action.payload.data || [];
+      })
+
+      .addCase(getCustomStatusData.rejected, (state, action) => {
+        state.customStatusLoading = false;
+        state.customStatusError =
+          action.payload ?? 'Failed to fetch custom statuses';
+      })
+      .addCase(updateTaskThunk.pending, state => {
+        state.taskUpdateLoading = true;
+        state.taskUpdateError = null;
+      })
+
+      .addCase(updateTaskThunk.fulfilled, state => {
+        state.taskUpdateLoading = false;
+        state.taskUpdateError = null;
+      })
+
+      .addCase(updateTaskThunk.rejected, (state, action) => {
+        state.taskUpdateLoading = false;
+        state.taskUpdateError = action.payload ?? 'Failed to update task';
+      })
+      .addCase(getBurndownChartThunk.pending, state => {
+        state.burndownLoading = true;
+        state.burndownError = null;
+      })
+
+      .addCase(getBurndownChartThunk.fulfilled, (state, action) => {
+        state.burndownLoading = false;
+        state.burndownError = null;
+        state.burndownData = action.payload.data;
+      })
+
+      .addCase(getBurndownChartThunk.rejected, (state, action) => {
+        state.burndownLoading = false;
+        state.burndownError =
+          action.payload ?? 'Failed to fetch burndown chart data';
       })
       .addCase(getTasks.pending, (state, action) => {
         const isFirstPage = (action.meta.arg?.page || 1) === 1;
@@ -376,6 +456,7 @@ const projectSlice = createSlice({
 export const {
   getProjectName,
   resetProjects,
+  resetSprints,
   setSelectedDate,
   setFilter,
   resetFilters,

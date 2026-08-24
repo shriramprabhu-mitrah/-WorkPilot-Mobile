@@ -23,6 +23,8 @@ import {
   UpdateUserStoryPayload,
   GetTaskByIdResponse,
   GetTaskByIdParams,
+  GetBurnbownParams,
+  GetBurndownResponse,
 } from '../../../types/project.type';
 import {
   createNewProjectService,
@@ -35,9 +37,11 @@ import {
   updateProjectService,
   updateUserStoryService,
   getTaskByIdService,
+  getBurndownChartService,
 } from '../../../services/project.service';
 import { handleLoading } from '../../auth_store/reducer/auth.reducer';
 import { getSprintById, getSprints } from '../../../services/sprint.service';
+import { GET_BURNDOWN_BY_PROJECT_SPRINT } from '../../../constants/apiServiceEndpoint';
 // import { RecentProject } from '../../../data/projectDetailScreenData';
 
 export const getAllProjectInfo = createAsyncThunk<
@@ -188,14 +192,14 @@ export const getUserStories = createAsyncThunk<
 );
 
 export const getSprintsThunk = createAsyncThunk<
-  GetSprintResponse,
+  { response: GetSprintResponse; page: number },
   GetSprintsParams,
   { rejectValue: string }
 >('sprints/getSprints', async (params, { rejectWithValue }) => {
   try {
     const response = await getSprints(params);
 
-    return response;
+    return { response, page: params?.page || 1 };
   } catch (error: any) {
     return rejectWithValue(
       error?.response?.data?.message ||
@@ -258,6 +262,24 @@ export const getUserStoryById = createAsyncThunk<
     );
   }
 });
+
+export const getBurndownChartThunk = createAsyncThunk<
+  GetBurndownResponse, // 1. Expected return type
+  GetBurnbownParams, // 2. Input argument type
+  { rejectValue: string }
+>(
+  'project/getBurndownChart',
+  async ({ projectId, sprintId }, { rejectWithValue }) => {
+    try {
+      const response = await getBurndownChartService({ projectId, sprintId });
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch burndown chart data',
+      );
+    }
+  },
+);
 
 export const getTaskById = createAsyncThunk<
   GetTaskByIdResponse,

@@ -26,7 +26,6 @@ export const UPDATE_PROJECT = `/project/update/{project_id}`;
 export const DELETE_PROJECT = `/project/{project_id}`;
 export const GET_RECENT_PROJECTS = `/project/recent`;
 export const UPDATE_USER_STORY = `/projects/{project_id}/user-stories/{user_story_id}`;
-
 //Activity
 export const GET_AUDIT = `/audit`;
 
@@ -37,6 +36,7 @@ export const GET_USERSTORY = `/projects/{project_id}/user-stories`;
 export const GET_SPRINTS = `/projects/{project_id}/sprint`;
 export const GET_SPRINT_BY_Id = `projects/{project_id}/sprint/{sprint_id}`;
 export const GET_USERSTORY_BY_ID = `/projects/{project_id}/user-stories/{user_story_id}`;
+export const GET_BURNDOWN_BY_PROJECT_SPRINT = `/projects/{project_id}/sprint/{sprint_id}/burndown`;
 
 //TASK
 export const GET_TASK_BY_ID = `/projects/{project_id}/tasks/{task_id}`;

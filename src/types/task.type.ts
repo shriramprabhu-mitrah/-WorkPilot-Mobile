@@ -3,9 +3,12 @@ import { Task } from './project.type';
 export interface UpdateTaskPayload {
   user_story_id?: string;
   status_id?: string;
+<<<<<<< HEAD
+=======
   priority?: string;
   story_points?: number;
   description?: string;
+>>>>>>> 1d84e9d34785535939ead5d51f800011b798c4b8
 }
 
 export interface UpdateTaskResponse {
@@ -14,6 +17,8 @@ export interface UpdateTaskResponse {
   message: string;
   data: Task;
 }
+<<<<<<< HEAD
+=======
 
 export interface TaskMeta {
   page: number;
@@ -50,3 +55,4 @@ export interface GetTasksResponse {
   data: Task[];
   meta: TaskMeta;
 }
+>>>>>>> 1d84e9d34785535939ead5d51f800011b798c4b8

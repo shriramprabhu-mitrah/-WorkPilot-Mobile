@@ -1,7 +1,27 @@
 import { ApiResponse } from './auth.type';
 
-export interface GetProjectsResponse extends ApiResponse {}
-export interface GetSprintResponse extends ApiResponse {}
+export interface GetProjectsResponse extends ApiResponse {
+  meta?: {
+    page: number;
+    page_size: number;
+    total_items: number;
+    total_pages: number;
+    has_next: boolean;
+    has_previous: boolean;
+  };
+}
+
+export interface GetSprintResponse extends ApiResponse {
+  meta?: {
+    page: number;
+    page_size: number;
+    total_items: number;
+    total_pages: number;
+    has_next: boolean;
+    has_previous: boolean;
+  };
+}
+
 export interface GetSprintByIdResponse extends ApiResponse {}
 export interface GetProjectsParams {
   page?: number;
@@ -187,6 +207,32 @@ export interface DeleteProjectPayload {
   onFinally?: () => void;
 }
 
+export interface UserStory {
+  id: string;
+  project_id: string;
+  sprint_id: string;
+  sprint_name: string;
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  story_points: number;
+  assignee_id: string;
+  assignee_name: string;
+  reporter_id: string;
+  reporter_name: string;
+
+  reporter: UserStoryReporter;
+  assignee: UserStoryAssignee;
+
+  backlog_order: number;
+  total_tasks: number;
+  completed_tasks: number;
+  progress: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface UserStoryReporter {
   id: string;
   name: string;
@@ -227,7 +273,7 @@ export interface GetUserStoriesPayload {
   status?: string;
   assignee_id?: string;
   reporter_id?: string;
-  sprint_id?: string;
+  sprint_id?: string | null;
   priority?: string;
   search?: string;
 }
@@ -377,10 +423,36 @@ export interface UpdateUserStoryPayload {
 }
 
 export interface UpdateUserStoryResponse {
-  success: boolean;
-  status_code: number;
-  message: string;
-  data: UserStoryDetail;
+  id: string;
+  project_id: string;
+  title: string;
+  description?: string;
+  priority?: UserStoryPriority;
+  sprint_id?: string;
+  status?: UserStoryStatus;
+  story_points?: number;
+  assignee_id?: string;
+}
+
+export interface GetBurnbownParams {
+  projectId: string;
+  sprintId: string;
+}
+
+export interface BurndownPoint {
+  date: string;
+  remaining_points: number | null;
+  ideal_value: number;
+}
+
+export interface SprintBurndownData {
+  sprint_id: string;
+  sprint_name: string;
+  total_story_points: number;
+  burndown_data: BurndownPoint[];
+}
+export interface GetBurndownResponse extends ApiResponse {
+  data: SprintBurndownData;
 }
 
 export interface UserStoryTask {
