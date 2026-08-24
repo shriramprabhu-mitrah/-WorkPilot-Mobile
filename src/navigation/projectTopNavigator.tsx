@@ -71,7 +71,7 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
       />
       <TopTab.Screen name='List' component={List} />
       <TopTab.Screen name='Report' component={Report} />
-      {/* <TopTab.Screen name='Backlogs' component={Backlogs} /> */}
+      <TopTab.Screen name='Backlogs' component={Backlogs} />
       <TopTab.Screen name='Settings'>
         {props => (
           <Settings

@@ -67,6 +67,13 @@ const STATIC_TASKS = [
 
 const List = () => {
   const { colors } = useTheme();
+<<<<<<< Updated upstream
+=======
+  const { moderateScale, layout, hp } = useAuthLayout();
+  const dispatch = useAppDispatch();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+
+>>>>>>> Stashed changes
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter tasks locally by title or key
@@ -77,7 +84,11 @@ const List = () => {
   );
 
   return (
+<<<<<<< Updated upstream
     <Screen scroll={false} backgroundColor={colors.surface}>
+=======
+    <ScrollView className='pt-3' style={{ backgroundColor: colors.surface }} showsVerticalScrollIndicator={false}>
+>>>>>>> Stashed changes
       <View className='flex-1 px-4 pt-3'>
         {/* ================= SEARCH BAR ================= */}
         <View
@@ -111,6 +122,7 @@ const List = () => {
           </AppText>
         </View>
 
+<<<<<<< Updated upstream
         {/* ================= SCROLLABLE TASK LIST CONTAINER ================= */}
         {filteredTasks.length > 0 ? (
           <View
@@ -134,6 +146,32 @@ const List = () => {
               renderItem={({ item }) => {
                 const isInProgress = item.status === 'In Progress';
                 const isDone = item.status === 'Done';
+=======
+        {/* Story List / Loading / Empty State */}
+        {showSkeleton ? (
+          <View className='py-10'>
+            <ListSkeleton
+              count={5}
+              containerStyle={{ gap: layout.elementGap - 2 }}
+              renderItem={index => <ProjectCardSkeleton key={index} />}
+            />
+          </View>
+        ) : filteredStories.length > 0 ? (
+          <FlatList
+            data={filteredStories}
+            keyExtractor={item => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: layout.paddingHorizontal,
+              paddingBottom: hp(20),
+            }}
+            ItemSeparatorComponent={() => <View className='h-3' />}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            renderItem={({ item }: { item: UserStory }) => {
+              const priorityConfig = getPriorityConfig(item.priority);
+>>>>>>> Stashed changes
 
                 // Determine badge background and text colors
                 const getBadgeStyle = () => {

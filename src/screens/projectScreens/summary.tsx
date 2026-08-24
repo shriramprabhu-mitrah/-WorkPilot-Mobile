@@ -42,7 +42,15 @@ export const Summary: React.FC = () => {
         ? 'dark'
         : 'system';
   return (
+<<<<<<< Updated upstream
     <Screen scroll={true} backgroundColor={colors.surface}>
+=======
+    <ScrollView
+      className='flex-1'
+      style={{ backgroundColor: colors.surface, paddingTop: moderateScale(20) }}
+      showsVerticalScrollIndicator={false}
+    >
+>>>>>>> Stashed changes
       <View
         style={{
           paddingHorizontal: layout.paddingHorizontal,

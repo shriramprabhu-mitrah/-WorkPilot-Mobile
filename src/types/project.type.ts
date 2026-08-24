@@ -1,7 +1,27 @@
 import { ApiResponse } from './auth.type';
 
-export interface GetProjectsResponse extends ApiResponse {}
-export interface GetSprintResponse extends ApiResponse {}
+export interface GetProjectsResponse extends ApiResponse {
+  meta?: {
+    page: number;
+    page_size: number;
+    total_items: number;
+    total_pages: number;
+    has_next: boolean;
+    has_previous: boolean;
+  };
+}
+
+export interface GetSprintResponse extends ApiResponse {
+  meta?: {
+    page: number;
+    page_size: number;
+    total_items: number;
+    total_pages: number;
+    has_next: boolean;
+    has_previous: boolean;
+  };
+}
+
 export interface GetSprintByIdResponse extends ApiResponse {}
 export interface GetProjectsParams {
   page?: number;
@@ -253,7 +273,7 @@ export interface GetUserStoriesPayload {
   status?: string;
   assignee_id?: string;
   reporter_id?: string;
-  sprint_id?: string;
+  sprint_id?: string | null;
   priority?: string;
   search?: string;
 }
@@ -382,3 +402,153 @@ export interface GetTaskByIdResponse {
   message: string;
   data: TaskData;
 }
+<<<<<<< Updated upstream
+=======
+
+export type UserStoryPriority = 'low' | 'medium' | 'high' | 'critical';
+
+export type UserStoryStatus =
+  'todo' | 'in_progress' | 'in_review' | 'testing' | 'completed' | 'blocked';
+
+export interface UpdateUserStoryPayload {
+  assignee_id?: string;
+  description?: string;
+  priority?: UserStoryPriority;
+  sprint_id?: string;
+  status?: UserStoryStatus;
+  story_points?: number;
+  title?: string;
+}
+
+export interface UpdateUserStoryResponse {
+  id: string;
+  project_id: string;
+  title: string;
+  description?: string;
+  priority?: UserStoryPriority;
+  sprint_id?: string;
+  status?: UserStoryStatus;
+  story_points?: number;
+  assignee_id?: string;
+}
+
+export interface GetBurnbownParams {
+  projectId: string;
+  sprintId: string;
+}
+
+export interface BurndownPoint {
+  date: string;
+  remaining_points: number | null;
+  ideal_value: number;
+}
+
+export interface SprintBurndownData {
+  sprint_id: string;
+  sprint_name: string;
+  total_story_points: number;
+  burndown_data: BurndownPoint[];
+}
+export interface GetBurndownResponse extends ApiResponse {
+  data: SprintBurndownData;
+}
+
+export interface UserStoryTask {
+  id: string;
+  project_id: string;
+  sprint_id: string | null;
+  sprint_name: string;
+  user_story_id: string;
+
+  key: string;
+  serial_number: number;
+  formatted_serial_number: string;
+
+  title: string;
+  type: string;
+  priority: string;
+
+  status_id: string;
+  status: string;
+  status_color: string;
+
+  assignee_id: string | null;
+  reporter_id: string | null;
+
+  reporter_name: string;
+  assignee_name: string;
+
+  story_points: number;
+
+  due_date: string | null;
+  estimated_hours: number | null;
+  actual_hours: number | null;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserStory {
+  id: string;
+  project_id: string;
+  sprint_id: string | null;
+  sprint_name: string;
+  serial_number: number;
+  formatted_serial_number: string;
+  title: string;
+  description: string;
+  priority: string;
+  status_id: string;
+  status: string;
+  status_color: string;
+  story_points: number;
+  reporter_id: string;
+  reporter_name: string;
+  backlog_order: number;
+  total_tasks: number;
+  completed_tasks: number;
+  progress: number;
+  created_at: string;
+  updated_at: string;
+  tasks: UserStoryTask[];
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url: string | null;
+  role: string;
+}
+
+export interface TaskItem {
+  id: string;
+  project_id: string;
+  sprint_id: string | null;
+  sprint_name: string;
+  user_story_id: string;
+  user_story_title: string;
+  key: string;
+  serial_number: number;
+  formatted_serial_number: string;
+  title: string;
+  description: string;
+  type: string;
+  priority: string;
+  status_id: string;
+  status: string;
+  status_color: string;
+  assignee_id: string;
+  reporter_id: string;
+  reporter_name: string;
+  assignee_name: string;
+  story_points: number;
+  due_date: string;
+  estimated_hours: number;
+  actual_hours: number;
+  created_at: string;
+  updated_at: string;
+  reporter: UserProfile;
+  assignee: UserProfile;
+}
+>>>>>>> Stashed changes

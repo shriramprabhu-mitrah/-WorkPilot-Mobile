@@ -32,6 +32,50 @@ const ProjectDetails = () => {
   const [settingsView, setSettingsView] = useState<ViewState>('MAIN_SETTINGS');
   const [activeTab, setActiveTab] = useState<string>('Summary');
   const [selectedSprint, setSelectedSprint] = useState<Sprint | any>(null);
+<<<<<<< Updated upstream
+=======
+  console.log('activeTab', activeTab);
+  const fetchProjectDetailsData = async (id: string) => {
+    try {
+      const [, sprintsData] = await Promise.all([
+        dispatch(
+          getProjectById({
+            projectId: id,
+            handleSuccess: () => setSettingsView('MAIN_SETTINGS'),
+          }),
+        ).unwrap(),
+        dispatch(getSprintsThunk({ project_id: id })).unwrap(),
+      ]);
+
+      const response = sprintsData as any;
+      const projectSprints: Sprint[] = Array.isArray(response)
+        ? response
+        : response?.data || response?.items || [];
+
+      if (projectSprints.length > 0) {
+        const activeSprint = projectSprints.find(
+          (s: any) => s.status?.toLowerCase() === 'active' || s.is_active,
+        );
+        const targetSprint =
+          activeSprint || projectSprints[projectSprints.length - 1];
+        const sprintId =
+          targetSprint?.id?.toString() ||
+          (targetSprint as any)?._id?.toString();
+
+        if (sprintId) {
+          await dispatch(
+            getSprintByIdThunk({
+              project_id: id,
+              sprint_id: sprintId,
+            }),
+          ).unwrap();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch project details:', error);
+    }
+  };
+>>>>>>> Stashed changes
 
   useFocusEffect(
     useCallback(() => {
@@ -175,7 +219,11 @@ const ProjectDetails = () => {
           </TouchableOpacity>
 
           {/* Sprint Name Dropdown */}
+<<<<<<< Updated upstream
           {
+=======
+          {activeTab !== 'Backlogs' && (
+>>>>>>> Stashed changes
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => setSprintListVisible(true)}
@@ -196,7 +244,11 @@ const ProjectDetails = () => {
                 <AppText
                   variant='body'
                   color={colors.primary}
+<<<<<<< Updated upstream
                   className='font-semibold'
+=======
+                  className='font-semibold capitalize'
+>>>>>>> Stashed changes
                   numberOfLines={1}
                 >
                   {currentSprintName}
@@ -212,7 +264,11 @@ const ProjectDetails = () => {
                 color={colors.textSecondary}
               />
             </TouchableOpacity>
+<<<<<<< Updated upstream
           }
+=======
+          )}
+>>>>>>> Stashed changes
         </View>
       )}
 

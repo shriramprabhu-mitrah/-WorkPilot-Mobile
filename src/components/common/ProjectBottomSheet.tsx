@@ -17,7 +17,20 @@ import ProjectCardSkeleton from '../skeleton/ProjectCardSkeleton';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { moderateScale } from '../../utils/responsive';
+<<<<<<< Updated upstream
 import { useAppDispatch, useAppSelector } from '../../store';
+=======
+import { RootState, useAppDispatch, useAppSelector } from '../../store';
+import {
+  getAllProjectInfo,
+  getSprintsThunk,
+} from '../../store/project_store/action/project_thunk';
+import {
+  resetProjects,
+  resetSprints,
+} from '../../store/project_store/reducer/project_reducer';
+import { WorkItemIcon } from './getWorkItemIcon';
+>>>>>>> Stashed changes
 
 export interface ProjectListBottomSheetProps {
   visible: boolean;
@@ -66,9 +79,48 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const closeIconSize = moderateScale(20);
   const bottomPadding = Math.max(insets.bottom, 16);
 
+<<<<<<< Updated upstream
   // Redux state - fetch both projects list and current selected project (for sprints)
   const { projects, project, loading } = useAppSelector(
     state => state.projects,
+=======
+  // Extract pagination states from Redux
+  const {
+    projects,
+    project,
+    sprints,
+    loading,
+    isFetchingMore: reduxIsFetchingMore,
+    hasMore: reduxHasMore,
+  } = useAppSelector((state: RootState) => state.projects);
+
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const isSprint = mode === 'sprints';
+
+  // Effective state combining props and Redux store values
+  const effectiveHasMore = hasMoreProp ?? reduxHasMore;
+  const effectiveIsFetchingMore = isFetchingMoreProp || reduxIsFetchingMore;
+
+  // Resolved active project ID from props or store fallback
+  const resolvedProjectId =
+    projectId || project?.id?.toString() || (project as any)?._id?.toString();
+
+  // Reset page and trigger initial fetch when modal becomes visible or mode/projectId changes
+  useFocusEffect(
+    useCallback(() => {
+      if (visible) {
+        setPage(1);
+        if (mode === 'projects') {
+          dispatch(resetProjects());
+          dispatch(getAllProjectInfo({ page: 1 }));
+        } else if (mode === 'sprints' && resolvedProjectId) {
+          dispatch(resetSprints());
+          dispatch(getSprintsThunk({ project_id: resolvedProjectId, page: 1 }));
+        }
+      }
+    }, [visible, mode, resolvedProjectId, dispatch]),
+>>>>>>> Stashed changes
   );
   const [search, setSearch] = useState('');
 
