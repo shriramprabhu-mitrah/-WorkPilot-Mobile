@@ -57,3 +57,4 @@ export const UPDATE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses/{stat
 
 //Tasks
 export const UPDATE_TASKS = `/projects/{project_id}/tasks/{task_id}`;
+export const GET_TASKS = `/projects/{project_id}/tasks`;

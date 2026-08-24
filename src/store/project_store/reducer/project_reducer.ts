@@ -8,6 +8,7 @@ import {
   UserStory,
   UserStoryDetail,
   UserStoryMeta,
+  Task,
 } from '../../../types/project.type';
 import {
   getAllProjectInfo,
@@ -18,64 +19,12 @@ import {
   getTaskById,
   getUserStories,
   getUserStoryById,
+  updateUserStory,
 } from '../action/project_thunk';
 import { CustomStatus } from '../../../types/customstatus.type';
 import { getCustomStatusData } from '../../customStatus_store/action/customstatus.thunk';
-import { updateTaskThunk } from '../../task_store/action/task.thunk';
-
-const mockTasks = [
-  {
-    id: '1',
-    key: 'SCRUM-6',
-    title: 'Frf',
-    status: 'To Do',
-    dueDate: '2026-08-13',
-    priority: 'Medium',
-    assignee: 'John Doe',
-    type: 'Task',
-  },
-  {
-    id: '2',
-    key: 'SCRUM-12',
-    title: 'Fix Navigation Bug',
-    status: 'In Progress',
-    dueDate: '2026-08-13',
-    priority: 'High',
-    assignee: 'Jane Smith',
-    type: 'Bug',
-  },
-  {
-    id: '3',
-    key: 'SCRUM-15',
-    title: 'Design System Review',
-    status: 'Done',
-    dueDate: '2026-08-14',
-    priority: 'Low',
-    assignee: 'John Doe',
-    type: 'Story',
-  },
-  {
-    id: '4',
-    key: 'SCRUM-20',
-    title: 'Update API Endpoints',
-    status: 'To Do',
-    dueDate: '2026-08-19',
-    priority: 'High',
-    assignee: 'Alex',
-    type: 'Task',
-  },
-];
-
-export interface TaskItem {
-  id: string;
-  key: string;
-  title: string;
-  status: string;
-  dueDate: string;
-  priority?: string;
-  assignee?: string;
-  type?: string;
-}
+import { getTasks, updateTaskThunk } from '../../task_store/action/task.thunk';
+import { TaskMeta } from '../../../types/task.type';
 
 export interface TaskFilterState {
   status: string | null;
@@ -87,7 +36,9 @@ export interface TaskFilterState {
 // Extended Initial State
 const initialState: ProjectState & {
   projectName: string;
-  tasks: TaskItem[];
+  tasks: Task[];
+  tasksMeta: TaskMeta | null;
+  loadingMore: boolean;
   selectedDate: string;
   filters: TaskFilterState;
   userStories: UserStory[];
@@ -120,7 +71,9 @@ const initialState: ProjectState & {
   currentSprint: {} as Sprint,
   recentProjects: [],
   // Calendar & Task States
-  tasks: mockTasks as TaskItem[],
+  tasks: [] as Task[],
+  tasksMeta: null,
+  loadingMore: false,
   selectedDate: '2026-08-13',
   filters: {
     status: null,
@@ -188,7 +141,7 @@ const projectSlice = createSlice({
       };
     },
 
-    setTasks: (state, action: PayloadAction<TaskItem[]>) => {
+    setTasks: (state, action: PayloadAction<Task[]>) => {
       state.tasks = action.payload;
     },
   },
@@ -329,6 +282,34 @@ const projectSlice = createSlice({
         state.taskDetailError =
           action.payload ?? 'Failed to fetch task details';
       })
+      .addCase(getTasks.pending, (state, action) => {
+        const isFirstPage = (action.meta.arg?.page || 1) === 1;
+        if (isFirstPage) {
+          state.loading = true;
+        } else {
+          state.loadingMore = true;
+        }
+        state.error = null;
+      })
+      .addCase(getTasks.fulfilled, (state, action) => {
+        state.loading = false;
+        state.loadingMore = false;
+        state.error = null;
+        state.tasksMeta = action.payload.meta;
+        const incoming = action.payload.data || [];
+        if ((action.meta.arg?.page || 1) === 1) {
+          state.tasks = incoming;
+        } else {
+          const existingIds = new Set(state.tasks.map(t => t.id));
+          const uniqueNew = incoming.filter(t => !existingIds.has(t.id));
+          state.tasks = [...state.tasks, ...uniqueNew];
+        }
+      })
+      .addCase(getTasks.rejected, (state, action) => {
+        state.loading = false;
+        state.loadingMore = false;
+        state.error = action.payload ?? 'Failed to fetch tasks';
+      })
       .addCase(getCustomStatusData.pending, state => {
         state.customStatusLoading = true;
         state.customStatusError = null;
@@ -350,14 +331,44 @@ const projectSlice = createSlice({
         state.taskUpdateError = null;
       })
 
-      .addCase(updateTaskThunk.fulfilled, state => {
+      .addCase(updateTaskThunk.fulfilled, (state, action) => {
         state.taskUpdateLoading = false;
         state.taskUpdateError = null;
+        const updatedTask = action.payload?.data as TaskData | undefined;
+        if (
+          updatedTask &&
+          state.selectedTask &&
+          updatedTask.id === state.selectedTask.id
+        ) {
+          state.selectedTask = {
+            ...state.selectedTask,
+            ...updatedTask,
+          };
+        }
       })
 
       .addCase(updateTaskThunk.rejected, (state, action) => {
         state.taskUpdateLoading = false;
         state.taskUpdateError = action.payload ?? 'Failed to update task';
+      })
+
+      .addCase(updateUserStory.fulfilled, (state, action) => {
+        const updatedStory = action.payload?.data;
+        if (
+          updatedStory &&
+          state.selectedUserStory &&
+          updatedStory.id === state.selectedUserStory.id
+        ) {
+          state.selectedUserStory = {
+            ...state.selectedUserStory,
+            ...updatedStory,
+          };
+        }
+      })
+
+      .addCase(updateUserStory.rejected, (state, action) => {
+        state.userStoryDetailError =
+          action.payload ?? 'Failed to update user story';
       });
   },
 });

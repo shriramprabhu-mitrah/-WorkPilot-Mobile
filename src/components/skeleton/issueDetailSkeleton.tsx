@@ -153,15 +153,38 @@ export const IssueDetailSkeleton = () => {
                 opacity: pulseAnim,
               }}
             />
-            <Animated.View
-              style={{
-                width: moderateScale(64),
-                height: moderateScale(16),
-                backgroundColor: skeletonBg,
-                borderRadius: Radius.xs || 4,
-                opacity: pulseAnim,
-              }}
-            />
+            <View
+              className='flex-row items-center'
+              style={{ gap: moderateScale(8) }}
+            >
+              <Animated.View
+                style={{
+                  width: moderateScale(14),
+                  height: moderateScale(14),
+                  backgroundColor: skeletonBg,
+                  borderRadius: moderateScale(4),
+                  opacity: pulseAnim,
+                }}
+              />
+              <Animated.View
+                style={{
+                  width: moderateScale(56),
+                  height: moderateScale(16),
+                  backgroundColor: skeletonBg,
+                  borderRadius: Radius.xs || 4,
+                  opacity: pulseAnim,
+                }}
+              />
+              <Animated.View
+                style={{
+                  width: moderateScale(16),
+                  height: moderateScale(16),
+                  backgroundColor: skeletonBg,
+                  borderRadius: Radius.xs || 4,
+                  opacity: pulseAnim,
+                }}
+              />
+            </View>
           </View>
 
           {/* Story Pts Row */}
@@ -175,15 +198,29 @@ export const IssueDetailSkeleton = () => {
                 opacity: pulseAnim,
               }}
             />
-            <Animated.View
-              style={{
-                width: moderateScale(24),
-                height: moderateScale(16),
-                backgroundColor: skeletonBg,
-                borderRadius: Radius.xs || 4,
-                opacity: pulseAnim,
-              }}
-            />
+            <View
+              className='flex-row items-center'
+              style={{ gap: moderateScale(8) }}
+            >
+              <Animated.View
+                style={{
+                  width: moderateScale(48),
+                  height: moderateScale(28),
+                  backgroundColor: skeletonBg,
+                  borderRadius: moderateScale(8),
+                  opacity: pulseAnim,
+                }}
+              />
+              <Animated.View
+                style={{
+                  width: moderateScale(16),
+                  height: moderateScale(16),
+                  backgroundColor: skeletonBg,
+                  borderRadius: Radius.xs || 4,
+                  opacity: pulseAnim,
+                }}
+              />
+            </View>
           </View>
         </View>
 
@@ -223,6 +260,16 @@ export const IssueDetailSkeleton = () => {
               backgroundColor: skeletonBg,
               borderRadius: Radius.xs || 4,
               opacity: pulseAnim,
+            }}
+          />
+          <Animated.View
+            style={{
+              width: '85%',
+              height: moderateScale(16),
+              backgroundColor: skeletonBg,
+              borderRadius: Radius.xs || 4,
+              opacity: pulseAnim,
+              marginTop: moderateScale(8),
             }}
           />
         </View>

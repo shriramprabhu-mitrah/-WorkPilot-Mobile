@@ -1,6 +1,11 @@
-import React from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import { ScrollView } from 'react-native';
-import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -15,6 +20,7 @@ import {
 import {
   getTaskById,
   getUserStoryById,
+  updateUserStory,
 } from '../store/project_store/action/project_thunk';
 import {
   fetchUserStoryComments,
@@ -38,6 +44,15 @@ import {
   CreateTaskCommentResponse,
   CreateUserStoryCommentResponse,
 } from '../types/comments.type';
+import {
+  UpdateUserStoryPayload,
+  UserStoryPriority,
+} from '../types/project.type';
+import { UpdateTaskPayload } from '../types/task.type';
+import {
+  getTasks,
+  updateTaskThunk,
+} from '../store/task_store/action/task.thunk';
 
 import Screen from '../components/common/ScreenWapper';
 import CommonHeader from '../components/common/CommonHeader';
@@ -68,14 +83,25 @@ const IssueDetailScreen = () => {
   const { isEditingDescription } = useAppSelector(
     (state: RootState) => state.issue,
   );
-  const { selectedUserStory, loading, selectedTask } = useAppSelector(
-    (state: RootState) => state.projects,
-  );
+  const {
+    selectedUserStory,
+    loading,
+    selectedTask,
+    tasks,
+    tasksMeta,
+    loadingMore,
+  } = useAppSelector((state: RootState) => state.projects);
   const { comments: apiComments, loading: commentsLoading } = useAppSelector(
     (state: RootState) => state.comments || { comments: [], loading: false },
   );
 
   // ── State ──
+  const [priority, setPriority] = useState<string>('');
+  const [storyPoints, setStoryPoints] = useState<number>(0);
+  const [localDescription, setLocalDescription] = useState<string>('');
+  const [storyPointsText, setStoryPointsText] = useState<string>('');
+  const currentItemIdRef = useRef<string | null>(null);
+
   const [comment, setComment] = useState<string>('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -90,6 +116,21 @@ const IssueDetailScreen = () => {
 
   const isTaskView = Boolean(taskId);
   const currentItem: any = isTaskView ? selectedTask : selectedUserStory;
+
+  useEffect(() => {
+    if (currentItem && currentItem.id !== currentItemIdRef.current) {
+      currentItemIdRef.current = currentItem.id;
+      const p = currentItem.priority || 'medium';
+      const sp = currentItem.story_points ?? 0;
+      const desc = currentItem.description || '';
+      setPriority(p);
+      setStoryPoints(sp);
+      setLocalDescription(desc);
+      setStoryPointsText(sp.toString());
+    }
+  }, [currentItem]);
+
+  const currentDescription = localDescription || '';
 
   const replyingToName = useMemo(() => {
     if (!replyingToCommentId) return undefined;
@@ -139,6 +180,14 @@ const IssueDetailScreen = () => {
           pageSize: 10,
         }),
       );
+      dispatch(
+        getTasks({
+          projectId,
+          page: 1,
+          page_size: 8,
+          user_story_id: userStoryId,
+        }),
+      );
     }
   }, [dispatch, projectId, taskId, userStoryId]);
 
@@ -149,11 +198,6 @@ const IssueDetailScreen = () => {
   }, [currentItem]);
 
   // ── Derived values ──
-  const currentDescription =
-    (currentItem && 'description' in currentItem
-      ? currentItem.description
-      : '') || '';
-
   const activeStatusColor = useMemo(
     () => getStatusThemeColor(status || currentItem?.status, colors),
     [status, currentItem, colors],
@@ -169,6 +213,11 @@ const IssueDetailScreen = () => {
       ('reporter_name' in currentItem && currentItem.reporter_name) ||
       currentItem.reporter?.name ||
       'N/A';
+
+    const displayPriority = priority || currentItem.priority || 'medium';
+    const displayStoryPoints =
+      storyPointsText ||
+      (storyPoints ?? currentItem.story_points ?? 0).toString();
 
     return [
       {
@@ -199,23 +248,16 @@ const IssueDetailScreen = () => {
       },
       {
         label: 'Priority',
-        value: currentItem.priority
-          ? currentItem.priority.charAt(0).toUpperCase() +
-            currentItem.priority.slice(1)
-          : 'Medium',
+        value:
+          displayPriority.charAt(0).toUpperCase() + displayPriority.slice(1),
         dot: colors.warning,
       },
       {
         label: 'Story pts',
-        value:
-          ('story_points' in currentItem
-            ? currentItem.story_points?.toString()
-            : '0') || '0',
+        value: displayStoryPoints.toString(),
       },
     ];
-  }, [currentItem, colors]);
-
-  const subtasks = selectedUserStory?.tasks || [];
+  }, [currentItem, colors, priority, storyPoints]);
 
   // ── Handlers ──
   const handleOpenEditModal = useCallback(
@@ -228,15 +270,116 @@ const IssueDetailScreen = () => {
   );
 
   const handleSaveDescription = useCallback(
-    (newDescription: string) => {
+    async (newDescription: string) => {
       const targetId = taskId || userStoryId;
-      if (!targetId) return;
+      if (!targetId || !projectId) return;
+
+      const trimmedDescription = newDescription.trim();
+      setLocalDescription(trimmedDescription);
       dispatch(
-        setDescription({ issueId: targetId, description: newDescription }),
+        setDescription({ issueId: targetId, description: trimmedDescription }),
       );
       dispatch(setIsEditingDescription(false));
+
+      try {
+        if (taskId) {
+          const taskPayload: UpdateTaskPayload = {
+            description: trimmedDescription,
+          };
+          dispatch(
+            updateTaskThunk({
+              projectId,
+              taskId,
+              payload: taskPayload,
+            }),
+          );
+        } else if (userStoryId) {
+          const userStoryPayload: UpdateUserStoryPayload = {
+            description: trimmedDescription,
+          };
+          dispatch(
+            updateUserStory({
+              projectId,
+              userStoryId,
+              payload: userStoryPayload,
+            }),
+          );
+        }
+      } catch (error) {
+        console.error('Failed to update description:', error);
+      }
     },
-    [dispatch, taskId, userStoryId],
+    [dispatch, taskId, userStoryId, projectId],
+  );
+
+  const handlePrioritySelect = useCallback(
+    (selectedPriority: string) => {
+      setPriority(selectedPriority);
+      if (!projectId) {
+        return;
+      }
+      if (taskId) {
+        const taskPayload: UpdateTaskPayload = {
+          priority: selectedPriority,
+        };
+        dispatch(
+          updateTaskThunk({
+            projectId,
+            taskId,
+            payload: taskPayload,
+          }),
+        );
+      } else if (userStoryId) {
+        const userStoryPayload: UpdateUserStoryPayload = {
+          priority: selectedPriority as UserStoryPriority,
+        };
+        dispatch(
+          updateUserStory({
+            projectId,
+            userStoryId,
+            payload: userStoryPayload,
+          }),
+        );
+      }
+    },
+    [dispatch, taskId, userStoryId, projectId],
+  );
+
+  const handleStoryPointsBlur = useCallback(
+    (value: string) => {
+      const parsed = parseInt(value, 10);
+      const sanitized = Number.isNaN(parsed)
+        ? 0
+        : Math.max(0, Math.min(100, parsed));
+      setStoryPoints(sanitized);
+      if (!projectId) {
+        return;
+      }
+      if (taskId) {
+        const taskPayload: UpdateTaskPayload = {
+          story_points: sanitized,
+        };
+        dispatch(
+          updateTaskThunk({
+            projectId,
+            taskId,
+            payload: taskPayload,
+          }),
+        );
+      } else if (userStoryId) {
+        const userStoryPayload: UpdateUserStoryPayload = {
+          story_points: sanitized,
+        };
+        dispatch(
+          updateUserStory({
+            projectId,
+            userStoryId,
+            payload: userStoryPayload,
+          }),
+        );
+      }
+    },
+    [dispatch, taskId, userStoryId, projectId],
   );
 
   const handleSendComment = async () => {
@@ -520,7 +663,21 @@ const IssueDetailScreen = () => {
           onToggleStatusPicker={toggleStatusPicker}
           onSelectStatus={selectStatus}
         />
-        <IssueMetaDetails details={details} colors={colors} />
+        <IssueMetaDetails
+          details={details}
+          colors={colors}
+          editableFields={{
+            priority: true,
+            storyPoints: true,
+          }}
+          onPrioritySelect={handlePrioritySelect}
+          storyPointsInputProps={{
+            value: storyPointsText,
+            onChangeText: setStoryPointsText,
+            onBlur: () => handleStoryPointsBlur(storyPointsText),
+            editable: true,
+          }}
+        />
         <IssueDescriptionSection
           description={currentDescription}
           colors={colors}
@@ -528,10 +685,14 @@ const IssueDetailScreen = () => {
         />
         {!isTaskView && (
           <IssueChildTasksSection
-            subtasks={subtasks}
+            tasks={tasks}
             colors={colors}
             projectId={projectId}
             navigation={navigation}
+            meta={tasksMeta}
+            loading={loading}
+            loadingMore={loadingMore}
+            userStoryId={userStoryId}
           />
         )}
         <IssueCommentsSection

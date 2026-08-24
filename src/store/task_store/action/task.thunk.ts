@@ -1,8 +1,10 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
-import { updateTask } from '../../../services/task.service';
+import { getTasksService, updateTask } from '../../../services/task.service';
 
 import {
+  GetTasksParams,
+  GetTasksResponse,
   UpdateTaskPayload,
   UpdateTaskResponse,
 } from '../../../types/task.type';
@@ -33,3 +35,19 @@ export const updateTaskThunk = createAsyncThunk<
     }
   },
 );
+
+export const getTasks = createAsyncThunk<
+  GetTasksResponse,
+  GetTasksParams,
+  { rejectValue: string }
+>('project/getTasks', async (params, { rejectWithValue }) => {
+  try {
+    const response = await getTasksService(params);
+    console.log('Get Tasks API Response:', response);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(
+      error.response?.data?.message || 'Failed to fetch tasks',
+    );
+  }
+});
