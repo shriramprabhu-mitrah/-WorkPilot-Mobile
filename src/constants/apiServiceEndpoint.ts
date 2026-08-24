@@ -26,7 +26,6 @@ export const UPDATE_PROJECT = `/project/update/{project_id}`;
 export const DELETE_PROJECT = `/project/{project_id}`;
 export const GET_RECENT_PROJECTS = `/project/recent`;
 export const UPDATE_USER_STORY = `/projects/{project_id}/user-stories/{user_story_id}`;
-
 //Activity
 export const GET_AUDIT = `/audit`;
 
@@ -58,3 +57,4 @@ export const UPDATE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses/{stat
 
 //Tasks
 export const UPDATE_TASKS = `/projects/{project_id}/tasks/{task_id}`;
+export const GET_TASKS = `/projects/{project_id}/tasks`;

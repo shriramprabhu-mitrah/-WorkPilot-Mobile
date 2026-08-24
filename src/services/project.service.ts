@@ -10,7 +10,6 @@ import {
   GET_TASK_BY_ID,
   UPDATE_PROJECT,
   UPDATE_USER_STORY,
-  GET_BURNDOWN_BY_PROJECT_SPRINT,
 } from '../constants/apiServiceEndpoint';
 import {
   CreateProjectPayload,

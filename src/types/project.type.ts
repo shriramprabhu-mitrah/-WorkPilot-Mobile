@@ -207,6 +207,32 @@ export interface DeleteProjectPayload {
   onFinally?: () => void;
 }
 
+export interface UserStory {
+  id: string;
+  project_id: string;
+  sprint_id: string;
+  sprint_name: string;
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  story_points: number;
+  assignee_id: string;
+  assignee_name: string;
+  reporter_id: string;
+  reporter_name: string;
+
+  reporter: UserStoryReporter;
+  assignee: UserStoryAssignee;
+
+  backlog_order: number;
+  total_tasks: number;
+  completed_tasks: number;
+  progress: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface UserStoryReporter {
   id: string;
   name: string;
@@ -276,26 +302,30 @@ export interface Task {
   sprint_id: string | null;
   sprint_name: string;
   user_story_id: string;
+  user_story_title: string;
   key: string;
   serial_number: number;
   formatted_serial_number: string;
   title: string;
+  description?: string;
   type: string;
   priority: string;
   status_id: string;
   status: string;
   status_color: string;
-  assignee_id: string;
-  reporter_id: string;
+  is_final: boolean;
+  assignee_id: string | null;
+  reporter_id: string | null;
   reporter_name: string;
   assignee_name: string;
   story_points: number;
-  due_date: string;
+  due_date: string | null;
   estimated_hours: number;
   actual_hours: number;
   created_at: string;
   updated_at: string;
   reporter: UserRoleInfo;
+  assignee: UserRoleInfo;
 }
 
 export interface UserStoryDetail {

@@ -239,44 +239,42 @@ const ProjectDetails = () => {
           </TouchableOpacity>
 
           {/* Sprint Name Dropdown */}
-          {
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setSprintListVisible(true)}
-              className='flex-1 flex-row items-center justify-between rounded-xl border px-3 py-2'
-              style={{
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              }}
-            >
-              <View className='flex-1 pr-1'>
-                <AppText
-                  variant='caption'
-                  color={colors.textSecondary}
-                  style={{ fontSize: moderateScale(11) }}
-                >
-                  Sprint
-                </AppText>
-                <AppText
-                  variant='body'
-                  color={colors.primary}
-                  className='font-semibold'
-                  numberOfLines={1}
-                >
-                  {currentSprintName}
-                </AppText>
-              </View>
-              <Ionicons
-                name={
-                  sprintListVisible
-                    ? 'chevron-up-outline'
-                    : 'chevron-down-outline'
-                }
-                size={moderateScale(16)}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setSprintListVisible(true)}
+            className='flex-1 flex-row items-center justify-between rounded-xl border px-3 py-2'
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            }}
+          >
+            <View className='flex-1 pr-1'>
+              <AppText
+                variant='caption'
                 color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-          }
+                style={{ fontSize: moderateScale(11) }}
+              >
+                Sprint
+              </AppText>
+              <AppText
+                variant='body'
+                color={colors.primary}
+                className='font-semibold capitalize'
+                numberOfLines={1}
+              >
+                {currentSprintName}
+              </AppText>
+            </View>
+            <Ionicons
+              name={
+                sprintListVisible
+                  ? 'chevron-up-outline'
+                  : 'chevron-down-outline'
+              }
+              size={moderateScale(16)}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
         </View>
       )}
 

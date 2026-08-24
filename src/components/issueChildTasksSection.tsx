@@ -1,28 +1,221 @@
-import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+} from 'react-native';
 import AppText from './common/AppText';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import {
-  getStatusLabel,
-  getStatusThemeColor,
-  TASK_STATUS_LABELS,
-} from '../utils/enum';
+import { getPriorityThemeColor } from '../utils/enum';
 import { ThemeColors } from '../constants/Colors';
+import { useAppDispatch } from '../store';
+import { Task } from '../types/project.type';
+import { getTasks } from '../store/task_store/action/task.thunk';
+import { TaskMeta } from '../types/task.type';
 
 interface Props {
-  subtasks: any[];
+  tasks: Task[];
   colors: ThemeColors;
   projectId: string | undefined;
   navigation: any;
+  meta?: TaskMeta | null;
+  loading?: boolean;
+  loadingMore?: boolean;
+  userStoryId?: string;
 }
 
 export const IssueChildTasksSection: React.FC<Props> = ({
-  subtasks,
+  tasks,
   colors,
   projectId,
   navigation,
+  meta,
+  loading = false,
+  loadingMore = false,
+  userStoryId,
 }) => {
+  const dispatch = useAppDispatch();
   const { layout } = useAuthLayout();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const taskCount = meta?.total_items ?? tasks.length;
+  const visibleTasks = isExpanded ? tasks : tasks.slice(0, 4);
+
+  const renderTaskRow = ({ item }: { item: Task }) => {
+    const rawPriority = (item.priority || '').toLowerCase();
+    const taskPriorityColor = getPriorityThemeColor(rawPriority, colors);
+    const avatarLetter = (item.assignee_name || 'U').charAt(0).toUpperCase();
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() =>
+          navigation.navigate('issue', { projectId, taskId: item.id })
+        }
+        className='flex-row items-center justify-evenly border-b py-3'
+        style={{ borderColor: colors.border }}
+      >
+        <View style={{ flex: 1.5 }}>
+          <AppText
+            variant='body'
+            color={colors.text}
+            className='font-semibold'
+            numberOfLines={1}
+          >
+            {item.title || 'Untitled Task'}
+          </AppText>
+          <AppText
+            variant='caption'
+            color={colors.textSecondary}
+            numberOfLines={1}
+          >
+            {item.key || item.formatted_serial_number || 'N/A'}
+          </AppText>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View
+            className='self-start rounded-full px-2 py-1'
+            style={{ backgroundColor: `${taskPriorityColor}15` }}
+          >
+            <AppText
+              variant='caption'
+              color={taskPriorityColor}
+              className='text-xs font-semibold capitalize'
+            >
+              {item.priority}
+            </AppText>
+          </View>
+        </View>
+        <View className='flex-row items-center' style={{ flex: 1, gap: 8 }}>
+          <View
+            className='h-7 w-7 items-center justify-center rounded-full'
+            style={{ backgroundColor: colors.primary || '#0066FF' }}
+          >
+            <AppText
+              variant='caption'
+              color={colors.white}
+              className='text-xs font-bold'
+            >
+              {avatarLetter}
+            </AppText>
+          </View>
+          <AppText
+            variant='caption'
+            color={colors.textSecondary}
+            numberOfLines={1}
+          >
+            {item.assignee_name || 'Unassigned'}
+          </AppText>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderHeader = () => (
+    <View
+      className='flex-row justify-between border-b py-2'
+      style={{ borderColor: colors.border }}
+    >
+      <View style={{ flex: 1.5 }}>
+        <AppText
+          variant='caption'
+          color={colors.textSecondary}
+          className='font-bold uppercase'
+        >
+          Work
+        </AppText>
+      </View>
+      <View style={{ flex: 1 }}>
+        <AppText
+          variant='caption'
+          color={colors.textSecondary}
+          className='font-bold uppercase'
+        >
+          Priority
+        </AppText>
+      </View>
+      <View style={{ flex: 1 }}>
+        <AppText
+          variant='caption'
+          color={colors.textSecondary}
+          className='font-bold uppercase'
+        >
+          Assignee
+        </AppText>
+      </View>
+    </View>
+  );
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View className='py-3'>
+        <ActivityIndicator size='small' color={colors.primary} />
+      </View>
+    );
+  };
+
+  const handleEndReached = () => {
+    if (
+      !loadingMore &&
+      !loading &&
+      meta?.has_next &&
+      projectId &&
+      userStoryId
+    ) {
+      dispatch(
+        getTasks({
+          projectId,
+          page: meta.page + 1,
+          page_size: meta.page_size || 8,
+          user_story_id: userStoryId,
+        }),
+      );
+    }
+  };
+
+  if (loading && tasks.length === 0) {
+    return (
+      <View
+        className='mt-3'
+        style={{
+          backgroundColor: colors.card || colors.surface,
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingVertical: layout.sectionGap,
+        }}
+      >
+        <AppText variant='body' color={colors.textSecondary}>
+          Loading tasks...
+        </AppText>
+      </View>
+    );
+  }
+
+  if (!loading && tasks.length === 0) {
+    return (
+      <View
+        className='mt-3'
+        style={{
+          backgroundColor: colors.card || colors.surface,
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingVertical: layout.sectionGap,
+        }}
+      >
+        <View className='mb-3 flex-row items-center justify-between'>
+          <AppText
+            variant='bodyLarge'
+            color={colors.text}
+            className='font-bold'
+          >
+            Tasks ({taskCount})
+          </AppText>
+        </View>
+        <AppText variant='body' color={colors.textSecondary}>
+          No child tickets.
+        </AppText>
+      </View>
+    );
+  }
 
   return (
     <View
@@ -35,98 +228,47 @@ export const IssueChildTasksSection: React.FC<Props> = ({
     >
       <View className='mb-3 flex-row items-center justify-between'>
         <AppText variant='bodyLarge' color={colors.text} className='font-bold'>
-          Tasks ({subtasks.length})
+          Tasks ({taskCount})
         </AppText>
+        {tasks.length > 4 && (
+          <TouchableOpacity
+            onPress={() => setIsExpanded(prev => !prev)}
+            activeOpacity={0.7}
+          >
+            <AppText
+              variant='body'
+              color={colors.primary}
+              className='font-semibold'
+            >
+              {isExpanded ? 'View less' : 'View more'}
+            </AppText>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {subtasks.length > 0 ? (
-        <View style={{ gap: layout.elementGap || 10 }}>
-          {subtasks.map(item => {
-            const rawStatus = (
-              item.status ||
-              item.status_id ||
-              ''
-            ).toLowerCase();
-            const displayStatus =
-              TASK_STATUS_LABELS[
-                rawStatus as keyof typeof TASK_STATUS_LABELS
-              ] ||
-              getStatusLabel(rawStatus) ||
-              item.status ||
-              'To Do';
-            const subtaskStatusColor = getStatusThemeColor(rawStatus, colors);
-            const avatarLetter = (item.title || 'D').charAt(0).toUpperCase();
+      {renderHeader()}
 
-            return (
-              <TouchableOpacity
-                key={item.id}
-                activeOpacity={0.7}
-                onPress={() =>
-                  navigation.navigate('issue', { projectId, taskId: item.id })
-                }
-                className='flex-row items-center justify-between rounded-2xl border p-4'
-                style={{
-                  borderColor: colors.border,
-                  backgroundColor: colors.card || colors.surface,
-                }}
-              >
-                <View
-                  className='flex-1 flex-row items-center'
-                  style={{ gap: 12 }}
-                >
-                  <View
-                    className='h-12 w-12 items-center justify-center rounded-xl'
-                    style={{ backgroundColor: colors.primary || '#0066FF' }}
-                  >
-                    <AppText
-                      variant='title'
-                      color='#FFFFFF'
-                      className='text-lg font-bold'
-                    >
-                      {avatarLetter}
-                    </AppText>
-                  </View>
-
-                  <View className='flex-1 justify-center' style={{ gap: 2 }}>
-                    <AppText
-                      variant='body'
-                      color={colors.text}
-                      className='text-base font-bold'
-                      numberOfLines={1}
-                    >
-                      {item.title || 'Untitled Subtask'}
-                    </AppText>
-                    <AppText
-                      variant='caption'
-                      color={colors.textSecondary}
-                      className='text-xs'
-                      numberOfLines={1}
-                    >
-                      {item.key || item.formatted_serial_number || 'N/A'}
-                    </AppText>
-                  </View>
-                </View>
-
-                <View
-                  className='mt-1 self-start rounded-full px-3 py-1'
-                  style={{ backgroundColor: `${subtaskStatusColor}15` }}
-                >
-                  <AppText
-                    variant='caption'
-                    color={subtaskStatusColor}
-                    className='text-xs font-semibold capitalize'
-                  >
-                    {displayStatus}
-                  </AppText>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+      {isExpanded ? (
+        <View style={{ maxHeight: 320 }}>
+          <FlatList
+            data={tasks}
+            renderItem={renderTaskRow}
+            keyExtractor={item => item.id}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={true}
+            persistentScrollbar={true}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+          />
         </View>
       ) : (
-        <AppText variant='body' color={colors.textSecondary}>
-          No child tickets.
-        </AppText>
+        <FlatList
+          data={visibleTasks}
+          renderItem={renderTaskRow}
+          keyExtractor={item => item.id}
+          scrollEnabled={false}
+        />
       )}
     </View>
   );

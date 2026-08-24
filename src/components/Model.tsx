@@ -93,7 +93,11 @@ export const PopupModel: React.FC<PopupModelProps> = ({
               onChangeText={setDraftDescription}
               multiline
               placeholder='Enter issue description...'
-              style={{ minHeight: moderateScale(120) }}
+              style={{
+                minHeight: moderateScale(120),
+                textAlignVertical: 'top',
+                paddingTop: 10,
+              }}
             />
             <View
               className='flex-row items-center justify-end'

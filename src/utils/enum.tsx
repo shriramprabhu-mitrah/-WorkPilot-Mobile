@@ -84,3 +84,51 @@ export const getStatusThemeColor = (
       return colors.primary;
   }
 };
+
+export enum TaskPriority {
+  CRITICAL = 'critical',
+  HIGH = 'high',
+  MEDIUM = 'medium',
+  LOW = 'low',
+}
+
+export const TASK_PRIORITY_OPTIONS: TaskPriority[] = [
+  TaskPriority.CRITICAL,
+  TaskPriority.HIGH,
+  TaskPriority.MEDIUM,
+  TaskPriority.LOW,
+];
+
+export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+  [TaskPriority.CRITICAL]: 'Critical',
+  [TaskPriority.HIGH]: 'High',
+  [TaskPriority.MEDIUM]: 'Medium',
+  [TaskPriority.LOW]: 'Low',
+};
+
+export const getPriorityLabel = (priority: string | undefined): string => {
+  if (!priority) return 'Medium';
+  const enumValue = priority.toLowerCase() as TaskPriority;
+  return TASK_PRIORITY_LABELS[enumValue] || priority;
+};
+
+export const getPriorityThemeColor = (
+  priority: string | undefined,
+  colors: Record<string, string>,
+): string => {
+  if (!priority) return colors.primary;
+  const enumValue = priority.toLowerCase() as TaskPriority;
+
+  switch (enumValue) {
+    case TaskPriority.CRITICAL:
+      return colors.error || '#EF4444';
+    case TaskPriority.HIGH:
+      return colors.warning || '#F97316';
+    case TaskPriority.MEDIUM:
+      return colors.accentOrange || '#F59E0B';
+    case TaskPriority.LOW:
+      return colors.success || '#10B981';
+    default:
+      return colors.primary;
+  }
+};

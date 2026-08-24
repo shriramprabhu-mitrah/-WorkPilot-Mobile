@@ -28,6 +28,7 @@ import {
   TimeFilterOption,
   Y_AXIS_TICKS,
 } from '../../utils/reportData';
+import { ScrollView } from 'react-native';
 
 interface FilterCheckboxProps {
   label: string;
