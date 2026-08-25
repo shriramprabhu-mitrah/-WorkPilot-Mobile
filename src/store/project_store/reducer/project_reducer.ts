@@ -24,8 +24,14 @@ import {
   getUserStoryById,
   updateUserStory,
 } from '../action/project_thunk';
-import { CustomStatus } from '../../../types/customstatus.type';
-import { getCustomStatusData } from '../../customStatus_store/action/customstatus.thunk';
+import {
+  CustomStatus,
+  UserStoryStatusItem,
+} from '../../../types/customstatus.type';
+import {
+  getCustomStatusData,
+  getUserStoryStatusData,
+} from '../../customStatus_store/action/customstatus.thunk';
 import { getTasks, updateTaskThunk } from '../../task_store/action/task.thunk';
 import { TaskMeta } from '../../../types/task.type';
 
@@ -57,6 +63,9 @@ const initialState: ProjectState & {
   customStatuses: CustomStatus[];
   customStatusLoading: boolean;
   customStatusError: string | null;
+  userStoryStatuses: UserStoryStatusItem[];
+  userStoryStatusLoading: boolean;
+  userStoryStatusError: string | null;
   taskUpdateLoading: boolean;
   taskUpdateError: string | null;
   getCurrentSprintLoading: boolean;
@@ -101,6 +110,9 @@ const initialState: ProjectState & {
   customStatuses: [],
   customStatusLoading: false,
   customStatusError: null,
+  userStoryStatuses: [],
+  userStoryStatusLoading: false,
+  userStoryStatusError: null,
 
   taskUpdateLoading: false,
   taskUpdateError: null,
@@ -336,6 +348,22 @@ const projectSlice = createSlice({
         state.customStatusLoading = false;
         state.customStatusError =
           action.payload ?? 'Failed to fetch custom statuses';
+      })
+      .addCase(getUserStoryStatusData.pending, state => {
+        state.userStoryStatusLoading = true;
+        state.userStoryStatusError = null;
+      })
+
+      .addCase(getUserStoryStatusData.fulfilled, (state, action) => {
+        state.userStoryStatusLoading = false;
+        state.userStoryStatusError = null;
+        state.userStoryStatuses = action.payload.data || [];
+      })
+
+      .addCase(getUserStoryStatusData.rejected, (state, action) => {
+        state.userStoryStatusLoading = false;
+        state.userStoryStatusError =
+          action.payload ?? 'Failed to fetch user story statuses';
       })
       // .addCase(updateTaskThunk.pending, state => {
       //   state.taskUpdateLoading = true;

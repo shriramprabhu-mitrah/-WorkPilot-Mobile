@@ -13,6 +13,7 @@ import { useAppDispatch } from '../store';
 import { Task } from '../types/project.type';
 import { getTasks } from '../store/task_store/action/task.thunk';
 import { TaskMeta } from '../types/task.type';
+import { TaskRowsSkeleton } from './skeleton/issueDetailSkeleton';
 
 interface Props {
   tasks: Task[];
@@ -147,10 +148,12 @@ export const IssueChildTasksSection: React.FC<Props> = ({
   );
 
   const renderFooter = () => {
-    if (!loadingMore) return null;
+    if (!loadingMore) {
+      return null;
+    }
     return (
       <View className='py-3'>
-        <ActivityIndicator size='small' color={colors.primary} />
+        <TaskRowsSkeleton taskCount={1} />;
       </View>
     );
   };
@@ -173,23 +176,6 @@ export const IssueChildTasksSection: React.FC<Props> = ({
       );
     }
   };
-
-  if (loading && tasks.length === 0) {
-    return (
-      <View
-        className='mt-3'
-        style={{
-          backgroundColor: colors.card || colors.surface,
-          paddingHorizontal: layout.paddingHorizontal,
-          paddingVertical: layout.sectionGap,
-        }}
-      >
-        <AppText variant='body' color={colors.textSecondary}>
-          Loading tasks...
-        </AppText>
-      </View>
-    );
-  }
 
   if (!loading && tasks.length === 0) {
     return (
@@ -248,7 +234,13 @@ export const IssueChildTasksSection: React.FC<Props> = ({
 
       {renderHeader()}
 
-      {isExpanded ? (
+      {loading && tasks.length === 0 ? (
+        <TaskRowsSkeleton taskCount={4} />
+      ) : !loading && tasks.length === 0 ? (
+        <AppText variant='body' color={colors.textSecondary} className='py-3'>
+          No child tickets.
+        </AppText>
+      ) : isExpanded ? (
         <View style={{ maxHeight: 320 }}>
           <FlatList
             data={tasks}

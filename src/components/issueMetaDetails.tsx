@@ -53,6 +53,8 @@ export const IssueMetaDetails: React.FC<Props> = ({
   const { layout, isSmallHeight } = useAuthLayout();
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
 
+  const CONTROL_WIDTH = 85;
+
   const togglePriorityDropdown = () => {
     if (!editableFields?.priority) {
       return;
@@ -93,43 +95,48 @@ export const IssueMetaDetails: React.FC<Props> = ({
             </AppText>
 
             {isPriorityEditable ? (
-              <View className='relative z-50 items-end'>
+              <View
+                className='relative z-50 items-end'
+                style={{ width: CONTROL_WIDTH }}
+              >
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={togglePriorityDropdown}
-                  className='flex-row items-center rounded-md border'
+                  className='flex-row items-center justify-between rounded-md border'
                   style={{
                     backgroundColor: `${getPriorityThemeColor(
                       item.value.toLowerCase() as TaskPriority,
                       colors,
                     )}1A`,
                     borderColor: colors.border,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    width: CONTROL_WIDTH,
                   }}
                 >
-                  <View
-                    className='mr-0.5 rounded-full'
-                    style={{
-                      width: 6,
-                      height: 6,
-                      backgroundColor: getPriorityThemeColor(
+                  <View className='flex-row items-center' style={{ gap: 6 }}>
+                    <View
+                      className='rounded-full'
+                      style={{
+                        width: 6,
+                        height: 6,
+                        backgroundColor: getPriorityThemeColor(
+                          item.value.toLowerCase() as TaskPriority,
+                          colors,
+                        ),
+                      }}
+                    />
+                    <AppText
+                      variant='body'
+                      color={getPriorityThemeColor(
                         item.value.toLowerCase() as TaskPriority,
                         colors,
-                      ),
-                    }}
-                  />
-                  <AppText
-                    variant='body'
-                    color={getPriorityThemeColor(
-                      item.value.toLowerCase() as TaskPriority,
-                      colors,
-                    )}
-                    className='text-xs font-semibold'
-                  >
-                    {item.value}
-                  </AppText>
+                      )}
+                      className='text-xs font-semibold'
+                    >
+                      {item.value}
+                    </AppText>
+                  </View>
                   <Ionicons
                     name={showPriorityDropdown ? 'chevron-up' : 'chevron-down'}
                     size={12}
@@ -155,16 +162,17 @@ export const IssueMetaDetails: React.FC<Props> = ({
                     </TouchableWithoutFeedback>
 
                     <View
-                      className='absolute right-0 z-50 w-36 border shadow-md'
+                      className='absolute right-0 z-50 border shadow-md'
                       style={{
                         top: '100%',
-                        marginTop: 2,
+                        marginTop: 4,
+                        width: CONTROL_WIDTH,
                         borderRadius: Radius.sm,
                         backgroundColor: colors.card || colors.surface,
                         borderColor: colors.border,
                         paddingHorizontal: 8,
-                        paddingVertical: 4,
-                        gap: 2,
+                        paddingVertical: 6,
+                        gap: 4,
                       }}
                     >
                       {TASK_PRIORITY_OPTIONS.map(option => {
@@ -178,7 +186,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
                             key={option}
                             activeOpacity={0.8}
                             onPress={() => handlePrioritySelect(option)}
-                            className='flex-row items-center rounded px-2 py-1.5'
+                            className='flex-row items-center rounded py-1.5 ps-0.5'
                             style={{ gap: 8 }}
                           >
                             <View
@@ -210,7 +218,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
             ) : isStoryPointsEditable && storyPointsInputProps ? (
               <View
                 className='flex-row items-center justify-end'
-                style={{ gap: layout.elementGap }}
+                style={{ width: CONTROL_WIDTH }}
               >
                 <TextInput
                   value={storyPointsInputProps.value}
@@ -221,10 +229,10 @@ export const IssueMetaDetails: React.FC<Props> = ({
                   textAlign='center'
                   maxLength={3}
                   style={{
-                    width: moderateScale(42),
-                    paddingVertical: 2,
-                    paddingHorizontal: 6,
-                    borderRadius: 6,
+                    width: CONTROL_WIDTH,
+                    paddingVertical: 6,
+                    paddingHorizontal: 10,
+                    borderRadius: Radius.sm,
                     borderWidth: 1,
                     borderColor: colors.border,
                     backgroundColor: colors.surface,
@@ -236,21 +244,21 @@ export const IssueMetaDetails: React.FC<Props> = ({
             ) : item.initials ? (
               <View
                 className='flex-row items-center'
-                style={{ gap: layout.elementGap }}
+                style={{ width: CONTROL_WIDTH, gap: layout.elementGap }}
               >
                 <Avatar
                   size='small'
                   initials={item.initials}
                   color={item.color || colors.primary}
                 />
-                <AppText variant='body' color={colors.text}>
+                <AppText variant='body' color={colors.text} numberOfLines={1}>
                   {item.value}
                 </AppText>
               </View>
             ) : item.dot ? (
               <View
                 className='flex-row items-center'
-                style={{ gap: layout.elementGap }}
+                style={{ width: CONTROL_WIDTH, gap: layout.elementGap }}
               >
                 <Ionicons name='flag' size={14} color={item.dot} />
                 <AppText variant='body' color={colors.text}>
@@ -258,9 +266,11 @@ export const IssueMetaDetails: React.FC<Props> = ({
                 </AppText>
               </View>
             ) : (
-              <AppText variant='body' color={colors.text}>
-                {item.value}
-              </AppText>
+              <View style={{ width: CONTROL_WIDTH, alignItems: 'flex-end' }}>
+                <AppText variant='body' color={colors.text}>
+                  {item.value}
+                </AppText>
+              </View>
             )}
           </View>
         );
