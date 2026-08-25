@@ -7,18 +7,18 @@ import {
 } from 'react-native';
 import { useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-
 import AppText from '../components/common/AppText';
 import TaskCard from '../components/TaskCard';
-
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-
 import { UserStory, UserStoryTask } from '../types/project.type';
-
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import { getUserStories } from '../store/project_store/action/project_thunk';
+import {
+  toggleStoryFavorite,
+  toggleTaskFavorite,
+} from '../store/project_store/reducer/projectBoard.reducer';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -28,15 +28,12 @@ import Animated, {
   AnimatedRef,
   SharedValue,
 } from 'react-native-reanimated';
-
 import { scheduleOnRN } from 'react-native-worklets';
 import { getCustomStatusData } from '../store/customStatus_store/action/customstatus.thunk';
 import { CustomStatus } from '../types/customstatus.type';
 import { updateTaskThunk } from '../store/task_store/action/task.thunk';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type DropZone = {
   storyId: string;
@@ -51,15 +48,11 @@ type DropZone = {
 
 type ProjectDetailsRouteProp = RouteProp<RootStackParamList, 'projectDetails'>;
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const USER_STORY_WIDTH = 250;
 const STATUS_COLUMN_WIDTH = 260;
 const EDGE_THRESHOLD = 60;
 const SCROLL_SPEED = 12;
 const PAGE_SIZE = 20;
-
-// ─── Skeleton components ──────────────────────────────────────────────────────
 
 const SkeletonBox = ({
   width,
@@ -73,18 +66,15 @@ const SkeletonBox = ({
   style?: object;
 }) => {
   const opacity = useSharedValue(0.4);
-
   useAnimatedReaction(
     () => opacity.value,
     () => {},
   );
 
-  // Simple pulse via repeated animated style
   const animStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
   }));
 
-  // Drive the pulse with a shared value loop
   useEffect(() => {
     let ascending = true;
     const interval = setInterval(() => {
@@ -97,7 +87,6 @@ const SkeletonBox = ({
       }
     }, 60);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -116,11 +105,7 @@ const SkeletonBox = ({
   );
 };
 
-const BoardSkeletonRow = ({
-  columnCount,
-}: {
-  columnCount: number;
-}) => (
+const BoardSkeletonRow = ({ columnCount }: { columnCount: number }) => (
   <View
     style={{
       flexDirection: 'row',
@@ -129,7 +114,6 @@ const BoardSkeletonRow = ({
       minHeight: 100,
     }}
   >
-    {/* Story cell */}
     <View
       style={{
         width: USER_STORY_WIDTH,
@@ -145,7 +129,6 @@ const BoardSkeletonRow = ({
       <SkeletonBox width={80} height={10} />
     </View>
 
-    {/* Status cells */}
     {Array.from({ length: columnCount }).map((_, i) => (
       <View
         key={i}
@@ -160,8 +143,8 @@ const BoardSkeletonRow = ({
       >
         {i === 0 && (
           <>
-            <SkeletonBox width="100%" height={56} borderRadius={8} />
-            <SkeletonBox width="100%" height={56} borderRadius={8} />
+            <SkeletonBox width='100%' height={56} borderRadius={8} />
+            <SkeletonBox width='100%' height={56} borderRadius={8} />
           </>
         )}
       </View>
@@ -171,7 +154,6 @@ const BoardSkeletonRow = ({
 
 const BoardSkeleton = ({ columnCount }: { columnCount: number }) => (
   <View>
-    {/* Header row */}
     <View
       style={{
         flexDirection: 'row',
@@ -205,8 +187,6 @@ const BoardSkeleton = ({ columnCount }: { columnCount: number }) => (
   </View>
 );
 
-// ─── TaskDropZone ─────────────────────────────────────────────────────────────
-
 type TaskDropZoneProps = {
   storyId: string;
   statusId: string;
@@ -233,7 +213,7 @@ const TaskDropZone = ({
   const measureZone = useCallback(() => {
     if (!dropZoneRef.current) return;
     dropZoneRef.current.measureInWindow((x, y, width, height) => {
-      if (width === 0 && height === 0) return; // not yet laid out
+      if (width === 0 && height === 0) return;
       onRegister({
         storyId,
         statusId,
@@ -245,7 +225,13 @@ const TaskDropZone = ({
         scrollYAtMeasure: verticalScrollOffset?.value ?? 0,
       });
     });
-  }, [storyId, statusId, onRegister, horizontalScrollOffset, verticalScrollOffset]);
+  }, [
+    storyId,
+    statusId,
+    onRegister,
+    horizontalScrollOffset,
+    verticalScrollOffset,
+  ]);
 
   return (
     <View
@@ -272,7 +258,7 @@ const TaskDropZone = ({
 // ─── DraggableTask ────────────────────────────────────────────────────────────
 
 type DraggableTaskProps = {
-  task: UserStoryTask;
+  task: UserStoryTask & { is_favorite?: boolean };
   sourceStoryId: string;
   sourceStatusId: string;
   projectId: string;
@@ -284,6 +270,7 @@ type DraggableTaskProps = {
     absoluteY: number,
   ) => void;
   onHoverDropZone: (absoluteX: number, absoluteY: number) => void;
+  onToggleTaskFavorite?: (storyId: string, taskId: string) => void;
   horizontalScrollRef: AnimatedRef<Animated.ScrollView>;
   verticalScrollRef: AnimatedRef<Animated.ScrollView>;
   horizontalScrollOffset: SharedValue<number>;
@@ -297,6 +284,7 @@ const DraggableTask = ({
   projectId,
   onDrop,
   onHoverDropZone,
+  onToggleTaskFavorite,
   horizontalScrollRef,
   verticalScrollRef,
   horizontalScrollOffset,
@@ -310,7 +298,6 @@ const DraggableTask = ({
   const startScrollX = useSharedValue(0);
   const startScrollY = useSharedValue(0);
 
-  // ── Auto-scroll while dragging ──────────────────────────────────────────────
   useAnimatedReaction(
     () => ({ x: dragX.value, y: dragY.value, dragging: isDragging.value }),
     current => {
@@ -341,10 +328,8 @@ const DraggableTask = ({
     },
   );
 
-  // ── Pan gesture ─────────────────────────────────────────────────────────────
   const panGesture = Gesture.Pan()
     .activateAfterLongPress(200)
-
     .onStart(event => {
       isDragging.value = true;
       startScrollX.value = horizontalScrollOffset.value;
@@ -353,9 +338,7 @@ const DraggableTask = ({
       dragY.value = event.absoluteY;
       scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
     })
-
     .onUpdate(event => {
-      // Compensate card position for any auto-scroll that happened since drag start
       const scrollDiffX = horizontalScrollOffset.value - startScrollX.value;
       const scrollDiffY = verticalScrollOffset.value - startScrollY.value;
       translateX.value = event.translationX + scrollDiffX;
@@ -364,7 +347,6 @@ const DraggableTask = ({
       dragY.value = event.absoluteY;
       scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
     })
-
     .onEnd(event => {
       scheduleOnRN(
         onDrop,
@@ -380,9 +362,7 @@ const DraggableTask = ({
       dragX.value = 0;
       dragY.value = 0;
     })
-
     .onFinalize(() => {
-      // Clear hover highlight regardless of how the gesture ended
       scheduleOnRN(onHoverDropZone, -1, -1);
       translateX.value = 0;
       translateY.value = 0;
@@ -391,7 +371,6 @@ const DraggableTask = ({
       dragY.value = 0;
     });
 
-  // ── Animated style ──────────────────────────────────────────────────────────
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
@@ -407,28 +386,50 @@ const DraggableTask = ({
   }));
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View style={animatedStyle}>
-        <TaskCard
-          item={{
-            id: task.id,
-            title: task.title,
-            priority: task.priority,
-            points: `${task.story_points ?? 0}p`,
-            avatar: task.assignee_name?.charAt(0)?.toUpperCase() || '?',
-            avatarColor: '#6366F1',
+    <View style={{ position: 'relative' }}>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={animatedStyle}>
+          <TaskCard
+            item={{
+              id: task.id,
+              title: task.title,
+              priority: task.priority,
+              points: `${task.story_points ?? 0}p`,
+              avatar: task.assignee_name?.charAt(0)?.toUpperCase() || '?',
+              avatarColor: '#6366F1',
+            }}
+            projectId={projectId}
+          />
+        </Animated.View>
+      </GestureDetector>
+      <TouchableOpacity
+        onPress={() => onToggleTaskFavorite?.(sourceStoryId, task.id)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={{
+          position: 'absolute',
+          top: 6,
+          right: 6,
+          zIndex: 10000,
+          padding: 2,
+        }}
+      >
+        <AppText
+          style={{
+            color: task.is_favorite ? '#F59E0B' : '#9CA3AF',
+            fontSize: 20,
           }}
-          projectId={projectId}
-        />
-      </Animated.View>
-    </GestureDetector>
+        >
+          {task.is_favorite ? '★' : '☆'}
+        </AppText>
+      </TouchableOpacity>
+    </View>
   );
 };
 
 // ─── UserStoryBoardRow ────────────────────────────────────────────────────────
 
 type UserStoryBoardRowProps = {
-  story: UserStory;
+  story: UserStory & { is_favorite?: boolean };
   projectId: string;
   customStatuses: CustomStatus[];
   expanded: boolean;
@@ -442,6 +443,8 @@ type UserStoryBoardRowProps = {
     absoluteY: number,
   ) => void;
   onHoverDropZone: (absoluteX: number, absoluteY: number) => void;
+  onToggleStoryFavorite?: (storyId: string) => void;
+  onToggleTaskFavorite?: (storyId: string, taskId: string) => void;
   activeDropZone: { storyId: string; statusId: string } | null;
   dropSuccessZone: { storyId: string; statusId: string } | null;
   horizontalScrollRef: AnimatedRef<Animated.ScrollView>;
@@ -459,6 +462,8 @@ const UserStoryBoardRow = ({
   onRegisterDropZone,
   onTaskDrop,
   onHoverDropZone,
+  onToggleStoryFavorite,
+  onToggleTaskFavorite,
   activeDropZone,
   dropSuccessZone,
   horizontalScrollRef,
@@ -477,7 +482,6 @@ const UserStoryBoardRow = ({
         minHeight: expanded ? 250 : 100,
       }}
     >
-      {/* ── User Story label cell ─────────────────────────────────────────── */}
       <TouchableOpacity
         onPress={() =>
           navigation.navigate('issue', { projectId, userStoryId: story?.id })
@@ -491,7 +495,7 @@ const UserStoryBoardRow = ({
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
           <AppText
-            variant="body"
+            variant='body'
             style={{ marginRight: 8 }}
             onPress={e => {
               e.stopPropagation();
@@ -513,17 +517,45 @@ const UserStoryBoardRow = ({
           />
 
           <View style={{ flex: 1 }}>
-            <AppText variant="body" className="font-semibold">
-              {story.title}
-            </AppText>
-            <AppText variant="caption" color="#6B7280">
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <AppText
+                variant='body'
+                className='font-semibold'
+                style={{ flex: 1 }}
+              >
+                {story.title}
+              </AppText>
+              <TouchableOpacity
+                onPress={e => {
+                  e.stopPropagation();
+                  onToggleStoryFavorite?.(story.id);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ marginLeft: 4 }}
+              >
+                <AppText
+                  style={{
+                    color: story.is_favorite ? '#F59E0B' : '#9CA3AF',
+                    fontSize: 20,
+                  }}
+                >
+                  {story.is_favorite ? '★' : '☆'}
+                </AppText>
+              </TouchableOpacity>
+            </View>
+            <AppText variant='caption' color='#6B7280'>
               {story.tasks?.length ?? 0} tasks · {story.story_points ?? 0} pts
             </AppText>
           </View>
         </View>
       </TouchableOpacity>
 
-      {/* ── Status columns ───────────────────────────────────────────────── */}
       {customStatuses?.map(status => {
         const tasks =
           story.tasks?.filter(task => task.status_id === status.id) ?? [];
@@ -557,6 +589,7 @@ const UserStoryBoardRow = ({
                   projectId={projectId}
                   onDrop={onTaskDrop}
                   onHoverDropZone={onHoverDropZone}
+                  onToggleTaskFavorite={onToggleTaskFavorite}
                   horizontalScrollRef={horizontalScrollRef}
                   verticalScrollRef={verticalScrollRef}
                   horizontalScrollOffset={horizontalScrollOffset}
@@ -577,14 +610,12 @@ const ProjectDeatailsScreen = () => {
   const route = useRoute<ProjectDetailsRouteProp>();
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
-
-  // ── Animated refs & shared values ──────────────────────────────────────────
   const verticalScrollRef = useAnimatedRef<Animated.ScrollView>();
   const horizontalScrollRef = useAnimatedRef<Animated.ScrollView>();
   const horizontalScrollOffset = useSharedValue(0);
   const verticalScrollOffset = useSharedValue(0);
 
-  // ── Redux ───────────────────────────────────────────────────────────────────
+  // Redux Selectors
   const {
     project,
     userStories,
@@ -594,15 +625,29 @@ const ProjectDeatailsScreen = () => {
     loading: storeLoading,
   } = useAppSelector((state: RootState) => state.projects);
 
+  const { favoriteStoryIds = [], favoriteTaskIds = [] } = useAppSelector(
+    (state: RootState) => state.projectBoard || {},
+  );
+
   const projectId = project?.id;
 
-  // ── Local state ─────────────────────────────────────────────────────────────
-  const [localUserStories, setLocalUserStories] = useState<UserStory[]>([]);
+  // Local State
+  const [localUserStories, setLocalUserStories] = useState<
+    (UserStory & { is_favorite?: boolean })[]
+  >([]);
   const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
-  const [expandedStories, setExpandedStories] = useState<Record<string, boolean>>({});
+  const [expandedStories, setExpandedStories] = useState<
+    Record<string, boolean>
+  >({});
   const [dropZones, setDropZones] = useState<DropZone[]>([]);
-  const [activeDropZone, setActiveDropZone] = useState<{ storyId: string; statusId: string } | null>(null);
-  const [dropSuccessZone, setDropSuccessZone] = useState<{ storyId: string; statusId: string } | null>(null);
+  const [activeDropZone, setActiveDropZone] = useState<{
+    storyId: string;
+    statusId: string;
+  } | null>(null);
+  const [dropSuccessZone, setDropSuccessZone] = useState<{
+    storyId: string;
+    statusId: string;
+  } | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -610,7 +655,21 @@ const ProjectDeatailsScreen = () => {
   const isInitialLoad = useRef(true);
   const hasInitializedStories = useRef(false);
 
-  // ── Focus effect: fetch statuses, seed sprint ───────────────────────────────
+  // Helper to map favorites onto story objects
+  const mapStoriesWithFavorites = useCallback(
+    (stories: UserStory[]) => {
+      return stories.map(story => ({
+        ...story,
+        is_favorite: favoriteStoryIds.includes(story.id),
+        tasks: story.tasks?.map(task => ({
+          ...task,
+          is_favorite: favoriteTaskIds.includes(task.id),
+        })),
+      }));
+    },
+    [favoriteStoryIds, favoriteTaskIds],
+  );
+
   useFocusEffect(
     useCallback(() => {
       if (!projectId) return;
@@ -621,7 +680,6 @@ const ProjectDeatailsScreen = () => {
     }, [dispatch, projectId, currentSprint?.id]),
   );
 
-  // ── Reset on project / sprint change ────────────────────────────────────────
   useEffect(() => {
     hasInitializedStories.current = false;
     isInitialLoad.current = true;
@@ -633,7 +691,6 @@ const ProjectDeatailsScreen = () => {
     setExpandedStories({});
   }, [projectId, selectedSprintId]);
 
-  // ── Fetch page 1 (or whenever sprint/project changes) ───────────────────────
   useEffect(() => {
     if (!projectId) return;
     dispatch(
@@ -648,10 +705,9 @@ const ProjectDeatailsScreen = () => {
     );
   }, [dispatch, projectId, selectedSprintId]);
 
-  // ── Seed / append from Redux into local list ─────────────────────────────────
+  // Seed / append from Redux into local list with favorite state attached
   useEffect(() => {
     if (!userStories?.length && currentPage === 1) {
-      // Empty first page — could be loading or genuinely no data
       if (!storeLoading) {
         setLocalUserStories([]);
         hasInitializedStories.current = true;
@@ -661,23 +717,36 @@ const ProjectDeatailsScreen = () => {
     }
 
     if (!hasInitializedStories.current) {
-      // Very first load
-      setLocalUserStories(userStories);
+      setLocalUserStories(mapStoriesWithFavorites(userStories));
       hasInitializedStories.current = true;
       isInitialLoad.current = false;
       setIsFetchingMore(false);
     } else if (currentPage > 1) {
-      // Append next page (deduplicate by id)
       setLocalUserStories(prev => {
         const existingIds = new Set(prev.map(s => s.id));
-        const fresh = userStories.filter(s => !existingIds.has(s.id));
-        return [...prev, ...fresh];
+        const fresh = userStories.filter(
+          (s: UserStory) => !existingIds.has(s.id),
+        );
+        return [...prev, ...mapStoriesWithFavorites(fresh)];
       });
       setIsFetchingMore(false);
     }
-  }, [userStories, currentPage, storeLoading]);
+  }, [userStories, currentPage, storeLoading, mapStoriesWithFavorites]);
 
-  // ── Load next page ───────────────────────────────────────────────────────────
+  // Sync Redux favorites changes directly with local state
+  useEffect(() => {
+    setLocalUserStories(prev =>
+      prev.map(story => ({
+        ...story,
+        is_favorite: favoriteStoryIds.includes(story.id),
+        tasks: story.tasks?.map(task => ({
+          ...task,
+          is_favorite: favoriteTaskIds.includes(task.id),
+        })),
+      })),
+    );
+  }, [favoriteStoryIds, favoriteTaskIds]);
+
   const loadNextPage = useCallback(() => {
     if (!projectId) return;
     if (!userStoryMeta?.has_next) return;
@@ -697,18 +766,40 @@ const ProjectDeatailsScreen = () => {
         },
       }),
     );
-  }, [dispatch, projectId, selectedSprintId, currentPage, userStoryMeta, isFetchingMore]);
+  }, [
+    dispatch,
+    projectId,
+    selectedSprintId,
+    currentPage,
+    userStoryMeta,
+    isFetchingMore,
+  ]);
 
-  // ── Toggle story expansion ──────────────────────────────────────────────────
   const toggleStory = useCallback((storyId: string) => {
     setExpandedStories(prev => ({ ...prev, [storyId]: !prev[storyId] }));
   }, []);
 
-  // ── Drop zone registration ───────────────────────────────────────────────────
+  // Dispatch Redux action for Story Favorite
+  const handleToggleStoryFavorite = useCallback(
+    (storyId: string) => {
+      dispatch(toggleStoryFavorite(storyId));
+    },
+    [dispatch],
+  );
+
+  // Dispatch Redux action for Task Favorite
+  const handleToggleTaskFavorite = useCallback(
+    (storyId: string, taskId: string) => {
+      dispatch(toggleTaskFavorite({ storyId, taskId }));
+    },
+    [dispatch],
+  );
+
   const registerTaskDropZone = useCallback((zone: DropZone) => {
     setDropZones(prev => {
       const index = prev.findIndex(
-        item => item.storyId === zone.storyId && item.statusId === zone.statusId,
+        item =>
+          item.storyId === zone.storyId && item.statusId === zone.statusId,
       );
       if (index === -1) return [...prev, zone];
       const updated = [...prev];
@@ -717,7 +808,6 @@ const ProjectDeatailsScreen = () => {
     });
   }, []);
 
-  // ── Find drop zone with scroll-compensated coordinates ──────────────────────
   const findDropZone = useCallback(
     (absoluteX: number, absoluteY: number): DropZone | null => {
       const currentX = horizontalScrollOffset.value;
@@ -725,7 +815,6 @@ const ProjectDeatailsScreen = () => {
 
       return (
         dropZones.find(item => {
-          // Adjust stored position by scroll delta since the zone was last measured
           const adjustedX = item.x - (currentX - item.scrollXAtMeasure);
           const adjustedY = item.y - (currentY - item.scrollYAtMeasure);
           return (
@@ -740,7 +829,6 @@ const ProjectDeatailsScreen = () => {
     [dropZones, horizontalScrollOffset, verticalScrollOffset],
   );
 
-  // ── Hover highlight ──────────────────────────────────────────────────────────
   const handleHoverDropZone = useCallback(
     (absoluteX: number, absoluteY: number) => {
       if (absoluteX < 0 || absoluteY < 0) {
@@ -748,12 +836,13 @@ const ProjectDeatailsScreen = () => {
         return;
       }
       const zone = findDropZone(absoluteX, absoluteY);
-      setActiveDropZone(zone ? { storyId: zone.storyId, statusId: zone.statusId } : null);
+      setActiveDropZone(
+        zone ? { storyId: zone.storyId, statusId: zone.statusId } : null,
+      );
     },
     [findDropZone],
   );
 
-  // ── Optimistic local state update ────────────────────────────────────────────
   const applyLocalMove = useCallback(
     (
       taskId: string,
@@ -767,7 +856,6 @@ const ProjectDeatailsScreen = () => {
         if (!movedTask) return prev;
 
         if (sourceStoryId === targetStoryId) {
-          // Same story — only status changes
           return prev.map(s =>
             s.id !== sourceStoryId
               ? s
@@ -780,7 +868,6 @@ const ProjectDeatailsScreen = () => {
           );
         }
 
-        // Cross-story move
         return prev.map(s => {
           if (s.id === sourceStoryId) {
             return {
@@ -803,7 +890,6 @@ const ProjectDeatailsScreen = () => {
     [],
   );
 
-  // ── Rollback local state on API error ────────────────────────────────────────
   const rollbackLocalMove = useCallback(
     (
       sourceTask: UserStoryTask,
@@ -820,16 +906,16 @@ const ProjectDeatailsScreen = () => {
             };
           }
           if (s.id === sourceStoryId) {
-            // Restore original task (replace if it slipped in, or add back)
             const already = s.tasks.some(t => t.id === sourceTask.id);
             return {
               ...s,
               tasks: already
                 ? s.tasks.map(t => (t.id === sourceTask.id ? sourceTask : t))
                 : [...s.tasks, sourceTask],
-              total_tasks: sourceStoryId !== targetStoryId
-                ? (s.total_tasks ?? 0) + 1
-                : s.total_tasks,
+              total_tasks:
+                sourceStoryId !== targetStoryId
+                  ? (s.total_tasks ?? 0) + 1
+                  : s.total_tasks,
             };
           }
           return s;
@@ -839,7 +925,6 @@ const ProjectDeatailsScreen = () => {
     [],
   );
 
-  // ── Task drop handler ────────────────────────────────────────────────────────
   const handleTaskDrop = useCallback(
     (
       task: UserStoryTask,
@@ -855,18 +940,14 @@ const ProjectDeatailsScreen = () => {
 
       const { storyId: targetStoryId, statusId: targetStatusId } = targetZone;
 
-      // No-op: dropped in the same cell
-      if (sourceStoryId === targetStoryId && sourceStatusId === targetStatusId) return;
+      if (sourceStoryId === targetStoryId && sourceStatusId === targetStatusId)
+        return;
 
-      // Snapshot source task for rollback
       const sourceStory = localUserStories.find(s => s.id === sourceStoryId);
       const sourceTask = sourceStory?.tasks?.find(t => t.id === task.id);
       if (!sourceTask) return;
 
-      // 1. Show success highlight immediately
       setDropSuccessZone({ storyId: targetStoryId, statusId: targetStatusId });
-
-      // 2. Optimistically update local state
       applyLocalMove(task.id, sourceStoryId, targetStoryId, targetStatusId);
 
       if (!projectId) {
@@ -874,7 +955,6 @@ const ProjectDeatailsScreen = () => {
         return;
       }
 
-      // 3. Persist to API
       dispatch(
         updateTaskThunk({
           projectId,
@@ -890,26 +970,28 @@ const ProjectDeatailsScreen = () => {
             setDropSuccessZone(null);
             rollbackLocalMove(sourceTask, sourceStoryId, targetStoryId);
           },
-          onFinally: () => {
-            // nothing extra needed
-          },
+          onFinally: () => {},
         }),
       );
     },
-    [dispatch, findDropZone, localUserStories, projectId, applyLocalMove, rollbackLocalMove],
+    [
+      dispatch,
+      findDropZone,
+      localUserStories,
+      projectId,
+      applyLocalMove,
+      rollbackLocalMove,
+    ],
   );
 
-  // ── Derived: is initial board loading? ──────────────────────────────────────
   const isInitialLoading =
     storeLoading && isInitialLoad.current && localUserStories.length === 0;
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <ScrollView
-      className="flex-1"
+      className='flex-1'
       style={{ backgroundColor: colors.surface, paddingTop: moderateScale(20) }}
     >
-      {/* Header */}
       <View
         style={{
           paddingHorizontal: layout.paddingHorizontal,
@@ -917,11 +999,11 @@ const ProjectDeatailsScreen = () => {
           paddingBottom: moderateScale(12),
         }}
       >
-        <AppText variant="title" className="font-bold">
+        <AppText variant='title' className='font-bold'>
           Kanban Board
         </AppText>
         <AppText
-          variant="body"
+          variant='body'
           style={{ marginTop: moderateScale(4), opacity: 0.5 }}
         >
           Visualize and manage your team's tasks across workflow stages
@@ -939,10 +1021,6 @@ const ProjectDeatailsScreen = () => {
         contentContainerStyle={{
           paddingBottom: isSmallHeight ? hp(20) : hp(12),
         }}
-        onScrollEndDrag={() => {
-          // Re-measure all drop zones after the user settles the scroll
-          // so coordinates are fresh before the next drag
-        }}
       >
         <Animated.ScrollView
           ref={horizontalScrollRef}
@@ -958,11 +1036,11 @@ const ProjectDeatailsScreen = () => {
           }}
         >
           {isInitialLoading ? (
-            /* ── Skeleton board ──────────────────────────────────────────── */
-            <BoardSkeleton columnCount={Math.max(customStatuses?.length ?? 0, 3)} />
+            <BoardSkeleton
+              columnCount={Math.max(customStatuses?.length ?? 0, 3)}
+            />
           ) : (
             <View>
-              {/* ── Column header row ─────────────────────────────────────── */}
               <View
                 style={{
                   flexDirection: 'row',
@@ -971,7 +1049,7 @@ const ProjectDeatailsScreen = () => {
                 }}
               >
                 <View style={{ width: USER_STORY_WIDTH, padding: 12 }}>
-                  <AppText variant="body" className="font-bold">
+                  <AppText variant='body' className='font-bold'>
                     User Stories
                   </AppText>
                 </View>
@@ -985,7 +1063,9 @@ const ProjectDeatailsScreen = () => {
                       borderLeftColor: '#E5E7EB',
                     }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View
+                      style={{ flexDirection: 'row', alignItems: 'center' }}
+                    >
                       <View
                         style={{
                           width: 10,
@@ -995,7 +1075,7 @@ const ProjectDeatailsScreen = () => {
                           marginRight: 8,
                         }}
                       />
-                      <AppText variant="body" className="font-bold">
+                      <AppText variant='body' className='font-bold'>
                         {status.name}
                       </AppText>
                     </View>
@@ -1003,7 +1083,6 @@ const ProjectDeatailsScreen = () => {
                 ))}
               </View>
 
-              {/* ── Board rows ────────────────────────────────────────────── */}
               {localUserStories.map(story => (
                 <UserStoryBoardRow
                   key={story.id}
@@ -1015,6 +1094,8 @@ const ProjectDeatailsScreen = () => {
                   onRegisterDropZone={registerTaskDropZone}
                   onTaskDrop={handleTaskDrop}
                   onHoverDropZone={handleHoverDropZone}
+                  onToggleStoryFavorite={handleToggleStoryFavorite}
+                  onToggleTaskFavorite={handleToggleTaskFavorite}
                   activeDropZone={activeDropZone}
                   dropSuccessZone={dropSuccessZone}
                   horizontalScrollRef={horizontalScrollRef}
@@ -1024,7 +1105,6 @@ const ProjectDeatailsScreen = () => {
                 />
               ))}
 
-              {/* ── Empty state ───────────────────────────────────────────── */}
               {!storeLoading && localUserStories.length === 0 && (
                 <View
                   style={{
@@ -1033,13 +1113,12 @@ const ProjectDeatailsScreen = () => {
                     alignItems: 'center',
                   }}
                 >
-                  <AppText variant="body" color="#9CA3AF">
+                  <AppText variant='body' color='#9CA3AF'>
                     No user stories found for this sprint.
                   </AppText>
                 </View>
               )}
 
-              {/* ── Pagination footer ─────────────────────────────────────── */}
               {userStoryMeta?.has_next && (
                 <View style={{ alignItems: 'flex-start', paddingVertical: 16 }}>
                   {isFetchingMore ? (
@@ -1050,10 +1129,10 @@ const ProjectDeatailsScreen = () => {
                         paddingVertical: 12,
                       }}
                     >
-                      <ActivityIndicator size="small" color="#6366F1" />
+                      <ActivityIndicator size='small' color='#6366F1' />
                       <AppText
-                        variant="caption"
-                        color="#6B7280"
+                        variant='caption'
+                        color='#6B7280'
                         style={{ marginTop: 6 }}
                       >
                         Loading more stories…
@@ -1073,9 +1152,11 @@ const ProjectDeatailsScreen = () => {
                         marginLeft: 12,
                       }}
                     >
-                      <AppText variant="body" color="#374151">
+                      <AppText variant='body' color='#374151'>
                         Load more stories (
-                        {(userStoryMeta?.total_items ?? 0) - localUserStories.length} remaining)
+                        {(userStoryMeta?.total_items ?? 0) -
+                          localUserStories.length}{' '}
+                        remaining)
                       </AppText>
                     </TouchableOpacity>
                   )}

@@ -3,6 +3,8 @@ import { BoardCard, BoardColumn } from '../../../types/projectBoard.type';
 
 interface ProjectBoardState {
   columns: BoardColumn[];
+  favoriteStoryIds: string[];
+  favoriteTaskIds: string[];
   loading: boolean;
   error: string | null;
 }
@@ -30,6 +32,8 @@ const initialState: ProjectBoardState = {
       cards: [],
     },
   ],
+  favoriteStoryIds: [],
+  favoriteTaskIds: [],
   loading: false,
   error: null,
 };
@@ -39,6 +43,38 @@ const projectBoardSlice = createSlice({
   initialState,
 
   reducers: {
+    /**
+     * Toggle Favorite User Story
+     */
+    toggleStoryFavorite: (state, action: PayloadAction<string>) => {
+      const storyId = action.payload;
+      const index = state.favoriteStoryIds.indexOf(storyId);
+      if (index >= 0) {
+        state.favoriteStoryIds.splice(index, 1);
+      } else {
+        state.favoriteStoryIds.push(storyId);
+      }
+    },
+
+    /**
+     * Toggle Favorite Task
+     */
+    toggleTaskFavorite: (
+      state,
+      action: PayloadAction<string | { storyId?: string; taskId: string }>,
+    ) => {
+      const taskId =
+        typeof action.payload === 'string'
+          ? action.payload
+          : action.payload.taskId;
+      const index = state.favoriteTaskIds.indexOf(taskId);
+      if (index >= 0) {
+        state.favoriteTaskIds.splice(index, 1);
+      } else {
+        state.favoriteTaskIds.push(taskId);
+      }
+    },
+
     /**
      * Set complete board columns
      */
@@ -60,6 +96,7 @@ const projectBoardSlice = createSlice({
         todoColumn.cards.push(action.payload);
       }
     },
+
     /**
      * Update column
      */
@@ -88,7 +125,6 @@ const projectBoardSlice = createSlice({
         return;
       }
 
-      // Already last column
       if (columnIndex === state.columns.length - 1) {
         return;
       }
@@ -205,7 +241,6 @@ const projectBoardSlice = createSlice({
         return;
       }
 
-      // Don't do anything if moving to same column
       if (fromColumnId === toColumnId) {
         return;
       }
@@ -254,6 +289,8 @@ const projectBoardSlice = createSlice({
 });
 
 export const {
+  toggleStoryFavorite,
+  toggleTaskFavorite,
   setColumns,
   addColumn,
   updateColumn,
