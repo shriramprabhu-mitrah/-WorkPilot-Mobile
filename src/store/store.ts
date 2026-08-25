@@ -10,6 +10,12 @@ import projectReducer from './project_store/reducer/project_reducer';
 import projectBoardReducer from './project_store/reducer/projectBoard.reducer';
 import commentsReducer from './comments_store/reducer/comments_reducer';
 
+export const RESET_STORE = 'RESET_STORE';
+
+export const resetStore = () => ({
+  type: RESET_STORE,
+});
+
 export const mmkv = createMMKV();
 
 const mmkvStorage = {
@@ -51,17 +57,8 @@ const authPersistConfig = {
   key: 'auth',
   storage: mmkvStorage,
 };
-const rootPersistConfig = {
-  key: 'root',
-  storage: mmkvStorage,
-  // Only persist the lightweight slices at root level.
-  // audit & response are persisted independently via nested persistReducer.
-  // whitelist: ['auth', 'home', 'theme', 'submission'],
-};
 
-const rootReducer = combineReducers({
-  // home: homeSlice,
-  // theme: themeSlice,
+const appReducer = combineReducers({
   auth: persistReducer(authPersistConfig, authReducer),
   common: commonReducer,
   issue: issueReducer,
@@ -69,17 +66,23 @@ const rootReducer = combineReducers({
   projects: projectReducer,
   projectBoard: projectBoardReducer,
   comments: commentsReducer,
-  // audit: persistReducer(auditPersistConfig, auditSlice),
-  // response: persistReducer(responsePersistConfig, responseSlice),
-  // submission: submissionSlice,
-  // ui: uiSlice,
 });
 
+const rootReducer = (
+  state: ReturnType<typeof appReducer> | undefined,
+  action: any,
+) => {
+  if (action.type === RESET_STORE) {
+    state = undefined;
+  }
+
+  return appReducer(state, action);
+};
+
 export type RootState = ReturnType<typeof rootReducer>;
-const persistedReducer = persistReducer(rootPersistConfig, rootReducer);
 
 export const store = configureStore({
-  reducer: persistedReducer,
+  reducer: rootReducer,
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: false,
@@ -95,5 +98,4 @@ export const store = configureStore({
 
 export const persistor = persistStore(store);
 
-// export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
