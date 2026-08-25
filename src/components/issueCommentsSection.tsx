@@ -17,6 +17,7 @@ import {
   fetchUserStoryCommentReplies,
 } from '../store/comments_store/action/comments.thunk';
 import { CommentItem } from '../types/comments.type';
+import { CommentsSectionSkeleton } from './skeleton/issueDetailSkeleton';
 
 interface Props {
   colors: ThemeColors;
@@ -166,10 +167,7 @@ export const IssueCommentsSection: React.FC<Props> = ({
   };
 
   const renderCommentRow = (item: CommentItem) => {
-    const authorName =
-      item.full_name ||
-      item.user_name ||
-      'User';
+    const authorName = item.full_name || item.user_name || 'User';
     const avatarInitials = authorName
       .split(' ')
       .filter(Boolean)
@@ -320,11 +318,7 @@ export const IssueCommentsSection: React.FC<Props> = ({
       </AppText>
 
       {commentsLoading ? (
-        <ActivityIndicator
-          size='small'
-          color={colors.primary}
-          className='my-4'
-        />
+        <CommentsSectionSkeleton />
       ) : roots.length > 0 ? (
         <ScrollView
           style={{ maxHeight: 400 }}

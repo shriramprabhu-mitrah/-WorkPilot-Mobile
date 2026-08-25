@@ -6,7 +6,7 @@ import AppText from '../components/common/AppText';
 import { Radius } from '../constants/Radius';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { ThemeColors } from '../constants/Colors';
-import { CustomStatus } from '../types/customstatus.type';
+import { CustomStatus, UserStoryStatusItem } from '../types/customstatus.type';
 import { getStatusLabel } from '../utils/enum';
 import { useTheme } from '../theme/ThemeProvider';
 
@@ -20,6 +20,8 @@ interface Props {
   onSelectStatus: (status: string) => void;
   onSelectId: (status: string) => void;
   customStatuses: CustomStatus[];
+  userStoryStatuses: UserStoryStatusItem[];
+  isUserStory?: boolean;
 }
 
 export const IssueHeaderSection: React.FC<Props> = ({
@@ -31,6 +33,8 @@ export const IssueHeaderSection: React.FC<Props> = ({
   onSelectStatus,
   onSelectId,
   customStatuses,
+  userStoryStatuses,
+  isUserStory = false,
 }) => {
   const { layout } = useAuthLayout();
   const { colors } = useTheme();
@@ -171,21 +175,21 @@ export const IssueHeaderSection: React.FC<Props> = ({
                 elevation: 5,
               }}
             >
-              {customStatuses
+              {(isUserStory ? userStoryStatuses : customStatuses)
                 ?.slice()
                 .sort(
                   (a, b) => (a?.display_order ?? 0) - (b?.display_order ?? 0),
                 )
-                .map(customStatus => {
-                  const statusName = customStatus?.name ?? '';
-                  const statusId = customStatus?.id ?? '';
+                .map(statusItem => {
+                  const statusName = statusItem?.name ?? '';
+                  const statusId = statusItem?.id ?? '';
 
                   const isSelected =
                     currentStatus.toLowerCase() === statusName.toLowerCase();
 
                   return (
                     <TouchableOpacity
-                      key={customStatus?.id}
+                      key={statusItem?.id}
                       activeOpacity={0.8}
                       onPress={() => {
                         onSelectStatus(statusName);
@@ -207,7 +211,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
                           width: 8,
                           height: 8,
                           marginTop: 6,
-                          backgroundColor: customStatus?.color,
+                          backgroundColor: statusItem?.color,
                         }}
                       />
 
@@ -220,7 +224,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
                       >
                         <AppText
                           variant='body'
-                          color={isSelected ? customStatus?.color : colors.text}
+                          color={isSelected ? statusItem?.color : colors.text}
                           className={isSelected ? 'font-bold' : 'font-normal'}
                         >
                           {statusName}

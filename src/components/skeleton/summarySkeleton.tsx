@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated } from 'react-native';
+import { View, Animated, ScrollView } from 'react-native';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
-import Screen from '../../components/common/ScreenWapper';
 import { useTheme } from '../../theme/ThemeProvider';
 
 export const SummarySkeleton: React.FC = () => {
@@ -33,7 +32,10 @@ export const SummarySkeleton: React.FC = () => {
   const skeletonBg = colors.border || '#E5E7EB';
 
   return (
-    <Screen scroll={false} backgroundColor={colors.surface}>
+    <ScrollView
+      className='flex-1'
+      style={{ backgroundColor: colors.surface, paddingTop: moderateScale(20) }}
+    >
       <View
         style={{
           paddingHorizontal: layout.paddingHorizontal,
@@ -183,7 +185,7 @@ export const SummarySkeleton: React.FC = () => {
           ))}
         </View>
       </View>
-    </Screen>
+    </ScrollView>
   );
 };
 

@@ -31,6 +31,7 @@ export const GET_AUDIT = `/audit`;
 
 //UserStory
 export const GET_USERSTORY = `/projects/{project_id}/user-stories`;
+export const GET_USERSTORY_STATUS = `/projects/{project_id}/user-story-statuses`;
 
 //SPRINT
 export const GET_SPRINTS = `/projects/{project_id}/sprint`;

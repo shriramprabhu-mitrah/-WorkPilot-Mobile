@@ -1,6 +1,12 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { getCustomStatus } from '../../../services/customstatus.service';
-import { GetCustomStatusResponse } from '../../../types/customstatus.type';
+import {
+  getCustomStatus,
+  getUserStoryStatus,
+} from '../../../services/customstatus.service';
+import {
+  GetCustomStatusResponse,
+  GetUserStoryStatusResponse,
+} from '../../../types/customstatus.type';
 
 export const getCustomStatusData = createAsyncThunk<
   GetCustomStatusResponse,
@@ -16,6 +22,24 @@ export const getCustomStatusData = createAsyncThunk<
   } catch (error: any) {
     return rejectWithValue(
       error.response?.data?.message || 'Failed to fetch custom statuses',
+    );
+  }
+});
+
+export const getUserStoryStatusData = createAsyncThunk<
+  GetUserStoryStatusResponse,
+  { projectId: string },
+  { rejectValue: string }
+>('project/getUserStoryStatus', async ({ projectId }, { rejectWithValue }) => {
+  try {
+    const response = await getUserStoryStatus(projectId);
+
+    console.log('User Story Status Response:', response);
+
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(
+      error.response?.data?.message || 'Failed to fetch user story statuses',
     );
   }
 });

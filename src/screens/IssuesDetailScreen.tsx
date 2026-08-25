@@ -69,8 +69,10 @@ import { IssueDescriptionSection } from '../components/issueDescriptionSection';
 import { IssueChildTasksSection } from '../components/issueChildTasksSection';
 import { IssueCommentsSection } from '../components/issueCommentsSection';
 import { IssueCommentInput } from '../components/issueCommentInput';
-import IssueDetailSkeleton from '../components/skeleton/issueDetailSkeleton';
-import { getCustomStatusData } from '../store/customStatus_store/action/customstatus.thunk';
+import {
+  getCustomStatusData,
+  getUserStoryStatusData,
+} from '../store/customStatus_store/action/customstatus.thunk';
 
 type IssueDetailRouteProp = RouteProp<RootStackParamList, 'issue'>;
 
@@ -97,6 +99,7 @@ const IssueDetailScreen = () => {
     tasksMeta,
     loadingMore,
     customStatuses,
+    userStoryStatuses,
   } = useAppSelector((state: RootState) => state.projects);
 
   const { comments: apiComments, loading: commentsLoading } = useAppSelector(
@@ -175,8 +178,11 @@ const IssueDetailScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (!projectId) return;
+      if (!projectId) {
+        return;
+      }
       dispatch(getCustomStatusData({ projectId }));
+      dispatch(getUserStoryStatusData({ projectId }));
     }, [dispatch, projectId]),
   );
 
@@ -184,7 +190,7 @@ const IssueDetailScreen = () => {
     if (!projectId) {
       return;
     }
-    if (taskId) {
+    if (taskId && statusId) {
       dispatch(
         updateTaskThunk({
           projectId,
@@ -194,7 +200,7 @@ const IssueDetailScreen = () => {
           },
         }),
       );
-    } else if (userStoryId) {
+    } else if (userStoryId && statusId) {
       dispatch(
         updateUserStory({
           projectId,
@@ -242,10 +248,15 @@ const IssueDetailScreen = () => {
   }, [currentItem]);
 
   // ── Derived values ──
-  const activeStatusColor = useMemo(
-    () => getStatusThemeColor(status || currentItem?.status, colors),
-    [status, currentItem, colors],
-  );
+  const activeStatusColor = useMemo(() => {
+    if (!isTaskView && statusId) {
+      const matchedStatus = userStoryStatuses.find(s => s.id === statusId);
+      if (matchedStatus) {
+        return matchedStatus.color;
+      }
+    }
+    return getStatusThemeColor(status || currentItem?.status, colors);
+  }, [isTaskView, statusId, userStoryStatuses, status, currentItem, colors]);
 
   const details = useMemo(() => {
     if (!currentItem) return [];
@@ -678,11 +689,6 @@ const IssueDetailScreen = () => {
     setStatusId(selected);
   };
 
-  // ── Render ──
-  if (loading) {
-    return <IssueDetailSkeleton />;
-  }
-
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <CommonHeader
@@ -707,6 +713,8 @@ const IssueDetailScreen = () => {
           currentItem={currentItem}
           status={status}
           customStatuses={customStatuses}
+          userStoryStatuses={userStoryStatuses}
+          isUserStory={!!userStoryId}
           activeStatusColor={activeStatusColor}
           showStatusPicker={showStatusPicker}
           onToggleStatusPicker={toggleStatusPicker}
