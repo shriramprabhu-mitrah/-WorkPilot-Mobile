@@ -23,11 +23,7 @@ import { RootStackParamList } from '../../types/navigationTypes';
 
 const List = () => {
   const { colors } = useTheme();
-<<<<<<< HEAD
   const { moderateScale, layout, hp } = useAuthLayout();
-=======
-  const { moderateScale, layout } = useAuthLayout();
->>>>>>> 1d84e9d34785535939ead5d51f800011b798c4b8
   const dispatch = useAppDispatch();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
@@ -163,11 +159,11 @@ const List = () => {
   };
 
   return (
-<<<<<<< HEAD
-    <ScrollView className='pt-3' style={{ backgroundColor: colors.surface }} showsVerticalScrollIndicator={false}>
-=======
-    <ScrollView className='pt-3' style={{ backgroundColor: colors.surface }}>
->>>>>>> 1d84e9d34785535939ead5d51f800011b798c4b8
+    <ScrollView
+      className='pt-3'
+      style={{ backgroundColor: colors.surface }}
+      showsVerticalScrollIndicator={false}
+    >
       <View className='flex-1 px-4 pt-3'>
         {/* Search Bar */}
         <View className='mb-4'>
@@ -386,4 +382,3 @@ const List = () => {
 };
 
 export default List;
-

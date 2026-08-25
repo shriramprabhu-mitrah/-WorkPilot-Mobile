@@ -1,17 +1,14 @@
 import React from 'react';
 import { View, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+
 import AppText from '../components/common/AppText';
 import { Radius } from '../constants/Radius';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import {
-  getStatusLabel,
-  getStatusThemeColor,
-  STATUS_OPTIONS,
-  TASK_STATUS_LABELS,
-  IssueStatus,
-} from '../utils/enum';
 import { ThemeColors } from '../constants/Colors';
+import { CustomStatus } from '../types/customstatus.type';
+import { getStatusLabel } from '../utils/enum';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface Props {
   colors: ThemeColors;
@@ -20,31 +17,45 @@ interface Props {
   activeStatusColor: string;
   showStatusPicker: boolean;
   onToggleStatusPicker: () => void;
-  onSelectStatus: (status: IssueStatus | string) => void;
+  onSelectStatus: (status: string) => void;
+  onSelectId: (status: string) => void;
+  customStatuses: CustomStatus[];
 }
 
 export const IssueHeaderSection: React.FC<Props> = ({
-  colors,
   currentItem,
   status,
   activeStatusColor,
   showStatusPicker,
   onToggleStatusPicker,
   onSelectStatus,
+  onSelectId,
+  customStatuses,
 }) => {
   const { layout } = useAuthLayout();
+  const { colors } = useTheme();
+
+  /*
+   * Fixed responsive width.
+   *
+   * The width is NOT based on the status name.
+   */
+  const statusWidth = Math.min(Math.max(layout.controlSize * 7, 160), 220);
+
+  const currentStatus = status || currentItem?.status || '';
 
   return (
     <View
       className='z-10 border-b'
       style={{
-        backgroundColor: colors.card || colors.surface,
+        backgroundColor: colors.card,
         borderColor: colors.border,
         paddingHorizontal: layout.paddingHorizontal,
         paddingVertical: layout.largeSectionGap,
         gap: layout.elementGap,
       }}
     >
+      {/* Issue title */}
       <AppText
         variant='title'
         color={colors.text}
@@ -53,34 +64,59 @@ export const IssueHeaderSection: React.FC<Props> = ({
         {currentItem?.title}
       </AppText>
 
-      <View className='relative z-50'>
+      <View
+        className='relative z-50'
+        style={{
+          width: statusWidth,
+        }}
+      >
+        {/* Status button */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={onToggleStatusPicker}
-          className='flex-row items-center self-start rounded-lg border'
+          className='flex-row items-center rounded-lg border'
           style={{
+            width: statusWidth,
+            minHeight: layout.controlSize * 1.5,
+
             backgroundColor: `${activeStatusColor}1A`,
             borderColor: colors.border,
+
             paddingHorizontal: layout.paddingHorizontal,
             paddingVertical: layout.elementGap,
+
             gap: layout.tightGap,
           }}
         >
+          {/* Status dot */}
           <View
-            className='mr-1 rounded-full'
+            className='rounded-full'
             style={{
-              width: 8,
-              height: 8,
+              width: Math.max(layout.controlSize * 0.3, 7),
+              height: Math.max(layout.controlSize * 0.3, 7),
               backgroundColor: activeStatusColor,
             }}
           />
-          <AppText
-            variant='body'
-            color={activeStatusColor}
-            className='font-semibold'
+
+          {/* Status text */}
+          <View
+            style={{
+              flex: 1,
+              minWidth: 0,
+            }}
           >
-            {getStatusLabel(status || currentItem?.status)}
-          </AppText>
+            <AppText
+              variant='body'
+              color={activeStatusColor}
+              className='font-semibold'
+              numberOfLines={2}
+              ellipsizeMode='tail'
+            >
+              {getStatusLabel(currentStatus)}
+            </AppText>
+          </View>
+
+          {/* Arrow */}
           <Ionicons
             name={showStatusPicker ? 'chevron-up' : 'chevron-down'}
             size={layout.controlSize * 0.8}
@@ -88,60 +124,111 @@ export const IssueHeaderSection: React.FC<Props> = ({
           />
         </TouchableOpacity>
 
-        {/* Inline Dropdown Option Box */}
+        {/* Dropdown */}
         {showStatusPicker && (
           <>
-            {/* Backdrop layer to capture outside clicks and close the dropdown */}
+            {/* Backdrop */}
             <TouchableWithoutFeedback onPress={onToggleStatusPicker}>
               <View
-                className='absolute inset-0 z-40'
-                style={{ width: 1000, height: 1000, left: -500, top: -500 }}
+                className='absolute z-40'
+                style={{
+                  width: 1000,
+                  height: 1000,
+                  left: -500,
+                  top: -500,
+                }}
               />
             </TouchableWithoutFeedback>
 
+            {/* Status dropdown */}
             <View
-              className='absolute left-0 top-12 z-50 w-48 border'
+              className='absolute left-0 z-50 border'
               style={{
+                top: '100%',
+                marginTop: 4,
+
+                width: statusWidth,
+
                 borderRadius: Radius.sm,
-                backgroundColor: colors.card || colors.surface,
+
+                backgroundColor: colors.card,
                 borderColor: colors.border,
+
                 paddingHorizontal: layout.paddingHorizontal,
+
                 paddingVertical: layout.elementGap,
-                gap: 4,
+
+                gap: layout.tightGap,
+
+                shadowColor: colors.black,
+                shadowOffset: {
+                  width: 0,
+                  height: 3,
+                },
+                shadowOpacity: 0.15,
+                shadowRadius: 6,
+
+                elevation: 5,
               }}
             >
-              {STATUS_OPTIONS.map(enumKey => {
-                const isSelected =
-                  (status || currentItem?.status)?.toLowerCase() === enumKey;
-                const itemColor = getStatusThemeColor(enumKey, colors);
-                return (
-                  <TouchableOpacity
-                    key={enumKey}
-                    activeOpacity={0.8}
-                    onPress={() => onSelectStatus(enumKey)}
-                    className='flex-row items-center rounded-md px-2 py-2'
-                    style={{
-                      gap: 12,
-                    }}
-                  >
-                    <View
-                      className='rounded-full'
-                      style={{
-                        width: 8,
-                        height: 8,
-                        backgroundColor: itemColor,
+              {customStatuses
+                ?.slice()
+                .sort(
+                  (a, b) => (a?.display_order ?? 0) - (b?.display_order ?? 0),
+                )
+                .map(customStatus => {
+                  const statusName = customStatus?.name ?? '';
+                  const statusId = customStatus?.id ?? '';
+
+                  const isSelected =
+                    currentStatus.toLowerCase() === statusName.toLowerCase();
+
+                  return (
+                    <TouchableOpacity
+                      key={customStatus?.id}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        onSelectStatus(statusName);
+                        onSelectId(statusId);
                       }}
-                    />
-                    <AppText
-                      variant='body'
-                      color={isSelected ? itemColor : colors.text}
-                      className={isSelected ? 'font-bold' : 'font-normal'}
+                      className='flex-row items-start rounded-md'
+                      style={{
+                        minHeight: layout.controlSize * 1.4,
+
+                        paddingVertical: layout.tightGap,
+
+                        gap: layout.tightGap,
+                      }}
                     >
-                      {TASK_STATUS_LABELS[enumKey] || getStatusLabel(enumKey)}
-                    </AppText>
-                  </TouchableOpacity>
-                );
-              })}
+                      {/* Status dot */}
+                      <View
+                        className='rounded-full'
+                        style={{
+                          width: 8,
+                          height: 8,
+                          marginTop: 6,
+                          backgroundColor: customStatus?.color,
+                        }}
+                      />
+
+                      {/* Status name */}
+                      <View
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      >
+                        <AppText
+                          variant='body'
+                          color={isSelected ? customStatus?.color : colors.text}
+                          className={isSelected ? 'font-bold' : 'font-normal'}
+                        >
+                          {statusName}
+                        </AppText>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
             </View>
           </>
         )}

@@ -9,10 +9,13 @@ import {
   UpdateTaskResponse,
 } from '../../../types/task.type';
 
-interface UpdateTaskParams {
+export interface UpdateTaskParams {
   projectId: string;
   taskId: string;
   payload: UpdateTaskPayload;
+  onSuccess?: (response: UpdateTaskResponse) => void;
+  onError?: (message: string) => void;
+  onFinally?: () => void;
 }
 
 export const updateTaskThunk = createAsyncThunk<
@@ -21,17 +24,20 @@ export const updateTaskThunk = createAsyncThunk<
   { rejectValue: string }
 >(
   'project/updateTask',
-  async ({ projectId, taskId, payload }, { rejectWithValue }) => {
+  async (
+    { projectId, taskId, payload, onSuccess, onError, onFinally },
+    { rejectWithValue },
+  ) => {
     try {
       const response = await updateTask(projectId, taskId, payload);
-
-      console.log('Update Task Response:', response);
-
+      onSuccess?.(response);
       return response;
     } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to update task',
-      );
+      const message = error.response?.data?.message || 'Failed to update task';
+      onError?.(message);
+      return rejectWithValue(message);
+    } finally {
+      onFinally?.();
     }
   },
 );

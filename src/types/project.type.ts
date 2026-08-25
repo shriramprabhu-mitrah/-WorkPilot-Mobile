@@ -420,18 +420,14 @@ export interface UpdateUserStoryPayload {
   status?: UserStoryStatus;
   story_points?: number;
   title?: string;
+  status_id?: string;
 }
 
 export interface UpdateUserStoryResponse {
-  id: string;
-  project_id: string;
-  title: string;
-  description?: string;
-  priority?: UserStoryPriority;
-  sprint_id?: string;
-  status?: UserStoryStatus;
-  story_points?: number;
-  assignee_id?: string;
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: UserStoryDetail;
 }
 
 export interface GetBurnbownParams {
@@ -493,7 +489,7 @@ export interface UserStoryTask {
 export interface UserStory {
   id: string;
   project_id: string;
-  sprint_id: string | null;
+  sprint_id: string;
   sprint_name: string;
   serial_number: number;
   formatted_serial_number: string;
