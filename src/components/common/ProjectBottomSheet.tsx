@@ -23,6 +23,10 @@ import {
   getAllProjectInfo,
   getSprintsThunk,
 } from '../../store/project_store/action/project_thunk';
+import {
+  resetProjects,
+  resetSprints,
+} from '../../store/project_store/reducer/project_reducer';
 import { WorkItemIcon } from './getWorkItemIcon';
 
 export interface ProjectListBottomSheetProps {
@@ -100,8 +104,10 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
       if (visible) {
         setPage(1);
         if (mode === 'projects') {
+          dispatch(resetProjects());
           dispatch(getAllProjectInfo({ page: 1 }));
         } else if (mode === 'sprints' && resolvedProjectId) {
+          dispatch(resetSprints());
           dispatch(getSprintsThunk({ project_id: resolvedProjectId, page: 1 }));
         }
       }

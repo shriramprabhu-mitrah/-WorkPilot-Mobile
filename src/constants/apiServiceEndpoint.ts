@@ -58,3 +58,10 @@ export const UPDATE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses/{stat
 //Tasks
 export const UPDATE_TASKS = `/projects/{project_id}/tasks/{task_id}`;
 export const GET_TASKS = `/projects/{project_id}/tasks`;
+
+// FAVORITE
+export const FAVOURITE_TASK = `/projects/{project_id}/tasks/{task_id}/favorite`;
+export const UNFAVOURITE_TASK = `/projects/{project_id}/tasks/{task_id}/favorite`;
+export const FAVOURITE_USERSTORY = `/projects/{project_id}/user-stories/{user_story_id}/favorite`;
+export const UNFAVOURITE_USERSTORY = `/projects/{project_id}/user-stories/{user_story_id}/favorite`;
+

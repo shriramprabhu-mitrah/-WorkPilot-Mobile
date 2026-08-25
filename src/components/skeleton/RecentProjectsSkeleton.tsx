@@ -1,53 +1,58 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Skeleton } from '@rneui/themed';
+import { useTheme } from '../../theme/ThemeProvider';
 import { moderateScale } from '../../utils/responsive';
+import { Radius } from '../../constants/Radius';
 
-const RecentProjectsSkeleton = () => {
+const RecentProjectCardSkeleton: React.FC = () => {
+  const { colors } = useTheme();
+
   return (
-    <View className='flex-row flex-wrap justify-between'>
-      {Array.from({ length: 4 }).map((_, index) => (
-        <View
-          key={index}
+    <View
+      className='flex-row items-center border p-3'
+      style={{
+        width: moderateScale(200),
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        borderRadius: Radius?.lg || 12,
+        gap: 12,
+      }}
+    >
+      {/* Icon Box Skeleton */}
+      <Skeleton
+        animation='wave'
+        width={moderateScale(30)}
+        height={moderateScale(30)}
+        style={{
+          borderRadius: Radius?.sm || 8,
+          backgroundColor: colors.surface || colors.background,
+        }}
+      />
+
+      {/* Project Name & Subtitle Skeleton */}
+      <View className='flex-1 justify-center' style={{ gap: 6 }}>
+        <Skeleton
+          animation='wave'
+          width='80%'
+          height={15}
           style={{
-            width: '48.5%',
-            marginBottom: moderateScale(12),
+            borderRadius: Radius?.xs || 4,
+            backgroundColor: colors.surface || colors.background,
           }}
-          className='rounded-xl border border-gray-200 p-3'
-        >
-          <View className='flex-row items-center'>
-            {/* Avatar */}
-            <Skeleton
-              animation='wave'
-              circle
-              width={moderateScale(36)}
-              height={moderateScale(36)}
-            />
-
-            {/* Title & Key */}
-            <View className='ml-2 flex-1'>
-              <Skeleton
-                animation='wave'
-                width='90%'
-                height={moderateScale(16)}
-                style={{ borderRadius: 4 }}
-              />
-
-              <Skeleton
-                animation='wave'
-                width='50%'
-                height={moderateScale(12)}
-                style={{
-                  marginTop: moderateScale(8),
-                  borderRadius: 4,
-                }}
-              />
-            </View>
-          </View>
-        </View>
-      ))}
+        />
+        <Skeleton
+          animation='wave'
+          width='60%'
+          height={11}
+          style={{
+            borderRadius: Radius?.xs || 4,
+            backgroundColor: colors.surface || colors.background,
+          }}
+        />
+      </View>
     </View>
   );
 };
 
-export default RecentProjectsSkeleton;
+export default RecentProjectCardSkeleton;

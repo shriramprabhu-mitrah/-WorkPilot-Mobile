@@ -23,7 +23,7 @@ import { RootStackParamList } from '../../types/navigationTypes';
 
 const List = () => {
   const { colors } = useTheme();
-  const { moderateScale, layout, hp } = useAuthLayout();
+  const { moderateScale, layout } = useAuthLayout();
   const dispatch = useAppDispatch();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
@@ -159,11 +159,7 @@ const List = () => {
   };
 
   return (
-    <ScrollView
-      className='pt-3'
-      style={{ backgroundColor: colors.surface }}
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView className='pt-3' style={{ backgroundColor: colors.surface }}>
       <View className='flex-1 px-4 pt-3'>
         {/* Search Bar */}
         <View className='mb-4'>

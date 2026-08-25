@@ -1,5 +1,11 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { View, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  ScrollView,
+  FlatList,
+  Image,
+} from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -32,6 +38,7 @@ import { Activity } from '../types/home.type';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { formatAction, formatDate, getInitials } from '../utils/utils';
+import RecentProjectsSkeleton from '../components/skeleton/RecentProjectsSkeleton';
 
 export const Home: React.FC = () => {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
@@ -51,6 +58,7 @@ export const Home: React.FC = () => {
     loading,
     meta,
   } = useAppSelector(state => state.home);
+  console.log('homeUser', homeUser);
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
   const [isRecentLoading, setIsRecentLoading] = useState(true);
   const currentPageRef = useRef(1);
@@ -245,7 +253,7 @@ export const Home: React.FC = () => {
               key={`recent_skeleton_${idx}`}
               style={{ width: moderateScale(200) }}
             >
-              <ProjectCardSkeleton />
+              <RecentProjectsSkeleton />
             </View>
           ))
         ) : recentProjects && recentProjects.length > 0 ? (
@@ -425,12 +433,14 @@ export const Home: React.FC = () => {
   const renderActivityItem = ({ item }: { item: any }) => {
     const activityUser = homeUser || user;
     const userName = activityUser?.name || 'User';
+    const avatarUrl = activityUser?.avatar_url;
     const userInitials = getInitials(userName);
     const actionText = formatAction(item.action);
     const formattedDate = formatDate(item.created_at);
     const resourceType = item.resource_type || 'task';
     const title = item.title || item.details || 'Activity Details';
     const key = item.task_key || item.key || '';
+
     return (
       <TouchableOpacity
         activeOpacity={0.8}
@@ -443,36 +453,55 @@ export const Home: React.FC = () => {
       >
         <View className='flex-row items-center'>
           <View className='relative mr-3.5 self-center'>
-            <View
-              className='items-center justify-center rounded-full'
-              style={{
-                width: moderateScale(40),
-                height: moderateScale(40),
-                backgroundColor: colors.accentOrange || '#E03E15',
-              }}
-            >
-              <AppText
-                className='font-bold'
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
                 style={{
-                  fontSize: moderateScale(15),
-                  color: colors.white,
+                  width: moderateScale(40),
+                  height: moderateScale(40),
+                  borderRadius: moderateScale(20),
+                }}
+                resizeMode='cover'
+              />
+            ) : (
+              <View
+                className='items-center justify-center rounded-full'
+                style={{
+                  width: moderateScale(40),
+                  height: moderateScale(40),
+                  backgroundColor: colors.accentOrange || '#E03E15',
                 }}
               >
-                {userInitials}
-              </AppText>
-            </View>
-
+                <AppText
+                  className='font-bold'
+                  style={{
+                    fontSize: moderateScale(15),
+                    color: colors.white,
+                  }}
+                >
+                  {userInitials}
+                </AppText>
+              </View>
+            )}
             <View
-              className='absolute -bottom-1 -right-1 items-center justify-center rounded border'
               style={{
+                position: 'absolute',
+                bottom: moderateScale(-2),
+                right: moderateScale(-2),
+                width: moderateScale(16),
+                height: moderateScale(16),
+                borderRadius: moderateScale(4),
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
-                padding: 2,
+                borderWidth: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <WorkItemIcon type={resourceType} size={moderateScale(11)} />
+              <WorkItemIcon type={resourceType} size={moderateScale(10)} />
             </View>
           </View>
+
           <View className='flex-1 justify-center'>
             <AppText
               variant='caption'
