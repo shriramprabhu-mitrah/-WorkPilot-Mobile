@@ -484,7 +484,11 @@ const UserStoryBoardRow = ({
     >
       <TouchableOpacity
         onPress={() =>
-          navigation.navigate('issue', { projectId, userStoryId: story?.id })
+          navigation.navigate('issue', {
+            projectId,
+            userStoryId: story?.id,
+            story: story,
+          })
         }
         activeOpacity={0.7}
         style={{
@@ -654,6 +658,7 @@ const ProjectDeatailsScreen = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const isInitialLoad = useRef(true);
   const hasInitializedStories = useRef(false);
+  const currentSprintId = currentSprint?.id;
 
   // Helper to map favorites onto story objects
   const mapStoriesWithFavorites = useCallback(
@@ -672,12 +677,11 @@ const ProjectDeatailsScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (!projectId) return;
+      if (!projectId || !currentSprintId) return;
+
       dispatch(getCustomStatusData({ projectId }));
-      if (currentSprint?.id) {
-        setSelectedSprintId(currentSprint.id);
-      }
-    }, [dispatch, projectId, currentSprint?.id]),
+      setSelectedSprintId(currentSprintId);
+    }, [dispatch, projectId, currentSprintId]),
   );
 
   useEffect(() => {
@@ -692,18 +696,19 @@ const ProjectDeatailsScreen = () => {
   }, [projectId, selectedSprintId]);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || !currentSprintId) return;
+
     dispatch(
       getUserStories({
         projectId,
         payload: {
           page: 1,
           page_size: PAGE_SIZE,
-          ...(selectedSprintId ? { sprint_id: selectedSprintId } : {}),
+          sprint_id: selectedSprintId ?? currentSprintId,
         },
       }),
     );
-  }, [dispatch, projectId, selectedSprintId]);
+  }, [dispatch, projectId, currentSprintId, selectedSprintId]);
 
   // Seed / append from Redux into local list with favorite state attached
   useEffect(() => {
@@ -717,22 +722,19 @@ const ProjectDeatailsScreen = () => {
     }
 
     if (!hasInitializedStories.current) {
-      setLocalUserStories(mapStoriesWithFavorites(userStories));
+      setLocalUserStories(userStories);
       hasInitializedStories.current = true;
       isInitialLoad.current = false;
       setIsFetchingMore(false);
     } else if (currentPage > 1) {
       setLocalUserStories(prev => {
         const existingIds = new Set(prev.map(s => s.id));
-        const fresh = userStories.filter(
-          (s: UserStory) => !existingIds.has(s.id),
-        );
-        return [...prev, ...mapStoriesWithFavorites(fresh)];
+        const fresh = userStories.filter(s => !existingIds.has(s.id));
+        return [...prev, ...fresh];
       });
       setIsFetchingMore(false);
     }
-  }, [userStories, currentPage, storeLoading, mapStoriesWithFavorites]);
-
+  }, [userStories, currentPage, storeLoading]);
   // Sync Redux favorites changes directly with local state
   useEffect(() => {
     setLocalUserStories(prev =>

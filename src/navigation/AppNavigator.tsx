@@ -26,6 +26,7 @@ import QuickAccessScreen from '../screens/QuickAccess';
 import WebSignupScreen from '../screens/WebSignup';
 import SearchScreen from '../screens/searchScreen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import LoginScreen from '../screens/login';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -95,12 +96,6 @@ const AppNavigator = () => {
     },
   };
 
-  console.log('isAuthenticated:', isAuthenticated, onboardingCompleted);
-
-  console.log(
-    'UNAUTH NAVIGATOR:',
-    onboardingCompleted ? 'login' : 'Onboarding',
-  );
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer linking={linking} ref={navigationRef}>
@@ -134,6 +129,7 @@ const AppNavigator = () => {
             }}
           >
             <Stack.Screen name='login' component={OnBoardingLoginScreen} />
+            <Stack.Screen name='loginScreen' component={LoginScreen} />
             <Stack.Screen name='Onboarding' component={OnboardingScreen} />
             <Stack.Screen name='WebLogin' component={WebLoginScreen} />
             <Stack.Screen name='WebSignup' component={WebSignupScreen} />

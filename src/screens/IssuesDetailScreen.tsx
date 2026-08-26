@@ -86,6 +86,9 @@ const IssueDetailScreen = () => {
   const projectId = route.params?.projectId || (route.params?.id as string);
   const taskId = route.params?.taskId;
   const userStoryId = route.params?.userStoryId;
+  const userStory = route.params?.story;
+  const task = route.params?.task;
+  const fromUserStory = route.params?.fromUserStory;
 
   // ── Selectors ──
   const { isEditingDescription } = useAppSelector(
@@ -127,7 +130,9 @@ const IssueDetailScreen = () => {
   >({});
 
   const isTaskView = Boolean(taskId);
-  const currentItem: any = isTaskView ? selectedTask : selectedUserStory;
+  const currentItem: any = isTaskView
+    ? task || selectedTask
+    : userStory || selectedUserStory;
 
   useEffect(() => {
     if (currentItem && currentItem.id !== currentItemIdRef.current) {

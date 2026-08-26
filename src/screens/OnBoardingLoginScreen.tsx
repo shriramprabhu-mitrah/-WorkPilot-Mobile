@@ -49,7 +49,7 @@ const OnBoardingLoginScreen = () => {
   }, [fadeAnim, scaleAnim]);
 
   const handleLoginPress = () => {
-    navigation.navigate('WebLogin');
+    navigation.navigate('loginScreen');
   };
 
   const handleSignupPress = () => {
@@ -146,7 +146,7 @@ const OnBoardingLoginScreen = () => {
             className='w-full items-center justify-center'
           >
             <PrimaryButton
-              title='LOG IN'
+              title='LOGIN'
               onPress={handleLoginPress}
               className='w-1/2 font-bold'
               style={{
@@ -156,7 +156,7 @@ const OnBoardingLoginScreen = () => {
               }}
               textColor={colors.primary}
             />
-            <PrimaryButton
+            {/* <PrimaryButton
               title='SIGN UP'
               onPress={handleSignupPress}
               className='w-1/2 font-bold'
@@ -166,7 +166,7 @@ const OnBoardingLoginScreen = () => {
                 borderRadius: Radius.sm,
               }}
               textColor={colors.primary}
-            />
+            /> */}
             <AppText variant='body' color={colors.white}>
               Welcome back! Log in to access your account.
             </AppText>

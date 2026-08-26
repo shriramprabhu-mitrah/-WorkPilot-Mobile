@@ -1,3 +1,5 @@
+import { UserStory } from './project.type';
+
 export interface User {
   id: string;
   name: string;
@@ -18,6 +20,7 @@ export interface Activity {
   created_at: string;
   title: string;
   task_key?: string;
+  story?: UserStory;
 }
 
 export interface ViewedItem {
