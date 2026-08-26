@@ -1,4 +1,6 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
+import { Task, UserStory } from './project.type';
+import { Activity } from './home.type';
 
 export type HomeTabParamList = {
   Home: undefined;
@@ -18,7 +20,15 @@ export type RootStackParamList = {
   BackLogs: undefined;
   projectDetails: { projectId: string; projectName: string } | undefined;
   issue:
-    | { id?: string; projectId?: string; userStoryId?: string; taskId?: string }
+    | {
+        id?: string;
+        projectId?: string;
+        userStoryId?: string;
+        taskId?: string;
+        story?: UserStory | Activity;
+        task?: Task | Activity;
+        fromUserStory?: boolean;
+      }
     | undefined;
   HomeTabs: NavigatorScreenParams<HomeTabParamList> | undefined;
   Home: undefined;
@@ -35,6 +45,7 @@ export type RootStackParamList = {
   WebSignup: undefined;
   QuickAccess: undefined;
   Create: undefined;
+  loginScreen: undefined;
 };
 
 export type ProjectTopTabParamList = {

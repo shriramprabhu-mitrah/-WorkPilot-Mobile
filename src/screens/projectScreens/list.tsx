@@ -241,6 +241,7 @@ const List = () => {
                     navigation.navigate('issue', {
                       projectId,
                       userStoryId: item?.id,
+                      story: item,
                     })
                   }
                   style={{

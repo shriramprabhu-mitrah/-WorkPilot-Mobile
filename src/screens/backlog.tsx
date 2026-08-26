@@ -256,6 +256,7 @@ export const Backlogs = () => {
               navigation.navigate('issue', {
                 projectId,
                 userStoryId: item?.id,
+                story: item,
               })
             }
             style={{ gap: layout.elementGap }}
@@ -392,8 +393,9 @@ export const Backlogs = () => {
                       onPress={() =>
                         navigation.navigate('issue', {
                           projectId,
-                          userStoryId: item.id,
+                          // userStoryId: item.id,
                           taskId: task.id,
+                          task: task,
                         })
                       }
                     >

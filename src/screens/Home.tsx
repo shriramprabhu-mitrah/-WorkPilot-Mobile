@@ -201,11 +201,13 @@ export const Home: React.FC = () => {
       stackNavigation.navigate('issue', {
         projectId: item?.project_id,
         userStoryId: item?.resource_id,
+        story: item,
       });
     } else if (resourceType === 'task') {
       stackNavigation.navigate('issue', {
         projectId: item?.project_id,
         taskId: item?.resource_id,
+        task: item,
       });
     } else {
       return;
@@ -651,7 +653,7 @@ export const Home: React.FC = () => {
         onRightActionPress={() => {}}
       />
 
-      {loading && activities.length === 0 ? (
+      {!loading && activities.length !== 0 ? (
         <View style={{ paddingHorizontal: layout.paddingHorizontal }}>
           {renderRecentProjectsHeader()}
           {renderStickyTabsHeader()}

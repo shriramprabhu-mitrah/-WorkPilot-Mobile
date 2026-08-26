@@ -51,7 +51,13 @@ export const IssueChildTasksSection: React.FC<Props> = ({
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() =>
-          navigation.navigate('issue', { projectId, taskId: item.id })
+          navigation.push('issue', {
+            projectId,
+            taskId: item.id,
+            task: item,
+            userStoryId,
+            fromUserStory: true,
+          })
         }
         className='flex-row items-center justify-evenly border-b py-3'
         style={{ borderColor: colors.border }}
@@ -151,11 +157,7 @@ export const IssueChildTasksSection: React.FC<Props> = ({
     if (!loadingMore) {
       return null;
     }
-    return (
-      <View className='py-3'>
-        <TaskRowsSkeleton taskCount={1} />;
-      </View>
-    );
+    return <TaskRowsSkeleton taskCount={1} />;
   };
 
   const handleEndReached = () => {
