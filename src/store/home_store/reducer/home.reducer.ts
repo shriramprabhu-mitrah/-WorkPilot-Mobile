@@ -10,7 +10,7 @@ export interface QuickAccessItem {
 
 interface HomeState {
   loading: boolean;
-  activeTab: 'viewed' | 'activity';
+  activeTab: 'viewed' | 'favorites';
   quickAccessItems: QuickAccessItem[];
   isSearching: boolean;
   searchQuery: string;
@@ -18,6 +18,7 @@ interface HomeState {
   isProjectSheetVisible: boolean;
   user: User | null;
   activities: Activity[];
+  favorites: Activity[];
   meta: PaginationMeta | null;
 }
 
@@ -31,6 +32,7 @@ const initialState: HomeState = {
   isProjectSheetVisible: false,
   user: null,
   activities: [],
+  favorites: [],
   meta: null,
 };
 
@@ -43,7 +45,7 @@ const homeSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
-    setActiveTab: (state, action: PayloadAction<'viewed' | 'activity'>) => {
+    setActiveTab: (state, action: PayloadAction<'viewed' | 'favorites'>) => {
       state.activeTab = action.payload;
     },
     setIsSearching: (state, action: PayloadAction<boolean>) => {

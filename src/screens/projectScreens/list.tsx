@@ -1,10 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  ScrollView,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -31,6 +30,9 @@ const List = () => {
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [isFocusLoading, setIsFocusLoading] = useState(true);
 
+  // Ref to track previous context (Project ID & Sprint ID)
+  const lastFetchedKeyRef = useRef<string | null>(null);
+
   const {
     userStories,
     currentSprint,
@@ -46,9 +48,12 @@ const List = () => {
 
   const projectId = project?.id;
 
-  // Force skeleton during screen focus or initial page 1 Redux load
+  // Force skeleton only during initial mount or context (project/sprint) change
   const showSkeleton =
-    isFocusLoading || (userStoryLoading && !isFetchingNextPage);
+    isFocusLoading ||
+    (userStoryLoading &&
+      !isFetchingNextPage &&
+      lastFetchedKeyRef.current === null);
   const showFooterSpinner = userStoryLoading && isFetchingNextPage;
 
   useFocusEffect(
@@ -59,7 +64,14 @@ const List = () => {
       }
 
       let isMounted = true;
-      setIsFocusLoading(true);
+      const currentKey = `${projectId}_${activeSprint.id}`;
+
+      // Only show skeleton if key changed (or on initial load)
+      if (lastFetchedKeyRef.current !== currentKey) {
+        setIsFocusLoading(true);
+        lastFetchedKeyRef.current = currentKey;
+      }
+
       setIsFetchingNextPage(false);
 
       dispatch(
@@ -158,223 +170,223 @@ const List = () => {
     );
   };
 
+  const renderHeader = () => {
+    if (filteredStories.length === 0) return null;
+    return (
+      <View
+        className='mb-3 flex-row items-center pt-2'
+        style={{ gap: layout.elementGap }}
+      >
+        <AppText
+          variant='caption'
+          className='font-bold tracking-wider'
+          color={colors.textSecondary}
+        >
+          User Stories
+        </AppText>
+        <View
+          className='items-center justify-center'
+          style={{
+            minWidth: moderateScale(22),
+            height: moderateScale(22),
+            paddingHorizontal: 6,
+            backgroundColor: colors.primary,
+            borderRadius: Radius.circle,
+          }}
+        >
+          <AppText
+            variant='caption'
+            className='text-xs font-bold'
+            color={colors.white}
+          >
+            {userStoryMeta?.total_items || filteredStories.length}
+          </AppText>
+        </View>
+      </View>
+    );
+  };
+
+  const renderEmptyState = () => (
+    <View className='flex-1 items-center justify-center px-6 py-12'>
+      <AppText
+        variant='body'
+        className='mb-1 text-center text-lg font-bold'
+        color={colors.text}
+      >
+        {searchQuery.trim() ? 'No Matching Stories' : 'No User Stories Found'}
+      </AppText>
+
+      <AppText
+        variant='caption'
+        className='mb-5 text-center text-sm leading-5'
+        color={colors.textSecondary}
+      >
+        {searchQuery.trim()
+          ? `We couldn't find any stories matching "${searchQuery}". Check for typos or try another search.`
+          : 'There are no user stories created or assigned to this sprint yet.'}
+      </AppText>
+
+      {searchQuery.trim() ? (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => setSearchQuery('')}
+          className='border px-4 py-2'
+          style={{
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            borderRadius: Radius.md,
+          }}
+        >
+          <AppText
+            variant='caption'
+            className='font-bold'
+            color={colors.primary}
+          >
+            Clear Search
+          </AppText>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+
   return (
-    <ScrollView className='pt-3' style={{ backgroundColor: colors.surface }}>
-      <View className='flex-1 px-4 pt-3'>
-        {/* Search Bar */}
-        <View className='mb-4'>
-          <AppInput
-            placeholder='Search user stories, sprint, status...'
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            leftIcon={
-              <Ionicons
-                name='search-outline'
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-            }
+    <View className='flex-1 pt-3' style={{ backgroundColor: colors.surface }}>
+      {/* Fixed Search Bar Container */}
+      <View className='mb-2 px-4'>
+        <AppInput
+          placeholder='Search user stories, sprint, status...'
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          leftIcon={
+            <Ionicons
+              name='search-outline'
+              size={moderateScale(18)}
+              color={colors.textSecondary}
+            />
+          }
+        />
+      </View>
+
+      {/* Main List / Skeleton State */}
+      {showSkeleton ? (
+        <View className='flex-1 px-4 py-6'>
+          <ListSkeleton
+            count={5}
+            containerStyle={{ gap: layout.elementGap - 2 }}
+            renderItem={index => <ProjectCardSkeleton key={index} />}
           />
         </View>
+      ) : (
+        <FlatList
+          data={filteredStories}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+          ItemSeparatorComponent={() => <View className='h-3' />}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmptyState}
+          ListFooterComponent={renderFooter}
+          renderItem={({ item }: { item: UserStory }) => {
+            const priorityConfig = getPriorityConfig(item.priority);
 
-        {/* User Stories Count Header */}
-        {!showSkeleton && filteredStories.length > 0 ? (
-          <View
-            className='mb-3 flex-row items-center'
-            style={{ gap: layout.elementGap }}
-          >
-            <AppText
-              variant='caption'
-              className='font-bold tracking-wider'
-              color={colors.textSecondary}
-            >
-              User Stories
-            </AppText>
-            <View
-              className='items-center justify-center'
-              style={{
-                minWidth: moderateScale(22),
-                height: moderateScale(22),
-                paddingHorizontal: 6,
-                backgroundColor: colors.primary,
-                borderRadius: Radius.circle,
-              }}
-            >
-              <AppText
-                variant='caption'
-                className='text-xs font-bold'
-                color={colors.white}
-              >
-                {userStoryMeta?.total_items || filteredStories.length}
-              </AppText>
-            </View>
-          </View>
-        ) : null}
-
-        {/* Story List / Loading / Empty State */}
-        {showSkeleton ? (
-          <View className='py-10'>
-            <ListSkeleton
-              count={5}
-              containerStyle={{ gap: layout.elementGap - 2 }}
-              renderItem={index => <ProjectCardSkeleton key={index} />}
-            />
-          </View>
-        ) : filteredStories.length > 0 ? (
-          <FlatList
-            data={filteredStories}
-            keyExtractor={item => item.id}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
-            ItemSeparatorComponent={() => <View className='h-3' />}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={renderFooter}
-            renderItem={({ item }: { item: UserStory }) => {
-              const priorityConfig = getPriorityConfig(item.priority);
-
-              return (
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  className='flex-row items-center border p-3.5'
-                  onPress={() =>
-                    navigation.navigate('issue', {
-                      projectId,
-                      userStoryId: item?.id,
-                      story: item,
-                    })
-                  }
-                  style={{
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    borderRadius: Radius.md,
-                    gap: layout.elementGap,
-                  }}
-                >
-                  {/* Left Avatar Icon Box */}
-                  <View
-                    className='items-center justify-center'
-                    style={{
-                      width: moderateScale(44),
-                      height: moderateScale(44),
-                      backgroundColor: colors.primary,
-                      borderRadius: Radius.sm,
-                    }}
-                  >
-                    <WorkItemIcon
-                      type='userStory'
-                      size={20}
-                      color={colors.white}
-                    />
-                  </View>
-
-                  {/* Middle Details Section */}
-                  <View className='flex-1' style={{ gap: layout.mediumGap }}>
-                    <AppText
-                      variant='caption'
-                      color={colors.textSecondary}
-                      numberOfLines={1}
-                    >
-                      {item.formatted_serial_number || `#${item.serial_number}`}
-                      {item.sprint_name ? ` • ${item.sprint_name}` : ''}
-                    </AppText>
-                    <AppText
-                      variant='bodyLarge'
-                      color={colors.text}
-                      className='font-bold'
-                      numberOfLines={1}
-                    >
-                      {item.title
-                        ? item.title.charAt(0).toUpperCase() +
-                          item.title.slice(1)
-                        : ''}
-                    </AppText>
-                  </View>
-
-                  {/* Right Status Badge */}
-                  <View
-                    className='flex-row items-center'
-                    style={{ gap: layout.elementGap }}
-                  >
-                    <View
-                      className='rounded-md px-3 py-1'
-                      style={{ backgroundColor: priorityConfig.bgColor }}
-                    >
-                      <AppText
-                        variant='caption'
-                        className='text-xs font-semibold capitalize'
-                        style={{ color: priorityConfig.color }}
-                      >
-                        {priorityConfig.label}
-                      </AppText>
-                    </View>
-                    <View
-                      className='items-center justify-center px-3 py-1'
-                      style={{
-                        backgroundColor: colors.surface,
-                        borderRadius: Radius.circle,
-                      }}
-                    >
-                      <AppText
-                        variant='caption'
-                        style={{ color: colors.primary }}
-                        className='font-semibold'
-                      >
-                        {item.status}
-                      </AppText>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        ) : (
-          /* Empty State */
-          <View className='flex-1 items-center justify-center px-6 py-12'>
-            <AppText
-              variant='body'
-              className='mb-1 text-center text-lg font-bold'
-              color={colors.text}
-            >
-              {searchQuery.trim()
-                ? 'No Matching Stories'
-                : 'No User Stories Found'}
-            </AppText>
-
-            <AppText
-              variant='caption'
-              className='mb-5 text-center text-sm leading-5'
-              color={colors.textSecondary}
-            >
-              {searchQuery.trim()
-                ? `We couldn't find any stories matching "${searchQuery}". Check for typos or try another search.`
-                : 'There are no user stories created or assigned to this sprint yet.'}
-            </AppText>
-
-            {searchQuery.trim() ? (
+            return (
               <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setSearchQuery('')}
-                className='border px-4 py-2'
+                activeOpacity={0.8}
+                className='flex-row items-center border p-3.5'
+                onPress={() =>
+                  navigation.navigate('issue', {
+                    projectId,
+                    userStoryId: item?.id,
+                    story: item,
+                  })
+                }
                 style={{
                   backgroundColor: colors.card,
                   borderColor: colors.border,
                   borderRadius: Radius.md,
+                  gap: layout.elementGap,
                 }}
               >
-                <AppText
-                  variant='caption'
-                  className='font-bold'
-                  color={colors.primary}
+                {/* Left Avatar Icon Box */}
+                <View
+                  className='items-center justify-center'
+                  style={{
+                    width: moderateScale(44),
+                    height: moderateScale(44),
+                    backgroundColor: colors.primary,
+                    borderRadius: Radius.sm,
+                  }}
                 >
-                  Clear Search
-                </AppText>
+                  <WorkItemIcon
+                    type='userStory'
+                    size={20}
+                    color={colors.white}
+                  />
+                </View>
+
+                {/* Middle Details Section */}
+                <View className='flex-1' style={{ gap: layout.mediumGap }}>
+                  <AppText
+                    variant='caption'
+                    color={colors.textSecondary}
+                    numberOfLines={1}
+                  >
+                    {item.formatted_serial_number || `#${item.serial_number}`}
+                    {item.sprint_name ? ` • ${item.sprint_name}` : ''}
+                  </AppText>
+                  <AppText
+                    variant='bodyLarge'
+                    color={colors.text}
+                    className='font-bold'
+                    numberOfLines={1}
+                  >
+                    {item.title
+                      ? item.title.charAt(0).toUpperCase() + item.title.slice(1)
+                      : ''}
+                  </AppText>
+                </View>
+
+                {/* Right Status Badge */}
+                <View
+                  className='flex-row items-center'
+                  style={{ gap: layout.elementGap }}
+                >
+                  <View
+                    className='rounded-md px-3 py-1'
+                    style={{ backgroundColor: priorityConfig.bgColor }}
+                  >
+                    <AppText
+                      variant='caption'
+                      className='text-xs font-semibold capitalize'
+                      style={{ color: priorityConfig.color }}
+                    >
+                      {priorityConfig.label}
+                    </AppText>
+                  </View>
+                  <View
+                    className='items-center justify-center px-3 py-1'
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderRadius: Radius.circle,
+                    }}
+                  >
+                    <AppText
+                      variant='caption'
+                      style={{ color: colors.primary }}
+                      className='font-semibold'
+                    >
+                      {item.status}
+                    </AppText>
+                  </View>
+                </View>
               </TouchableOpacity>
-            ) : null}
-          </View>
-        )}
-      </View>
-    </ScrollView>
+            );
+          }}
+        />
+      )}
+    </View>
   );
 };
 

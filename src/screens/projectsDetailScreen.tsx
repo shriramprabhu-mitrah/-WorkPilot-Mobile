@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useOptimistic,
+  useRef,
+  useState,
+  startTransition,
+} from 'react';
 import {
   View,
   TouchableOpacity,
@@ -16,9 +23,11 @@ import { UserStory, UserStoryTask } from '../types/project.type';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import { getUserStories } from '../store/project_store/action/project_thunk';
 import {
-  toggleStoryFavorite,
-  toggleTaskFavorite,
-} from '../store/project_store/reducer/projectBoard.reducer';
+  favouriteTaskThunk,
+  unfavouriteTaskThunk,
+  favouriteUserStoryThunk,
+  unfavouriteUserStoryThunk,
+} from '../store/project_store/action/projectBoard.thunk';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -258,7 +267,7 @@ const TaskDropZone = ({
 // ─── DraggableTask ────────────────────────────────────────────────────────────
 
 type DraggableTaskProps = {
-  task: UserStoryTask & { is_favorite?: boolean };
+  task: UserStoryTask;
   sourceStoryId: string;
   sourceStatusId: string;
   projectId: string;
@@ -415,11 +424,11 @@ const DraggableTask = ({
       >
         <AppText
           style={{
-            color: task.is_favorite ? '#F59E0B' : '#9CA3AF',
+            color: task.is_favourite ? '#F59E0B' : '#9CA3AF',
             fontSize: 20,
           }}
         >
-          {task.is_favorite ? '★' : '☆'}
+          {task.is_favourite ? '★' : '☆'}
         </AppText>
       </TouchableOpacity>
     </View>
@@ -429,7 +438,7 @@ const DraggableTask = ({
 // ─── UserStoryBoardRow ────────────────────────────────────────────────────────
 
 type UserStoryBoardRowProps = {
-  story: UserStory & { is_favorite?: boolean };
+  story: UserStory;
   projectId: string;
   customStatuses: CustomStatus[];
   expanded: boolean;
@@ -545,11 +554,11 @@ const UserStoryBoardRow = ({
               >
                 <AppText
                   style={{
-                    color: story.is_favorite ? '#F59E0B' : '#9CA3AF',
+                    color: story.is_favourite ? '#F59E0B' : '#9CA3AF',
                     fontSize: 20,
                   }}
                 >
-                  {story.is_favorite ? '★' : '☆'}
+                  {story.is_favourite ? '★' : '☆'}
                 </AppText>
               </TouchableOpacity>
             </View>
@@ -628,17 +637,12 @@ const ProjectDeatailsScreen = () => {
     currentSprint,
     loading: storeLoading,
   } = useAppSelector((state: RootState) => state.projects);
-
-  const { favoriteStoryIds = [], favoriteTaskIds = [] } = useAppSelector(
-    (state: RootState) => state.projectBoard || {},
-  );
+  console.log('userStories', userStories);
 
   const projectId = project?.id;
 
   // Local State
-  const [localUserStories, setLocalUserStories] = useState<
-    (UserStory & { is_favorite?: boolean })[]
-  >([]);
+  const [localUserStories, setLocalUserStories] = useState<UserStory[]>([]);
   const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
   const [expandedStories, setExpandedStories] = useState<
     Record<string, boolean>
@@ -660,28 +664,52 @@ const ProjectDeatailsScreen = () => {
   const hasInitializedStories = useRef(false);
   const currentSprintId = currentSprint?.id;
 
-  // Helper to map favorites onto story objects
-  const mapStoriesWithFavorites = useCallback(
-    (stories: UserStory[]) => {
-      return stories.map(story => ({
-        ...story,
-        is_favorite: favoriteStoryIds.includes(story.id),
-        tasks: story.tasks?.map(task => ({
-          ...task,
-          is_favorite: favoriteTaskIds.includes(task.id),
-        })),
-      }));
-    },
-    [favoriteStoryIds, favoriteTaskIds],
+  // Helper – stories already carry is_favourite from the API, just pass through
+  const mapStoriesFromApi = useCallback(
+    (stories: UserStory[]) => stories.map(s => ({ ...s })),
+    [],
   );
 
+  type OptimisticAction =
+    | { kind: 'story'; storyId: string; isFav: boolean }
+    | { kind: 'task'; taskId: string; isFav: boolean };
+
+  const [optimisticStories, addOptimisticUpdate] = useOptimistic<
+    UserStory[],
+    OptimisticAction
+  >(localUserStories, (current, action) => {
+    if (action.kind === 'story') {
+      return current.map(s =>
+        s.id === action.storyId ? { ...s, is_favourite: action.isFav } : s,
+      );
+    }
+    return current.map(s => ({
+      ...s,
+      tasks: s.tasks?.map(t =>
+        t.id === action.taskId ? { ...t, is_favourite: action.isFav } : t,
+      ),
+    }));
+  });
+
+  // Updated useFocusEffect to dispatch getCustomStatusData and getUserStories on focus
   useFocusEffect(
     useCallback(() => {
       if (!projectId || !currentSprintId) return;
 
       dispatch(getCustomStatusData({ projectId }));
       setSelectedSprintId(currentSprintId);
-    }, [dispatch, projectId, currentSprintId]),
+
+      dispatch(
+        getUserStories({
+          projectId,
+          payload: {
+            page: 1,
+            page_size: PAGE_SIZE,
+            sprint_id: selectedSprintId ?? currentSprintId,
+          },
+        }),
+      );
+    }, [dispatch, projectId, currentSprintId, selectedSprintId]),
   );
 
   useEffect(() => {
@@ -695,22 +723,7 @@ const ProjectDeatailsScreen = () => {
     setExpandedStories({});
   }, [projectId, selectedSprintId]);
 
-  useEffect(() => {
-    if (!projectId || !currentSprintId) return;
-
-    dispatch(
-      getUserStories({
-        projectId,
-        payload: {
-          page: 1,
-          page_size: PAGE_SIZE,
-          sprint_id: selectedSprintId ?? currentSprintId,
-        },
-      }),
-    );
-  }, [dispatch, projectId, currentSprintId, selectedSprintId]);
-
-  // Seed / append from Redux into local list with favorite state attached
+  // Seed / append from Redux into local list – is_favourite comes from the API
   useEffect(() => {
     if (!userStories?.length && currentPage === 1) {
       if (!storeLoading) {
@@ -722,32 +735,23 @@ const ProjectDeatailsScreen = () => {
     }
 
     if (!hasInitializedStories.current) {
-      setLocalUserStories(userStories);
+      setLocalUserStories(mapStoriesFromApi(userStories));
       hasInitializedStories.current = true;
       isInitialLoad.current = false;
       setIsFetchingMore(false);
     } else if (currentPage > 1) {
       setLocalUserStories(prev => {
         const existingIds = new Set(prev.map(s => s.id));
-        const fresh = userStories.filter(s => !existingIds.has(s.id));
-        return [...prev, ...fresh];
+        const fresh = userStories.filter(
+          (s: UserStory) => !existingIds.has(s.id),
+        );
+        return [...prev, ...mapStoriesFromApi(fresh)];
       });
       setIsFetchingMore(false);
+    } else {
+      setLocalUserStories(mapStoriesFromApi(userStories));
     }
-  }, [userStories, currentPage, storeLoading]);
-  // Sync Redux favorites changes directly with local state
-  useEffect(() => {
-    setLocalUserStories(prev =>
-      prev.map(story => ({
-        ...story,
-        is_favorite: favoriteStoryIds.includes(story.id),
-        tasks: story.tasks?.map(task => ({
-          ...task,
-          is_favorite: favoriteTaskIds.includes(task.id),
-        })),
-      })),
-    );
-  }, [favoriteStoryIds, favoriteTaskIds]);
+  }, [userStories, currentPage, storeLoading, mapStoriesFromApi]);
 
   const loadNextPage = useCallback(() => {
     if (!projectId) return;
@@ -781,20 +785,97 @@ const ProjectDeatailsScreen = () => {
     setExpandedStories(prev => ({ ...prev, [storyId]: !prev[storyId] }));
   }, []);
 
-  // Dispatch Redux action for Story Favorite
+  const refetchUserStories = useCallback(() => {
+    if (!projectId) return Promise.resolve();
+    return dispatch(
+      getUserStories({
+        projectId,
+        payload: {
+          page: 1,
+          page_size: PAGE_SIZE,
+          ...(selectedSprintId ? { sprint_id: selectedSprintId } : {}),
+        },
+      }),
+    );
+  }, [dispatch, projectId, selectedSprintId]);
+
   const handleToggleStoryFavorite = useCallback(
     (storyId: string) => {
-      dispatch(toggleStoryFavorite(storyId));
+      if (!projectId) return;
+      const story = optimisticStories.find(s => s.id === storyId);
+      const currentFav = story?.is_favourite ?? false;
+
+      startTransition(async () => {
+        addOptimisticUpdate({ kind: 'story', storyId, isFav: !currentFav });
+
+        try {
+          if (currentFav) {
+            await dispatch(
+              unfavouriteUserStoryThunk({ projectId, userStoryId: storyId }),
+            );
+          } else {
+            await dispatch(
+              favouriteUserStoryThunk({ projectId, userStoryId: storyId }),
+            );
+          }
+
+          setLocalUserStories(prev =>
+            prev.map(s =>
+              s.id === storyId ? { ...s, is_favourite: !currentFav } : s,
+            ),
+          );
+
+          await refetchUserStories();
+        } catch {}
+      });
     },
-    [dispatch],
+    [
+      dispatch,
+      projectId,
+      optimisticStories,
+      addOptimisticUpdate,
+      refetchUserStories,
+    ],
   );
 
-  // Dispatch Redux action for Task Favorite
   const handleToggleTaskFavorite = useCallback(
-    (storyId: string, taskId: string) => {
-      dispatch(toggleTaskFavorite({ storyId, taskId }));
+    (_storyId: string, taskId: string) => {
+      if (!projectId) return;
+      const task = optimisticStories
+        .flatMap(s => s.tasks ?? [])
+        .find(t => t.id === taskId);
+      const currentFav = task?.is_favourite ?? false;
+
+      startTransition(async () => {
+        addOptimisticUpdate({ kind: 'task', taskId, isFav: !currentFav });
+
+        try {
+          if (currentFav) {
+            await dispatch(unfavouriteTaskThunk({ projectId, taskId }));
+          } else {
+            await dispatch(favouriteTaskThunk({ projectId, taskId }));
+          }
+
+          setLocalUserStories(prev =>
+            prev.map(s => ({
+              ...s,
+              tasks: s.tasks?.map(t =>
+                t.id === taskId ? { ...t, is_favourite: !currentFav } : t,
+              ),
+            })),
+          );
+
+          await refetchUserStories();
+        } catch {}
+      });
     },
-    [dispatch],
+    [
+      dispatch,
+      projectId,
+      optimisticStories,
+      addOptimisticUpdate,
+      refetchUserStories,
+    ],
   );
 
   const registerTaskDropZone = useCallback((zone: DropZone) => {
@@ -1085,7 +1166,7 @@ const ProjectDeatailsScreen = () => {
                 ))}
               </View>
 
-              {localUserStories.map(story => (
+              {optimisticStories.map(story => (
                 <UserStoryBoardRow
                   key={story.id}
                   story={story}

@@ -1,10 +1,33 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { BoardCard, BoardColumn } from '../../../types/projectBoard.type';
+import {
+  BoardCard,
+  BoardColumn,
+  FavoriteItem,
+  FavoriteTaskItem,
+  FavoriteUserStoryItem,
+  PaginationMeta,
+} from '../../../types/projectBoard.type';
+import {
+  favouriteTaskThunk,
+  favouriteUserStoryThunk,
+  getFavouritesThunk,
+  unfavouriteTaskThunk,
+  unfavouriteUserStoryThunk,
+} from '../action/projectBoard.thunk';
 
-interface ProjectBoardState {
+export interface ProjectBoardState {
   columns: BoardColumn[];
   favoriteStoryIds: string[];
   favoriteTaskIds: string[];
+  favorites: FavoriteItem[];
+  favoritesTotal: number;
+  favoritesTotalTasks: number;
+  favoritesTotalUserStories: number;
+  favoritesMeta: PaginationMeta | null;
+  favoritesLoading: boolean;
+  favoritesError: string | null;
+  favouriteActionLoading: boolean;
+  favouriteActionError: string | null;
   loading: boolean;
   error: string | null;
 }
@@ -34,6 +57,15 @@ const initialState: ProjectBoardState = {
   ],
   favoriteStoryIds: [],
   favoriteTaskIds: [],
+  favorites: [],
+  favoritesTotal: 0,
+  favoritesTotalTasks: 0,
+  favoritesTotalUserStories: 0,
+  favoritesMeta: null,
+  favoritesLoading: false,
+  favoritesError: null,
+  favouriteActionLoading: false,
+  favouriteActionError: null,
   loading: false,
   error: null,
 };
@@ -273,6 +305,23 @@ const projectBoardSlice = createSlice({
     resetBoard: () => initialState,
 
     /**
+     * Reset favorites
+     */
+    resetFavorites: state => {
+      state.favorites = [];
+      state.favoriteStoryIds = [];
+      state.favoriteTaskIds = [];
+      state.favoritesTotal = 0;
+      state.favoritesTotalTasks = 0;
+      state.favoritesTotalUserStories = 0;
+      state.favoritesMeta = null;
+      state.favoritesLoading = false;
+      state.favoritesError = null;
+      state.favouriteActionLoading = false;
+      state.favouriteActionError = null;
+    },
+
+    /**
      * Error state
      */
     setBoardError: (state, action: PayloadAction<string | null>) => {
@@ -285,6 +334,172 @@ const projectBoardSlice = createSlice({
     clearBoardError: state => {
       state.error = null;
     },
+  },
+
+  extraReducers: builder => {
+    builder
+      // ─── Get Favourites ──────────────────────────────────────────────────
+      .addCase(getFavouritesThunk.pending, state => {
+        state.favoritesLoading = true;
+        state.favoritesError = null;
+      })
+      .addCase(getFavouritesThunk.fulfilled, (state, action) => {
+        state.favoritesLoading = false;
+        state.favoritesError = null;
+
+        const responseData = action.payload.response.data;
+        const incoming = responseData?.favorites || [];
+        const currentPage = action.payload.page;
+
+        if (currentPage === 1) {
+          state.favorites = incoming;
+        } else {
+          const existingIds = new Set(state.favorites.map(f => f.id));
+          const unique = incoming.filter(f => !existingIds.has(f.id));
+          state.favorites = [...state.favorites, ...unique];
+        }
+
+        state.favoritesTotal = responseData?.total ?? incoming.length;
+        state.favoritesTotalTasks = responseData?.total_tasks;
+        state.favoritesTotalUserStories = responseData?.total_user_stories;
+        state.favoritesMeta = action.payload.response.meta || null;
+
+        const storyIds = incoming
+          .filter(
+            item =>
+              item.item_type === 'user_story' ||
+              (item as any).user_story_id ||
+              (item as any).user_story,
+          )
+          .map(
+            item =>
+              (item as FavoriteUserStoryItem).user_story_id ||
+              (item as FavoriteUserStoryItem).user_story?.id ||
+              item.id,
+          );
+
+        const taskIds = incoming
+          .filter(
+            item =>
+              item.item_type === 'task' ||
+              (item as any).task_id ||
+              (item as any).task,
+          )
+          .map(
+            item =>
+              (item as FavoriteTaskItem).task_id ||
+              (item as FavoriteTaskItem).task?.id ||
+              item.id,
+          );
+
+        if (currentPage === 1) {
+          state.favoriteStoryIds = Array.from(new Set(storyIds));
+          state.favoriteTaskIds = Array.from(new Set(taskIds));
+        } else {
+          state.favoriteStoryIds = Array.from(
+            new Set([...state.favoriteStoryIds, ...storyIds]),
+          );
+          state.favoriteTaskIds = Array.from(
+            new Set([...state.favoriteTaskIds, ...taskIds]),
+          );
+        }
+      })
+      .addCase(getFavouritesThunk.rejected, (state, action) => {
+        state.favoritesLoading = false;
+        state.favoritesError = action.payload ?? 'Failed to fetch favourites';
+      })
+
+      // ─── Favourite Task ──────────────────────────────────────────────────
+      .addCase(favouriteTaskThunk.pending, state => {
+        state.favouriteActionLoading = true;
+        state.favouriteActionError = null;
+      })
+      .addCase(favouriteTaskThunk.fulfilled, (state, action) => {
+        state.favouriteActionLoading = false;
+        state.favouriteActionError = null;
+        const taskId = action.payload.taskId;
+        if (!state.favoriteTaskIds.includes(taskId)) {
+          state.favoriteTaskIds.push(taskId);
+        }
+      })
+      .addCase(favouriteTaskThunk.rejected, (state, action) => {
+        state.favouriteActionLoading = false;
+        state.favouriteActionError =
+          action.payload ?? 'Failed to favourite task';
+      })
+
+      // ─── Unfavourite Task ────────────────────────────────────────────────
+      .addCase(unfavouriteTaskThunk.pending, state => {
+        state.favouriteActionLoading = true;
+        state.favouriteActionError = null;
+      })
+      .addCase(unfavouriteTaskThunk.fulfilled, (state, action) => {
+        state.favouriteActionLoading = false;
+        state.favouriteActionError = null;
+        const taskId = action.payload.taskId;
+        state.favoriteTaskIds = state.favoriteTaskIds.filter(
+          id => id !== taskId,
+        );
+        state.favorites = state.favorites.filter(
+          item =>
+            !(
+              (item.item_type === 'task' &&
+                (item as FavoriteTaskItem).task_id === taskId) ||
+              item.id === taskId
+            ),
+        );
+      })
+      .addCase(unfavouriteTaskThunk.rejected, (state, action) => {
+        state.favouriteActionLoading = false;
+        state.favouriteActionError =
+          action.payload ?? 'Failed to unfavourite task';
+      })
+
+      // ─── Favourite User Story ────────────────────────────────────────────
+      .addCase(favouriteUserStoryThunk.pending, state => {
+        state.favouriteActionLoading = true;
+        state.favouriteActionError = null;
+      })
+      .addCase(favouriteUserStoryThunk.fulfilled, (state, action) => {
+        state.favouriteActionLoading = false;
+        state.favouriteActionError = null;
+        const storyId = action.payload.userStoryId;
+        if (!state.favoriteStoryIds.includes(storyId)) {
+          state.favoriteStoryIds.push(storyId);
+        }
+      })
+      .addCase(favouriteUserStoryThunk.rejected, (state, action) => {
+        state.favouriteActionLoading = false;
+        state.favouriteActionError =
+          action.payload ?? 'Failed to favourite user story';
+      })
+
+      // ─── Unfavourite User Story ──────────────────────────────────────────
+      .addCase(unfavouriteUserStoryThunk.pending, state => {
+        state.favouriteActionLoading = true;
+        state.favouriteActionError = null;
+      })
+      .addCase(unfavouriteUserStoryThunk.fulfilled, (state, action) => {
+        state.favouriteActionLoading = false;
+        state.favouriteActionError = null;
+        const storyId = action.payload.userStoryId;
+        state.favoriteStoryIds = state.favoriteStoryIds.filter(
+          id => id !== storyId,
+        );
+        state.favorites = state.favorites.filter(
+          item =>
+            !(
+              (item.item_type === 'user_story' &&
+                (item as FavoriteUserStoryItem).user_story_id === storyId) ||
+              item.id === storyId
+            ),
+        );
+      })
+      .addCase(unfavouriteUserStoryThunk.rejected, (state, action) => {
+        state.favouriteActionLoading = false;
+        state.favouriteActionError =
+          action.payload ?? 'Failed to unfavourite user story';
+      });
   },
 });
 
@@ -305,6 +520,7 @@ export const {
   setBoardError,
   addTaskToTodo,
   resetBoard,
+  resetFavorites,
   clearBoardError,
 } = projectBoardSlice.actions;
 

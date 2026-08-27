@@ -25,7 +25,8 @@ export type HeaderVariant =
   | 'quickAccess'
   | 'custom'
   | 'projectdetails'
-  | 'taskDetails';
+  | 'taskDetails'
+  | 'search';
 
 export interface HeaderProps {
   variant?: HeaderVariant;
@@ -326,6 +327,18 @@ export const CommonHeader: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         );
 
+      case 'search':
+        return (
+          <AppText
+            variant='body'
+            className='font-bold'
+            style={{ fontSize: moderateScale(18), color: colors.text }}
+            numberOfLines={1}
+          >
+            {title || 'Search'}
+          </AppText>
+        );
+
       default:
         return title ? (
           <AppText
@@ -362,6 +375,28 @@ export const CommonHeader: React.FC<HeaderProps> = ({
               size={layout.iconSize * 1.1}
               color={colors.white}
             />
+          </TouchableOpacity>
+        );
+
+      case 'search':
+        return (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={onSearchPress}
+            className='flex-1'
+          >
+            <View pointerEvents='none'>
+              <AppInput
+                placeholder={strings.home?.searchPlaceholder || 'Search'}
+                leftIcon={
+                  <Ionicons
+                    name='search-outline'
+                    size={moderateScale(18)}
+                    color={colors.textSecondary}
+                  />
+                }
+              />
+            </View>
           </TouchableOpacity>
         );
 

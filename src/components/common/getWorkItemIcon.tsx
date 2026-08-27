@@ -1,7 +1,7 @@
 import React from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
-import { useTheme } from '../../theme/ThemeProvider';
+import { useTheme } from '../../hooks/useTheme';
 
 interface WorkItemIconProps {
   type: string;
@@ -69,7 +69,7 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
         <Ionicons
           name='chatbubble'
           size={size}
-          color={color || colors?.textSecondary || colors?.textSecondary}
+          color={color || colors?.textSecondary}
         />
       );
     case 'chevron-up':

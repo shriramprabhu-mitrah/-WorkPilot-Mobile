@@ -54,6 +54,10 @@ const initialState: ProjectState & {
   userStoryMeta: UserStoryMeta | null;
   userStoryLoading: boolean;
   userStoryError: string | null;
+  backlogUserStories: UserStory[];
+  backlogUserStoryMeta: UserStoryMeta | null;
+  backlogUserStoryLoading: boolean;
+  backlogUserStoryError: string | null;
   selectedUserStory: UserStoryDetail | null;
   userStoryDetailLoading: boolean;
   userStoryDetailError: string | null;
@@ -76,7 +80,10 @@ const initialState: ProjectState & {
   projectName: '',
   projects: [],
   project: null,
+  active_sprint: null,
   loading: false,
+  sprintLoading: false,
+  projectLoading: false,
   isFetchingMore: false,
   include_sprints: true,
   page: 1,
@@ -96,11 +103,14 @@ const initialState: ProjectState & {
     priority: null,
     type: null,
   },
-
   userStories: [],
   userStoryMeta: null,
   userStoryLoading: false,
   userStoryError: null,
+  backlogUserStories: [],
+  backlogUserStoryMeta: null,
+  backlogUserStoryLoading: false,
+  backlogUserStoryError: null,
   selectedUserStory: null,
   userStoryDetailLoading: false,
   userStoryDetailError: null,
@@ -113,7 +123,6 @@ const initialState: ProjectState & {
   userStoryStatuses: [],
   userStoryStatusLoading: false,
   userStoryStatusError: null,
-
   taskUpdateLoading: false,
   taskUpdateError: null,
   getCurrentSprintLoading: false,
@@ -221,7 +230,12 @@ const projectSlice = createSlice({
       .addCase(getProjectById.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
+        console.log('data', action.payload);
         state.project = action.payload;
+        state.active_sprint = action?.payload?.active_sprint;
+        const totalSprints = action?.payload?.metrics?.total_sprints;
+        const currentSprintDetail = action?.payload?.sprints[totalSprints - 1];
+        // state.currentSprint = currentSprintDetail;
       })
       .addCase(getProjectById.rejected, (state, action) => {
         state.loading = false;
@@ -288,19 +302,46 @@ const projectSlice = createSlice({
       .addCase(getRecentProjects.rejected, (state, action) => {
         state.error = action.payload ?? 'Failed to get recent projects';
       })
-      .addCase(getUserStories.pending, state => {
+      .addCase(getUserStories.pending, (state, action) => {
         state.loading = true;
-        state.userStoryError = null;
+        const isBacklog = action?.meta?.arg?.payload?.sprint_id === null;
+        if (isBacklog) {
+          state.backlogUserStoryLoading = true;
+          state.backlogUserStoryError = null;
+        } else {
+          state.userStoryLoading = true;
+          state.userStoryError = null;
+        }
       })
       .addCase(getUserStories.fulfilled, (state, action) => {
         state.loading = false;
-        state.userStoryError = null;
-        state.userStories = action.payload.response.data || [];
-        state.userStoryMeta = action.payload.response.meta || null;
+        const isBacklog = action?.meta?.arg?.payload?.sprint_id === null;
+
+        if (isBacklog) {
+          state.backlogUserStoryLoading = false;
+          state.backlogUserStoryError = null;
+          state.backlogUserStories = action.payload.response.data || [];
+          state.backlogUserStoryMeta = action.payload.response.meta || null;
+        } else {
+          state.userStoryLoading = false;
+          state.userStoryError = null;
+          state.userStories = action.payload.response.data || [];
+          state.userStoryMeta = action.payload.response.meta || null;
+        }
       })
       .addCase(getUserStories.rejected, (state, action) => {
         state.loading = false;
-        state.userStoryError = action.payload ?? 'Failed to fetch user stories';
+        const isBacklog = action?.meta?.arg?.payload?.sprint_id === null;
+
+        if (isBacklog) {
+          state.backlogUserStoryLoading = false;
+          state.backlogUserStoryError =
+            action.payload ?? 'Failed to fetch backlog user stories';
+        } else {
+          state.userStoryLoading = false;
+          state.userStoryError =
+            action.payload ?? 'Failed to fetch user stories';
+        }
       })
       .addCase(getUserStoryById.pending, state => {
         state.userStoryDetailLoading = true;
@@ -365,20 +406,6 @@ const projectSlice = createSlice({
         state.userStoryStatusError =
           action.payload ?? 'Failed to fetch user story statuses';
       })
-      // .addCase(updateTaskThunk.pending, state => {
-      //   state.taskUpdateLoading = true;
-      //   state.taskUpdateError = null;
-      // })
-
-      // .addCase(updateTaskThunk.fulfilled, state => {
-      //   state.taskUpdateLoading = false;
-      //   state.taskUpdateError = null;
-      // })
-
-      // .addCase(updateTaskThunk.rejected, (state, action) => {
-      //   state.taskUpdateLoading = false;
-      //   state.taskUpdateError = action.payload ?? 'Failed to update task';
-      // })
       .addCase(getBurndownChartThunk.pending, state => {
         state.burndownLoading = true;
         state.burndownError = null;
@@ -423,22 +450,6 @@ const projectSlice = createSlice({
         state.loadingMore = false;
         state.error = action.payload ?? 'Failed to fetch tasks';
       })
-      // .addCase(getCustomStatusData.pending, state => {
-      //   state.customStatusLoading = true;
-      //   state.customStatusError = null;
-      // })
-
-      // .addCase(getCustomStatusData.fulfilled, (state, action) => {
-      //   state.customStatusLoading = false;
-      //   state.customStatusError = null;
-      //   state.customStatuses = action.payload.data || [];
-      // })
-
-      // .addCase(getCustomStatusData.rejected, (state, action) => {
-      //   state.customStatusLoading = false;
-      //   state.customStatusError =
-      //     action.payload ?? 'Failed to fetch custom statuses';
-      // })
       .addCase(updateTaskThunk.pending, state => {
         state.taskUpdateLoading = true;
         state.taskUpdateError = null;
