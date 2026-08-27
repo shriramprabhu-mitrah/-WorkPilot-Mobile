@@ -93,7 +93,10 @@ export interface ProjectState {
   error: string | null;
   sprints: Sprint[];
   currentSprint: Sprint;
+  active_sprint?: Sprint | null;
   recentProjects: RecentProject[] | null;
+  sprintLoading?: boolean;
+  projectLoading?: boolean;
 }
 export interface CreateProjectPayload {
   name: string;
@@ -175,6 +178,7 @@ export interface ProjectDetails {
   created_at: string;
   members: ProjectMember[];
   sprints: any[];
+  active_sprint: Sprint;
   metrics: ProjectMetrics;
 }
 
@@ -221,10 +225,8 @@ export interface UserStory {
   assignee_name: string;
   reporter_id: string;
   reporter_name: string;
-
   reporter: UserStoryReporter;
   assignee: UserStoryAssignee;
-
   backlog_order: number;
   total_tasks: number;
   completed_tasks: number;
@@ -469,6 +471,7 @@ export interface UserStoryTask {
   status_id: string;
   status: string;
   status_color: string;
+  is_favourite: boolean;
 
   assignee_id: string | null;
   reporter_id: string | null;
@@ -499,6 +502,7 @@ export interface UserStory {
   status_id: string;
   status: string;
   status_color: string;
+  is_favourite: boolean;
   story_points: number;
   reporter_id: string;
   reporter_name: string;

@@ -20,6 +20,10 @@ export interface Activity {
   created_at: string;
   title: string;
   task_key?: string;
+  key?: string;
+  item_type: string;
+  user_story_id?: string;
+  task_id?: string;
   story?: UserStory;
 }
 

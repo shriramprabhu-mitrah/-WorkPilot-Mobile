@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Screen from '../components/common/ScreenWapper';
 import ProjectTopNavigator from '../navigation/projectTopNavigator';
 import CommonHeader from '../components/common/CommonHeader';
@@ -26,25 +26,34 @@ import { Sprint } from '../types/project.type';
 import { useTheme } from '../theme/ThemeProvider';
 import { getProjectName } from '../store/project_store/reducer/project_reducer';
 
-const ProjectDetails = () => {
+const ProjectDetails: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'projectDetails'>>();
   const routeProjectId = route.params?.projectId;
   const routeProjectName = route.params?.projectName;
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
-  const { project, projectName, currentSprint } = useAppSelector(
-    (state: RootState) => state?.projects,
-  );
-  const [projectSheetVisible, setProjectSheetVisible] = useState(false);
-  const [sprintListVisible, setSprintListVisible] = useState(false);
+
+  // Redux Selectors for reactive UI rendering
+  const {
+    project,
+    projectName,
+    currentSprint,
+    sprints,
+    active_sprint,
+    getCurrentSprintLoading,
+  } = useAppSelector((state: RootState) => state?.projects);
+
+  const [projectSheetVisible, setProjectSheetVisible] =
+    useState<boolean>(false);
+  const [sprintListVisible, setSprintListVisible] = useState<boolean>(false);
   const [settingsView, setSettingsView] = useState<ViewState>('MAIN_SETTINGS');
   const [activeTab, setActiveTab] = useState<string>('Summary');
-  const [selectedSprint, setSelectedSprint] = useState<Sprint | any>(null);
+  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
 
   const fetchProjectDetailsData = async (id: string) => {
     try {
-      const [, sprintsData] = await Promise.all([
+      const [projectData, sprintsResponse] = await Promise.all([
         dispatch(
           getProjectById({
             projectId: id,
@@ -54,29 +63,26 @@ const ProjectDetails = () => {
         dispatch(getSprintsThunk({ project_id: id })).unwrap(),
       ]);
 
-      const response = sprintsData as any;
-      const projectSprints: Sprint[] = Array.isArray(response)
-        ? response
-        : response?.data || response?.items || [];
+      const fetchedSprints: Sprint[] = sprintsResponse?.response?.data || [];
+      const activeSprint = projectData?.active_sprint || active_sprint;
+      const totalCount =
+        projectData?.metrics?.total_sprints ?? fetchedSprints.length;
 
-      if (projectSprints.length > 0) {
-        const activeSprint = projectSprints.find(
-          (s: any) => s.status?.toLowerCase() === 'active' || s.is_active,
-        );
-        const targetSprint =
-          activeSprint || projectSprints[projectSprints.length - 1];
-        const sprintId =
-          targetSprint?.id?.toString() ||
-          (targetSprint as any)?._id?.toString();
+      const targetSprint =
+        activeSprint ||
+        fetchedSprints[totalCount - 1] ||
+        fetchedSprints[fetchedSprints.length - 1];
 
-        if (sprintId) {
-          await dispatch(
-            getSprintByIdThunk({
-              project_id: id,
-              sprint_id: sprintId,
-            }),
-          ).unwrap();
-        }
+      const targetSprintId =
+        targetSprint?.id?.toString() || (targetSprint as any)?._id?.toString();
+
+      if (targetSprintId) {
+        await dispatch(
+          getSprintByIdThunk({
+            project_id: id,
+            sprint_id: targetSprintId,
+          }),
+        ).unwrap();
       }
     } catch (error) {
       console.error('Failed to fetch project details:', error);
@@ -102,22 +108,29 @@ const ProjectDetails = () => {
     }, [routeProjectId, routeProjectName, dispatch]),
   );
 
+  // Sync selected sprint state using total_sprints metric and active sprint
   useEffect(() => {
-    const sprints: Sprint[] = project?.sprints || [];
-    if (sprints.length > 0) {
-      const activeSprint = sprints.find(
-        (s: any) => s.status?.toLowerCase() === 'active' || s.is_active,
-      );
-      const targetSprint = activeSprint || sprints[sprints.length - 1];
-      setSelectedSprint(targetSprint);
+    const sprintList: Sprint[] = project?.sprints || sprints || [];
+    const totalSprints =
+      project?.metrics?.total_sprints ?? sprintList.length ?? 0;
+
+    if (totalSprints > 0) {
+      const active = project?.active_sprint || active_sprint;
+      const targetSprint =
+        active ||
+        sprintList[totalSprints - 1] ||
+        sprintList[sprintList.length - 1];
+      setSelectedSprint(targetSprint || null);
     } else {
       setSelectedSprint(null);
     }
-  }, [project?.sprints]);
-
-  const handleSuccess = () => {
-    setSettingsView('MAIN_SETTINGS');
-  };
+  }, [
+    project?.sprints,
+    project?.metrics?.total_sprints,
+    project?.active_sprint,
+    active_sprint,
+    sprints,
+  ]);
 
   const handleOnSelectProject = (id: string, name: string) => {
     const currentId =
@@ -132,9 +145,11 @@ const ProjectDetails = () => {
   const handleSelectSprint = (sprintId: string) => {
     if (!sprintId || sprintId === currentSprint?.id?.toString()) return;
     setSprintListVisible(false);
-    const sprints: Sprint[] = project?.sprints || [];
-    const foundSprint = sprints.find(
-      (s: any) => (s.id?.toString() || s._id?.toString()) === sprintId,
+
+    const sprintList: Sprint[] = project?.sprints || sprints || [];
+    const foundSprint = sprintList.find(
+      (s: Sprint) =>
+        (s.id?.toString() || (s as any)._id?.toString()) === sprintId,
     );
 
     if (foundSprint) {
@@ -142,7 +157,10 @@ const ProjectDetails = () => {
     }
 
     const projectId =
-      project?.id?.toString() || (project as any)?._id?.toString();
+      project?.id?.toString() ||
+      (project as any)?._id?.toString() ||
+      routeProjectId;
+
     if (projectId && sprintId) {
       dispatch(
         getSprintByIdThunk({
@@ -153,7 +171,7 @@ const ProjectDetails = () => {
     }
   };
 
-  const getHeaderTitle = () => {
+  const getHeaderTitle = (): string => {
     if (activeTab.toLowerCase() === 'settings') {
       if (settingsView === 'DETAILS') {
         return 'Project details';
@@ -173,12 +191,7 @@ const ProjectDetails = () => {
     }
   };
 
-  const currentSprintName =
-    selectedSprint?.name ||
-    selectedSprint?.sprint_name ||
-    (selectedSprint
-      ? `Sprint ${selectedSprint.id || selectedSprint._id}`
-      : 'Select Sprint');
+  const currentSprintName = currentSprint?.name;
 
   const currentProjectId =
     project?.id?.toString() || (project as any)?._id?.toString();
@@ -238,9 +251,10 @@ const ProjectDetails = () => {
             />
           </TouchableOpacity>
 
-          {/* Sprint Name Dropdown */}
+          {/* Sprint Name Dropdown with Loader */}
           <TouchableOpacity
             activeOpacity={0.7}
+            disabled={getCurrentSprintLoading}
             onPress={() => setSprintListVisible(true)}
             className='flex-1 flex-row items-center justify-between rounded-xl border px-3 py-2'
             style={{
@@ -248,7 +262,7 @@ const ProjectDetails = () => {
               borderColor: colors.border,
             }}
           >
-            <View className='flex-1 pr-1'>
+            <View className='flex-1 justify-center pr-1'>
               <AppText
                 variant='caption'
                 color={colors.textSecondary}
@@ -256,14 +270,21 @@ const ProjectDetails = () => {
               >
                 Sprint
               </AppText>
-              <AppText
-                variant='body'
-                color={colors.primary}
-                className='font-semibold capitalize'
-                numberOfLines={1}
-              >
-                {currentSprintName}
-              </AppText>
+
+              {getCurrentSprintLoading ? (
+                <View className='items-start py-0.5'>
+                  <ActivityIndicator size='small' color={colors.primary} />
+                </View>
+              ) : (
+                <AppText
+                  variant='body'
+                  color={colors.primary}
+                  className='font-semibold capitalize'
+                  numberOfLines={1}
+                >
+                  {currentSprintName || 'Select Sprint'}
+                </AppText>
+              )}
             </View>
             <Ionicons
               name={

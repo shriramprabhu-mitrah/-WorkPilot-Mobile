@@ -1,11 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  ScrollView,
-  FlatList,
-  Image,
-} from 'react-native';
+import { View, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -20,14 +14,12 @@ import {
   getOrganizationDetail,
   getUserProfileInfo,
 } from '../store/auth_store/action/auth.thunks';
-import {
-  setActiveTab,
-  resetAuditData,
-} from '../store/home_store/reducer/home.reducer';
+import { setActiveTab } from '../store/home_store/reducer/home.reducer';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import { getAudit } from '../store/home_store/action/home.thunk';
+import { getFavouritesThunk } from '../store/project_store/action/projectBoard.thunk';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
 import {
   getAllProjectInfo,
@@ -37,7 +29,7 @@ import { getProjectName } from '../store/project_store/reducer/project_reducer';
 import { Activity } from '../types/home.type';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
-import { formatAction, formatDate, getInitials } from '../utils/utils';
+import { formatAction } from '../utils/utils';
 import RecentProjectsSkeleton from '../components/skeleton/RecentProjectsSkeleton';
 
 export const Home: React.FC = () => {
@@ -47,26 +39,38 @@ export const Home: React.FC = () => {
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
-  const { user } = useAppSelector(state => state.auth);
   const { project, recentProjects, include_sprints } = useAppSelector(
     state => state.projects,
   );
+  const { activities, activeTab, loading, meta } = useAppSelector(
+    state => state.home,
+  );
   const {
-    activities,
-    user: homeUser,
-    activeTab,
-    loading,
-    meta,
-  } = useAppSelector(state => state.home);
-  console.log('homeUser', homeUser);
+    favorites: boardFavorites,
+    favoritesLoading,
+    favoritesMeta,
+    favoritesTotalUserStories,
+    favoritesTotalTasks,
+  } = useAppSelector(state => state.projectBoard);
+
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
-  const [isRecentLoading, setIsRecentLoading] = useState(true);
+  const [isRecentLoading, setIsRecentLoading] = useState(false);
   const currentPageRef = useRef(1);
   const fetchingRef = useRef(false);
   const lastRequestedPageRef = useRef<number | null>(null);
-  const currentTabRef = useRef<'viewed' | 'activity'>(activeTab);
+  const currentTabRef = useRef<'viewed' | 'favorites'>(activeTab);
   currentTabRef.current = activeTab;
+
+  const recentProjectsRef = useRef(recentProjects);
+  recentProjectsRef.current = recentProjects;
+
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+  const isMainListLoading =
+    (activeTab === 'favorites' &&
+      favoritesLoading &&
+      boardFavorites.length === 0) ||
+    (activeTab === 'viewed' && loading && activities.length === 0);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,24 +78,36 @@ export const Home: React.FC = () => {
       lastRequestedPageRef.current = null;
       fetchingRef.current = false;
       setIsFetchingMore(false);
-      setIsRecentLoading(true);
-      dispatch(resetAuditData());
+
+      if (
+        !recentProjectsRef.current ||
+        recentProjectsRef.current.length === 0
+      ) {
+        setIsRecentLoading(true);
+      }
+
       dispatch(getUserProfileInfo());
       dispatch(getOrganizationDetail());
       dispatch(getRecentProjects())
         .unwrap()
-        .catch(error => {
+        .catch((error: unknown) => {
           console.error('Failed to fetch recent projects:', error);
         })
         .finally(() => {
           setIsRecentLoading(false);
         });
-      dispatch(
-        getAudit({
-          type: currentTabRef.current,
-          page: 1,
-        }),
-      );
+
+      if (currentTabRef.current === 'favorites') {
+        dispatch(getFavouritesThunk({ params: { page: 1 } }));
+      } else {
+        dispatch(
+          getAudit({
+            type: currentTabRef.current,
+            page: 1,
+          }),
+        );
+      }
+
       return () => {
         fetchingRef.current = false;
         setIsFetchingMore(false);
@@ -103,7 +119,7 @@ export const Home: React.FC = () => {
     navigation.openDrawer();
   };
 
-  const handleTabChange = (tab: 'viewed' | 'activity') => {
+  const handleTabChange = (tab: 'viewed' | 'favorites') => {
     if (activeTab === tab) {
       return;
     }
@@ -112,14 +128,19 @@ export const Home: React.FC = () => {
     fetchingRef.current = false;
     currentTabRef.current = tab;
     setIsFetchingMore(false);
-    dispatch(resetAuditData());
+
     dispatch(setActiveTab(tab));
-    dispatch(
-      getAudit({
-        type: tab,
-        page: 1,
-      }),
-    );
+
+    if (tab === 'favorites') {
+      dispatch(getFavouritesThunk({ params: { page: 1 } }));
+    } else {
+      dispatch(
+        getAudit({
+          type: tab,
+          page: 1,
+        }),
+      );
+    }
   };
 
   const handleOnSelectProject = (id: string, name?: string) => {
@@ -136,81 +157,103 @@ export const Home: React.FC = () => {
   };
 
   const handleLoadMore = useCallback(() => {
-    if (fetchingRef.current) {
+    if (fetchingRef.current || isFetchingMore) {
       return;
     }
-    if (loading && activities.length === 0) {
+
+    const isFav = activeTab === 'favorites';
+    const currentLoading = isFav ? favoritesLoading : loading;
+    const currentList = isFav ? boardFavorites : activities;
+    const currentMeta = isFav ? favoritesMeta : meta;
+
+    if (currentLoading || currentList.length === 0) {
       return;
     }
+
     const currentPage = currentPageRef.current;
+
     const hasNextPage =
-      meta?.has_next !== undefined
-        ? meta.has_next
-        : meta?.total_pages !== undefined
-          ? currentPage < meta.total_pages
-          : true;
+      currentMeta?.has_next !== undefined
+        ? currentMeta.has_next
+        : currentMeta?.total_pages !== undefined
+          ? currentPage < currentMeta.total_pages
+          : false;
+
     if (!hasNextPage) {
       return;
     }
+
     const nextPage = currentPage + 1;
     if (lastRequestedPageRef.current === nextPage) {
       return;
     }
+
     fetchingRef.current = true;
     lastRequestedPageRef.current = nextPage;
     setIsFetchingMore(true);
-    dispatch(
-      getAudit({
-        type: activeTab,
-        page: nextPage,
-      }),
-    )
+
+    const promise = isFav
+      ? dispatch(getFavouritesThunk({ params: { page: nextPage } }))
+      : dispatch(getAudit({ type: activeTab, page: nextPage }));
+
+    promise
       .unwrap()
-      .then(response => {
-        const responsePage = response?.meta?.page;
-        if (typeof responsePage === 'number' && responsePage >= nextPage) {
-          currentPageRef.current = responsePage;
-        } else {
-          currentPageRef.current = nextPage;
-        }
+      .then(() => {
+        currentPageRef.current = nextPage;
       })
-      .catch(error => {
-        console.log('Load more error:', error);
-        lastRequestedPageRef.current = null;
+      .catch((error: unknown) => {
+        console.error('Pagination error:', error);
       })
       .finally(() => {
         fetchingRef.current = false;
         setIsFetchingMore(false);
       });
-  }, [activeTab, activities.length, loading, meta, dispatch]);
+  }, [
+    activeTab,
+    activities,
+    loading,
+    meta,
+    boardFavorites,
+    favoritesLoading,
+    favoritesMeta,
+    isFetchingMore,
+    dispatch,
+  ]);
 
   const handleViewAll = () => {
-    const params = { include_sprints: include_sprints };
-    dispatch(getAllProjectInfo(params));
+    dispatch(getAllProjectInfo({ include_sprints }));
     setProjectSheetVisible(true);
   };
 
   const handleListNavigation = (item: Activity) => {
-    const resourceType = item?.resource_type?.toLowerCase();
+    const resourceType =
+      item?.resource_type?.toLowerCase() ||
+      (item as any)?.item_type?.toLowerCase() ||
+      (item as any)?.type?.toLowerCase();
+
+    const targetProjectId =
+      item?.project_id || (item as any)?.projectId || (project as any)?.id;
 
     if (resourceType === 'project' || resourceType === 'sprint') {
       const projectId = item?.project_id?.toString() || item?.id?.toString();
       if (!projectId) return;
       handleOnSelectProject(projectId, item?.project_name);
     } else if (resourceType === 'user_story' || resourceType === 'userstory') {
+      const userStoryId = item?.resource_id || item?.user_story_id || item?.id;
       stackNavigation.navigate('issue', {
-        projectId: item?.project_id,
-        userStoryId: item?.resource_id,
-        story: item,
+        projectId: targetProjectId,
+        userStoryId: userStoryId,
+        story: item, // <-- Pass as 'story' to match RootStackParamList definition
       });
     } else if (resourceType === 'task') {
+      const taskId = item?.resource_id || item?.task_id || item?.id;
+      const userStoryId = item?.user_story_id;
       stackNavigation.navigate('issue', {
-        projectId: item?.project_id,
-        taskId: item?.resource_id,
+        projectId: targetProjectId,
+        userStoryId: userStoryId,
+        taskId: taskId,
         task: item,
       });
-    } else {
-      return;
     }
   };
 
@@ -348,12 +391,20 @@ export const Home: React.FC = () => {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => handleTabChange('viewed')}
-            className='flex-1 items-center rounded-full py-1.5'
+            className='flex-1 flex-row items-center justify-center rounded-full py-1.5'
             style={{
               backgroundColor:
                 activeTab === 'viewed' ? colors.primary : 'transparent',
+              gap: 6,
             }}
           >
+            <Ionicons
+              name={activeTab === 'viewed' ? 'eye' : 'eye-outline'}
+              size={moderateScale(16)}
+              color={
+                activeTab === 'viewed' ? colors.white : colors.textSecondary
+              }
+            />
             <AppText
               variant='caption'
               className='font-semibold'
@@ -367,38 +418,90 @@ export const Home: React.FC = () => {
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => handleTabChange('activity')}
-            className='flex-1 items-center rounded-full py-1.5'
+            onPress={() => handleTabChange('favorites')}
+            className='flex-1 flex-row items-center justify-center rounded-full py-1.5'
             style={{
               backgroundColor:
-                activeTab === 'activity' ? colors.primary : 'transparent',
+                activeTab === 'favorites' ? colors.primary : 'transparent',
+              gap: 6,
             }}
           >
+            <Ionicons
+              name={activeTab === 'favorites' ? 'star' : 'star-outline'}
+              size={moderateScale(16)}
+              color={
+                activeTab === 'favorites' ? '#FFD700' : colors.textSecondary
+              }
+            />
             <AppText
               variant='caption'
               className='font-semibold'
               color={
-                activeTab === 'activity' ? colors.white : colors.textSecondary
+                activeTab === 'favorites' ? colors.white : colors.textSecondary
               }
             >
-              Activity
+              Favorites
             </AppText>
           </TouchableOpacity>
         </View>
       </View>
+
       <View className='flex-row items-center justify-between'>
-        <AppText
-          variant='caption'
-          className='font-bold tracking-wider'
-          color={colors.textSecondary}
-        >
-          TODAY
-        </AppText>
+        {activeTab !== 'favorites' && (
+          <AppText
+            variant='caption'
+            className='font-bold tracking-wider'
+            color={colors.textSecondary}
+          >
+            TODAY
+          </AppText>
+        )}
+        {activeTab === 'favorites' && (
+          <View
+            className='flex-row items-center rounded-full border px-3 py-2'
+            style={{
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+              gap: 8,
+            }}
+          >
+            <View className='flex-row items-center' style={{ gap: 4 }}>
+              <WorkItemIcon type='task' size={moderateScale(12)} />
+              <AppText
+                variant='caption'
+                className='font-bold'
+                color={colors.text}
+                style={{ fontSize: moderateScale(11) }}
+              >
+                {favoritesTotalTasks}
+              </AppText>
+            </View>
+
+            <View
+              style={{
+                width: 1,
+                height: moderateScale(10),
+                backgroundColor: colors.border,
+              }}
+            />
+
+            <View className='flex-row items-center' style={{ gap: 4 }}>
+              <WorkItemIcon type='user_story' size={moderateScale(12)} />
+              <AppText
+                variant='caption'
+                className='font-bold'
+                color={colors.text}
+                style={{ fontSize: moderateScale(11) }}
+              >
+                {favoritesTotalUserStories}
+              </AppText>
+            </View>
+          </View>
+        )}
         {project && (
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => {
-              if (!project) return;
               const projectId =
                 project?.id?.toString() || (project as any)?._id?.toString();
               if (projectId) {
@@ -407,20 +510,16 @@ export const Home: React.FC = () => {
             }}
             className='flex-row items-center rounded-full border px-3 py-1.5 shadow-sm'
             style={{
-              backgroundColor: colors.surface,
-              borderColor: colors.primary,
+              backgroundColor: colors.background,
+              borderColor: colors.border,
               gap: 6,
             }}
           >
-            <Ionicons
-              name='briefcase-outline'
-              size={moderateScale(13)}
-              color={colors.primary}
-            />
+            <WorkItemIcon type='project' size={moderateScale(12)} />
             <AppText
               variant='caption'
               className='font-bold capitalize'
-              color={colors.primary}
+              color={colors.text}
               numberOfLines={1}
               style={{ maxWidth: moderateScale(140) }}
             >
@@ -432,135 +531,15 @@ export const Home: React.FC = () => {
     </View>
   );
 
-  const renderActivityItem = ({ item }: { item: any }) => {
-    const activityUser = homeUser || user;
-    const userName = activityUser?.name || 'User';
-    const avatarUrl = activityUser?.avatar_url;
-    const userInitials = getInitials(userName);
-    const actionText = formatAction(item.action);
-    const formattedDate = formatDate(item.created_at);
-    const resourceType = item.resource_type || 'task';
-    const title = item.title || item.details || 'Activity Details';
-    const key = item.task_key || item.key || '';
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        className='mb-3 rounded-2xl border p-4'
-        style={{
-          backgroundColor: colors.background,
-          borderColor: colors.border,
-        }}
-        onPress={() => handleListNavigation(item)}
-      >
-        <View className='flex-row items-center'>
-          <View className='relative mr-3.5 self-center'>
-            {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
-                style={{
-                  width: moderateScale(40),
-                  height: moderateScale(40),
-                  borderRadius: moderateScale(20),
-                }}
-                resizeMode='cover'
-              />
-            ) : (
-              <View
-                className='items-center justify-center rounded-full'
-                style={{
-                  width: moderateScale(40),
-                  height: moderateScale(40),
-                  backgroundColor: colors.accentOrange || '#E03E15',
-                }}
-              >
-                <AppText
-                  className='font-bold'
-                  style={{
-                    fontSize: moderateScale(15),
-                    color: colors.white,
-                  }}
-                >
-                  {userInitials}
-                </AppText>
-              </View>
-            )}
-            <View
-              style={{
-                position: 'absolute',
-                bottom: moderateScale(-2),
-                right: moderateScale(-2),
-                width: moderateScale(16),
-                height: moderateScale(16),
-                borderRadius: moderateScale(4),
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                borderWidth: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <WorkItemIcon type={resourceType} size={moderateScale(10)} />
-            </View>
-          </View>
-
-          <View className='flex-1 justify-center'>
-            <AppText
-              variant='caption'
-              color={colors.textSecondary}
-              style={{
-                fontSize: moderateScale(11),
-                marginBottom: 2,
-              }}
-              numberOfLines={1}
-            >
-              <AppText
-                className='capitalize'
-                variant='caption'
-                color={colors.textSecondary}
-              >
-                {userName}
-              </AppText>{' '}
-              {actionText} {resourceType} • {formattedDate}
-            </AppText>
-            <AppText
-              variant='body'
-              className='font-bold capitalize'
-              color={colors.text}
-              style={{
-                fontSize: moderateScale(15),
-                lineHeight: moderateScale(20),
-              }}
-              numberOfLines={1}
-            >
-              {title}
-            </AppText>
-            {key ? (
-              <AppText
-                variant='caption'
-                color={colors.textSecondary}
-                style={{
-                  fontSize: moderateScale(12),
-                  marginTop: 2,
-                }}
-                numberOfLines={1}
-              >
-                {key}
-              </AppText>
-            ) : null}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderViewedItem = ({ item }: { item: any }) => {
+  const renderItemCard = ({ item }: { item: any }) => {
     const title =
       item.title ||
       item.name ||
       item.details ||
-      (item.action ? formatAction(item.action) : 'Viewed Item');
-    const resourceType = item.resource_type || item.type || 'task';
+      (item.action ? formatAction(item.action) : 'Activity Item');
+    const resourceType =
+      item.resource_type || item.type || item.item_type || 'task';
+
     return (
       <TouchableOpacity
         activeOpacity={0.8}
@@ -615,9 +594,19 @@ export const Home: React.FC = () => {
   const listData = [
     { id: 'RECENT_PROJECTS_HEADER', type: 'header_recent' },
     { id: 'TABS_HEADER', type: 'header_tabs' },
-    ...(activities.length === 0 && !loading
-      ? [{ id: 'EMPTY_STATE', type: 'empty' }]
-      : activities),
+    ...(activeTab === 'favorites' &&
+    favoritesLoading &&
+    boardFavorites.length === 0
+      ? []
+      : activeTab === 'favorites' &&
+          boardFavorites.length === 0 &&
+          !favoritesLoading
+        ? [{ id: 'EMPTY_STATE', type: 'empty' }]
+        : activeTab === 'favorites'
+          ? boardFavorites
+          : activities.length === 0 && !loading
+            ? [{ id: 'EMPTY_STATE', type: 'empty' }]
+            : activities),
   ];
 
   const renderListItem = ({ item }: { item: any }) => {
@@ -633,15 +622,12 @@ export const Home: React.FC = () => {
           <AppText variant='body' color={colors.textSecondary}>
             {activeTab === 'viewed'
               ? 'No recently viewed items'
-              : 'No recent activity'}
+              : 'No favorites'}
           </AppText>
         </View>
       );
     }
-
-    return activeTab === 'viewed'
-      ? renderViewedItem({ item })
-      : renderActivityItem({ item });
+    return renderItemCard({ item });
   };
 
   return (
@@ -653,7 +639,7 @@ export const Home: React.FC = () => {
         onRightActionPress={() => {}}
       />
 
-      {!loading && activities.length !== 0 ? (
+      {isMainListLoading ? (
         <View style={{ paddingHorizontal: layout.paddingHorizontal }}>
           {renderRecentProjectsHeader()}
           {renderStickyTabsHeader()}

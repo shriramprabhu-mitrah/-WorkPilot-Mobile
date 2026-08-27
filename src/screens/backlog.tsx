@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -28,33 +28,47 @@ export const Backlogs = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
-  const [isFocusLoading, setIsFocusLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Track the project ID that was previously loaded to determine when to trigger skeleton
+  const prevProjectIdRef = useRef<string | number | undefined>(undefined);
 
   // Expanded state map for toggling nested tasks per user story
   const [expandedStoryIds, setExpandedStoryIds] = useState<
     Record<string, boolean>
   >({});
 
-  const { userStories, project, userStoryLoading, userStoryMeta } =
-    useAppSelector(state => state.projects);
+  // Using separate backlog state keys from Redux store
+  const {
+    backlogUserStories,
+    backlogUserStoryMeta,
+    backlogUserStoryLoading,
+    project,
+  } = useAppSelector(state => state.projects);
 
   const projectId = project?.id;
 
-  // Force skeleton during screen focus or initial page 1 Redux load
-  const showSkeleton =
-    isFocusLoading || (userStoryLoading && !isFetchingNextPage);
-  const showFooterSpinner = userStoryLoading && isFetchingNextPage;
+  // Show skeleton ONLY on first screen focus or when projectId changes
+  const showSkeleton = isInitialLoading;
+  const showFooterSpinner = backlogUserStoryLoading && isFetchingNextPage;
 
-  // Fetch all user stories for backlog (explicitly passing sprint_id as null)
+  // Fetch backlog stories on focus
   useFocusEffect(
     useCallback(() => {
       if (!projectId) {
-        setIsFocusLoading(false);
+        setIsInitialLoading(false);
         return;
       }
 
       let isMounted = true;
-      setIsFocusLoading(true);
+      const isProjectChangedOrFirstLoad =
+        prevProjectIdRef.current !== projectId;
+
+      // Only enable full-screen skeleton if first time loading or project changed
+      if (isProjectChangedOrFirstLoad) {
+        setIsInitialLoading(true);
+      }
+
       setIsFetchingNextPage(false);
 
       dispatch(
@@ -68,7 +82,8 @@ export const Backlogs = () => {
         }),
       ).finally(() => {
         if (isMounted) {
-          setIsFocusLoading(false);
+          setIsInitialLoading(false);
+          prevProjectIdRef.current = projectId;
         }
       });
 
@@ -80,10 +95,10 @@ export const Backlogs = () => {
 
   const handleLoadMore = async () => {
     if (
-      !userStoryLoading &&
+      !backlogUserStoryLoading &&
       !isFetchingNextPage &&
-      !isFocusLoading &&
-      userStoryMeta?.has_next &&
+      !isInitialLoading &&
+      backlogUserStoryMeta?.has_next &&
       projectId
     ) {
       try {
@@ -92,8 +107,8 @@ export const Backlogs = () => {
           getUserStories({
             projectId,
             payload: {
-              page: (userStoryMeta.page || 1) + 1,
-              page_size: userStoryMeta.page_size || 10,
+              page: (backlogUserStoryMeta.page || 1) + 1,
+              page_size: backlogUserStoryMeta.page_size || 10,
               sprint_id: null,
             },
           }),
@@ -106,368 +121,73 @@ export const Backlogs = () => {
     }
   };
 
-  const toggleExpandStory = (storyId: string) => {
+  const toggleExpandStory = useCallback((storyId: string) => {
     setExpandedStoryIds(prev => ({
       ...prev,
       [storyId]: !prev[storyId],
     }));
-  };
+  }, []);
 
-  const rawStories = (userStories as UserStory[]) || [];
+  const rawStories = useMemo(
+    () => (backlogUserStories as UserStory[]) || [],
+    [backlogUserStories],
+  );
 
-  const filteredStories = rawStories.filter(story => {
-    const title = story?.title || '';
-    const serial = story?.formatted_serial_number || '';
-    const sprint = story?.sprint_name || '';
-    const status = story?.status || '';
-    const query = searchQuery.toLowerCase();
+  const filteredStories = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return rawStories;
 
-    return (
-      title.toLowerCase().includes(query) ||
-      serial.toLowerCase().includes(query) ||
-      sprint.toLowerCase().includes(query) ||
-      status.toLowerCase().includes(query)
-    );
-  });
+    return rawStories.filter(story => {
+      const title = story?.title || '';
+      const serial = story?.formatted_serial_number || '';
+      const sprint = story?.sprint_name || '';
+      const status = story?.status || '';
 
-  const getPriorityConfig = (priority?: string) => {
-    const p = (priority || '').toLowerCase();
-    switch (p) {
-      case 'highest':
-      case 'high':
-        return { label: 'High', color: colors.error, bgColor: '#FEE2E2' };
-      case 'medium':
-        return { label: 'Medium', color: '#F59E0B', bgColor: '#FEF3C7' };
-      case 'low':
-      case 'lowest':
-        return { label: 'Low', color: '#10B981', bgColor: '#D1FAE5' };
-      default:
-        return {
-          label: priority || 'Normal',
-          color: colors.textSecondary,
-          bgColor: colors.surface,
-        };
-    }
-  };
+      return (
+        title.toLowerCase().includes(query) ||
+        serial.toLowerCase().includes(query) ||
+        sprint.toLowerCase().includes(query) ||
+        status.toLowerCase().includes(query)
+      );
+    });
+  }, [rawStories, searchQuery]);
 
-  const renderFooter = () => {
+  const getPriorityConfig = useCallback(
+    (priority?: string) => {
+      const p = (priority || '').toLowerCase();
+      switch (p) {
+        case 'highest':
+        case 'high':
+          return { label: 'High', color: colors.error, bgColor: '#FEE2E2' };
+        case 'medium':
+          return { label: 'Medium', color: '#F59E0B', bgColor: '#FEF3C7' };
+        case 'low':
+        case 'lowest':
+          return { label: 'Low', color: '#10B981', bgColor: '#D1FAE5' };
+        default:
+          return {
+            label: priority || 'Normal',
+            color: colors.textSecondary,
+            bgColor: colors.surface,
+          };
+      }
+    },
+    [colors],
+  );
+
+  const renderFooter = useCallback(() => {
     if (!showFooterSpinner) return null;
     return (
       <View className='items-center justify-center py-4'>
         <ActivityIndicator size='small' color={colors.primary} />
       </View>
     );
-  };
+  }, [showFooterSpinner, colors.primary]);
 
-  // Construct items array for FlatList (Header at index 0)
-  const listData = [
-    { id: 'HEADER_SEARCH_BAR', type: 'HEADER_SEARCH_BAR' },
-    ...(showSkeleton
-      ? [{ id: 'SKELETON_STATE', type: 'SKELETON_STATE' }]
-      : filteredStories.length === 0
-        ? [{ id: 'EMPTY_STATE', type: 'EMPTY_STATE' }]
-        : filteredStories),
-  ];
-
-  // Sticky Search Bar & Counter Header (Index 0)
-  const renderHeaderComponent = () => (
-    <View
-      className='px-4 pt-3'
-      style={{
-        backgroundColor: colors.surface, // Prevents content underneath from showing through
-      }}
-    >
-      {/* Search Bar */}
-      <View className='mb-3'>
-        <AppInput
-          placeholder='Search backlog stories, tasks, status...'
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          leftIcon={
-            <Ionicons
-              name='search-outline'
-              size={moderateScale(18)}
-              color={colors.textSecondary}
-            />
-          }
-        />
-      </View>
-
-      {/* Backlog Item Counter */}
-      {!showSkeleton && filteredStories.length > 0 ? (
-        <View
-          className='mb-3 flex-row items-center'
-          style={{ gap: layout.elementGap }}
-        >
-          <AppText
-            variant='caption'
-            className='font-bold tracking-wider'
-            color={colors.textSecondary}
-          >
-            Backlog Stories
-          </AppText>
-          <View
-            className='items-center justify-center'
-            style={{
-              minWidth: moderateScale(22),
-              height: moderateScale(22),
-              paddingHorizontal: 6,
-              backgroundColor: colors.primary,
-              borderRadius: Radius.circle,
-            }}
-          >
-            <AppText
-              variant='caption'
-              className='text-xs font-bold'
-              color={colors.white}
-            >
-              {userStoryMeta?.total_items || filteredStories.length}
-            </AppText>
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-
-  // User Story Card Renderer
-  const renderStoryCard = (
-    item: UserStory & { tasks?: any[]; sub_tasks?: any[] },
-  ) => {
-    const priorityConfig = getPriorityConfig(item.priority);
-    const isExpanded = !!expandedStoryIds[item.id];
-    const taskList = item.tasks || item.sub_tasks || [];
-    const taskCount = taskList.length;
-
-    return (
-      <View className='mb-3 px-4'>
-        <View
-          className='overflow-hidden border'
-          style={{
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-            borderRadius: Radius.md,
-          }}
-        >
-          {/* User Story Card Header */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            className='flex-row items-center p-3.5'
-            onPress={() =>
-              navigation.navigate('issue', {
-                projectId,
-                userStoryId: item?.id,
-                story: item,
-              })
-            }
-            style={{ gap: layout.elementGap }}
-          >
-            {/* Left Icon Box */}
-            <View
-              className='items-center justify-center'
-              style={{
-                width: moderateScale(38),
-                height: moderateScale(38),
-                backgroundColor: colors.primary,
-                borderRadius: Radius.sm,
-              }}
-            >
-              <WorkItemIcon type='userStory' size={18} color={colors.white} />
-            </View>
-
-            {/* Middle Story Details */}
-            <View className='flex-1' style={{ gap: 2 }}>
-              <View className='flex-row items-center gap-1.5'>
-                <AppText
-                  variant='caption'
-                  color={colors.textSecondary}
-                  numberOfLines={1}
-                >
-                  {item.formatted_serial_number || `#${item.serial_number}`}
-                  {item.sprint_name ? ` • ${item.sprint_name}` : ''}
-                </AppText>
-
-                {/* Tasks Count Indicator Badge */}
-                <View
-                  className='rounded px-1.5 py-0.5'
-                  style={{ backgroundColor: `${colors.primary}15` }}
-                >
-                  <AppText
-                    variant='caption'
-                    className='text-[10px] font-bold'
-                    style={{ color: colors.primary }}
-                  >
-                    {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
-                  </AppText>
-                </View>
-              </View>
-
-              <AppText
-                variant='body'
-                color={colors.text}
-                className='font-bold'
-                numberOfLines={1}
-              >
-                {item.title
-                  ? item.title.charAt(0).toUpperCase() + item.title.slice(1)
-                  : ''}
-              </AppText>
-            </View>
-
-            {/* Right Status & Priority Badges */}
-            <View className='items-end' style={{ gap: layout.elementGap / 2 }}>
-              <View
-                className='rounded-md px-2.5 py-0.5'
-                style={{ backgroundColor: priorityConfig.bgColor }}
-              >
-                <AppText
-                  variant='caption'
-                  className='text-[10px] font-semibold capitalize'
-                  style={{ color: priorityConfig.color }}
-                >
-                  {priorityConfig.label}
-                </AppText>
-              </View>
-
-              <View
-                className='items-center justify-center px-2 py-0.5'
-                style={{
-                  backgroundColor: colors.surface,
-                  borderRadius: Radius.circle,
-                }}
-              >
-                <AppText
-                  variant='caption'
-                  style={{ color: colors.primary }}
-                  className='text-[11px] font-semibold'
-                >
-                  {item.status}
-                </AppText>
-              </View>
-            </View>
-
-            {/* Expand/Collapse Chevron Button */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              className='items-center justify-center p-1'
-              onPress={e => {
-                e.stopPropagation();
-                toggleExpandStory(item.id);
-              }}
-            >
-              <Ionicons
-                name={isExpanded ? 'chevron-down' : 'chevron-forward'}
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-          </TouchableOpacity>
-
-          {/* Nested Tasks Section */}
-          {isExpanded && (
-            <View
-              className='border-t pb-3 pl-9 pr-3 pt-2'
-              style={{
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-              }}
-            >
-              {taskList.length > 0 ? (
-                <View
-                  className='border-l-2 pl-3'
-                  style={{
-                    borderColor: `${colors.primary}40`,
-                    gap: moderateScale(8),
-                  }}
-                >
-                  {taskList.map((task: any) => (
-                    <TouchableOpacity
-                      key={task.id || task.serial_number}
-                      activeOpacity={0.7}
-                      className='flex-row items-center border p-2.5'
-                      style={{
-                        backgroundColor: colors.card,
-                        borderColor: colors.border,
-                        borderRadius: Radius.sm,
-                        gap: layout.elementGap,
-                      }}
-                      onPress={() =>
-                        navigation.navigate('issue', {
-                          projectId,
-                          // userStoryId: item.id,
-                          taskId: task.id,
-                          task: task,
-                        })
-                      }
-                    >
-                      <WorkItemIcon
-                        type='task'
-                        size={16}
-                        color={colors.primary}
-                      />
-
-                      <View className='flex-1 justify-center'>
-                        <AppText
-                          variant='caption'
-                          className='text-[10px]'
-                          color={colors.textSecondary}
-                        >
-                          {task.formatted_serial_number ||
-                            `#${task.serial_number}`}
-                        </AppText>
-                        <AppText
-                          variant='body'
-                          className='text-xs font-semibold'
-                          color={colors.text}
-                          numberOfLines={1}
-                        >
-                          {task.title}
-                        </AppText>
-                      </View>
-
-                      <View
-                        className='rounded-full px-2 py-0.5'
-                        style={{
-                          backgroundColor: `${colors.primary}15`,
-                        }}
-                      >
-                        <AppText
-                          variant='caption'
-                          className='text-[10px] font-medium capitalize'
-                          style={{ color: colors.primary }}
-                        >
-                          {task.status || 'To Do'}
-                        </AppText>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : (
-                <View className='py-2 pl-2'>
-                  <AppText
-                    variant='caption'
-                    className='italic'
-                    color={colors.textSecondary}
-                  >
-                    No linked tasks found for this story.
-                  </AppText>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-      </View>
-    );
-  };
-
-  // Main FlatList item router
-  const renderListItem = ({ item }: { item: any }) => {
-    if (item.type === 'HEADER_SEARCH_BAR') {
-      return renderHeaderComponent();
-    }
-
-    if (item.type === 'SKELETON_STATE') {
+  const renderEmptyState = useCallback(() => {
+    if (showSkeleton) {
       return (
-        <View className='px-4 py-6'>
+        <View className='px-4 py-3'>
           <ListSkeleton
             count={5}
             containerStyle={{ gap: layout.elementGap - 2 }}
@@ -477,67 +197,358 @@ export const Backlogs = () => {
       );
     }
 
-    if (item.type === 'EMPTY_STATE') {
+    return (
+      <View className='flex-1 items-center justify-center px-6 py-12'>
+        <AppText
+          variant='body'
+          className='mb-1 text-center text-lg font-bold'
+          color={colors.text}
+        >
+          {searchQuery.trim()
+            ? 'No Matching Stories'
+            : 'No Backlog Stories Found'}
+        </AppText>
+
+        <AppText
+          variant='caption'
+          className='mb-5 text-center text-sm leading-5'
+          color={colors.textSecondary}
+        >
+          {searchQuery.trim()
+            ? `We couldn't find any backlog items matching "${searchQuery}". Check for typos or try another search.`
+            : 'There are no user stories in the backlog for this project.'}
+        </AppText>
+
+        {searchQuery.trim() ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setSearchQuery('')}
+            className='border px-4 py-2'
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderRadius: Radius.md,
+            }}
+          >
+            <AppText
+              variant='caption'
+              className='font-bold'
+              color={colors.primary}
+            >
+              Clear Search
+            </AppText>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  }, [showSkeleton, searchQuery, colors, layout.elementGap]);
+
+  // User Story Card Renderer
+  const renderStoryCard = useCallback(
+    ({ item }: { item: UserStory & { tasks?: any[]; sub_tasks?: any[] } }) => {
+      const priorityConfig = getPriorityConfig(item.priority);
+      const isExpanded = !!expandedStoryIds[item.id];
+      const taskList = item.tasks || item.sub_tasks || [];
+      const taskCount = taskList.length;
+
       return (
-        <View className='flex-1 items-center justify-center px-6 py-12'>
-          <AppText
-            variant='body'
-            className='mb-1 text-center text-lg font-bold'
-            color={colors.text}
+        <View className='mb-3 px-4'>
+          <View
+            className='overflow-hidden border'
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderRadius: Radius.md,
+            }}
           >
-            {searchQuery.trim()
-              ? 'No Matching Stories'
-              : 'No Backlog Stories Found'}
-          </AppText>
+            {/* User Story Header Bar */}
+            <View className='flex-row items-center p-3.5'>
+              {/* Main Navigable Area */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                className='flex-1 flex-row items-center'
+                onPress={() =>
+                  navigation.navigate('issue', {
+                    projectId,
+                    userStoryId: item?.id,
+                    story: item,
+                  })
+                }
+                style={{ gap: layout.elementGap }}
+              >
+                {/* Left Icon Box */}
+                <View
+                  className='items-center justify-center'
+                  style={{
+                    width: moderateScale(38),
+                    height: moderateScale(38),
+                    backgroundColor: colors.primary,
+                    borderRadius: Radius.sm,
+                  }}
+                >
+                  <WorkItemIcon
+                    type='userStory'
+                    size={18}
+                    color={colors.white}
+                  />
+                </View>
 
-          <AppText
-            variant='caption'
-            className='mb-5 text-center text-sm leading-5'
-            color={colors.textSecondary}
+                {/* Middle Story Details */}
+                <View className='flex-1' style={{ gap: 2 }}>
+                  <View className='flex-row items-center gap-1.5'>
+                    <AppText
+                      variant='caption'
+                      color={colors.textSecondary}
+                      numberOfLines={1}
+                    >
+                      {item.formatted_serial_number || `#${item.serial_number}`}
+                      {item.sprint_name ? ` • ${item.sprint_name}` : ''}
+                    </AppText>
+
+                    {/* Tasks Count Indicator Badge */}
+                    <View
+                      className='rounded px-1.5 py-0.5'
+                      style={{ backgroundColor: `${colors.primary}15` }}
+                    >
+                      <AppText
+                        variant='caption'
+                        className='text-[10px] font-bold'
+                        style={{ color: colors.primary }}
+                      >
+                        {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+                      </AppText>
+                    </View>
+                  </View>
+
+                  <AppText
+                    variant='body'
+                    color={colors.text}
+                    className='font-bold'
+                    numberOfLines={1}
+                  >
+                    {item.title
+                      ? item.title.charAt(0).toUpperCase() + item.title.slice(1)
+                      : ''}
+                  </AppText>
+                </View>
+
+                {/* Right Status & Priority Badges */}
+                <View
+                  className='items-end'
+                  style={{ gap: layout.elementGap / 2 }}
+                >
+                  <View
+                    className='rounded-md px-2.5 py-0.5'
+                    style={{ backgroundColor: priorityConfig.bgColor }}
+                  >
+                    <AppText
+                      variant='caption'
+                      className='text-[10px] font-semibold capitalize'
+                      style={{ color: priorityConfig.color }}
+                    >
+                      {priorityConfig.label}
+                    </AppText>
+                  </View>
+
+                  <View
+                    className='items-center justify-center px-2 py-0.5'
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderRadius: Radius.circle,
+                    }}
+                  >
+                    <AppText
+                      variant='caption'
+                      style={{ color: colors.primary }}
+                      className='text-[11px] font-semibold'
+                    >
+                      {item.status}
+                    </AppText>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Expand/Collapse Chevron Button */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                className='ml-2 items-center justify-center p-1'
+                onPress={() => toggleExpandStory(item.id)}
+              >
+                <Ionicons
+                  name={isExpanded ? 'chevron-down' : 'chevron-forward'}
+                  size={moderateScale(18)}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Nested Tasks Section */}
+            {isExpanded && (
+              <View
+                className='border-t pb-3 pl-9 pr-3 pt-2'
+                style={{
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                }}
+              >
+                {taskList.length > 0 ? (
+                  <View
+                    className='border-l-2 pl-3'
+                    style={{
+                      borderColor: `${colors.primary}40`,
+                      gap: moderateScale(8),
+                    }}
+                  >
+                    {taskList.map((task: any) => (
+                      <TouchableOpacity
+                        key={task.id || task.serial_number}
+                        activeOpacity={0.7}
+                        className='flex-row items-center border p-2.5'
+                        style={{
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                          borderRadius: Radius.sm,
+                          gap: layout.elementGap,
+                        }}
+                        onPress={() =>
+                          navigation.navigate('issue', {
+                            projectId,
+                            taskId: task.id,
+                            task: task,
+                          })
+                        }
+                      >
+                        <WorkItemIcon
+                          type='task'
+                          size={16}
+                          color={colors.primary}
+                        />
+
+                        <View className='flex-1 justify-center'>
+                          <AppText
+                            variant='caption'
+                            className='text-[10px]'
+                            color={colors.textSecondary}
+                          >
+                            {task.formatted_serial_number ||
+                              `#${task.serial_number}`}
+                          </AppText>
+                          <AppText
+                            variant='body'
+                            className='text-xs font-semibold'
+                            color={colors.text}
+                            numberOfLines={1}
+                          >
+                            {task.title}
+                          </AppText>
+                        </View>
+
+                        <View
+                          className='rounded-full px-2 py-0.5'
+                          style={{
+                            backgroundColor: `${colors.primary}15`,
+                          }}
+                        >
+                          <AppText
+                            variant='caption'
+                            className='text-[10px] font-medium capitalize'
+                            style={{ color: colors.primary }}
+                          >
+                            {task.status || 'To Do'}
+                          </AppText>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <View className='py-2 pl-2'>
+                    <AppText
+                      variant='caption'
+                      className='italic'
+                      color={colors.textSecondary}
+                    >
+                      No linked tasks found for this story.
+                    </AppText>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      );
+    },
+    [
+      colors,
+      expandedStoryIds,
+      getPriorityConfig,
+      layout.elementGap,
+      moderateScale,
+      navigation,
+      projectId,
+      toggleExpandStory,
+    ],
+  );
+
+  return (
+    <View className='flex-1' style={{ backgroundColor: colors.surface }}>
+      {/* Search Header */}
+      <View className='px-4 pt-3' style={{ backgroundColor: colors.surface }}>
+        <View className='mb-3'>
+          <AppInput
+            placeholder='Search backlog stories, tasks, status...'
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            leftIcon={
+              <Ionicons
+                name='search-outline'
+                size={moderateScale(18)}
+                color={colors.textSecondary}
+              />
+            }
+          />
+        </View>
+
+        {!showSkeleton && filteredStories.length > 0 ? (
+          <View
+            className='mb-3 flex-row items-center'
+            style={{ gap: layout.elementGap }}
           >
-            {searchQuery.trim()
-              ? `We couldn't find any backlog items matching "${searchQuery}". Check for typos or try another search.`
-              : 'There are no user stories in the backlog for this project.'}
-          </AppText>
-
-          {searchQuery.trim() ? (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setSearchQuery('')}
-              className='border px-4 py-2'
+            <AppText
+              variant='caption'
+              className='font-bold tracking-wider'
+              color={colors.textSecondary}
+            >
+              Backlog Stories
+            </AppText>
+            <View
+              className='items-center justify-center'
               style={{
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                borderRadius: Radius.md,
+                minWidth: moderateScale(22),
+                height: moderateScale(22),
+                paddingHorizontal: 6,
+                backgroundColor: colors.primary,
+                borderRadius: Radius.circle,
               }}
             >
               <AppText
                 variant='caption'
-                className='font-bold'
-                color={colors.primary}
+                className='text-xs font-bold'
+                color={colors.white}
               >
-                Clear Search
+                {backlogUserStoryMeta?.total_items || filteredStories.length}
               </AppText>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      );
-    }
+            </View>
+          </View>
+        ) : null}
+      </View>
 
-    return renderStoryCard(item);
-  };
-
-  return (
-    <View className='flex-1' style={{ backgroundColor: colors.surface }}>
+      {/* Backlog List */}
       <FlatList
-        data={listData}
-        stickyHeaderIndices={[0]} // Pins search bar (index 0) to top
-        keyExtractor={(item: any, index: number) => {
-          if (item.type === 'HEADER_SEARCH_BAR') return 'HEADER_SEARCH_BAR';
-          if (item.type === 'SKELETON_STATE') return 'SKELETON_STATE';
-          if (item.type === 'EMPTY_STATE') return 'EMPTY_STATE';
-          return item.id?.toString() || index.toString();
-        }}
+        data={showSkeleton ? [] : filteredStories}
+        keyExtractor={(item: UserStory, index: number) =>
+          item.id?.toString() || index.toString()
+        }
+        renderItem={renderStoryCard}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: hp(20),
@@ -545,7 +556,7 @@ export const Backlogs = () => {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
-        renderItem={renderListItem}
+        ListEmptyComponent={renderEmptyState}
       />
     </View>
   );

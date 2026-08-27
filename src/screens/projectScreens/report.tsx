@@ -1,10 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
   Modal,
   ScrollView,
-  ActivityIndicator,
   Dimensions,
 } from 'react-native';
 import Svg, { Path, Line, Text as SvgText } from 'react-native-svg';
@@ -15,7 +14,6 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { AppText } from '../../components';
-import Screen from '../../components/common/ScreenWapper';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { getBurndownChartThunk } from '../../store/project_store/action/project_thunk';
 import {
@@ -77,6 +75,78 @@ const FilterCheckbox: React.FC<FilterCheckboxProps> = React.memo(
   },
 );
 
+// Custom Skeleton Component for Sprint Burndown Chart
+const BurndownChartSkeleton: React.FC<{ height?: number }> = ({
+  height = 200,
+}) => {
+  const { colors } = useTheme();
+  return (
+    <View
+      className='my-2 w-full justify-between overflow-hidden rounded-xl p-3'
+      style={{
+        height,
+        backgroundColor: colors?.surface || '#F9FAFB',
+      }}
+    >
+      {/* Horizontal Y-Axis Grid Skeleton Lines */}
+      {[1, 2, 3, 4, 5].map(item => (
+        <View
+          key={item}
+          style={{
+            height: 1,
+            backgroundColor: colors?.border || '#E5E7EB',
+            width: '100%',
+          }}
+        />
+      ))}
+
+      {/* Simulated Diagonal Trend Line Skeletons */}
+      <View
+        style={{
+          position: 'absolute',
+          top: '30%',
+          left: '10%',
+          width: '80%',
+          height: 3,
+          borderRadius: 2,
+          backgroundColor: colors?.border || '#E5E7EB',
+          transform: [{ rotate: '-22deg' }],
+          opacity: 0.8,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          top: '38%',
+          left: '10%',
+          width: '80%',
+          height: 2,
+          borderRadius: 2,
+          backgroundColor: colors?.border || '#E5E7EB',
+          transform: [{ rotate: '-22deg' }],
+          opacity: 0.4,
+        }}
+      />
+
+      {/* X-Axis Labels Skeleton */}
+      <View className='flex-row justify-between pt-2'>
+        {[1, 2, 3, 4, 5].map(item => (
+          <View
+            key={item}
+            style={{
+              width: 32,
+              height: 10,
+              borderRadius: 4,
+              backgroundColor: colors?.border || '#E5E7EB',
+              opacity: 0.6,
+            }}
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
+
 const Report = () => {
   const dispatch = useAppDispatch();
   const { colors } = useTheme();
@@ -90,6 +160,11 @@ const Report = () => {
   const [selectedTimeFilter, setSelectedTimeFilter] =
     useState<TimeFilterOption>('All Time');
 
+  const [isFocusLoading, setIsFocusLoading] = useState(true);
+
+  // Ref to track previous context (Project ID & Sprint ID)
+  const lastFetchedKeyRef = useRef<string | null>(null);
+
   const [statuses, setStatuses] = useState<Record<StatusKey, boolean>>({
     toDo: true,
     inProgress: true,
@@ -100,16 +175,39 @@ const Report = () => {
   // Fetch Burndown Chart data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (project?.id && currentSprint?.id) {
-        dispatch(
-          getBurndownChartThunk({
-            projectId: project.id,
-            sprintId: currentSprint.id,
-          }),
-        );
+      if (!project?.id || !currentSprint?.id) {
+        setIsFocusLoading(false);
+        return;
       }
+
+      let isMounted = true;
+      const currentKey = `${project.id}_${currentSprint.id}`;
+
+      // Show skeleton only on initial load or if Project/Sprint ID changes
+      if (lastFetchedKeyRef.current !== currentKey) {
+        setIsFocusLoading(true);
+        lastFetchedKeyRef.current = currentKey;
+      }
+
+      dispatch(
+        getBurndownChartThunk({
+          projectId: project.id,
+          sprintId: currentSprint.id,
+        }),
+      ).finally(() => {
+        if (isMounted) {
+          setIsFocusLoading(false);
+        }
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }, [dispatch, project?.id, currentSprint?.id]),
   );
+
+  const showBurndownSkeleton =
+    isFocusLoading || (burndownLoading && lastFetchedKeyRef.current === null);
 
   const toggleStatus = useCallback((key: StatusKey) => {
     setStatuses(prev => ({ ...prev, [key]: !prev[key] }));
@@ -146,11 +244,10 @@ const Report = () => {
       (point: any) => point.remaining_points ?? 0,
     );
 
-    // For a burndown chart, ideal data would be a linear reduction from total to 0
+    // Ideal burndown line calculation
     const totalPoints = burndownData.total_story_points || 0;
     const idealData = burndownData.burndown_data.map(
       (point: any, index: number) => {
-        // Calculate ideal points: start at total, decrease linearly to 0
         const progress = index / (burndownData.burndown_data.length - 1 || 1);
         return Math.round(totalPoints * (1 - progress));
       },
@@ -168,7 +265,7 @@ const Report = () => {
         color: (opacity = 1) =>
           colors?.textSecondary || `rgba(156, 163, 175, ${opacity})`,
         strokeWidth: 2,
-        strokeDashArray: [5, 5], // Dashed line for ideal
+        strokeDashArray: [5, 5],
       },
     ];
 
@@ -238,10 +335,8 @@ const Report = () => {
           Remaining work trend across sprint days
         </AppText>
 
-        {burndownLoading ? (
-          <View className='h-48 items-center justify-center'>
-            <ActivityIndicator size='large' color={colors?.primary} />
-          </View>
+        {showBurndownSkeleton ? (
+          <BurndownChartSkeleton height={200} />
         ) : (
           <View className='my-2 items-center justify-center overflow-hidden'>
             <LineChart

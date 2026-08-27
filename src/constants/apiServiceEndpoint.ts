@@ -31,7 +31,6 @@ export const GET_AUDIT = `/audit`;
 
 //UserStory
 export const GET_USERSTORY = `/projects/{project_id}/user-stories`;
-export const GET_USERSTORY_STATUS = `/projects/{project_id}/user-story-statuses`;
 
 //SPRINT
 export const GET_SPRINTS = `/projects/{project_id}/sprint`;
@@ -60,9 +59,9 @@ export const UPDATE_CUSTOMSTATUS = `/projects/{project_id}/custom-statuses/{stat
 export const UPDATE_TASKS = `/projects/{project_id}/tasks/{task_id}`;
 export const GET_TASKS = `/projects/{project_id}/tasks`;
 
-// FAVORITE
+//Favourites
+export const GET_FAVOURITES = `/favorites`;
 export const FAVOURITE_TASK = `/projects/{project_id}/tasks/{task_id}/favorite`;
 export const UNFAVOURITE_TASK = `/projects/{project_id}/tasks/{task_id}/favorite`;
 export const FAVOURITE_USERSTORY = `/projects/{project_id}/user-stories/{user_story_id}/favorite`;
 export const UNFAVOURITE_USERSTORY = `/projects/{project_id}/user-stories/{user_story_id}/favorite`;
-

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useEffect } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -13,7 +13,6 @@ import { RootState, useAppSelector } from '../../store';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
 import { AppText } from '../../components';
-import Screen from '../../components/common/ScreenWapper';
 import { useTheme } from '../../theme/ThemeProvider';
 import SummarySkeleton from '../../components/skeleton/summarySkeleton';
 
@@ -27,6 +26,26 @@ export const Summary: React.FC = () => {
   // Animation values
   const drawAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Track project changes and initial mount state
+  const lastProjectIdRef = useRef<string | null>(null);
+  const isInitialMountRef = useRef<boolean>(true);
+
+  const currentProjectId =
+    project?.id?.toString() || (project as any)?._id?.toString() || null;
+
+  // Update tracking refs once project finishes loading
+  useEffect(() => {
+    if (project && !loading && currentProjectId) {
+      lastProjectIdRef.current = currentProjectId;
+      isInitialMountRef.current = false;
+    }
+  }, [project, loading, currentProjectId]);
+
+  // Determine whether to show skeleton (Only on 1st load OR when project changes)
+  const isProjectChanged = currentProjectId !== lastProjectIdRef.current;
+  const shouldShowSkeleton =
+    !project || (loading && (isInitialMountRef.current || isProjectChanged));
 
   // Re-run animation whenever the screen comes into focus
   useFocusEffect(
@@ -61,7 +80,7 @@ export const Summary: React.FC = () => {
     outputRange: ['-360deg', '0deg'],
   });
 
-  if (loading || !project) {
+  if (shouldShowSkeleton) {
     return <SummarySkeleton />;
   }
 
@@ -297,7 +316,7 @@ export const Summary: React.FC = () => {
               />
             </Animated.View>
 
-            {/* Stationary Center Label (Does not rotate with the ring) */}
+            {/* Stationary Center Label */}
             <View
               className='absolute items-center justify-center'
               pointerEvents='none'

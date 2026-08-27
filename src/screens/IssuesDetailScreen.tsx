@@ -698,7 +698,11 @@ const IssueDetailScreen = () => {
     <Screen scroll={false} backgroundColor={colors.surface}>
       <CommonHeader
         variant='custom'
-        title={currentItem?.title}
+        title={
+          currentItem?.title ||
+          currentItem?.user_story_name ||
+          currentItem?.task_name
+        }
         onBackPress={() => navigation.goBack()}
         rightComponent={
           <AppText

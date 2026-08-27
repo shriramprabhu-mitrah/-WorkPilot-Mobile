@@ -1,18 +1,24 @@
-import React, { useState } from 'react';
-import { View, TouchableOpacity, ScrollView, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useCallback, useRef } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  FlatList,
+} from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import CustomBottomSheet from '../components/common/CustomBottomDialog';
+import { CommonHeader } from '../components/common/CommonHeader';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
   QuickLinks,
   getQuickLinks,
-  getRecentActivity,
   getStats,
   getTeams,
 } from '../data/profileScreenData';
@@ -21,6 +27,13 @@ import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
 import { Radius } from '../constants/Radius';
 import { getRoleLabel } from '../constants/role';
+import { Activity } from '../types/home.type';
+import { formatAction, formatDate, getInitials } from '../utils/utils';
+import { WorkItemIcon } from '../components/common/getWorkItemIcon';
+import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
+import RecentActivitySkeleton from '../components/skeleton/RecentActivitySkeleton';
+import { getAudit } from '../store/home_store/action/home.thunk';
+import { resetAuditData } from '../store/home_store/reducer/home.reducer';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -30,15 +43,316 @@ const ProfileScreen = () => {
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
   const dispatch = useAppDispatch();
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  const [isActivityFullScreen, setIsActivityFullScreen] = useState(false);
   const profileIcons = strings.profile?.icons;
+
+  const { user } = useAppSelector(state => state.auth);
+  const {
+    activities,
+    user: homeUser,
+    loading,
+    meta,
+  } = useAppSelector(state => state.home);
+
+  // Pagination refs
+  const currentPageRef = useRef(1);
+  const fetchingRef = useRef(false);
+  const lastRequestedPageRef = useRef<number | null>(null);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+  const stats = getStats(colors, strings);
+  const teams = getTeams(colors);
+  const quickLinks = getQuickLinks(colors, strings);
+
   const handleLogoutConfirm = () => {
     dispatch(logoutUser(showSuccessToast));
   };
-  const { user } = useAppSelector(state => state.auth);
-  const quickLinks = getQuickLinks(colors, strings);
-  const recentActivity = getRecentActivity(colors);
-  const stats = getStats(colors, strings);
-  const teams = getTeams(colors);
+
+  // Fetch initial activity data
+  useFocusEffect(
+    useCallback(() => {
+      currentPageRef.current = 1;
+      lastRequestedPageRef.current = null;
+      fetchingRef.current = false;
+      setIsFetchingMore(false);
+      dispatch(resetAuditData());
+      dispatch(
+        getAudit({
+          type: 'activity',
+          page: 1,
+        }),
+      );
+      return () => {
+        fetchingRef.current = false;
+        setIsFetchingMore(false);
+      };
+    }, [dispatch]),
+  );
+
+  // Navigation to full-screen activity
+  const openActivityFullScreen = useCallback(() => {
+    setIsActivityFullScreen(true);
+  }, []);
+
+  const closeActivityFullScreen = useCallback(() => {
+    setIsActivityFullScreen(false);
+  }, []);
+
+  const handleLoadMore = useCallback(() => {
+    if (fetchingRef.current) {
+      return;
+    }
+    if (loading && activities.length === 0) {
+      return;
+    }
+    const currentPage = currentPageRef.current;
+    const hasNextPage =
+      meta?.has_next !== undefined
+        ? meta.has_next
+        : meta?.total_pages !== undefined
+          ? currentPage < meta.total_pages
+          : true;
+    if (!hasNextPage) {
+      return;
+    }
+    const nextPage = currentPage + 1;
+    if (lastRequestedPageRef.current === nextPage) {
+      return;
+    }
+    fetchingRef.current = true;
+    lastRequestedPageRef.current = nextPage;
+    setIsFetchingMore(true);
+    dispatch(
+      getAudit({
+        type: 'activity',
+        page: nextPage,
+      }),
+    )
+      .unwrap()
+      .then(response => {
+        const responsePage = response?.meta?.page;
+        if (typeof responsePage === 'number' && responsePage >= nextPage) {
+          currentPageRef.current = responsePage;
+        } else {
+          currentPageRef.current = nextPage;
+        }
+      })
+      .catch(error => {
+        console.log('Load more error:', error);
+        lastRequestedPageRef.current = null;
+      })
+      .finally(() => {
+        fetchingRef.current = false;
+        setIsFetchingMore(false);
+      });
+  }, [activities.length, loading, meta, dispatch]);
+
+  const handleActivityNavigation = (item: Activity) => {
+    const resourceType = item?.resource_type?.toLowerCase();
+
+    if (resourceType === 'project' || resourceType === 'sprint') {
+      const projectId = item?.project_id?.toString() || item?.id?.toString();
+      if (!projectId) return;
+      navigation.navigate('projectDetails', {
+        projectId,
+        projectName: item?.project_name || '',
+      });
+    } else if (resourceType === 'user_story' || resourceType === 'userstory') {
+      navigation.navigate('issue', {
+        projectId: item?.project_id,
+        userStoryId: item?.resource_id,
+      });
+    } else if (resourceType === 'task') {
+      navigation.navigate('issue', {
+        projectId: item?.project_id,
+        taskId: item?.resource_id,
+      });
+    }
+  };
+
+  const renderActivityItem = ({ item }: { item: Activity }) => {
+    const activityUser = homeUser || user;
+    const userName = activityUser?.name || 'User';
+    const actionText = formatAction(item.action);
+    const formattedDate = formatDate(item.created_at);
+    const resourceType = item.resource_type || 'task';
+    const title = item.title || item.details || 'Activity Details';
+    const key = item.task_key || item.key || '';
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        className='mb-3 rounded-2xl border p-4'
+        style={{
+          backgroundColor: colors.background,
+          borderColor: colors.border,
+        }}
+        onPress={() => handleActivityNavigation(item)}
+      >
+        <View className='flex-row items-center'>
+          <View className='relative mr-3.5 self-center'>
+            {activityUser?.avatar_url ? (
+              <Image
+                source={{ uri: activityUser.avatar_url }}
+                style={{
+                  width: moderateScale(40),
+                  height: moderateScale(40),
+                  borderRadius: moderateScale(20),
+                }}
+                resizeMode='cover'
+              />
+            ) : (
+              <View
+                className='items-center justify-center rounded-full'
+                style={{
+                  width: moderateScale(40),
+                  height: moderateScale(40),
+                  backgroundColor: colors.accentOrange || '#E03E15',
+                }}
+              >
+                <AppText
+                  className='font-bold'
+                  style={{
+                    fontSize: moderateScale(15),
+                    color: colors.white,
+                  }}
+                >
+                  {getInitials(userName)}
+                </AppText>
+              </View>
+            )}
+            <View
+              style={{
+                position: 'absolute',
+                bottom: moderateScale(-2),
+                right: moderateScale(-2),
+                width: moderateScale(16),
+                height: moderateScale(16),
+                borderRadius: moderateScale(4),
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderWidth: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <WorkItemIcon type={resourceType} size={moderateScale(10)} />
+            </View>
+          </View>
+
+          <View className='flex-1 justify-center'>
+            <AppText
+              variant='caption'
+              color={colors.textSecondary}
+              style={{
+                fontSize: moderateScale(11),
+                marginBottom: 2,
+              }}
+              numberOfLines={1}
+            >
+              <AppText
+                className='capitalize'
+                variant='caption'
+                color={colors.textSecondary}
+              >
+                {userName}
+              </AppText>{' '}
+              {actionText} {resourceType} • {formattedDate}
+            </AppText>
+            <AppText
+              variant='body'
+              className='font-bold capitalize'
+              color={colors.text}
+              style={{
+                fontSize: moderateScale(15),
+                lineHeight: moderateScale(20),
+              }}
+              numberOfLines={1}
+            >
+              {title}
+            </AppText>
+            {key ? (
+              <AppText
+                variant='caption'
+                color={colors.textSecondary}
+                style={{
+                  fontSize: moderateScale(12),
+                  marginTop: 2,
+                }}
+                numberOfLines={1}
+              >
+                {key}
+              </AppText>
+            ) : null}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // Full Screen Activity View with CommonHeader
+  if (isActivityFullScreen) {
+    return (
+      <Screen scroll={false} backgroundColor={colors.surface}>
+        <CommonHeader
+          variant='custom'
+          title='Recent Activities'
+          titleAlignment='left'
+          onBackPress={closeActivityFullScreen}
+        />
+
+        <View
+          style={{
+            paddingHorizontal: layout.paddingHorizontal,
+            paddingTop: layout.paddingTop,
+            paddingBottom: isSmallHeight ? hp(20) : hp(12),
+          }}
+        >
+          {loading && activities.length === 0 ? (
+            <View>
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <View key={idx} className='mb-3'>
+                  <ProjectCardSkeleton />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <FlatList
+              data={activities}
+              keyExtractor={(item: Activity, index: number) =>
+                item.id?.toString() || index.toString()
+              }
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingBottom: isSmallHeight ? hp(20) : hp(12),
+              }}
+              renderItem={renderActivityItem}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.2}
+              ListEmptyComponent={
+                !loading ? (
+                  <View className='py-10'>
+                    <AppText variant='body' color={colors.textSecondary}>
+                      No recent activity
+                    </AppText>
+                  </View>
+                ) : null
+              }
+              ListFooterComponent={
+                isFetchingMore ? (
+                  <View className='py-4'>
+                    <ProjectCardSkeleton />
+                  </View>
+                ) : null
+              }
+            />
+          )}
+        </View>
+      </Screen>
+    );
+  }
+
+  // Regular Profile View
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <View
@@ -233,6 +547,8 @@ const ProfileScreen = () => {
             ))}
           </ScrollView>
         </View>
+
+        {/* Recent Activity Section */}
         <View
           style={{
             marginBottom: layout.sectionGap,
@@ -247,7 +563,7 @@ const ProfileScreen = () => {
               {strings.profile?.recentActivity || 'Recent Activity'}
             </AppText>
             <TouchableOpacity
-              onPress={() => navigation.navigate('Project')}
+              onPress={openActivityFullScreen}
               activeOpacity={0.7}
             >
               <AppText
@@ -260,62 +576,69 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <View
-            className='rounded-xl border'
-            style={{
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-            }}
-          >
-            {recentActivity.map((item, index) => (
-              <TouchableOpacity
-                key={item.id}
-                onPress={() =>
-                  navigation.navigate('issue', { id: item.target })
-                }
-                activeOpacity={0.7}
-                className={`flex-row items-start px-4 py-3 ${
-                  index !== recentActivity.length - 1 ? 'border-b' : ''
-                }`}
-                style={{
-                  borderColor: colors.itemDivider,
-                }}
-              >
-                <View
-                  className='mr-3 mt-2 rounded-full'
+          {loading && activities.length === 0 ? (
+            <RecentActivitySkeleton />
+          ) : activities.length > 0 ? (
+            <View
+              className='rounded-xl border'
+              style={{
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              }}
+            >
+              {activities.slice(0, 4).map((item: Activity, index: number) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => handleActivityNavigation(item)}
+                  activeOpacity={0.7}
+                  className={`flex-row items-start px-4 py-3 ${
+                    index !== 3 && index !== activities.slice(0, 4).length - 1
+                      ? 'border-b'
+                      : ''
+                  }`}
                   style={{
-                    width: moderateScale(8),
-                    height: moderateScale(8),
-                    backgroundColor: item.color,
+                    borderColor: colors.itemDivider,
                   }}
-                />
-                <View className='flex-1'>
-                  <AppText variant='body' color={colors.text}>
-                    {item.action}{' '}
-                    <AppText
-                      variant='body'
-                      color={colors.primary}
-                      className='font-bold'
-                    >
-                      {item.target}
+                >
+                  <View
+                    className='mr-3 mt-2 rounded-full'
+                    style={{
+                      width: moderateScale(8),
+                      height: moderateScale(8),
+                      backgroundColor: colors.primary,
+                    }}
+                  />
+                  <View className='flex-1'>
+                    <AppText variant='body' color={colors.text}>
+                      {item.title}
                     </AppText>
-                  </AppText>
-                  <AppText
-                    variant='caption'
-                    color={colors.textSecondary}
-                    className='mt-1'
-                    numberOfLines={1}
-                  >
-                    {item.detail}
-                  </AppText>
-                </View>
-                <AppText variant='caption' color={colors.textSecondary}>
-                  {item.time}
-                </AppText>
-              </TouchableOpacity>
-            ))}
-          </View>
+                    <AppText
+                      variant='caption'
+                      color={colors.textSecondary}
+                      className='mt-1'
+                      numberOfLines={1}
+                    >
+                      {item.resource_type} • {formatDate(item.created_at)}
+                    </AppText>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View
+              className='rounded-xl border p-4'
+              style={{
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              }}
+            >
+              <AppText variant='caption' color={colors.textSecondary}>
+                No recent activity
+              </AppText>
+            </View>
+          )}
         </View>
+
         <View
           style={{
             marginBottom: layout.sectionGap,
