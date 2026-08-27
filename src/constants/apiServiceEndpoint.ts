@@ -31,6 +31,7 @@ export const GET_AUDIT = `/audit`;
 
 //UserStory
 export const GET_USERSTORY = `/projects/{project_id}/user-stories`;
+export const GET_USERSTORY_STATUS = `/projects/{project_id}/user-story-statuses`;
 
 //SPRINT
 export const GET_SPRINTS = `/projects/{project_id}/sprint`;
@@ -65,3 +66,13 @@ export const FAVOURITE_TASK = `/projects/{project_id}/tasks/{task_id}/favorite`;
 export const UNFAVOURITE_TASK = `/projects/{project_id}/tasks/{task_id}/favorite`;
 export const FAVOURITE_USERSTORY = `/projects/{project_id}/user-stories/{user_story_id}/favorite`;
 export const UNFAVOURITE_USERSTORY = `/projects/{project_id}/user-stories/{user_story_id}/favorite`;
+
+//UserStory Attachment
+export const USATTACHMENT = `/projects/{project_id}/user-stories/{user_story_id}/attachments`; //GET AND POST
+export const DELETEUSATTACHMENT = `/projects/{project_id}/user-stories/{user_story_id}/attachments/{attachment_id}`;
+export const GETUSATTACHMENTDOWNLOAD = `/projects/{project_id}/user-stories/{user_story_id}/attachments/{attachment_id}/download`;
+
+//Task Attachment
+export const TASKATTACHMENT = `/projects/{project_id}/tasks/{task_id}/attachments`; //GET AND POST
+export const DELETETASKATTACHMENT = `/projects/{project_id}/tasks/{task_id}/attachments/{attachment_id}`;
+export const GETTASKATTACHMENTDOWNLOAD = `/projects/{project_id}/tasks/{task_id}/attachments/{attachment_id}/download`;

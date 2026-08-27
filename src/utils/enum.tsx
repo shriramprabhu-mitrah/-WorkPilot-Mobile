@@ -93,10 +93,10 @@ export enum TaskPriority {
 }
 
 export const TASK_PRIORITY_OPTIONS: TaskPriority[] = [
-  TaskPriority.CRITICAL,
-  TaskPriority.HIGH,
-  TaskPriority.MEDIUM,
   TaskPriority.LOW,
+  TaskPriority.MEDIUM,
+  TaskPriority.HIGH,
+  TaskPriority.CRITICAL,
 ];
 
 export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
@@ -107,7 +107,9 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
 };
 
 export const getPriorityLabel = (priority: string | undefined): string => {
-  if (!priority) return 'Medium';
+  if (!priority) {
+    return 'Low';
+  }
   const enumValue = priority.toLowerCase() as TaskPriority;
   return TASK_PRIORITY_LABELS[enumValue] || priority;
 };
@@ -116,7 +118,9 @@ export const getPriorityThemeColor = (
   priority: string | undefined,
   colors: Record<string, string>,
 ): string => {
-  if (!priority) return colors.primary;
+  if (!priority) {
+    return colors.primary;
+  }
   const enumValue = priority.toLowerCase() as TaskPriority;
 
   switch (enumValue) {

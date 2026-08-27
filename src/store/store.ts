@@ -9,6 +9,7 @@ import homeReducer from './home_store/reducer/home.reducer';
 import projectReducer from './project_store/reducer/project_reducer';
 import projectBoardReducer from './project_store/reducer/projectBoard.reducer';
 import commentsReducer from './comments_store/reducer/comments_reducer';
+import attachmentReducer from './comments_store/reducer/attachment.reducer';
 
 export const RESET_STORE = 'RESET_STORE';
 
@@ -66,6 +67,7 @@ const appReducer = combineReducers({
   projects: projectReducer,
   projectBoard: projectBoardReducer,
   comments: commentsReducer,
+  attachments: attachmentReducer,
 });
 
 const rootReducer = (

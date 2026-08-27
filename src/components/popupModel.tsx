@@ -11,6 +11,7 @@ interface PopupModelProps {
   onClose: () => void;
   onSelectGallery?: () => void;
   onSelectCamera?: () => void;
+  onSelectFile?: () => void;
   onRemovePhoto?: () => void;
   showRemoveOption?: boolean;
   title?: string;
@@ -23,6 +24,7 @@ const PopupModel: React.FC<PopupModelProps> = ({
   onClose,
   onSelectGallery,
   onSelectCamera,
+  onSelectFile,
   onRemovePhoto,
   showRemoveOption = false,
   title,
@@ -51,6 +53,7 @@ const PopupModel: React.FC<PopupModelProps> = ({
       onClose={onClose}
       onSelectCamera={onSelectCamera}
       onSelectGallery={onSelectGallery}
+      onSelectFile={onSelectFile}
       onRemovePhoto={onRemovePhoto}
       showRemoveOption={showRemoveOption}
       title={title}

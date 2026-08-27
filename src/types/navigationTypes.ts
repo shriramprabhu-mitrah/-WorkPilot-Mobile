@@ -28,6 +28,8 @@ export type RootStackParamList = {
         story?: UserStory | Activity;
         task?: Task | Activity;
         fromUserStory?: boolean;
+        storyName?: string;
+        taskName?: string;
       }
     | undefined;
   HomeTabs: NavigatorScreenParams<HomeTabParamList> | undefined;

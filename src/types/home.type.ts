@@ -25,6 +25,15 @@ export interface Activity {
   user_story_id?: string;
   task_id?: string;
   story?: UserStory;
+  description?: string;
+  priority?: string;
+  reporter_name?: string;
+  reporter_id?: string;
+  assignee_id?: string;
+  assignee_name?: string;
+  story_points?: string;
+  user_story_name?: string;
+  task_name?: string;
 }
 
 export interface ViewedItem {

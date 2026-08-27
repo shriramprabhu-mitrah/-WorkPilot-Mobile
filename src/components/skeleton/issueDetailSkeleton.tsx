@@ -306,6 +306,123 @@ export const CommentSkeletonItem: React.FC<CommentSkeletonItemProps> = ({
   );
 };
 
+export interface AttachmentSkeletonProps {
+  count?: number;
+}
+
+export const AttachmentsSkeleton: React.FC<AttachmentSkeletonProps> = ({
+  count = 1,
+}) => {
+  const { colors } = useTheme();
+  const { moderateScale, layout } = useAuthLayout();
+
+  const pulseAnim = useRef(new Animated.Value(0.35)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.8,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.35,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+
+    return () => animation.stop();
+  }, [pulseAnim]);
+
+  const skeletonBg = colors.border;
+
+  return (
+    <View style={{ gap: moderateScale(12) }}>
+      {Array.from({ length: count }).map((_, index) => (
+        <View
+          key={index}
+          className='flex-row items-center justify-between rounded-xl'
+          style={{
+            backgroundColor: colors.card || colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: 12,
+            marginBottom: layout?.elementGap || 8,
+            minHeight: 70,
+          }}
+        >
+          {/* Left Side: Icon + File Details */}
+          <View className='flex-row items-center' style={{ gap: 12 }}>
+            {/* File Type Icon Skeleton */}
+            <Animated.View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: Radius?.xs || 4,
+                backgroundColor: skeletonBg,
+                opacity: pulseAnim,
+              }}
+            />
+
+            {/* Texts Container matching Title + Subtitle */}
+            <View style={{ gap: 6 }}>
+              {/* Filename line */}
+              <Animated.View
+                style={{
+                  width: moderateScale(160),
+                  height: 14,
+                  backgroundColor: skeletonBg,
+                  borderRadius: Radius?.xs || 4,
+                  opacity: pulseAnim,
+                }}
+              />
+              {/* Metadata line (Type · Size · Date) */}
+              <Animated.View
+                style={{
+                  width: moderateScale(120),
+                  height: 10,
+                  backgroundColor: skeletonBg,
+                  borderRadius: Radius?.xs || 4,
+                  opacity: pulseAnim,
+                }}
+              />
+            </View>
+          </View>
+
+          {/* Right Side: Action Buttons (Download & Trash) */}
+          <View className='flex-row items-center' style={{ gap: 16 }}>
+            <Animated.View
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: Radius?.circle || 10,
+                backgroundColor: skeletonBg,
+                opacity: pulseAnim,
+              }}
+            />
+            <Animated.View
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: Radius?.circle || 10,
+                backgroundColor: skeletonBg,
+                opacity: pulseAnim,
+              }}
+            />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+export default AttachmentsSkeleton;
+
 export const CommentsSectionSkeleton: React.FC = () => {
   const { colors } = useTheme();
   const { moderateScale } = useAuthLayout();
@@ -313,7 +430,6 @@ export const CommentsSectionSkeleton: React.FC = () => {
   return (
     <View
       style={{
-        backgroundColor: colors.background,
         paddingTop: moderateScale(4),
         paddingBottom: moderateScale(8),
       }}
