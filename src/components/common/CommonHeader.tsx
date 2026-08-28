@@ -380,24 +380,19 @@ export const CommonHeader: React.FC<HeaderProps> = ({
 
       case 'search':
         return (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={onSearchPress}
-            className='flex-1'
-          >
-            <View pointerEvents='none'>
-              <AppInput
-                placeholder={strings.home?.searchPlaceholder || 'Search'}
-                leftIcon={
-                  <Ionicons
-                    name='search-outline'
-                    size={moderateScale(18)}
-                    color={colors.textSecondary}
-                  />
-                }
-              />
-            </View>
-          </TouchableOpacity>
+          <View className='flex-1'>
+            <AppInput
+              autoFocus={true}
+              placeholder={strings.home?.searchPlaceholder || 'Search'}
+              leftIcon={
+                <Ionicons
+                  name='search-outline'
+                  size={moderateScale(18)}
+                  color={colors.textSecondary}
+                />
+              }
+            />
+          </View>
         );
 
       case 'createProject':

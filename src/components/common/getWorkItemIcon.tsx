@@ -17,6 +17,24 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
   const { colors } = useTheme();
 
   switch (type) {
+    case 'add':
+    case 'attachment':
+      return (
+        <Ionicons
+          name='add-circle-outline'
+          size={size}
+          color={color || colors?.primary || '#F59E0B'}
+        />
+      );
+    case 'format-letter-case':
+    case 'text-case':
+      return (
+        <MaterialDesignIcons
+          name='format-letter-case'
+          size={size}
+          color={color || colors?.primary || '#F59E0B'}
+        />
+      );
     case 'project':
       return <Ionicons name='folder' size={size} color={color || '#9C88FF'} />;
     case 'board':

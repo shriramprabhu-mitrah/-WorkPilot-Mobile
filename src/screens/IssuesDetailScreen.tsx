@@ -5,7 +5,15 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { ScrollView } from 'react-native';
+import {
+  ScrollView,
+  View,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useNavigation,
   useRoute,
@@ -13,7 +21,6 @@ import {
   useFocusEffect,
 } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
@@ -43,6 +50,7 @@ import {
   updateCommentLocally,
   addCommentLocally,
   replaceCommentLocally,
+  markCommentFailed,
 } from '../store/comments_store/reducer/comments_reducer';
 import {
   CommentItem,
@@ -58,7 +66,6 @@ import {
   getTasks,
   updateTaskThunk,
 } from '../store/task_store/action/task.thunk';
-
 import Screen from '../components/common/ScreenWapper';
 import CommonHeader from '../components/common/CommonHeader';
 import AppText from '../components/common/AppText';
@@ -69,7 +76,10 @@ import { IssueDescriptionSection } from '../components/issueDescriptionSection';
 import { IssueAttachments } from '../components/issueAttachments';
 import { IssueChildTasksSection } from '../components/issueChildTasksSection';
 import { IssueCommentsSection } from '../components/issueCommentsSection';
-import { IssueCommentInput } from '../components/issueCommentInput';
+import {
+  IssueCommentInput,
+  IssueCommentInputRef,
+} from '../components/issueCommentInput';
 import {
   getCustomStatusData,
   getUserStoryStatusData,
@@ -78,11 +88,12 @@ import {
 type IssueDetailRouteProp = RouteProp<RootStackParamList, 'issue'>;
 
 const IssueDetailScreen = () => {
-  // ── Navigation / route ──
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<IssueDetailRouteProp>();
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
+  const insets = useSafeAreaInsets();
+  const commentInputRef = useRef<IssueCommentInputRef>(null);
 
   const projectId = route.params?.projectId || (route.params?.id as string);
   const taskId = route.params?.taskId;
@@ -91,41 +102,32 @@ const IssueDetailScreen = () => {
   const task = route.params?.task;
   const userStroyName = route.params?.storyName;
   const taskName = route.params?.taskName;
-  const fromUserStory = route.params?.fromUserStory;
 
-  // ── Selectors ──
   const { isEditingDescription } = useAppSelector(
     (state: RootState) => state.issue,
   );
   const {
     selectedUserStory,
-    loading,
     selectedTask,
     tasks,
     tasksMeta,
+    loading,
     loadingMore,
     customStatuses,
     userStoryStatuses,
     userStoryDetailLoading,
     taskDetailLoading,
   } = useAppSelector((state: RootState) => state.projects);
-  console.log(
-    'selectedUserStory',
-    selectedUserStory,
-    'selectedTask',
-    selectedTask,
-  );
+
   const { comments: apiComments, loading: commentsLoading } = useAppSelector(
     (state: RootState) => state.comments || { comments: [], loading: false },
   );
 
-  // ── State ──
   const [priority, setPriority] = useState<string>('');
   const [storyPoints, setStoryPoints] = useState<number>(0);
   const [localDescription, setLocalDescription] = useState<string>('');
   const [storyPointsText, setStoryPointsText] = useState<string>('');
   const currentItemIdRef = useRef<string | null>(null);
-
   const [comment, setComment] = useState<string>('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -143,11 +145,21 @@ const IssueDetailScreen = () => {
   const currentItem: any = isTaskView
     ? selectedTask || task || selectedTask
     : selectedUserStory || userStory || selectedUserStory;
-
-  // Determine if details are loading based on view type
   const isDetailsLoading = isTaskView
     ? taskDetailLoading
     : userStoryDetailLoading;
+
+  const handleDismissInputFocus = useCallback(() => {
+    Keyboard.dismiss();
+    commentInputRef.current?.dismissFocus();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', () => {
+      handleDismissInputFocus();
+    });
+    return unsubscribe;
+  }, [navigation, handleDismissInputFocus]);
 
   useEffect(() => {
     if (currentItem && currentItem.id !== currentItemIdRef.current) {
@@ -176,8 +188,6 @@ const IssueDetailScreen = () => {
   const toggleExpanded = (id: string) =>
     setExpandedCommentIds(prev => ({ ...prev, [id]: !prev[id] }));
 
-  // Resolve the root parent id of a comment by walking parent_comment_id upward.
-  // Used so newly created replies auto-expand the correct root thread.
   const getRootCommentId = (commentId: string): string => {
     const byId = new Map<string, CommentItem>(
       (apiComments || []).map(c => [c.id, c]),
@@ -193,8 +203,6 @@ const IssueDetailScreen = () => {
     }
     return currentId;
   };
-
-  // ── Effects ──
 
   useFocusEffect(
     useCallback(() => {
@@ -267,7 +275,6 @@ const IssueDetailScreen = () => {
     }
   }, [currentItem]);
 
-  // ── Derived values ──
   const activeStatusColor = useMemo(() => {
     if (!isTaskView && statusId) {
       const matchedStatus = userStoryStatuses.find(s => s.id === statusId);
@@ -288,12 +295,10 @@ const IssueDetailScreen = () => {
       ('reporter_name' in currentItem && currentItem.reporter_name) ||
       currentItem.reporter?.name ||
       'N/A';
-
     const displayPriority = priority || currentItem.priority || 'medium';
     const displayStoryPoints =
       storyPointsText ||
       (storyPoints ?? currentItem.story_points ?? 0).toString();
-
     return [
       {
         label: 'Assignee',
@@ -345,7 +350,6 @@ const IssueDetailScreen = () => {
     storyPointsText,
   ]);
 
-  // ── Handlers ──
   const handleOpenEditModal = useCallback(
     () => dispatch(setIsEditingDescription(true)),
     [dispatch],
@@ -475,7 +479,6 @@ const IssueDetailScreen = () => {
     if (!trimmed || isSubmittingComment) {
       return;
     }
-    const previousComments = [...apiComments];
     const authorName =
       (currentItem &&
         'reporter_name' in currentItem &&
@@ -484,7 +487,9 @@ const IssueDetailScreen = () => {
       'User';
     const parentCommentId = replyingToCommentId;
     const tempId = 'temp-' + Date.now();
-    const tempComment = {
+
+    // Optimistic pending item with flag `is_pending: true`
+    const tempComment: any = {
       id: tempId,
       task_id: taskId,
       user_story_id: userStoryId,
@@ -499,11 +504,18 @@ const IssueDetailScreen = () => {
       is_deleted: false,
       replies_count: 0,
       parent_comment_id: parentCommentId,
+      is_pending: true, // Shows "Sending..." text
+      is_failed: false,
     };
-    setComment('');
-    setReplyingToCommentId(null);
+
     setIsSubmittingComment(true);
     dispatch(addCommentLocally(tempComment));
+
+    // Instantly reset input box and focus
+    setComment('');
+    setReplyingToCommentId(null);
+    handleDismissInputFocus();
+
     try {
       if (taskId) {
         const result = await dispatch(
@@ -531,6 +543,8 @@ const IssueDetailScreen = () => {
                   parent_comment_id: parentCommentId,
                   is_deleted: false,
                   replies_count: 0,
+                  is_pending: false,
+                  is_failed: false,
                 },
               }),
             );
@@ -542,14 +556,10 @@ const IssueDetailScreen = () => {
               }));
             }
           } else {
-            dispatch(setComments(previousComments));
-            console.error(
-              'Create comment succeeded but no id returned; reverted.',
-            );
+            dispatch(markCommentFailed(tempId));
           }
         } else {
-          dispatch(setComments(previousComments));
-          console.error('Failed to create comment on server, reverted.');
+          dispatch(markCommentFailed(tempId));
         }
       } else if (userStoryId) {
         const result = await dispatch(
@@ -578,6 +588,8 @@ const IssueDetailScreen = () => {
                   parent_comment_id: parentCommentId,
                   is_deleted: false,
                   replies_count: 0,
+                  is_pending: false,
+                  is_failed: false,
                 },
               }),
             );
@@ -589,21 +601,135 @@ const IssueDetailScreen = () => {
               }));
             }
           } else {
-            dispatch(setComments(previousComments));
-            console.error(
-              'Create comment succeeded but no id returned; reverted.',
-            );
+            dispatch(markCommentFailed(tempId));
           }
         } else {
-          dispatch(setComments(previousComments));
-          console.error('Failed to create comment on server, reverted.');
+          dispatch(markCommentFailed(tempId));
         }
       }
     } catch (error) {
-      dispatch(setComments(previousComments));
+      dispatch(markCommentFailed(tempId));
       console.error('Error creating comment:', error);
     } finally {
       setIsSubmittingComment(false);
+    }
+  };
+
+  const handleRetryComment = async (commentId: string) => {
+    const failedComment = apiComments.find((c: any) => c.id === commentId) as any;
+    if (!failedComment) {
+      return;
+    }
+
+    const content = failedComment.content;
+    const parentCommentId = failedComment.parent_comment_id || null;
+
+    // Mark as pending again (Sending...)
+    dispatch(
+      replaceCommentLocally({
+        oldId: commentId,
+        comment: {
+          ...failedComment,
+          is_pending: true,
+          is_failed: false,
+        },
+      }),
+    );
+
+    try {
+      if (taskId) {
+        const result = await dispatch(
+          createTaskComment({
+            taskId,
+            content,
+            parentCommentId,
+          }),
+        );
+
+        if (result.meta.requestStatus === 'fulfilled') {
+          const created = (
+            result.payload as CreateTaskCommentResponse | undefined
+          )?.data;
+          if (created?.id) {
+            dispatch(
+              replaceCommentLocally({
+                oldId: commentId,
+                comment: {
+                  ...failedComment,
+                  ...created,
+                  id: created.id,
+                  content,
+                  task_id: taskId,
+                  parent_comment_id: parentCommentId,
+                  is_deleted: false,
+                  replies_count: 0,
+                  is_pending: false,
+                  is_failed: false,
+                },
+              }),
+            );
+            if (parentCommentId) {
+              const rootId = getRootCommentId(parentCommentId);
+              setExpandedCommentIds(prev => ({
+                ...prev,
+                [rootId]: true,
+              }));
+            }
+          } else {
+            dispatch(markCommentFailed(commentId));
+          }
+        } else {
+          dispatch(markCommentFailed(commentId));
+        }
+      } else if (userStoryId) {
+        const result = await dispatch(
+          createUserStoryComment({
+            projectId,
+            userStoryId,
+            content,
+            parentCommentId,
+          }),
+        );
+
+        if (result.meta.requestStatus === 'fulfilled') {
+          const created = (
+            result.payload as CreateUserStoryCommentResponse | undefined
+          )?.data;
+          if (created?.id) {
+            dispatch(
+              replaceCommentLocally({
+                oldId: commentId,
+                comment: {
+                  ...failedComment,
+                  ...created,
+                  id: created.id,
+                  content,
+                  user_story_id: userStoryId,
+                  parent_comment_id: parentCommentId,
+                  is_deleted: false,
+                  replies_count: 0,
+                  is_pending: false,
+                  is_failed: false,
+                },
+              }),
+            );
+            if (parentCommentId) {
+              const rootId = getRootCommentId(parentCommentId);
+              setExpandedCommentIds(prev => ({
+                ...prev,
+                [rootId]: true,
+              }));
+            }
+          } else {
+            dispatch(markCommentFailed(commentId));
+          }
+        } else {
+          dispatch(markCommentFailed(commentId));
+        }
+      }
+    } catch (error) {
+      dispatch(markCommentFailed(commentId));
+      console.error('Error retrying comment:', error);
     }
   };
 
@@ -614,13 +740,19 @@ const IssueDetailScreen = () => {
     }
     const commentIdToUpdate = editingCommentId;
     const previousComments = [...apiComments];
-    setComment('');
-    setEditingCommentId(null);
+
+    setIsSubmittingComment(true);
     dispatch(
       updateCommentLocally({ commentId: commentIdToUpdate, content: trimmed }),
     );
 
+    setComment('');
+    setEditingCommentId(null);
+    handleDismissInputFocus();
+
     try {
+      let isSuccess = false;
+
       if (taskId) {
         const result = await dispatch(
           updateTaskComment({
@@ -629,9 +761,10 @@ const IssueDetailScreen = () => {
             content: trimmed,
           }),
         );
-        if (result.meta.requestStatus !== 'fulfilled') {
+        if (result.meta.requestStatus === 'fulfilled') {
+          isSuccess = true;
+        } else {
           dispatch(setComments(previousComments));
-          console.error('Failed to update comment on server, reverted.');
         }
       } else if (userStoryId) {
         const result = await dispatch(
@@ -642,14 +775,17 @@ const IssueDetailScreen = () => {
             content: trimmed,
           }),
         );
-        if (result.meta.requestStatus !== 'fulfilled') {
+        if (result.meta.requestStatus === 'fulfilled') {
+          isSuccess = true;
+        } else {
           dispatch(setComments(previousComments));
-          console.error('Failed to update comment on server, reverted.');
         }
       }
     } catch (error) {
       dispatch(setComments(previousComments));
       console.error('Error updating comment:', error);
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -670,7 +806,6 @@ const IssueDetailScreen = () => {
           );
           if (result.meta.requestStatus !== 'fulfilled') {
             dispatch(setComments(previousComments));
-            console.error('Failed to delete comment on server, reverted.');
           }
         } else if (userStoryId) {
           const result = await dispatch(
@@ -682,7 +817,6 @@ const IssueDetailScreen = () => {
           );
           if (result.meta.requestStatus !== 'fulfilled') {
             dispatch(setComments(previousComments));
-            console.error('Failed to delete comment on server, reverted.');
           }
         }
       } catch (error) {
@@ -717,7 +851,6 @@ const IssueDetailScreen = () => {
     setStatus(selected);
     setShowStatusPicker(false);
   };
-
   const selectStatusId = (selected: string) => {
     setStatusId(selected);
   };
@@ -733,7 +866,10 @@ const IssueDetailScreen = () => {
           userStroyName ||
           taskName
         }
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => {
+          handleDismissInputFocus();
+          navigation.goBack();
+        }}
         rightComponent={
           <AppText
             variant='caption'
@@ -746,87 +882,112 @@ const IssueDetailScreen = () => {
         }
       />
 
-      <ScrollView className='flex-1' showsVerticalScrollIndicator={false}>
-        <IssueHeaderSection
-          colors={colors}
-          currentItem={currentItem}
-          status={status}
-          customStatuses={customStatuses}
-          userStoryStatuses={userStoryStatuses}
-          isUserStory={!!userStoryId}
-          activeStatusColor={activeStatusColor}
-          showStatusPicker={showStatusPicker}
-          onToggleStatusPicker={toggleStatusPicker}
-          onSelectStatus={selectStatus}
-          onSelectId={selectStatusId}
-        />
-        <IssueMetaDetails
-          details={details}
-          colors={colors}
-          editableFields={{
-            priority: true,
-            storyPoints: true,
-          }}
-          onPrioritySelect={handlePrioritySelect}
-          storyPointsInputProps={{
-            value: storyPointsText,
-            onChangeText: setStoryPointsText,
-            onBlur: () => handleStoryPointsBlur(storyPointsText),
-            editable: true,
-          }}
-        />
-        <IssueDescriptionSection
-          description={currentDescription}
-          colors={colors}
-          onEdit={handleOpenEditModal}
-        />
-        <IssueAttachments
-          colors={colors}
-          projectId={projectId}
-          userStoryId={userStoryId}
-          taskId={taskId}
-        />
-        {!isTaskView && (
-          <IssueChildTasksSection
-            tasks={tasks}
-            colors={colors}
-            projectId={projectId}
-            navigation={navigation}
-            meta={tasksMeta}
-            loading={loading}
-            loadingMore={loadingMore}
-            userStoryId={userStoryId}
-          />
-        )}
-        <IssueCommentsSection
-          colors={colors}
-          commentsLoading={commentsLoading}
-          apiComments={apiComments}
-          editingCommentId={editingCommentId}
-          onStartEdit={handleStartEditComment}
-          onDeleteComment={handleDeleteComment}
-          onReply={commentId => setReplyingToCommentId(commentId)}
-          expandedCommentIds={expandedCommentIds}
-          onToggleExpand={toggleExpanded}
-          taskId={taskId}
-          userStoryId={userStoryId}
-          projectId={projectId}
-        />
-      </ScrollView>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <TouchableWithoutFeedback
+          onPress={handleDismissInputFocus}
+          accessible={false}
+        >
+          <ScrollView
+            className='flex-1'
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps='handled'
+            onScrollBeginDrag={handleDismissInputFocus}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
+            <IssueHeaderSection
+              colors={colors}
+              currentItem={currentItem}
+              status={status}
+              customStatuses={customStatuses}
+              userStoryStatuses={userStoryStatuses}
+              isUserStory={!!userStoryId}
+              activeStatusColor={activeStatusColor}
+              showStatusPicker={showStatusPicker}
+              onToggleStatusPicker={toggleStatusPicker}
+              onSelectStatus={selectStatus}
+              onSelectId={selectStatusId}
+            />
+            <IssueMetaDetails
+              details={details}
+              colors={colors}
+              editableFields={{
+                priority: true,
+                storyPoints: true,
+              }}
+              onPrioritySelect={handlePrioritySelect}
+              storyPointsInputProps={{
+                value: storyPointsText,
+                onChangeText: setStoryPointsText,
+                onBlur: () => handleStoryPointsBlur(storyPointsText),
+                editable: true,
+              }}
+            />
+            <IssueDescriptionSection
+              description={currentDescription}
+              colors={colors}
+              onEdit={handleOpenEditModal}
+            />
+            <IssueAttachments
+              colors={colors}
+              projectId={projectId}
+              userStoryId={userStoryId}
+              taskId={taskId}
+            />
+            {!isTaskView && (
+              <IssueChildTasksSection
+                tasks={tasks}
+                colors={colors}
+                projectId={projectId}
+                navigation={navigation}
+                meta={tasksMeta}
+                loading={loading}
+                loadingMore={loadingMore}
+                userStoryId={userStoryId}
+              />
+            )}
+            <IssueCommentsSection
+              colors={colors}
+              commentsLoading={commentsLoading}
+              apiComments={apiComments}
+              editingCommentId={editingCommentId}
+              onStartEdit={handleStartEditComment}
+              onDeleteComment={handleDeleteComment}
+              onReply={commentId => setReplyingToCommentId(commentId)}
+              onRetry={handleRetryComment}
+              expandedCommentIds={expandedCommentIds}
+              onToggleExpand={toggleExpanded}
+              taskId={taskId}
+              userStoryId={userStoryId}
+              projectId={projectId}
+            />
+          </ScrollView>
+        </TouchableWithoutFeedback>
 
-      <IssueCommentInput
-        colors={colors}
-        comment={comment}
-        onChangeComment={setComment}
-        editingCommentId={editingCommentId}
-        onCancelEdit={handleCancelEditComment}
-        isSubmittingComment={isSubmittingComment}
-        onSubmit={handleCommentSubmit}
-        currentItem={currentItem}
-        replyingToCommentId={replyingToCommentId}
-        replyingToName={replyingToName}
-        onCancelReply={() => setReplyingToCommentId(null)}
-      />
+        <View
+          style={{
+            paddingBottom: insets.bottom,
+            backgroundColor: colors.surface,
+          }}
+        >
+          <IssueCommentInput
+            ref={commentInputRef}
+            colors={colors}
+            comment={comment}
+            onChangeComment={setComment}
+            editingCommentId={editingCommentId}
+            onCancelEdit={handleCancelEditComment}
+            isSubmittingComment={isSubmittingComment}
+            onSubmit={handleCommentSubmit}
+            currentItem={currentItem}
+            replyingToCommentId={replyingToCommentId}
+            replyingToName={replyingToName}
+            onCancelReply={() => setReplyingToCommentId(null)}
+          />
+        </View>
+      </KeyboardAvoidingView>
 
       <PopupModel
         visible={isEditingDescription}

@@ -77,6 +77,7 @@ export interface CommentItem {
   is_deleted: boolean;
   replies_count: number;
   parent_comment_id?: string | null;
+  retry_count?: number;
 }
 
 export interface GetTaskCommentsResponse {
