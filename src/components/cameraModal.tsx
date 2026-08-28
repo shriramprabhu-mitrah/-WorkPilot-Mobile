@@ -16,6 +16,7 @@ interface CameraPickerModalProps {
   onClose: () => void;
   onSelectGallery?: () => void;
   onSelectCamera?: () => void;
+  onSelectFile?: () => void;
   onRemovePhoto?: () => void;
   showRemoveOption?: boolean;
   title?: string;
@@ -26,13 +27,14 @@ export const CameraPickerModal: React.FC<CameraPickerModalProps> = ({
   onClose,
   onSelectGallery,
   onSelectCamera,
+  onSelectFile,
   onRemovePhoto,
   showRemoveOption = false,
   title = 'Update Profile Picture',
 }) => {
   const { colors } = useTheme();
   const { layout, hp } = useAuthLayout();
-
+  const isAddAttachment = title === 'Add Attachment';
   return (
     <Modal
       visible={visible}
@@ -117,6 +119,26 @@ export const CameraPickerModal: React.FC<CameraPickerModalProps> = ({
                   Gallery
                 </AppText>
               </TouchableOpacity>
+
+              {/* Conditional Options if Title is 'Add Attachment' */}
+              {isAddAttachment && (
+                <TouchableOpacity
+                  onPress={onSelectFile}
+                  className='flex-row items-center gap-4 px-5 py-3.5'
+                >
+                  <Ionicons
+                    name='document-attach-outline'
+                    size={layout.iconSize + 2}
+                    color={colors.primary}
+                  />
+                  <AppText
+                    variant='body'
+                    style={{ fontSize: layout.bodyFontSize }}
+                  >
+                    Choose File
+                  </AppText>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </TouchableWithoutFeedback>
@@ -124,3 +146,4 @@ export const CameraPickerModal: React.FC<CameraPickerModalProps> = ({
     </Modal>
   );
 };
+export default CameraPickerModal;

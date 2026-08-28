@@ -481,7 +481,7 @@ const UserStoryBoardRow = ({
   verticalScrollOffset,
 }: UserStoryBoardRowProps) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-
+  console.log('LINE484', story);
   return (
     <View
       style={{

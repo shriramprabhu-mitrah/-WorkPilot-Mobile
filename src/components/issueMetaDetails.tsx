@@ -25,6 +25,7 @@ interface DetailItem {
   initials?: string;
   color?: string;
   dot?: string;
+  isLoading?: boolean;
 }
 
 interface Props {
@@ -52,8 +53,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
 }) => {
   const { layout, isSmallHeight } = useAuthLayout();
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
-
-  const CONTROL_WIDTH = 85;
+  const CONTROL_WIDTH = moderateScale(105);
 
   const togglePriorityDropdown = () => {
     if (!editableFields?.priority) {
@@ -61,6 +61,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
     }
     setShowPriorityDropdown(prev => !prev);
   };
+
   const handlePrioritySelect = (option: TaskPriority) => {
     setShowPriorityDropdown(false);
     onPrioritySelect?.(option);
@@ -94,7 +95,17 @@ export const IssueMetaDetails: React.FC<Props> = ({
               {item.label}
             </AppText>
 
-            {isPriorityEditable ? (
+            {item.isLoading ? (
+              <View
+                style={{ width: CONTROL_WIDTH }}
+                className='items-end justify-center'
+              >
+                <View
+                  className='animate-pulse rounded bg-gray-200 dark:bg-gray-700'
+                  style={{ width: 60, height: 16 }}
+                />
+              </View>
+            ) : isPriorityEditable ? (
               <View
                 className='relative z-50 items-end'
                 style={{ width: CONTROL_WIDTH }}

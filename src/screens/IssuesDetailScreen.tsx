@@ -66,6 +66,7 @@ import PopupModel from '../components/Model';
 import { IssueHeaderSection } from '../components/issueHeaderSection';
 import { IssueMetaDetails } from '../components/issueMetaDetails';
 import { IssueDescriptionSection } from '../components/issueDescriptionSection';
+import { IssueAttachments } from '../components/issueAttachments';
 import { IssueChildTasksSection } from '../components/issueChildTasksSection';
 import { IssueCommentsSection } from '../components/issueCommentsSection';
 import { IssueCommentInput } from '../components/issueCommentInput';
@@ -88,6 +89,8 @@ const IssueDetailScreen = () => {
   const userStoryId = route.params?.userStoryId;
   const userStory = route.params?.story;
   const task = route.params?.task;
+  const userStroyName = route.params?.storyName;
+  const taskName = route.params?.taskName;
   const fromUserStory = route.params?.fromUserStory;
 
   // ── Selectors ──
@@ -103,8 +106,15 @@ const IssueDetailScreen = () => {
     loadingMore,
     customStatuses,
     userStoryStatuses,
+    userStoryDetailLoading,
+    taskDetailLoading,
   } = useAppSelector((state: RootState) => state.projects);
-
+  console.log(
+    'selectedUserStory',
+    selectedUserStory,
+    'selectedTask',
+    selectedTask,
+  );
   const { comments: apiComments, loading: commentsLoading } = useAppSelector(
     (state: RootState) => state.comments || { comments: [], loading: false },
   );
@@ -131,8 +141,13 @@ const IssueDetailScreen = () => {
 
   const isTaskView = Boolean(taskId);
   const currentItem: any = isTaskView
-    ? task || selectedTask
-    : userStory || selectedUserStory;
+    ? selectedTask || task || selectedTask
+    : selectedUserStory || userStory || selectedUserStory;
+
+  // Determine if details are loading based on view type
+  const isDetailsLoading = isTaskView
+    ? taskDetailLoading
+    : userStoryDetailLoading;
 
   useEffect(() => {
     if (currentItem && currentItem.id !== currentItemIdRef.current) {
@@ -292,6 +307,7 @@ const IssueDetailScreen = () => {
                 .toUpperCase()
             : 'U',
         color: colors.primary,
+        isLoading: isDetailsLoading,
       },
       {
         label: 'Reporter',
@@ -305,19 +321,29 @@ const IssueDetailScreen = () => {
                 .toUpperCase()
             : 'N/A',
         color: colors.secondary,
+        isLoading: isDetailsLoading,
       },
       {
         label: 'Priority',
         value:
           displayPriority.charAt(0).toUpperCase() + displayPriority.slice(1),
         dot: colors.warning,
+        isLoading: isDetailsLoading,
       },
       {
         label: 'Story pts',
         value: displayStoryPoints.toString(),
+        isLoading: isDetailsLoading,
       },
     ];
-  }, [currentItem, colors, priority, storyPoints]);
+  }, [
+    currentItem,
+    colors,
+    priority,
+    storyPoints,
+    isDetailsLoading,
+    storyPointsText,
+  ]);
 
   // ── Handlers ──
   const handleOpenEditModal = useCallback(
@@ -332,7 +358,9 @@ const IssueDetailScreen = () => {
   const handleSaveDescription = useCallback(
     async (newDescription: string) => {
       const targetId = taskId || userStoryId;
-      if (!targetId || !projectId) return;
+      if (!targetId || !projectId) {
+        return;
+      }
 
       const trimmedDescription = newDescription.trim();
       setLocalDescription(trimmedDescription);
@@ -701,7 +729,9 @@ const IssueDetailScreen = () => {
         title={
           currentItem?.title ||
           currentItem?.user_story_name ||
-          currentItem?.task_name
+          currentItem?.task_name ||
+          userStroyName ||
+          taskName
         }
         onBackPress={() => navigation.goBack()}
         rightComponent={
@@ -749,6 +779,12 @@ const IssueDetailScreen = () => {
           description={currentDescription}
           colors={colors}
           onEdit={handleOpenEditModal}
+        />
+        <IssueAttachments
+          colors={colors}
+          projectId={projectId}
+          userStoryId={userStoryId}
+          taskId={taskId}
         />
         {!isTaskView && (
           <IssueChildTasksSection

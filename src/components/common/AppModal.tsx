@@ -1,11 +1,13 @@
 import React from 'react';
-import { Modal, Pressable, View, type ModalProps } from 'react-native';
+import { Modal, TouchableOpacity, View } from 'react-native';
 
 import AppText from './AppText';
+import { ThemeColors } from '../../constants/Colors';
 
 interface Props {
   visible: boolean;
   title?: string;
+  colors: ThemeColors;
   children: React.ReactNode;
   onClose: () => void;
   showCloseButton?: boolean;
@@ -14,6 +16,7 @@ interface Props {
 const AppModal = ({
   visible,
   title,
+  colors,
   children,
   onClose,
   showCloseButton = true,
@@ -25,25 +28,51 @@ const AppModal = ({
       animationType='fade'
       onRequestClose={onClose}
     >
-      <View className='flex-1 items-center justify-center bg-black/40'>
-        <View className='w-[85%] rounded-xl bg-white p-5'>
+      {/* Dynamic backdrop color */}
+      <View
+        className='flex-1 items-center justify-center'
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+      >
+        <View
+          className='w-[85%] rounded-xl p-5'
+          style={{
+            backgroundColor: colors?.card || colors?.surface,
+            borderWidth: 1,
+            borderColor: colors?.border,
+          }}
+        >
           {/* Header */}
           {(title || showCloseButton) && (
             <View className='mb-4 flex-row items-center justify-between'>
-              {title ? <AppText variant='body'>{title}</AppText> : <View />}
+              {title ? (
+                <AppText
+                  variant='bodyLarge'
+                  color={colors?.text}
+                  className='font-bold'
+                >
+                  {title}
+                </AppText>
+              ) : (
+                <View />
+              )}
 
               {showCloseButton && (
-                <Pressable
+                <TouchableOpacity
                   onPress={onClose}
                   className='h-8 w-8 items-center justify-center rounded-full'
+                  style={{
+                    backgroundColor: colors?.surface || colors?.background,
+                  }}
+                  hitSlop={8}
                 >
-                  <AppText variant='body'>×</AppText>
-                </Pressable>
+                  <AppText variant='body' color={colors?.text}>
+                    ✕
+                  </AppText>
+                </TouchableOpacity>
               )}
             </View>
           )}
 
-          {/* Content */}
           {children}
         </View>
       </View>

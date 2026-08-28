@@ -10,7 +10,7 @@ export interface QuickAccessItem {
 
 interface HomeState {
   loading: boolean;
-  activeTab: 'viewed' | 'favorites';
+  activeTab: 'viewed' | 'favorites' | 'activity';
   quickAccessItems: QuickAccessItem[];
   isSearching: boolean;
   searchQuery: string;

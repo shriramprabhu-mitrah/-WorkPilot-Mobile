@@ -34,13 +34,17 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
         state: e => {
           const state = e.data.state;
           if (state) {
-            const activeRouteName = state.routes[state.index].name;
-            setActiveTab?.(activeRouteName);
+            const activeRouteName = state.routes[state.index]?.name;
+
+            if (activeRouteName) {
+              setActiveTab?.(activeRouteName);
+            }
           }
         },
       }}
       screenOptions={{
         // Removes Android press ripple & iOS click shadow overlay
+        animationEnabled: false,
         tabBarPressColor: 'transparent',
         tabBarPressOpacity: 1,
         // Tab bar container bottom border (Inactive/Base line)

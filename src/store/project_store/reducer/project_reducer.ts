@@ -358,19 +358,19 @@ const projectSlice = createSlice({
           action.payload ?? 'Failed to fetch user story details';
       })
       .addCase(getTaskById.pending, state => {
-        state.loading = true;
+        state.taskDetailLoading = true;
         state.taskDetailError = null;
       })
       .addCase(
         getTaskById.fulfilled,
         (state, action: PayloadAction<GetTaskByIdResponse>) => {
-          state.loading = false;
+          state.taskDetailLoading = false;
           state.taskDetailError = null;
           state.selectedTask = action.payload.data;
         },
       )
       .addCase(getTaskById.rejected, (state, action) => {
-        state.loading = false;
+        state.taskDetailLoading = false;
         state.taskDetailError =
           action.payload ?? 'Failed to fetch task details';
       })

@@ -18,6 +18,7 @@ import {
 } from '../store/comments_store/action/comments.thunk';
 import { CommentItem } from '../types/comments.type';
 import { CommentsSectionSkeleton } from './skeleton/issueDetailSkeleton';
+import { renderParsedHtml } from '../utils/htmlParser';
 
 interface Props {
   colors: ThemeColors;
@@ -105,7 +106,9 @@ export const IssueCommentsSection: React.FC<Props> = ({
 
   useEffect(() => {
     const activeId = taskId || userStoryId;
-    if (!activeId) return;
+    if (!activeId) {
+      return;
+    }
 
     if (taskId && lastTaskIdRef.current !== taskId) {
       lastTaskIdRef.current = taskId;
@@ -150,7 +153,9 @@ export const IssueCommentsSection: React.FC<Props> = ({
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedCommentId) return;
+    if (!selectedCommentId) {
+      return;
+    }
     const targetId = selectedCommentId;
 
     setIsDeleteModalVisible(false);
@@ -196,9 +201,13 @@ export const IssueCommentsSection: React.FC<Props> = ({
             )}
           </View>
 
-          <AppText variant='body' color={colors.text} className='leading-6'>
-            {commentText}
-          </AppText>
+          {/* Cleaned text without raw HTML tags */}
+          <View style={{ flex: 1 }}>
+            {renderParsedHtml(commentText, {
+              color: colors.text,
+              lineHeight: 22,
+            })}
+          </View>
 
           <View
             className='flex-row items-center justify-between'

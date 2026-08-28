@@ -58,7 +58,7 @@ export const Home: React.FC = () => {
   const currentPageRef = useRef(1);
   const fetchingRef = useRef(false);
   const lastRequestedPageRef = useRef<number | null>(null);
-  const currentTabRef = useRef<'viewed' | 'favorites'>(activeTab);
+  const currentTabRef = useRef<'viewed' | 'favorites' | 'activity'>(activeTab);
   currentTabRef.current = activeTab;
 
   const recentProjectsRef = useRef(recentProjects);
@@ -243,7 +243,8 @@ export const Home: React.FC = () => {
       stackNavigation.navigate('issue', {
         projectId: targetProjectId,
         userStoryId: userStoryId,
-        story: item, // <-- Pass as 'story' to match RootStackParamList definition
+        story: item,
+        storyName: item?.title || item?.user_story_name, // <-- Pass as 'story' to match RootStackParamList definition
       });
     } else if (resourceType === 'task') {
       const taskId = item?.resource_id || item?.task_id || item?.id;
@@ -253,6 +254,7 @@ export const Home: React.FC = () => {
         userStoryId: userStoryId,
         taskId: taskId,
         task: item,
+        taskName: item?.title || item?.task_name,
       });
     }
   };
