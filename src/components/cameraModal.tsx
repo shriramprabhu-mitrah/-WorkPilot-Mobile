@@ -16,6 +16,7 @@ interface CameraPickerModalProps {
   onClose: () => void;
   onSelectGallery?: () => void;
   onSelectCamera?: () => void;
+  onSelectRecordVideo?: () => void;
   onSelectFile?: () => void;
   onRemovePhoto?: () => void;
   showRemoveOption?: boolean;
@@ -27,6 +28,7 @@ export const CameraPickerModal: React.FC<CameraPickerModalProps> = ({
   onClose,
   onSelectGallery,
   onSelectCamera,
+  onSelectRecordVideo,
   onSelectFile,
   onRemovePhoto,
   showRemoveOption = false,
@@ -100,9 +102,27 @@ export const CameraPickerModal: React.FC<CameraPickerModalProps> = ({
                   variant='body'
                   style={{ fontSize: layout.bodyFontSize }}
                 >
-                  Camera
+                  Take Photo
                 </AppText>
               </TouchableOpacity>
+              {onSelectRecordVideo && isAddAttachment && (
+                <TouchableOpacity
+                  onPress={onSelectRecordVideo}
+                  className='flex-row items-center gap-4 px-5 py-3.5'
+                >
+                  <Ionicons
+                    name='videocam-outline'
+                    size={layout.iconSize + 2}
+                    color={colors.primary}
+                  />
+                  <AppText
+                    variant='body'
+                    style={{ fontSize: layout.bodyFontSize }}
+                  >
+                    Record Video
+                  </AppText>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 onPress={onSelectGallery}
                 className='flex-row items-center gap-4 px-5 py-3.5'
@@ -116,7 +136,7 @@ export const CameraPickerModal: React.FC<CameraPickerModalProps> = ({
                   variant='body'
                   style={{ fontSize: layout.bodyFontSize }}
                 >
-                  Gallery
+                  {isAddAttachment ? 'Choose Photo or Video' : 'Gallery'}
                 </AppText>
               </TouchableOpacity>
 

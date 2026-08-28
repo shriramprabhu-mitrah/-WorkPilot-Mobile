@@ -19,6 +19,7 @@ export interface Attachment {
 export interface GetUserStoryAttachmentsParams {
   projectId: string;
   userStoryId: string;
+  isInitial?: boolean;
 }
 
 export interface GetUserStoryAttachmentsResponse extends ApiResponse {
@@ -81,6 +82,7 @@ export interface DownloadUserStoryAttachmentResponse extends ApiResponse {
 export interface GetTaskCommentAttachmentsParams {
   projectId: string;
   taskId: string;
+  isInitial?: boolean;
 }
 
 export interface GetTaskCommentAttachmentsResponse extends ApiResponse {
@@ -152,12 +154,25 @@ export interface LocalAttachment {
   error?: string;
 }
 
+export interface VideoAttachment {
+  id: string;
+  uri: string;
+  original_filename: string;
+  mime_type: string;
+  file_size?: number;
+  type: 'video';
+  uploaded_at?: string;
+  uploaded_by_name?: string;
+}
+
 export interface AttachmentState {
   userStoryAttachments: Attachment[];
   taskCommentAttachments: Attachment[];
+  localVideos: VideoAttachment[];
   loading: boolean;
   uploading: boolean;
   deleting: boolean;
   downloading: boolean;
+  refreshing: boolean;
   error: string | null;
 }

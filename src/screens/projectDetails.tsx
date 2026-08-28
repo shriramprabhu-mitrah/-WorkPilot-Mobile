@@ -304,6 +304,7 @@ const ProjectDetails: React.FC = () => {
         setSettingsView={setSettingsView}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        projectName={project?.name || projectName}
       />
 
       {/* Project Bottom Sheet */}

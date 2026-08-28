@@ -247,6 +247,7 @@ const UpdateUserDetailsScreen = () => {
                     style={{
                       width: '100%',
                       height: '100%',
+                      borderRadius: Radius.circle,
                     }}
                     resizeMode='cover'
                   />

@@ -17,6 +17,7 @@ interface ProjectTopNavigatorProps {
   setSettingsView: React.Dispatch<React.SetStateAction<ViewState>>;
   activeTab?: string;
   setActiveTab?: (tabName: string) => void;
+  projectName?: string;
 }
 
 const TopTab = createMaterialTopTabNavigator<ProjectTopTabParamList>();
@@ -25,6 +26,7 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
   settingsView,
   setSettingsView,
   setActiveTab,
+  projectName,
 }) => {
   const { colors } = useTheme();
 
@@ -97,6 +99,7 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
             {...props}
             currentView={settingsView}
             setCurrentView={setSettingsView}
+            projectNameValue={projectName}
           />
         )}
       </TopTab.Screen>

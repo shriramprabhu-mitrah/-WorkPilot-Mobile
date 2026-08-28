@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -25,7 +25,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../types/navigationTypes';
 import { Radius } from '../../constants/Radius';
-import Screen from '../../components/common/ScreenWapper';
+import DeleteColumnModal from '../../components/DeleteColumnModal';
 
 interface UpdateProjectDetailsProps {
   initialProjectName?: string;
@@ -59,6 +59,7 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
 
   useLayoutEffect(() => {
     dispatch(
@@ -68,6 +69,18 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
       }),
     );
   }, [dispatch]);
+
+  useEffect(() => {
+    if (project?.name) {
+      setName(project.name);
+    }
+    if (project?.description) {
+      setDescription(project.description);
+    }
+    if (project?.status) {
+      setStatus(getValidStatus(project.status));
+    }
+  }, [project?.name, project?.description, project?.status]);
 
   const getProjectInitials = (projectName: string) => {
     if (!projectName || !projectName.trim()) {
@@ -318,7 +331,7 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
         <TouchableOpacity
           activeOpacity={0.8}
           disabled={isDeleting || isLoading}
-          onPress={handleDeleteProject}
+          onPress={() => setShowDeleteModal(true)}
           className='border'
           style={{
             borderColor: colors.border,
@@ -346,6 +359,14 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
           )}
         </TouchableOpacity>
       </View>
+
+      <DeleteColumnModal
+        visible={showDeleteModal}
+        columnTitle={name || 'project'}
+        colors={colors}
+        onClose={() => setShowDeleteModal(false)}
+        onDelete={handleDeleteProject}
+      />
     </ScrollView>
   );
 };
