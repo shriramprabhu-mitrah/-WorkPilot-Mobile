@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
@@ -17,7 +18,9 @@ import {
   fetchUserStoryCommentReplies,
 } from '../store/comments_store/action/comments.thunk';
 import { CommentItem } from '../types/comments.type';
-import { CommentsSectionSkeleton } from './skeleton/issueDetailSkeleton';
+import {
+  CommentsSectionSkeleton,
+} from './skeleton/issueDetailSkeleton';
 import { renderParsedHtml } from '../utils/htmlParser';
 
 interface Props {
@@ -28,6 +31,7 @@ interface Props {
   onStartEdit: (commentId: string, text: string) => void;
   onDeleteComment: (commentId: string) => Promise<void> | void;
   onReply?: (commentId: string) => void;
+  onRetry?: (commentId: string) => void;
   expandedCommentIds?: Record<string, boolean>;
   onToggleExpand?: (commentId: string) => void;
   taskId?: string;
@@ -43,6 +47,7 @@ export const IssueCommentsSection: React.FC<Props> = ({
   onStartEdit,
   onDeleteComment,
   onReply,
+  onRetry,
   expandedCommentIds = {},
   onToggleExpand,
   taskId,
@@ -61,17 +66,12 @@ export const IssueCommentsSection: React.FC<Props> = ({
   const lastUserStoryIdRef = useRef<string | null>(null);
 
   // Build a flattened thread per root comment using parent_comment_id.
-  // Every reply (even replies-to-replies) is grouped under its root parent and
-  // rendered at a single indentation level. The API parent_comment_id values are
-  // preserved; only the UI grouping is flattened.
   const { roots, repliesByRoot } = useMemo(() => {
     const flat = (apiComments || []).filter(item => !item.is_deleted);
     const byId = new Map<string, CommentItem>(
       flat.map(item => [item.id, item]),
     );
 
-    // Walk parent_comment_id upward to resolve the root comment of a thread.
-    // The API relationship is preserved; only the UI grouping is flattened.
     const rootIdOf = (startId: string): string => {
       let currentId = startId;
       const seen = new Set<string>([currentId]);
@@ -171,7 +171,124 @@ export const IssueCommentsSection: React.FC<Props> = ({
     }
   };
 
-  const renderCommentRow = (item: CommentItem) => {
+  const renderCommentRow = (item: CommentItem & { is_pending?: boolean; is_failed?: boolean }) => {
+    // Render "Sending..." state for pending optimistic comments
+    if (item.is_pending) {
+      const authorName = item.full_name || item.user_name || 'User';
+      const avatarInitials = authorName
+        .split(' ')
+        .filter(Boolean)
+        .map((n: string) => n[0])
+        .join('')
+        .toUpperCase();
+      const commentText = item.content || '';
+
+      return (
+        <View key={item.id} className='flex-row' style={[{ gap: 12 }, styles.pendingContainer]}>
+          <Avatar
+            size='medium'
+            initials={avatarInitials}
+            color={colors.primary}
+          />
+          <View className='flex-1' style={{ gap: 6 }}>
+            <View className='flex-row items-center' style={{ gap: 8 }}>
+              <AppText variant='body' color={colors.text} className='font-bold'>
+                {authorName}
+              </AppText>
+            </View>
+            <View style={{ flex: 1 }}>
+              {renderParsedHtml(commentText, {
+                color: colors.textSecondary,
+                lineHeight: 22,
+              })}
+            </View>
+            <View className='flex-row items-center' style={{ gap: 6 }}>
+              <ActivityIndicator size='small' color={colors.primary} />
+              <AppText
+                variant='caption'
+                color={colors.primary}
+                className='font-medium'
+              >
+                Sending...
+              </AppText>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    // Render "Failed to send" state with Retry button
+    if ((item as any).is_failed) {
+      const authorName = item.full_name || item.user_name || 'User';
+      const avatarInitials = authorName
+        .split(' ')
+        .filter(Boolean)
+        .map((n: string) => n[0])
+        .join('')
+        .toUpperCase();
+      const commentText = item.content || '';
+
+      return (
+        <View key={item.id} className='flex-row' style={{ gap: 12 }}>
+          <Avatar
+            size='medium'
+            initials={avatarInitials}
+            color={colors.error || '#FF3B30'}
+          />
+          <View className='flex-1' style={{ gap: 6 }}>
+            <View className='flex-row items-center' style={{ gap: 8 }}>
+              <AppText variant='body' color={colors.text} className='font-bold'>
+                {authorName}
+              </AppText>
+            </View>
+            <View style={{ flex: 1 }}>
+              {renderParsedHtml(commentText, {
+                color: colors.text,
+                lineHeight: 22,
+              })}
+            </View>
+            <View className='flex-row items-center' style={{ gap: 12 }}>
+              <View className='flex-row items-center' style={{ gap: 4 }}>
+                <Ionicons
+                  name='alert-circle-outline'
+                  size={14}
+                  color={colors.error || '#FF3B30'}
+                />
+                <AppText
+                  variant='caption'
+                  color={colors.error || '#FF3B30'}
+                  className='font-medium'
+                >
+                  Failed to send
+                </AppText>
+              </View>
+              {onRetry && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => onRetry(item.id)}
+                  className='flex-row items-center'
+                  style={{ gap: 4 }}
+                >
+                  <Ionicons
+                    name='reload-outline'
+                    size={14}
+                    color={colors.primary}
+                  />
+                  <AppText
+                    variant='caption'
+                    color={colors.primary}
+                    className='font-semibold'
+                  >
+                    Retry
+                  </AppText>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      );
+    }
+
     const authorName = item.full_name || item.user_name || 'User';
     const avatarInitials = authorName
       .split(' ')
@@ -407,3 +524,9 @@ export const IssueCommentsSection: React.FC<Props> = ({
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  pendingContainer: {
+    opacity: 0.7,
+  },
+});

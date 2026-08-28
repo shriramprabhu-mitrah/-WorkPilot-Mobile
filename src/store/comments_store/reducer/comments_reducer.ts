@@ -82,6 +82,21 @@ const commentsSlice = createSlice({
         target.replies_count = Math.max(0, (target.replies_count ?? 0) - 1);
       }
     },
+    markCommentFailed: (state, action: PayloadAction<string>) => {
+      const comments = state.comments;
+      const index = comments.findIndex(c => c.id === action.payload);
+      if (index !== -1) {
+        const target = comments[index] as any;
+        target.is_pending = false;
+        target.is_failed = true;
+        target.retry_count = (target.retry_count || 0) + 1;
+        
+        // Initial failure = 1, Retry 1 = 2, Retry 2 = 3, Retry 3 = 4.
+        if (target.retry_count >= 4) {
+          state.comments.splice(index, 1);
+        }
+      }
+    },
   },
   extraReducers: builder => {
     builder
@@ -164,7 +179,8 @@ const commentsSlice = createSlice({
         getUserStoryCommentById.fulfilled,
         (state, action: PayloadAction<GetUserStoryCommentByIdResponse>) => {
           state.loading = false;
-          const incoming = action.payload?.data;
+          const incomingData = action.payload?.data;
+          const incoming = Array.isArray(incomingData) ? incomingData[0] : (incomingData as unknown as CommentItem);
           if (incoming?.id) {
             const comments = state.comments;
             const index = comments.findIndex(c => c.id === incoming.id);
@@ -209,5 +225,6 @@ export const {
   replaceCommentLocally,
   incrementReplyCount,
   decrementReplyCount,
+  markCommentFailed,
 } = commentsSlice.actions;
 export default commentsSlice.reducer;
