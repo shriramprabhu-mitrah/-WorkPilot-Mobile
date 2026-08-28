@@ -2,9 +2,12 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   AttachmentState,
   Attachment,
+  VideoAttachment,
+  GetUserStoryAttachmentsParams,
   GetUserStoryAttachmentsResponse,
   UploadUserStoryAttachmentResponse,
   DeleteUserStoryAttachmentResponse,
+  GetTaskCommentAttachmentsParams,
   GetTaskCommentAttachmentsResponse,
   UploadTaskCommentAttachmentResponse,
   DeleteTaskCommentAttachmentResponse,
@@ -23,10 +26,12 @@ import {
 const initialState: AttachmentState = {
   userStoryAttachments: [],
   taskCommentAttachments: [],
+  localVideos: [],
   loading: false,
   uploading: false,
   deleting: false,
   downloading: false,
+  refreshing: false,
   error: null,
 };
 
@@ -37,10 +42,12 @@ const attachmentSlice = createSlice({
     clearAttachmentsState: state => {
       state.userStoryAttachments = [];
       state.taskCommentAttachments = [];
+      state.localVideos = [];
       state.loading = false;
       state.uploading = false;
       state.deleting = false;
       state.downloading = false;
+      state.refreshing = false;
       state.error = null;
     },
     clearUserStoryAttachments: state => {
@@ -49,33 +56,54 @@ const attachmentSlice = createSlice({
     clearTaskCommentAttachments: state => {
       state.taskCommentAttachments = [];
     },
+    addLocalVideo: (state, action: PayloadAction<VideoAttachment>) => {
+      state.localVideos.push(action.payload);
+    },
+    removeLocalVideo: (state, action: PayloadAction<string>) => {
+      state.localVideos = state.localVideos.filter(
+        v => v.id !== action.payload,
+      );
+    },
+    clearLocalVideos: state => {
+      state.localVideos = [];
+    },
   },
   extraReducers: builder => {
     builder
       // ── Fetch User Story Attachments ──
-      .addCase(fetchUserStoryAttachments.pending, state => {
-        state.loading = true;
+      .addCase(fetchUserStoryAttachments.pending, (state, action) => {
+        if (action.meta?.arg?.isInitial) {
+          state.loading = true;
+        } else {
+          state.refreshing = true;
+        }
         state.error = null;
       })
       .addCase(
         fetchUserStoryAttachments.fulfilled,
-        (state, action: PayloadAction<GetUserStoryAttachmentsResponse>) => {
-          state.loading = false;
+        (
+          state,
+          action: PayloadAction<
+            GetUserStoryAttachmentsResponse,
+            string,
+            { arg: GetUserStoryAttachmentsParams }
+          >,
+        ) => {
+          if (action.meta?.arg?.isInitial) {
+            state.loading = false;
+          } else {
+            state.refreshing = false;
+          }
           const incoming = action.payload?.data || [];
-          const existingIds = new Set(
-            state.userStoryAttachments.map(a => a.id),
-          );
-          const merged = [...state.userStoryAttachments];
-          incoming.forEach(a => {
-            if (!existingIds.has(a.id)) {
-              merged.push(a);
-            }
-          });
-          state.userStoryAttachments = merged;
+          state.userStoryAttachments = incoming;
         },
       )
       .addCase(fetchUserStoryAttachments.rejected, (state, action) => {
-        state.loading = false;
+        if (action.meta?.arg?.isInitial) {
+          state.loading = false;
+        } else {
+          state.refreshing = false;
+        }
         state.error =
           action.payload || 'Failed to fetch user story attachments';
       })
@@ -150,29 +178,38 @@ const attachmentSlice = createSlice({
         state.error =
           action.payload || 'Failed to download user story attachment';
       })
-      .addCase(fetchTaskAttachments.pending, state => {
-        state.loading = true;
+      .addCase(fetchTaskAttachments.pending, (state, action) => {
+        if (action.meta?.arg?.isInitial) {
+          state.loading = true;
+        } else {
+          state.refreshing = true;
+        }
         state.error = null;
       })
       .addCase(
         fetchTaskAttachments.fulfilled,
-        (state, action: PayloadAction<GetTaskCommentAttachmentsResponse>) => {
-          state.loading = false;
-          const incoming = action.payload?.data || [];
-          const existingIds = new Set(
-            state.taskCommentAttachments.map(a => a.id),
-          );
-          const merged = [...state.taskCommentAttachments];
-          incoming.forEach(a => {
-            if (!existingIds.has(a.id)) {
-              merged.push(a);
-            }
-          });
-          state.taskCommentAttachments = merged;
+        (
+          state,
+          action: PayloadAction<
+            GetTaskCommentAttachmentsResponse,
+            string,
+            { arg: GetTaskCommentAttachmentsParams }
+          >,
+        ) => {
+          if (action.meta?.arg?.isInitial) {
+            state.loading = false;
+          } else {
+            state.refreshing = false;
+          }
+          state.taskCommentAttachments = action.payload?.data || [];
         },
       )
       .addCase(fetchTaskAttachments.rejected, (state, action) => {
-        state.loading = false;
+        if (action.meta?.arg?.isInitial) {
+          state.loading = false;
+        } else {
+          state.refreshing = false;
+        }
         state.error =
           action.payload || 'Failed to fetch task comment attachments';
       })
@@ -254,5 +291,8 @@ export const {
   clearAttachmentsState,
   clearUserStoryAttachments,
   clearTaskCommentAttachments,
+  addLocalVideo,
+  removeLocalVideo,
+  clearLocalVideos,
 } = attachmentSlice.actions;
 export default attachmentSlice.reducer;

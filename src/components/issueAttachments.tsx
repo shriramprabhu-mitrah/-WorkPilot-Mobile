@@ -7,16 +7,24 @@ import {
   Image,
   NativeModules,
   FlatList,
+  Platform,
+  Alert,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { pick, types } from '@react-native-documents/picker';
+import ImagePicker from 'react-native-image-crop-picker';
 import AppText from './common/AppText';
 import PopupModel from './popupModel';
 import DeleteColumnModal from './DeleteColumnModal';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { ThemeColors } from '../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../store';
-import { Attachment, LocalAttachment } from '../types/attachment.type';
+import {
+  Attachment,
+  LocalAttachment,
+  VideoAttachment,
+} from '../types/attachment.type';
 import {
   fetchUserStoryAttachments,
   uploadUserStoryAttachment,
@@ -25,8 +33,12 @@ import {
   uploadTaskAttachment,
   deleteTaskAttachment,
 } from '../store/comments_store/action/attachment.thunk';
+import {
+  addLocalVideo,
+  removeLocalVideo,
+} from '../store/comments_store/reducer/attachment.reducer';
 import AttachmentsSkeleton from './skeleton/issueDetailSkeleton';
-import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
+import { moderateScale } from '../utils/responsive';
 
 const { DownloadModule } = NativeModules;
 
@@ -37,7 +49,7 @@ interface Props {
   taskId?: string;
 }
 
-const getAttachmentIcon = (fileType: string) => {
+const getAttachmentIcon = (fileType?: string) => {
   const type = fileType?.toLowerCase();
   if (type?.startsWith('image')) return 'image-outline';
   if (type?.startsWith('video')) return 'videocam-outline';
@@ -45,7 +57,7 @@ const getAttachmentIcon = (fileType: string) => {
   return 'document-attach-outline';
 };
 
-const getFileTypeLabel = (fileType: string) => {
+const getFileTypeLabel = (fileType?: string) => {
   const type = fileType?.toLowerCase();
   if (type?.startsWith('image')) return 'Image';
   if (type?.startsWith('video')) return 'Video';
@@ -91,7 +103,7 @@ export const IssueAttachments: React.FC<Props> = ({
     [],
   );
   const [previewAttachment, setPreviewAttachment] = useState<
-    Attachment | LocalAttachment | null
+    Attachment | LocalAttachment | VideoAttachment | null
   >(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletingAttachment, setDeletingAttachment] =
@@ -104,19 +116,26 @@ export const IssueAttachments: React.FC<Props> = ({
   const localAttachmentsRef = useRef<LocalAttachment[]>([]);
   localAttachmentsRef.current = localAttachments;
 
-  const { userStoryAttachments, taskCommentAttachments, loading } =
-    useAppSelector((state: any) => state.attachments);
+  const {
+    userStoryAttachments,
+    taskCommentAttachments,
+    localVideos,
+    loading,
+    refreshing,
+  } = useAppSelector((state: any) => state.attachments);
 
   useEffect(() => {
     if (!projectId) return;
     if (userStoryId) {
-      dispatch(fetchUserStoryAttachments({ projectId, userStoryId }));
+      dispatch(
+        fetchUserStoryAttachments({ projectId, userStoryId, isInitial: true }),
+      );
     }
   }, [dispatch, projectId, userStoryId]);
 
   useEffect(() => {
     if (!taskId || !projectId) return;
-    dispatch(fetchTaskAttachments({ projectId, taskId }));
+    dispatch(fetchTaskAttachments({ projectId, taskId, isInitial: true }));
   }, [dispatch, taskId, projectId]);
 
   const generateTempId = () => {
@@ -155,10 +174,16 @@ export const IssueAttachments: React.FC<Props> = ({
     [],
   );
 
-  // Remove local attachment once successfully uploaded so it doesn't duplicate with Redux state
   const removeLocalAttachment = useCallback((tempId: string) => {
     setLocalAttachments(prev => prev.filter(a => a.tempId !== tempId));
   }, []);
+
+  const handleRemoveLocalVideo = useCallback(
+    (id: string) => {
+      dispatch(removeLocalVideo(id));
+    },
+    [dispatch],
+  );
 
   const uploadFile = useCallback(
     async (file: {
@@ -176,7 +201,9 @@ export const IssueAttachments: React.FC<Props> = ({
           );
           if (uploadTaskAttachment.fulfilled.match(result)) {
             removeLocalAttachment(file.tempId);
-            dispatch(fetchTaskAttachments({ projectId, taskId }));
+            dispatch(
+              fetchTaskAttachments({ projectId, taskId, isInitial: false }),
+            );
             return;
           }
         } else if (userStoryId && projectId) {
@@ -185,7 +212,13 @@ export const IssueAttachments: React.FC<Props> = ({
           );
           if (uploadUserStoryAttachment.fulfilled.match(result)) {
             removeLocalAttachment(file.tempId);
-            dispatch(fetchUserStoryAttachments({ projectId, userStoryId }));
+            dispatch(
+              fetchUserStoryAttachments({
+                projectId,
+                userStoryId,
+                isInitial: false,
+              }),
+            );
             return;
           }
         }
@@ -213,82 +246,165 @@ export const IssueAttachments: React.FC<Props> = ({
 
   const handleChoosePhotoOrVideo = useCallback(async () => {
     setMenuVisible(false);
-    const ImagePicker = (await import('react-native-image-crop-picker'))
-      .default;
-    const media = await ImagePicker.openPicker({
-      mediaType: 'any',
-      cropping: false,
-    });
-    const isVideo = media.mime?.startsWith('video');
-    const name =
-      media.filename || `${isVideo ? 'video' : 'photo'}_${Date.now()}`;
-    const type = media.mime || (isVideo ? 'video/*' : 'image/*');
+    try {
+      const media = await ImagePicker.openPicker({
+        mediaType: 'any',
+        cropping: false,
+      });
+      const isVideo = media.mime?.startsWith('video');
+      const name =
+        media.filename || `${isVideo ? 'video' : 'photo'}_${Date.now()}`;
+      const type = media.mime || (isVideo ? 'video/mp4' : 'image/jpeg');
 
-    const tempId = addLocalAttachment({
-      uri: media.path,
-      name,
-      type,
-      size: media.size,
-    });
-    await uploadFile({
-      uri: media.path,
-      name,
-      type,
-      size: media.size,
-      tempId,
-    });
-  }, [uploadFile, addLocalAttachment]);
+      if (isVideo) {
+        dispatch(
+          addLocalVideo({
+            id: `${Date.now()}`,
+            uri: media.path,
+            original_filename: name,
+            mime_type: type,
+            file_size: media.size,
+            type: 'video',
+          }),
+        );
+        return;
+      }
+
+      const tempId = addLocalAttachment({
+        uri: media.path,
+        name,
+        type,
+        size: media.size,
+      });
+      await uploadFile({
+        uri: media.path,
+        name,
+        type,
+        size: media.size,
+        tempId,
+      });
+    } catch (error: any) {}
+  }, [uploadFile, addLocalAttachment, dispatch]);
 
   const handleTakePhoto = useCallback(async () => {
     setMenuVisible(false);
-    const ImagePicker = (await import('react-native-image-crop-picker'))
-      .default;
-    const image = await ImagePicker.openCamera({
-      mediaType: 'photo',
-      cropping: true,
-      compressImageQuality: 0.8,
-    });
-    const name = `photo_${Date.now()}.jpg`;
+    try {
+      const image = await ImagePicker.openCamera({
+        mediaType: 'photo',
+        cropping: true,
+        compressImageQuality: 0.8,
+      });
+      const name = `photo_${Date.now()}.jpg`;
 
-    const tempId = addLocalAttachment({
-      uri: image.path,
-      name,
-      type: 'image/jpeg',
-      size: image.size,
-    });
-    await uploadFile({
-      uri: image.path,
-      name,
-      type: 'image/jpeg',
-      size: image.size,
-      tempId,
-    });
+      const tempId = addLocalAttachment({
+        uri: image.path,
+        name,
+        type: 'image/jpeg',
+        size: image.size,
+      });
+      await uploadFile({
+        uri: image.path,
+        name,
+        type: 'image/jpeg',
+        size: image.size,
+        tempId,
+      });
+    } catch (error: any) {}
   }, [uploadFile, addLocalAttachment]);
+
+  const handleRecordVideo = useCallback(async () => {
+    setMenuVisible(false);
+    try {
+      const video = await ImagePicker.openCamera({
+        mediaType: 'video',
+      });
+      const name = video.filename || `video_${Date.now()}.mp4`;
+      const type = video.mime || 'video/mp4';
+
+      dispatch(
+        addLocalVideo({
+          id: `${Date.now()}`,
+          uri: video.path,
+          original_filename: name,
+          mime_type: type,
+          file_size: video.size,
+          type: 'video',
+        }),
+      );
+    } catch (error: any) {}
+  }, [dispatch]);
+
+  const ACCEPTED_MIME_TYPES = [
+    'image/png',
+    'image/jpeg',
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/zip',
+    'text/plain',
+  ];
+
+  const ACCEPTED_EXTENSIONS = [
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.pdf',
+    '.docx',
+    '.xlsx',
+    '.zip',
+    '.txt',
+  ];
+
+  const isAcceptedFile = (mimeType: string, fileName: string): boolean => {
+    const lowerMime = mimeType?.toLowerCase() || '';
+    const lowerName = fileName?.toLowerCase() || '';
+    const mimeMatch = ACCEPTED_MIME_TYPES.includes(lowerMime);
+    const extMatch = ACCEPTED_EXTENSIONS.some(ext => lowerName.endsWith(ext));
+    return mimeMatch || extMatch;
+  };
 
   const handleChooseFile = useCallback(async () => {
     setMenuVisible(false);
-    const res = await pick({
-      type: [types.allFiles],
-      allowMultiSelection: false,
-    });
-    if (!res.length) return;
-    const doc = res[0];
-    const name = doc.name || `document_${Date.now()}`;
-    const type = doc.type || 'application/octet-stream';
+    try {
+      const res = await pick({
+        type: [
+          types.images,
+          types.pdf,
+          types.docx,
+          types.xlsx,
+          types.zip,
+          types.plainText,
+        ],
+        allowMultiSelection: false,
+      });
+      if (!res.length) return;
+      const doc = res[0];
 
-    const tempId = addLocalAttachment({
-      uri: doc.uri,
-      name,
-      type,
-      size: doc.size ?? undefined,
-    });
-    await uploadFile({
-      uri: doc.uri,
-      name,
-      type,
-      size: doc.size ?? undefined,
-      tempId,
-    });
+      if (!isAcceptedFile(doc.type || '', doc.name || '')) {
+        Alert.alert(
+          'Invalid File Type',
+          'Only PNG, JPG/JPEG, PDF, DOCX, XLSX, ZIP, and TXT files are accepted.',
+        );
+        return;
+      }
+
+      const name = doc.name || `document_${Date.now()}`;
+      const type = doc.type || 'application/octet-stream';
+
+      const tempId = addLocalAttachment({
+        uri: doc.uri,
+        name,
+        type,
+        size: doc.size ?? undefined,
+      });
+      await uploadFile({
+        uri: doc.uri,
+        name,
+        type,
+        size: doc.size ?? undefined,
+        tempId,
+      });
+    } catch (error: any) {}
   }, [uploadFile, addLocalAttachment]);
 
   const handleDownload = useCallback(async (attachment: Attachment) => {
@@ -319,7 +435,7 @@ export const IssueAttachments: React.FC<Props> = ({
         await dispatch(
           deleteTaskAttachment({ projectId, taskId, attachmentId: targetId }),
         );
-        dispatch(fetchTaskAttachments({ projectId, taskId }));
+        dispatch(fetchTaskAttachments({ projectId, taskId, isInitial: false }));
       } else if (userStoryId && projectId) {
         await dispatch(
           deleteUserStoryAttachment({
@@ -328,7 +444,13 @@ export const IssueAttachments: React.FC<Props> = ({
             attachmentId: targetId,
           }),
         );
-        dispatch(fetchUserStoryAttachments({ projectId, userStoryId }));
+        dispatch(
+          fetchUserStoryAttachments({
+            projectId,
+            userStoryId,
+            isInitial: false,
+          }),
+        );
       }
     } finally {
       setDeletingId(null);
@@ -344,23 +466,46 @@ export const IssueAttachments: React.FC<Props> = ({
   ]);
 
   const isLocalAttachment = (
-    item: Attachment | LocalAttachment,
+    item: Attachment | LocalAttachment | VideoAttachment,
   ): item is LocalAttachment => 'tempId' in item;
 
+  const isVideoAttachment = (
+    item: Attachment | LocalAttachment | VideoAttachment,
+  ): item is VideoAttachment => 'uri' in item;
+
   const isAttachment = (
-    item: Attachment | LocalAttachment,
-  ): item is Attachment => 'id' in item && !('tempId' in item);
+    item: Attachment | LocalAttachment | VideoAttachment,
+  ): item is Attachment =>
+    'id' in item && !('tempId' in item) && !('uri' in item);
 
   const getPreviewUrl = (
-    item: Attachment | LocalAttachment,
-  ): string | undefined =>
-    isLocalAttachment(item) ? item.localUri || item.url : item.url;
+    item: Attachment | LocalAttachment | VideoAttachment,
+  ): string | undefined => {
+    let rawUri: string | undefined;
+    if (isVideoAttachment(item)) rawUri = item.uri;
+    else if (isLocalAttachment(item)) rawUri = item.localUri || item.url;
+    else rawUri = item.url;
+
+    if (!rawUri) return undefined;
+
+    // Ensure Android local file paths contain the proper file protocol scheme
+    if (
+      Platform.OS === 'android' &&
+      !rawUri.startsWith('http://') &&
+      !rawUri.startsWith('https://') &&
+      !rawUri.startsWith('file://') &&
+      !rawUri.startsWith('content://')
+    ) {
+      return `file://${rawUri}`;
+    }
+
+    return rawUri;
+  };
 
   const serverAttachments = isTask
     ? taskCommentAttachments
     : userStoryAttachments;
 
-  // Only keep local attachments that failed (uploading ones are hidden completely)
   const activeLocalAttachments = localAttachments.filter(
     l => l.status === 'failed',
   );
@@ -369,14 +514,20 @@ export const IssueAttachments: React.FC<Props> = ({
 
   const mergedAttachments = [
     ...activeLocalAttachments,
+    ...localVideos,
     ...serverAttachments,
   ].reverse();
 
   const showEmptyState =
     !loading && mergedAttachments.length === 0 && !isAnyUploading;
 
-  const renderItem = ({ item }: { item: Attachment | LocalAttachment }) => {
+  const renderItem = ({
+    item,
+  }: {
+    item: Attachment | LocalAttachment | VideoAttachment;
+  }) => {
     const isLocal = isLocalAttachment(item);
+    const isVideo = isVideoAttachment(item);
     const fileLabel = getFileTypeLabel(item.mime_type);
     const fileSize = formatFileSize(item.file_size);
     const uploadDate = formatDate(item.uploaded_at);
@@ -441,7 +592,7 @@ export const IssueAttachments: React.FC<Props> = ({
                 {item.error || 'Upload failed'}
               </AppText>
             )}
-            {item.uploaded_by_name && !isLocal && (
+            {item.uploaded_by_name && !isLocal && !isVideo && (
               <AppText variant='caption' color={colors.textSecondary}>
                 by {item.uploaded_by_name}
               </AppText>
@@ -450,31 +601,38 @@ export const IssueAttachments: React.FC<Props> = ({
         </TouchableOpacity>
 
         <View className='flex-row items-center' style={{ gap: 8 }}>
+          {!isVideo && (
+            <TouchableOpacity
+              onPress={() => {
+                const downloadTarget = isAttachment(item)
+                  ? item
+                  : isLocal && item.serverId
+                    ? { ...item, id: item.serverId }
+                    : null;
+                if (downloadTarget)
+                  handleDownload(downloadTarget as Attachment);
+              }}
+              activeOpacity={0.7}
+              disabled={isDownloadingThis}
+              hitSlop={8}
+            >
+              {isDownloadingThis ? (
+                <ActivityIndicator size='small' color={colors.primary} />
+              ) : (
+                <Ionicons
+                  name='download-outline'
+                  size={20}
+                  color={colors.primary}
+                />
+              )}
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => {
-              const downloadTarget = isAttachment(item)
-                ? item
-                : isLocal && item.serverId
-                  ? { ...item, id: item.serverId }
-                  : null;
-              if (downloadTarget) handleDownload(downloadTarget as Attachment);
-            }}
-            activeOpacity={0.7}
-            disabled={isDownloadingThis}
-            hitSlop={8}
-          >
-            {isDownloadingThis ? (
-              <ActivityIndicator size='small' color={colors.primary} />
-            ) : (
-              <Ionicons
-                name='download-outline'
-                size={20}
-                color={colors.primary}
-              />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
+              if (isVideo) {
+                handleRemoveLocalVideo(item.id);
+                return;
+              }
               const targetAttachment = isAttachment(item)
                 ? item
                 : isLocal && item.serverId
@@ -521,24 +679,20 @@ export const IssueAttachments: React.FC<Props> = ({
           Attachments
         </AppText>
         <TouchableOpacity
-          onPress={() => !isAnyUploading && setMenuVisible(true)}
+          onPress={() => !isAnyUploading && !refreshing && setMenuVisible(true)}
           activeOpacity={0.7}
-          disabled={isAnyUploading}
+          disabled={isAnyUploading || refreshing}
           hitSlop={8}
         >
           {isAnyUploading ? (
             <ActivityIndicator size='small' color={colors.primary} />
           ) : (
-            <MaterialDesignIcons
-              name='upload-outline'
-              size={24}
-              color={colors.primary}
-            />
+            <Ionicons name='add-outline' size={24} color={colors.primary} />
           )}
         </TouchableOpacity>
       </View>
 
-      {loading && localAttachments.length === 0 ? (
+      {loading ? (
         <AttachmentsSkeleton />
       ) : showEmptyState ? (
         <View className='w-full items-center justify-center py-6'>
@@ -556,8 +710,7 @@ export const IssueAttachments: React.FC<Props> = ({
           </AppText>
         </View>
       ) : (
-        /* Fixed height container wrapping the FlatList */
-        <View style={{ height: 300 }}>
+        <View style={{ maxHeight: moderateScale(235) }}>
           <FlatList
             data={mergedAttachments}
             keyExtractor={item =>
@@ -577,9 +730,11 @@ export const IssueAttachments: React.FC<Props> = ({
         onClose={() => setMenuVisible(false)}
         onSelectGallery={handleChoosePhotoOrVideo}
         onSelectCamera={handleTakePhoto}
+        onSelectRecordVideo={handleRecordVideo}
         onSelectFile={handleChooseFile}
       />
 
+      {/* Preview Modal */}
       {previewAttachment && (
         <Modal
           visible
@@ -589,18 +744,31 @@ export const IssueAttachments: React.FC<Props> = ({
         >
           <View
             className='flex-1 items-center justify-center'
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)' }}
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.92)' }}
           >
             <TouchableOpacity
               className='absolute right-6 top-12 z-10'
               onPress={() => setPreviewAttachment(null)}
-              hitSlop={10}
+              hitSlop={12}
             >
-              <Ionicons name='close' size={28} color='#FFFFFF' />
+              <Ionicons name='close' size={30} color='#FFFFFF' />
             </TouchableOpacity>
+
             {(() => {
               const url = getPreviewUrl(previewAttachment);
-              const isImage = previewAttachment.mime_type?.startsWith('image');
+              const mime = previewAttachment.mime_type?.toLowerCase() || '';
+              const filename =
+                previewAttachment.original_filename?.toLowerCase() || '';
+
+              const isImage =
+                mime.startsWith('image') ||
+                /\.(jpg|jpeg|png|gif|webp|bmp|heic)$/i.test(filename);
+
+              const isVideo =
+                mime.startsWith('video') ||
+                (previewAttachment as any).type === 'video' ||
+                /\.(mp4|mov|m4v|3gp|mkv|webm|avi)$/i.test(filename);
+
               if (isImage && url) {
                 return (
                   <Image
@@ -610,6 +778,80 @@ export const IssueAttachments: React.FC<Props> = ({
                   />
                 );
               }
+
+              if (isVideo && url) {
+                const videoHtml = `
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                    <style>
+                      * { margin: 0; padding: 0; box-sizing: border-box; }
+                      html, body {
+                        width: 100%;
+                        height: 100%;
+                        background-color: #000000;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        overflow: hidden;
+                      }
+                      video {
+                        width: 100%;
+                        height: 100%;
+                        max-width: 100%;
+                        max-height: 100%;
+                        object-fit: contain;
+                        background-color: #000000;
+                      }
+                    </style>
+                  </head>
+                  <body>
+                    <video 
+                      src="${url}" 
+                      controls 
+                      autoplay 
+                      playsinline 
+                      webkit-playsinline
+                      controlsList="nodownload"
+                    >
+                      Your browser does not support video playback.
+                    </video>
+                  </body>
+                  </html>
+                `;
+
+                return (
+                  <View
+                    style={{
+                      width: '90%',
+                      height: '70%',
+                      backgroundColor: '#000000',
+                      borderRadius: 12,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <WebView
+                      source={{ html: videoHtml }}
+                      originWhitelist={['*']}
+                      allowFileAccess={true}
+                      allowFileAccessFromFileURLs={true}
+                      allowUniversalAccessFromFileURLs={true}
+                      allowsFullscreenVideo={true}
+                      allowsInlineMediaPlayback={true}
+                      mediaPlaybackRequiresUserAction={false}
+                      javaScriptEnabled={true}
+                      domStorageEnabled={true}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: '#000000',
+                      }}
+                    />
+                  </View>
+                );
+              }
+
               return (
                 <View className='items-center' style={{ gap: 16 }}>
                   <Ionicons
