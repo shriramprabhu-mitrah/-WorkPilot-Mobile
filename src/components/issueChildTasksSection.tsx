@@ -46,6 +46,7 @@ export const IssueChildTasksSection: React.FC<Props> = ({
     const rawPriority = (item.priority || '').toLowerCase();
     const taskPriorityColor = getPriorityThemeColor(rawPriority, colors);
     const avatarLetter = (item.assignee_name || 'U').charAt(0).toUpperCase();
+    const isFinal = Boolean(item.is_final);
 
     return (
       <TouchableOpacity
@@ -59,14 +60,15 @@ export const IssueChildTasksSection: React.FC<Props> = ({
             fromUserStory: true,
           })
         }
-        className='flex-row items-center justify-evenly border-b py-3'
+        className={`flex-row items-center justify-evenly border-b py-3 ${isFinal ? 'opacity-60' : ''}`}
         style={{ borderColor: colors.border }}
       >
         <View style={{ flex: 1.5 }}>
           <AppText
             variant='body'
-            color={colors.text}
-            className='font-semibold'
+            color={isFinal ? colors.textSecondary : colors.text}
+            className={`font-semibold ${isFinal ? 'line-through' : ''}`}
+            style={isFinal ? { textDecorationLine: 'line-through' } : undefined}
             numberOfLines={1}
           >
             {item.title || 'Untitled Task'}
@@ -74,6 +76,8 @@ export const IssueChildTasksSection: React.FC<Props> = ({
           <AppText
             variant='caption'
             color={colors.textSecondary}
+            className={isFinal ? 'line-through' : ''}
+            style={isFinal ? { textDecorationLine: 'line-through' } : undefined}
             numberOfLines={1}
           >
             {item.key || item.formatted_serial_number || 'N/A'}

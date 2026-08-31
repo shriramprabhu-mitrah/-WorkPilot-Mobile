@@ -379,22 +379,21 @@ export const CommonHeader: React.FC<HeaderProps> = ({
         );
 
       case 'search':
-        return (
-          <View className='flex-1'>
-            <AppInput
-              autoFocus={true}
-              placeholder={strings.home?.searchPlaceholder || 'Search'}
-              leftIcon={
-                <Ionicons
-                  name='search-outline'
-                  size={moderateScale(18)}
-                  color={colors.textSecondary}
-                />
-              }
-            />
-          </View>
-        );
-
+      // return (
+      //   <View className='flex-1'>
+      //     <AppInput
+      //       autoFocus={true}
+      //       placeholder={strings.home?.searchPlaceholder || 'Search'}
+      //       leftIcon={
+      //         <Ionicons
+      //           name='search-outline'
+      //           size={moderateScale(18)}
+      //           color={colors.textSecondary}
+      //         />
+      //       }
+      //     />
+      //   </View>
+      // );
       case 'createProject':
       default:
         return null;

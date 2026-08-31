@@ -1,10 +1,11 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   TouchableOpacity,
   ScrollView,
   Image,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -12,28 +13,32 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import CustomBottomSheet from '../components/common/CustomBottomDialog';
+import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
 import { CommonHeader } from '../components/common/CommonHeader';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import {
-  QuickLinks,
-  getQuickLinks,
-  getStats,
-  getTeams,
-} from '../data/profileScreenData';
+import { QuickLinks, getQuickLinks, getStats } from '../data/profileScreenData';
 import { useAppDispatch, useAppSelector } from '../store';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
+import { getFavouritesThunk } from '../store/project_store/action/projectBoard.thunk';
 import { showSuccessToast } from '../utils/utils';
 import { Radius } from '../constants/Radius';
 import { getRoleLabel } from '../constants/role';
-import { Activity } from '../types/home.type';
+import { Activity, UserInsights } from '../types/home.type';
+import { FavoriteItem } from '../types/projectBoard.type';
 import { formatAction, formatDate, getInitials } from '../utils/utils';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import RecentActivitySkeleton from '../components/skeleton/RecentActivitySkeleton';
-import { getAudit } from '../store/home_store/action/home.thunk';
+import {
+  getAudit,
+  getUserInsightsData,
+} from '../store/home_store/action/home.thunk';
 import { resetAuditData } from '../store/home_store/reducer/home.reducer';
+import { getAllProjectInfo } from '../store/project_store/action/project_thunk';
+import { resetProjects } from '../store/project_store/reducer/project_reducer';
+import { FilterChipSkeleton } from '../components/skeleton/filterChipSkeleton';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -44,6 +49,7 @@ const ProfileScreen = () => {
   const dispatch = useAppDispatch();
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [isActivityFullScreen, setIsActivityFullScreen] = useState(false);
+  const [isProjectSheetVisible, setIsProjectSheetVisible] = useState(false);
   const profileIcons = strings.profile?.icons;
 
   const { user } = useAppSelector(state => state.auth);
@@ -52,7 +58,20 @@ const ProfileScreen = () => {
     user: homeUser,
     loading,
     meta,
+    insights,
+    insightsLoading,
   } = useAppSelector(state => state.home);
+
+  const { projects, loading: projectsLoading } = useAppSelector(
+    state => state.projects,
+  );
+
+  const { favorites, favoritesLoading, favoritesMeta } = useAppSelector(
+    state => state.projectBoard,
+  );
+
+  const [favoritesExpanded, setFavoritesExpanded] = useState(false);
+  const favoritesRef = useRef(false);
 
   // Pagination refs
   const currentPageRef = useRef(1);
@@ -60,8 +79,7 @@ const ProfileScreen = () => {
   const lastRequestedPageRef = useRef<number | null>(null);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
-  const stats = getStats(colors, strings);
-  const teams = getTeams(colors);
+  const stats = getStats(colors, insights as UserInsights);
   const quickLinks = getQuickLinks(colors, strings);
 
   const handleLogoutConfirm = () => {
@@ -75,6 +93,7 @@ const ProfileScreen = () => {
       lastRequestedPageRef.current = null;
       fetchingRef.current = false;
       setIsFetchingMore(false);
+      dispatch(getUserInsightsData());
       dispatch(resetAuditData());
       dispatch(
         getAudit({
@@ -85,6 +104,24 @@ const ProfileScreen = () => {
       return () => {
         fetchingRef.current = false;
         setIsFetchingMore(false);
+      };
+    }, [dispatch]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(resetProjects());
+      dispatch(getAllProjectInfo({ page: 1 }));
+      return () => {};
+    }, [dispatch]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      favoritesRef.current = false;
+      dispatch(getFavouritesThunk({ params: { page: 1 } }));
+      return () => {
+        favoritesRef.current = false;
       };
     }, [dispatch]),
   );
@@ -147,6 +184,53 @@ const ProfileScreen = () => {
       });
   }, [activities.length, loading, meta, dispatch]);
 
+  const handleFavoritesScroll = useCallback(
+    (event: any) => {
+      if (!event?.nativeEvent) {
+        if (
+          !favoritesRef.current &&
+          !favoritesLoading &&
+          favoritesMeta?.has_next
+        ) {
+          favoritesRef.current = true;
+          dispatch(
+            getFavouritesThunk({
+              params: { page: (favoritesMeta?.page || 1) + 1 },
+            }),
+          );
+        }
+        return;
+      }
+
+      const { contentOffset, layoutMeasurement, contentSize } =
+        event.nativeEvent;
+      const isNearEnd =
+        layoutMeasurement.height + contentOffset.y >=
+        contentSize.height - moderateScale(50);
+
+      if (
+        isNearEnd &&
+        !favoritesRef.current &&
+        !favoritesLoading &&
+        favoritesMeta?.has_next
+      ) {
+        favoritesRef.current = true;
+        dispatch(
+          getFavouritesThunk({
+            params: { page: (favoritesMeta?.page || 1) + 1 },
+          }),
+        );
+      }
+    },
+    [dispatch, favoritesLoading, favoritesMeta, moderateScale],
+  );
+
+  useEffect(() => {
+    if (!favoritesLoading) {
+      favoritesRef.current = false;
+    }
+  }, [favoritesLoading]);
+
   const handleActivityNavigation = (item: Activity) => {
     const resourceType = item?.resource_type?.toLowerCase();
 
@@ -161,11 +245,13 @@ const ProfileScreen = () => {
       navigation.navigate('issue', {
         projectId: item?.project_id,
         userStoryId: item?.resource_id,
+        userStroyName: item?.title,
       });
     } else if (resourceType === 'task') {
       navigation.navigate('issue', {
         projectId: item?.project_id,
         taskId: item?.resource_id,
+        taskName: item?.title,
       });
     }
   };
@@ -481,29 +567,60 @@ const ProfileScreen = () => {
             paddingHorizontal: layout.paddingHorizontal,
           }}
         >
-          <View
-            className='flex-row justify-between rounded-2xl border py-4'
-            style={{
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-            }}
-          >
-            {stats.map(item => (
-              <View key={item.label} className='flex-1 items-center'>
-                <AppText variant='h2' style={{ color: item.color }}>
-                  {item.value}
-                </AppText>
+          {insightsLoading ? (
+            <View
+              className='flex-row justify-between rounded-2xl border py-4'
+              style={{
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              }}
+            >
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <View key={idx} className='flex-1 items-center'>
+                  <View
+                    className='rounded'
+                    style={{
+                      width: moderateScale(40),
+                      height: moderateScale(24),
+                      backgroundColor: colors.border,
+                    }}
+                  />
+                  <View
+                    className='mt-2 rounded'
+                    style={{
+                      width: moderateScale(50),
+                      height: moderateScale(10),
+                      backgroundColor: colors.border,
+                    }}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View
+              className='flex-row justify-between rounded-2xl border py-4'
+              style={{
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              }}
+            >
+              {stats.map(item => (
+                <View key={item.label} className='flex-1 items-center'>
+                  <AppText variant='title' style={{ color: item.color }}>
+                    {item.value}
+                  </AppText>
 
-                <AppText
-                  variant='caption'
-                  color={colors.textSecondary}
-                  className='mt-1 text-center'
-                >
-                  {item.label}
-                </AppText>
-              </View>
-            ))}
-          </View>
+                  <AppText
+                    variant='caption'
+                    color={colors.textSecondary}
+                    className='mt-1 text-center'
+                  >
+                    {item.label}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
         <View
           style={{
@@ -511,41 +628,89 @@ const ProfileScreen = () => {
             paddingHorizontal: layout.paddingHorizontal,
           }}
         >
-          <AppText
-            variant='bodyLarge'
-            color={colors.text}
-            style={{ marginBottom: layout.elementGap }}
-          >
-            {strings.profile?.teamsTitle || 'Teams & Projects'}
-          </AppText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {teams.map(team => (
-              <View
-                key={team.name}
-                className='mr-2 flex-row items-center rounded-xl border px-3 py-2'
-                style={{
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                }}
+          <View className='flex-row items-center justify-between'>
+            <AppText
+              variant='bodyLarge'
+              color={colors.text}
+              style={{ marginBottom: layout.elementGap }}
+            >
+              {strings.profile?.teamsTitle || 'Projects'}
+            </AppText>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setIsProjectSheetVisible(true)}
+            >
+              <AppText
+                variant='body'
+                color={colors.primary}
+                className='font-medium'
               >
-                <View
-                  className='mr-2 rounded-md'
+                {strings.profile?.viewAll || 'View all'}
+              </AppText>
+            </TouchableOpacity>
+          </View>
+          {projectsLoading ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: layout.elementGap / 2 }}
+            >
+              {Array.from({ length: 2 }).map((_, idx) => (
+                <FilterChipSkeleton key={`chip-skel-${idx}`} />
+              ))}
+            </ScrollView>
+          ) : projects.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: layout.elementGap / 2 }}
+            >
+              {projects.slice(0, 2).map(projectItem => (
+                <TouchableOpacity
+                  key={projectItem.id}
+                  activeOpacity={0.8}
+                  className='flex-row items-center rounded-xl border px-3 py-2'
                   style={{
-                    width: moderateScale(18),
-                    height: moderateScale(18),
-                    backgroundColor: team.color,
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    maxWidth: moderateScale(140),
                   }}
-                />
-                <AppText
-                  variant='body'
-                  color={colors.text}
-                  className='font-medium'
+                  onPress={() =>
+                    navigation.navigate('projectDetails', {
+                      projectId: projectItem.id,
+                      projectName: projectItem.name,
+                    })
+                  }
                 >
-                  {team.name}
-                </AppText>
-              </View>
-            ))}
-          </ScrollView>
+                  <View
+                    className='mr-2 items-center justify-center rounded-md'
+                    style={{
+                      width: moderateScale(18),
+                      height: moderateScale(18),
+                      backgroundColor: colors.surface,
+                    }}
+                  >
+                    <WorkItemIcon type='project' size={moderateScale(12)} />
+                  </View>
+                  <AppText
+                    variant='body'
+                    color={colors.text}
+                    className='font-medium'
+                    numberOfLines={1}
+                    style={{ maxWidth: moderateScale(90) }}
+                  >
+                    {projectItem.name}
+                  </AppText>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <View className='p-4'>
+              <AppText variant='caption' color={colors.textSecondary}>
+                No projects found
+              </AppText>
+            </View>
+          )}
         </View>
 
         {/* Recent Activity Section */}
@@ -652,44 +817,232 @@ const ProfileScreen = () => {
               borderColor: colors.border,
             }}
           >
-            {quickLinks.map((item: QuickLinks, index: number) => (
-              <TouchableOpacity
-                key={item.label}
-                activeOpacity={0.7}
-                className={`flex-row items-center px-4 py-4 ${
-                  index !== quickLinks.length - 1 ? 'border-b' : ''
-                }`}
-                style={{
-                  borderColor: colors.itemDivider,
-                }}
-                onPress={() => {
-                  if (item.navigateUrl) {
-                    navigation.navigate(item.navigateUrl as any);
-                  }
-                }}
-              >
-                <Ionicons
-                  name={item.iconName as IoniconName}
-                  size={20}
-                  color={item.color}
-                />
-                <AppText
-                  variant='body'
-                  color={colors.text}
-                  className='flex-1 pl-4 font-medium'
+            {quickLinks.map((item: QuickLinks, index: number) => {
+              const isFavoritesItem = index === 0 && item.isFavorites;
+
+              if (isFavoritesItem) {
+                return (
+                  <View key={item.label}>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      className='flex-row items-center px-4 py-4'
+                      style={{
+                        borderBottomWidth: favoritesExpanded ? 1 : 0,
+                        borderColor: colors.itemDivider,
+                      }}
+                      onPress={() => {
+                        setFavoritesExpanded(prev => !prev);
+                        if (!favoritesExpanded && favorites.length === 0) {
+                          dispatch(getFavouritesThunk({ params: { page: 1 } }));
+                        }
+                      }}
+                    >
+                      <Ionicons
+                        name={item.iconName as IoniconName}
+                        size={20}
+                        color={item.color}
+                      />
+                      <AppText
+                        variant='body'
+                        color={colors.text}
+                        className='flex-1 pl-4 font-medium'
+                      >
+                        {item.label}
+                      </AppText>
+                      <Ionicons
+                        name={
+                          favoritesExpanded ? 'chevron-down' : 'chevron-forward'
+                        }
+                        size={18}
+                        color={colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+
+                    {favoritesExpanded && (
+                      <View
+                        style={{
+                          maxHeight: moderateScale(220),
+                          borderBottomWidth: 1,
+                          borderColor: colors.itemDivider,
+                        }}
+                      >
+                        {favoritesLoading && favorites.length === 0 ? (
+                          <View className='p-4'>
+                            {Array.from({ length: 3 }).map((_, idx) => (
+                              <View
+                                key={idx}
+                                className='mb-2 rounded-lg border p-3'
+                                style={{
+                                  backgroundColor: colors.surface,
+                                  borderColor: colors.border,
+                                }}
+                              >
+                                <View
+                                  className='rounded'
+                                  style={{
+                                    width: moderateScale(120),
+                                    height: moderateScale(12),
+                                    backgroundColor: colors.border,
+                                  }}
+                                />
+                                <View
+                                  className='mt-2 rounded'
+                                  style={{
+                                    width: moderateScale(80),
+                                    height: moderateScale(10),
+                                    backgroundColor: colors.border,
+                                  }}
+                                />
+                              </View>
+                            ))}
+                          </View>
+                        ) : favorites.length > 0 ? (
+                          <FlatList
+                            data={favorites}
+                            keyExtractor={(favItem: FavoriteItem) => favItem.id}
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps='handled'
+                            onEndReached={handleFavoritesScroll}
+                            onEndReachedThreshold={0.4}
+                            ListFooterComponent={
+                              favoritesLoading ? (
+                                <View className='items-center justify-center py-2'>
+                                  <ActivityIndicator
+                                    size='small'
+                                    color={colors.primary}
+                                  />
+                                </View>
+                              ) : null
+                            }
+                            renderItem={({ item: favItem }) => {
+                              const title =
+                                favItem.item_type === 'task'
+                                  ? favItem.task_name || favItem.task_title
+                                  : favItem.user_story_name ||
+                                    favItem.user_story_title;
+                              const subtitle = favItem.project_name;
+
+                              return (
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  className='flex-row items-center px-4 py-3'
+                                  style={{
+                                    borderBottomWidth: 0.5,
+                                    borderColor: colors.itemDivider,
+                                  }}
+                                  onPress={() => {
+                                    if (favItem.item_type === 'task') {
+                                      navigation.navigate('issue', {
+                                        projectId: favItem.project_id,
+                                        taskId: favItem.task_id,
+                                        taskName: title,
+                                      });
+                                    } else {
+                                      navigation.navigate('issue', {
+                                        projectId: favItem.project_id,
+                                        userStoryId: favItem.user_story_id,
+                                        storyName: title,
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <View
+                                    className='mr-3 items-center justify-center rounded-md'
+                                    style={{
+                                      width: moderateScale(18),
+                                      height: moderateScale(18),
+                                      backgroundColor: colors.surface,
+                                    }}
+                                  >
+                                    <WorkItemIcon
+                                      type={favItem.item_type}
+                                      size={moderateScale(15)}
+                                    />
+                                  </View>
+                                  <View className='flex-1'>
+                                    <AppText
+                                      variant='body'
+                                      color={colors.text}
+                                      className='font-medium'
+                                      numberOfLines={1}
+                                    >
+                                      {title}
+                                    </AppText>
+                                    {subtitle ? (
+                                      <AppText
+                                        variant='caption'
+                                        color={colors.textSecondary}
+                                        numberOfLines={1}
+                                        style={{ fontSize: moderateScale(11) }}
+                                        ellipsizeMode='clip'
+                                      >
+                                        {subtitle}
+                                      </AppText>
+                                    ) : null}
+                                  </View>
+                                  <Ionicons
+                                    name='chevron-forward'
+                                    size={20}
+                                    color={colors.textSecondary}
+                                  />
+                                </TouchableOpacity>
+                              );
+                            }}
+                          />
+                        ) : (
+                          <View className='items-center justify-center py-6'>
+                            <AppText
+                              variant='caption'
+                              color={colors.textSecondary}
+                            >
+                              No favorites found
+                            </AppText>
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              }
+
+              return (
+                <TouchableOpacity
+                  key={item.label}
+                  activeOpacity={0.7}
+                  className='flex-row items-center px-4 py-4'
+                  style={{
+                    borderBottomWidth: index !== quickLinks.length - 1 ? 1 : 0,
+                    borderColor: colors.itemDivider,
+                  }}
+                  onPress={() => {
+                    if (item.navigateUrl) {
+                      navigation.navigate(item.navigateUrl as any);
+                    }
+                  }}
                 >
-                  {item.label}
-                </AppText>
-                <Ionicons
-                  name={
-                    (profileIcons?.chevronRight ||
-                      'chevron-forward') as IoniconName
-                  }
-                  size={18}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            ))}
+                  <Ionicons
+                    name={item.iconName as IoniconName}
+                    size={20}
+                    color={item.color}
+                  />
+                  <AppText
+                    variant='body'
+                    color={colors.text}
+                    className='flex-1 pl-4 font-medium'
+                  >
+                    {item.label}
+                  </AppText>
+                  <Ionicons
+                    name={
+                      (profileIcons?.chevronRight ||
+                        'chevron-forward') as IoniconName
+                    }
+                    size={18}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
         {/* Logout Button */}
@@ -731,6 +1084,19 @@ const ProfileScreen = () => {
         showCancel={true}
         showCloseIcon={true}
         confirmTextColor={colors.white}
+      />
+      <ProjectListBottomSheet
+        visible={isProjectSheetVisible}
+        onDismiss={() => setIsProjectSheetVisible(false)}
+        title='Projects'
+        mode='projects'
+        onSelectProject={(projectId, projectName) => {
+          setIsProjectSheetVisible(false);
+          navigation.navigate('projectDetails', {
+            projectId,
+            projectName: projectName || '',
+          });
+        }}
       />
     </Screen>
   );

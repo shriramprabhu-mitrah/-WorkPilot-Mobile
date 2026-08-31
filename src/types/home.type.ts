@@ -105,3 +105,41 @@ export interface ActivityItem {
   user: { name: string; avatarInitial: string };
   formattedDate: string;
 }
+export interface SearchItem {
+  id: string;
+  type: string;
+  title: string;
+  key?: string;
+  description?: string;
+  priority?: string;
+  status?: string;
+  project_id?: string;
+  project_name?: string;
+}
+
+export interface SearchResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: {
+    tasks: SearchItem[];
+    user_stories: SearchItem[];
+    projects: SearchItem[];
+    members: SearchItem[];
+    sprints: SearchItem[];
+  };
+}
+
+export interface UserInsights {
+  total_assigned: number;
+  in_progress: number;
+  completed: number;
+  completion_percentage: number;
+}
+
+export interface UserInsightsResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: UserInsights;
+}

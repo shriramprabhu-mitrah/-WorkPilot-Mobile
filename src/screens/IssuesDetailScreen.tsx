@@ -218,7 +218,7 @@ const IssueDetailScreen = () => {
     if (!projectId) {
       return;
     }
-    if (taskId && statusId) {
+    if (projectId && taskId && statusId) {
       dispatch(
         updateTaskThunk({
           projectId,
@@ -228,7 +228,7 @@ const IssueDetailScreen = () => {
           },
         }),
       );
-    } else if (userStoryId && statusId) {
+    } else if (projectId && userStoryId && statusId) {
       dispatch(
         updateUserStory({
           projectId,
@@ -616,7 +616,9 @@ const IssueDetailScreen = () => {
   };
 
   const handleRetryComment = async (commentId: string) => {
-    const failedComment = apiComments.find((c: any) => c.id === commentId) as any;
+    const failedComment = apiComments.find(
+      (c: any) => c.id === commentId,
+    ) as any;
     if (!failedComment) {
       return;
     }

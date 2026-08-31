@@ -30,6 +30,7 @@ export type RootStackParamList = {
         fromUserStory?: boolean;
         storyName?: string;
         taskName?: string;
+        userStroyName?: string;
       }
     | undefined;
   HomeTabs: NavigatorScreenParams<HomeTabParamList> | undefined;
