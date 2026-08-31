@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
@@ -11,19 +11,20 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
-  getOrganizationDetail,
-  getUserProfileInfo,
-} from '../store/auth_store/action/auth.thunks';
-import { setActiveTab } from '../store/home_store/reducer/home.reducer';
-import ListSkeleton from '../components/skeleton/ListSkeleton';
-import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
-import { WorkItemIcon } from '../components/common/getWorkItemIcon';
-import { getAudit } from '../store/home_store/action/home.thunk';
-import { getFavouritesThunk } from '../store/project_store/action/projectBoard.thunk';
+  syncUserProfile,
+  syncOrganizationDetail,
+} from '../store/auth_store/reducer/auth.reducer';
+import { setActiveTab, setUser } from '../store/home_store/reducer/home.reducer';
+import {
+  useGetAuditQuery,
+  useGetRecentProjectsQuery,
+  useGetUserProfileQuery,
+  useGetOrganizationDetailQuery,
+  useGetFavouritesQuery,
+} from '../store/api/homeApi';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
 import {
   getAllProjectInfo,
-  getRecentProjects,
 } from '../store/project_store/action/project_thunk';
 import { getProjectName } from '../store/project_store/reducer/project_reducer';
 import { Activity } from '../types/home.type';
@@ -31,6 +32,9 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { formatAction } from '../utils/utils';
 import RecentProjectsSkeleton from '../components/skeleton/RecentProjectsSkeleton';
+import { WorkItemIcon } from '../components/common/getWorkItemIcon';
+import ListSkeleton from '../components/skeleton/ListSkeleton';
+import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 
 export const Home: React.FC = () => {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
@@ -39,36 +43,108 @@ export const Home: React.FC = () => {
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
-  const { project, recentProjects, include_sprints } = useAppSelector(
+  const { project, include_sprints } = useAppSelector(
     state => state.projects,
   );
-  const { activities, activeTab, loading, meta } = useAppSelector(
-    state => state.home,
-  );
-  const {
-    favorites: boardFavorites,
-    favoritesLoading,
-    favoritesMeta,
-    favoritesTotalUserStories,
-    favoritesTotalTasks,
-  } = useAppSelector(state => state.projectBoard);
+  const { activeTab } = useAppSelector(state => state.home);
 
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
-  const [isRecentLoading, setIsRecentLoading] = useState(false);
   const currentPageRef = useRef(1);
   const fetchingRef = useRef(false);
   const lastRequestedPageRef = useRef<number | null>(null);
   const currentTabRef = useRef<'viewed' | 'favorites' | 'activity'>(activeTab);
   currentTabRef.current = activeTab;
 
-  const recentProjectsRef = useRef(recentProjects);
-  recentProjectsRef.current = recentProjects;
-
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+  // ── RTK Query: Recent projects ──
+  const {
+    data: recentProjects,
+    isLoading: isRecentLoading,
+    refetch: refetchRecentProjects,
+  } = useGetRecentProjectsQuery();
+
+  // ── RTK Query: Viewed tab audit data ──
+  const [auditPage, setAuditPage] = useState(1);
+  const [refetchKey, setRefetchKey] = useState(0);
+
+  const {
+    data: auditData,
+    isLoading: auditIsLoading,
+    isFetching: auditIsFetching,
+  } = useGetAuditQuery(
+    { type: 'viewed', page: auditPage, _refetchKey: refetchKey },
+    { skip: activeTab === 'favorites' },
+  );
+
+  const activities = useMemo(
+    () => auditData?.data?.activities ?? [],
+    [auditData],
+  );
+  const loading = auditIsLoading;
+  const meta = useMemo(() => auditData?.meta ?? null, [auditData]);
+
+  // ── RTK Query: Favorites tab data ──
+  const [favoritesPage, setFavoritesPage] = useState(1);
+  const [refetchFavoritesKey, setRefetchFavoritesKey] = useState(0);
+
+  const {
+    data: favoritesData,
+    isLoading: favoritesIsLoading,
+    isFetching: favoritesIsFetching,
+  } = useGetFavouritesQuery(
+    { page: favoritesPage, _refetchKey: refetchFavoritesKey },
+    { skip: activeTab !== 'favorites' },
+  );
+
+  const boardFavorites = useMemo(
+    () => favoritesData?.data?.favorites ?? [],
+    [favoritesData],
+  );
+  const favoritesMeta = useMemo(() => favoritesData?.meta ?? null, [favoritesData]);
+  const favoritesTotalTasks = favoritesData?.data?.total_tasks ?? 0;
+  const favoritesTotalUserStories = favoritesData?.data?.total_user_stories ?? 0;
+
+  // ── RTK Query: Auth data ──
+  const {
+    data: userProfileData,
+    refetch: refetchUserProfile,
+  } = useGetUserProfileQuery();
+
+  const {
+    data: orgDetailData,
+    refetch: refetchOrganizationDetail,
+  } = useGetOrganizationDetailQuery();
+
+  // Sync auth data to Redux
+  useEffect(() => {
+    if (userProfileData?.data) {
+      dispatch(syncUserProfile(userProfileData.data));
+    }
+  }, [userProfileData?.data, dispatch]);
+
+  useEffect(() => {
+    if (orgDetailData?.data) {
+      dispatch(syncOrganizationDetail(orgDetailData.data));
+    }
+  }, [orgDetailData?.data, dispatch]);
+
+  // Sync user data from RTK Query to Redux for other screens
+  useEffect(() => {
+    if (auditData?.data?.user) {
+      dispatch(setUser(auditData.data.user));
+    }
+  }, [auditData?.data?.user, dispatch]);
+
+  // Pagination loading indicator
+  const showPaginationLoader =
+    isFetchingMore ||
+    (activeTab === 'viewed' && auditIsFetching && auditPage > 1) ||
+    (activeTab === 'favorites' && favoritesIsFetching && favoritesPage > 1);
 
   const isMainListLoading =
     (activeTab === 'favorites' &&
-      favoritesLoading &&
+      favoritesIsLoading &&
       boardFavorites.length === 0) ||
     (activeTab === 'viewed' && loading && activities.length === 0);
 
@@ -79,33 +155,17 @@ export const Home: React.FC = () => {
       fetchingRef.current = false;
       setIsFetchingMore(false);
 
-      if (
-        !recentProjectsRef.current ||
-        recentProjectsRef.current.length === 0
-      ) {
-        setIsRecentLoading(true);
-      }
-
-      dispatch(getUserProfileInfo());
-      dispatch(getOrganizationDetail());
-      dispatch(getRecentProjects())
-        .unwrap()
-        .catch((error: unknown) => {
-          console.error('Failed to fetch recent projects:', error);
-        })
-        .finally(() => {
-          setIsRecentLoading(false);
-        });
+      refetchUserProfile();
+      refetchOrganizationDetail();
+      refetchRecentProjects();
 
       if (currentTabRef.current === 'favorites') {
-        dispatch(getFavouritesThunk({ params: { page: 1 } }));
+        setFavoritesPage(1);
+        setRefetchFavoritesKey(prev => prev + 1);
       } else {
-        dispatch(
-          getAudit({
-            type: currentTabRef.current,
-            page: 1,
-          }),
-        );
+        // RTK Query: reset page and trigger refetch via key change
+        setAuditPage(1);
+        setRefetchKey(prev => prev + 1);
       }
 
       return () => {
@@ -132,14 +192,12 @@ export const Home: React.FC = () => {
     dispatch(setActiveTab(tab));
 
     if (tab === 'favorites') {
-      dispatch(getFavouritesThunk({ params: { page: 1 } }));
+      setFavoritesPage(1);
+      setRefetchFavoritesKey(prev => prev + 1);
     } else {
-      dispatch(
-        getAudit({
-          type: tab,
-          page: 1,
-        }),
-      );
+      // RTK Query: reset page and trigger refetch via key change
+      setAuditPage(1);
+      setRefetchKey(prev => prev + 1);
     }
   };
 
@@ -157,20 +215,27 @@ export const Home: React.FC = () => {
   };
 
   const handleLoadMore = useCallback(() => {
-    if (fetchingRef.current || isFetchingMore) {
-      return;
+    const isFav = activeTab === 'favorites';
+
+    // Guard against concurrent fetches
+    if (isFav) {
+      if (favoritesIsFetching) {
+        return;
+      }
+    } else {
+      if (auditIsFetching) {
+        return;
+      }
     }
 
-    const isFav = activeTab === 'favorites';
-    const currentLoading = isFav ? favoritesLoading : loading;
     const currentList = isFav ? boardFavorites : activities;
     const currentMeta = isFav ? favoritesMeta : meta;
 
-    if (currentLoading || currentList.length === 0) {
+    if (currentList.length === 0) {
       return;
     }
 
-    const currentPage = currentPageRef.current;
+    const currentPage = isFav ? favoritesPage : auditPage;
 
     const hasNextPage =
       currentMeta?.has_next !== undefined
@@ -188,35 +253,26 @@ export const Home: React.FC = () => {
       return;
     }
 
-    fetchingRef.current = true;
     lastRequestedPageRef.current = nextPage;
-    setIsFetchingMore(true);
 
-    const promise = isFav
-      ? dispatch(getFavouritesThunk({ params: { page: nextPage } }))
-      : dispatch(getAudit({ type: activeTab, page: nextPage }));
-
-    promise
-      .unwrap()
-      .then(() => {
-        currentPageRef.current = nextPage;
-      })
-      .catch((error: unknown) => {
-        console.error('Pagination error:', error);
-      })
-      .finally(() => {
-        fetchingRef.current = false;
-        setIsFetchingMore(false);
-      });
+    if (isFav) {
+      setFavoritesPage(nextPage);
+      currentPageRef.current = nextPage;
+    } else {
+      // RTK Query: update page — the hook handles the fetch and merge
+      setAuditPage(nextPage);
+      currentPageRef.current = nextPage;
+    }
   }, [
     activeTab,
     activities,
-    loading,
     meta,
+    auditPage,
+    auditIsFetching,
     boardFavorites,
-    favoritesLoading,
+    favoritesIsFetching,
+    favoritesPage,
     favoritesMeta,
-    isFetchingMore,
     dispatch,
   ]);
 
@@ -597,12 +653,12 @@ export const Home: React.FC = () => {
     { id: 'RECENT_PROJECTS_HEADER', type: 'header_recent' },
     { id: 'TABS_HEADER', type: 'header_tabs' },
     ...(activeTab === 'favorites' &&
-    favoritesLoading &&
-    boardFavorites.length === 0
+      favoritesIsLoading &&
+      boardFavorites.length === 0
       ? []
       : activeTab === 'favorites' &&
-          boardFavorites.length === 0 &&
-          !favoritesLoading
+        boardFavorites.length === 0 &&
+        !favoritesIsLoading
         ? [{ id: 'EMPTY_STATE', type: 'empty' }]
         : activeTab === 'favorites'
           ? boardFavorites
@@ -638,7 +694,7 @@ export const Home: React.FC = () => {
         variant='home'
         titleAlignment='center'
         onDrawerPress={handleOpenDrawer}
-        onRightActionPress={() => {}}
+        onRightActionPress={() => { }}
       />
 
       {isMainListLoading ? (
@@ -676,7 +732,7 @@ export const Home: React.FC = () => {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.2}
           ListFooterComponent={
-            isFetchingMore ? (
+            showPaginationLoader ? (
               <View className='py-2'>
                 <ProjectCardSkeleton />
               </View>

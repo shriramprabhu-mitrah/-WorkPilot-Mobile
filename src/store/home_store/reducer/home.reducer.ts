@@ -83,6 +83,9 @@ const homeSlice = createSlice({
         item => item.id !== action.payload,
       );
     },
+    setUser: (state, action: PayloadAction<User | null>) => {
+      state.user = action.payload;
+    },
   },
   extraReducers: builder => {
     builder
@@ -135,6 +138,7 @@ export const {
   resetAuditData,
   addQuickAccessItem,
   removeQuickAccessItem,
+  setUser,
 } = homeSlice.actions;
 
 export default homeSlice.reducer;

@@ -123,6 +123,12 @@ const authSlice = createSlice({
     handleLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
     },
+    syncUserProfile(state, action: PayloadAction<any>) {
+      state.user = action.payload;
+    },
+    syncOrganizationDetail(state, action: PayloadAction<any>) {
+      state.organization = action.payload;
+    },
   },
 
   extraReducers: builder => {
@@ -280,6 +286,8 @@ export const {
   updateTokens,
   handleLoading,
   authenticateWithToken,
+  syncUserProfile,
+  syncOrganizationDetail,
 } = authSlice.actions;
 
 export default authSlice.reducer;
