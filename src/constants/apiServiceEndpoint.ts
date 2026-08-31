@@ -8,6 +8,7 @@ export const GET_USER = `/auth/me`;
 export const EMAIL_VERIFICATION = `/auth/verify-email`;
 export const RESEND_EMAIL_VERIFICATION = `/auth/resend-verification-otp`;
 export const USER_VALIDATE = `/auth/validate`;
+export const GET_INSIGHTS = `/auth/me/insights`;
 
 // PASSWORD RESET
 export const PASSWORD_RESET_REQUEST = `/auth/password-reset/request`;
@@ -76,3 +77,6 @@ export const GETUSATTACHMENTDOWNLOAD = `/projects/{project_id}/user-stories/{use
 export const TASKATTACHMENT = `/projects/{project_id}/tasks/{task_id}/attachments`; //GET AND POST
 export const DELETETASKATTACHMENT = `/projects/{project_id}/tasks/{task_id}/attachments/{attachment_id}`;
 export const GETTASKATTACHMENTDOWNLOAD = `/projects/{project_id}/tasks/{task_id}/attachments/{attachment_id}/download`;
+
+//Global Search
+export const GLOBAL_SEARCH = '/search';

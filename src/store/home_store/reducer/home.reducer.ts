@@ -1,6 +1,17 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Activity, PaginationMeta, User } from '../../../types/home.type';
-import { getAudit } from '../action/home.thunk';
+import {
+  Activity,
+  PaginationMeta,
+  User,
+  SearchResponse,
+  UserInsights,
+} from '../../../types/home.type';
+import {
+  getAudit,
+  getUserInsightsData,
+  globalSearchData,
+} from '../action/home.thunk';
+
 export interface QuickAccessItem {
   id: string;
   title: string;
@@ -15,6 +26,12 @@ interface HomeState {
   isSearching: boolean;
   searchQuery: string;
   selectedFilter: string | null;
+  searchResults: SearchResponse['data'];
+  searchLoading: boolean;
+  searchError: string | null;
+  insights: UserInsights | null;
+  insightsLoading: boolean;
+  insightsError: string | null;
   isProjectSheetVisible: boolean;
   user: User | null;
   activities: Activity[];
@@ -29,6 +46,18 @@ const initialState: HomeState = {
   isSearching: false,
   searchQuery: '',
   selectedFilter: null,
+  searchResults: {
+    tasks: [],
+    user_stories: [],
+    projects: [],
+    members: [],
+    sprints: [],
+  },
+  searchLoading: false,
+  searchError: null,
+  insights: null,
+  insightsLoading: false,
+  insightsError: null,
   isProjectSheetVisible: false,
   user: null,
   activities: [],
@@ -52,7 +81,25 @@ const homeSlice = createSlice({
       state.isSearching = action.payload;
       if (!action.payload) {
         state.searchQuery = '';
+        state.searchResults = {
+          tasks: [],
+          user_stories: [],
+          projects: [],
+          members: [],
+          sprints: [],
+        };
+        state.searchError = null;
       }
+    },
+    clearSearchResults: state => {
+      state.searchResults = {
+        tasks: [],
+        user_stories: [],
+        projects: [],
+        members: [],
+        sprints: [],
+      };
+      state.searchError = null;
     },
     setSearchQuery: (state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
@@ -124,6 +171,54 @@ const homeSlice = createSlice({
       })
       .addCase(getAudit.rejected, state => {
         state.loading = false;
+      })
+      .addCase(globalSearchData.pending, state => {
+        state.searchLoading = true;
+        state.searchError = null;
+      })
+      .addCase(globalSearchData.fulfilled, (state, action) => {
+        state.searchLoading = false;
+        state.searchError = null;
+
+        if (!action.payload) {
+          return;
+        }
+
+        state.searchResults = action.payload.data ?? {
+          tasks: [],
+          user_stories: [],
+          projects: [],
+          members: [],
+          sprints: [],
+        };
+      })
+      .addCase(globalSearchData.rejected, (state, action) => {
+        state.searchLoading = false;
+
+        state.searchError = action.payload || 'Failed to fetch search results';
+        state.searchResults = {
+          tasks: [],
+          user_stories: [],
+          projects: [],
+          members: [],
+          sprints: [],
+        };
+      })
+      .addCase(getUserInsightsData.pending, state => {
+        state.insightsLoading = true;
+        state.insightsError = null;
+      })
+      .addCase(getUserInsightsData.fulfilled, (state, action) => {
+        state.insightsLoading = false;
+        state.insightsError = null;
+        if (!action.payload) {
+          return;
+        }
+        state.insights = action.payload.data;
+      })
+      .addCase(getUserInsightsData.rejected, (state, action) => {
+        state.insightsLoading = false;
+        state.insightsError = action.payload || 'Failed to fetch user insights';
       });
   },
 });
@@ -139,6 +234,7 @@ export const {
   addQuickAccessItem,
   removeQuickAccessItem,
   setUser,
+  clearSearchResults,
 } = homeSlice.actions;
 
 export default homeSlice.reducer;

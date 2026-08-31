@@ -180,7 +180,7 @@ const ProjectDetails: React.FC = () => {
         return 'Features';
       }
     }
-    return projectName || project?.name || 'Select Project';
+    return project?.name || projectName || 'Select Project';
   };
 
   const handleBackPress = () => {

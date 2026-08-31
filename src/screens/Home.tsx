@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { View, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
@@ -14,7 +20,10 @@ import {
   syncUserProfile,
   syncOrganizationDetail,
 } from '../store/auth_store/reducer/auth.reducer';
-import { setActiveTab, setUser } from '../store/home_store/reducer/home.reducer';
+import {
+  setActiveTab,
+  setUser,
+} from '../store/home_store/reducer/home.reducer';
 import {
   useGetAuditQuery,
   useGetRecentProjectsQuery,
@@ -23,9 +32,7 @@ import {
   useGetFavouritesQuery,
 } from '../store/api/homeApi';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
-import {
-  getAllProjectInfo,
-} from '../store/project_store/action/project_thunk';
+import { getAllProjectInfo } from '../store/project_store/action/project_thunk';
 import { getProjectName } from '../store/project_store/reducer/project_reducer';
 import { Activity } from '../types/home.type';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -43,9 +50,7 @@ export const Home: React.FC = () => {
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
-  const { project, include_sprints } = useAppSelector(
-    state => state.projects,
-  );
+  const { project, include_sprints } = useAppSelector(state => state.projects);
   const { activeTab } = useAppSelector(state => state.home);
 
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
@@ -101,20 +106,20 @@ export const Home: React.FC = () => {
     () => favoritesData?.data?.favorites ?? [],
     [favoritesData],
   );
-  const favoritesMeta = useMemo(() => favoritesData?.meta ?? null, [favoritesData]);
+  const favoritesMeta = useMemo(
+    () => favoritesData?.meta ?? null,
+    [favoritesData],
+  );
   const favoritesTotalTasks = favoritesData?.data?.total_tasks ?? 0;
-  const favoritesTotalUserStories = favoritesData?.data?.total_user_stories ?? 0;
+  const favoritesTotalUserStories =
+    favoritesData?.data?.total_user_stories ?? 0;
 
   // ── RTK Query: Auth data ──
-  const {
-    data: userProfileData,
-    refetch: refetchUserProfile,
-  } = useGetUserProfileQuery();
+  const { data: userProfileData, refetch: refetchUserProfile } =
+    useGetUserProfileQuery();
 
-  const {
-    data: orgDetailData,
-    refetch: refetchOrganizationDetail,
-  } = useGetOrganizationDetailQuery();
+  const { data: orgDetailData, refetch: refetchOrganizationDetail } =
+    useGetOrganizationDetailQuery();
 
   // Sync auth data to Redux
   useEffect(() => {
@@ -653,12 +658,12 @@ export const Home: React.FC = () => {
     { id: 'RECENT_PROJECTS_HEADER', type: 'header_recent' },
     { id: 'TABS_HEADER', type: 'header_tabs' },
     ...(activeTab === 'favorites' &&
-      favoritesIsLoading &&
-      boardFavorites.length === 0
+    favoritesIsLoading &&
+    boardFavorites.length === 0
       ? []
       : activeTab === 'favorites' &&
-        boardFavorites.length === 0 &&
-        !favoritesIsLoading
+          boardFavorites.length === 0 &&
+          !favoritesIsLoading
         ? [{ id: 'EMPTY_STATE', type: 'empty' }]
         : activeTab === 'favorites'
           ? boardFavorites
@@ -687,6 +692,9 @@ export const Home: React.FC = () => {
     }
     return renderItemCard({ item });
   };
+  const handleSelectSearch = () => {
+    stackNavigation.navigate('Search');
+  };
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
@@ -694,7 +702,8 @@ export const Home: React.FC = () => {
         variant='home'
         titleAlignment='center'
         onDrawerPress={handleOpenDrawer}
-        onRightActionPress={() => { }}
+        onSearchPress={handleSelectSearch}
+        onRightActionPress={() => {}}
       />
 
       {isMainListLoading ? (

@@ -4,6 +4,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { ThemeColors } from '../constants/Colors';
+import { renderParsedHtml } from '../utils/htmlParser';
 
 interface Props {
   description: string;
@@ -44,7 +45,10 @@ export const IssueDescriptionSection: React.FC<Props> = ({
         </TouchableOpacity>
       </View>
       <AppText variant='body' color={colors.text} className='leading-6'>
-        {description || 'No description provided.'}
+        {renderParsedHtml(description, {
+          color: colors.text,
+          lineHeight: 22,
+        }) || 'No description provided.'}
       </AppText>
     </View>
   );

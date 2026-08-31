@@ -1,28 +1,29 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Strings, { StringsType } from '../constants/textConfig';
 import { ThemeColors } from '../constants/Colors';
+import { UserInsights } from '../types/home.type';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-export const getStats = (colors: ThemeColors, strings: StringsType) => [
+export const getStats = (colors: ThemeColors, insights: UserInsights) => [
   {
     label: Strings.profile?.assigned || 'Assigned',
-    value: '12',
+    value: insights?.total_assigned ?? 0,
     color: colors.primary,
   },
   {
-    label: strings.profile?.completed || 'Completed',
-    value: '47',
+    label: Strings.profile?.in_progress || 'In Progress',
+    value: insights?.in_progress ?? 0,
     color: colors.success,
   },
   {
-    label: strings.profile?.inReview || 'In Review',
-    value: '3',
+    label: Strings.profile?.completed || 'Completed',
+    value: insights?.completed ?? 0,
     color: colors.accentPurple,
   },
   {
-    label: strings.profile?.overdue || 'Overdue',
-    value: '2',
-    color: colors.error,
+    label: Strings.profile?.completion_percentage || 'Completion %',
+    value: `${insights?.completion_percentage ?? 0} %`,
+    color: colors.info,
   },
 ];
 
@@ -72,6 +73,7 @@ export type QuickLinks = {
   iconName?: IoniconName;
   color?: string;
   navigateUrl?: undefined | string;
+  isFavorites?: boolean;
 };
 
 export const getQuickLinks = (
@@ -79,11 +81,11 @@ export const getQuickLinks = (
   strings: StringsType,
 ): QuickLinks[] => [
   {
-    label: strings.profile?.starredIssues || 'Starred issues',
+    label: strings.profile?.favorites || 'Favorites',
     iconName: (strings.profile?.icons?.starred ||
       'star-outline') as IoniconName,
     color: colors.warning,
-    navigateUrl: 'HomeTabs',
+    isFavorites: true,
   },
   {
     label: strings.profile?.myOpenIssues || 'My open issues',
