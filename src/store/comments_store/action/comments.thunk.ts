@@ -34,7 +34,15 @@ import {
   createUserStoryCommentService,
   deleteUserStoryCommentService,
   updateUserStoryCommentService,
+  uploadTaskCommentAttachmentService,
+  uploadUserStoryCommentAttachmentService,
 } from '../../../services/comments.services';
+import {
+  TaskCommentAttachmentResponse,
+  UploadTaskCommentByTaskAttachmentParams,
+  UploadUserStoryCommentAttachmentParams,
+  UploadUserStoryCommentAttachmentResponse,
+} from '../../../types/attachment.type';
 
 export const fetchUserStoryComments = createAsyncThunk<
   GetUserStoryCommentsResponse,
@@ -280,3 +288,43 @@ export const fetchTaskCommentReplies = createAsyncThunk<
     return rejectWithValue(errorMessage);
   }
 });
+
+export const uploadUserStoryCommentAttachment = createAsyncThunk<
+  UploadUserStoryCommentAttachmentResponse,
+  UploadUserStoryCommentAttachmentParams,
+  { rejectValue: string }
+>(
+  'commentAttachments/uploadUserStoryCommentAttachment',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await uploadUserStoryCommentAttachmentService(params);
+      return response;
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to upload user story comment attachment';
+      return rejectWithValue(errorMessage);
+    }
+  },
+);
+
+export const uploadTaskCommentAttachment = createAsyncThunk<
+  TaskCommentAttachmentResponse,
+  UploadTaskCommentByTaskAttachmentParams,
+  { rejectValue: string }
+>(
+  'commentAttachments/uploadTaskCommentAttachment',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await uploadTaskCommentAttachmentService(params);
+      return response;
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to upload task comment attachment';
+      return rejectWithValue(errorMessage);
+    }
+  },
+);

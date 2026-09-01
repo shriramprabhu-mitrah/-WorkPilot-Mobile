@@ -17,6 +17,7 @@ import {
   PermissionsAndroid,
   Platform,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import {
   RichEditor,
@@ -34,7 +35,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppText from './common/AppText';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
-import { AttachmentFile } from '../data/addNewIssuesData';
+import { AttachmentFile } from '../types/attachment.type';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { ThemeColors } from '../constants/Colors';
 
@@ -59,6 +60,7 @@ interface Props {
   onAttachmentsChange?: (
     updater: AttachmentFile[] | ((prev: AttachmentFile[]) => AttachmentFile[]),
   ) => void;
+  onUploadAttachment?: (file: AttachmentFile) => Promise<void>;
   autoFocus?: boolean;
 }
 
@@ -78,6 +80,7 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
       onCancelReply,
       attachments: externalAttachments,
       onAttachmentsChange: externalOnAttachmentsChange,
+      onUploadAttachment,
       autoFocus = false,
     },
     ref,
@@ -116,6 +119,13 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
       return true;
     };
 
+    const processAndUploadFile = async (newFile: AttachmentFile) => {
+      onAttachmentsChange(prev => [...prev, newFile]);
+      if (onUploadAttachment) {
+        await onUploadAttachment(newFile);
+      }
+    };
+
     const handleChoosePhotoOrVideo = async () => {
       try {
         const media = await ImagePicker.openPicker({
@@ -125,13 +135,17 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
         const isVideo = media.mime?.startsWith('video');
         const newFile: AttachmentFile = {
           id: `${Date.now()}`,
-          uri: media.path,
+          uri: media.path?.startsWith('file://')
+            ? media.path
+            : `file://${media.path}`,
           name:
             media.filename || `${isVideo ? 'video' : 'photo'}_${Date.now()}`,
           type: isVideo ? 'video' : 'image',
+          mimeType: media.mime,
           size: media.size,
+          isUploading: true,
         };
-        onAttachmentsChange((prev: AttachmentFile[]) => [...prev, newFile]);
+        await processAndUploadFile(newFile);
       } catch (error: any) {
         if (error?.code !== 'E_PICKER_CANCELLED') {
           Alert.alert('Error', error?.message || 'Failed to pick media');
@@ -154,12 +168,16 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
         });
         const newFile: AttachmentFile = {
           id: `${Date.now()}`,
-          uri: image.path,
+          uri: image.path?.startsWith('file://')
+            ? image.path
+            : `file://${image.path}`,
           name: `photo_${Date.now()}.jpg`,
           type: 'image',
+          mimeType: image.mime,
           size: image.size,
+          isUploading: true,
         };
-        onAttachmentsChange((prev: AttachmentFile[]) => [...prev, newFile]);
+        await processAndUploadFile(newFile);
       } catch (error: any) {
         if (error?.code !== 'E_PICKER_CANCELLED') {
           Alert.alert('Error', error?.message || 'Failed to capture photo');
@@ -179,12 +197,16 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
         });
         const newFile: AttachmentFile = {
           id: `${Date.now()}`,
-          uri: video.path,
+          uri: video.path?.startsWith('file://')
+            ? video.path
+            : `file://${video.path}`,
           name: `video_${Date.now()}.mp4`,
           type: 'video',
+          mimeType: video.mime,
           size: video.size,
+          isUploading: true,
         };
-        onAttachmentsChange((prev: AttachmentFile[]) => [...prev, newFile]);
+        await processAndUploadFile(newFile);
       } catch (error: any) {
         if (error?.code !== 'E_PICKER_CANCELLED') {
           Alert.alert('Error', error?.message || 'Failed to record video');
@@ -198,17 +220,19 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
           type: [types.allFiles],
           allowMultiSelection: true,
         });
-        const newFiles: AttachmentFile[] = res.map((doc, index) => ({
-          id: `${Date.now()}-${index}`,
-          uri: doc.uri,
-          name: doc.name || 'Document',
-          type: 'file' as const,
-          size: doc.size ?? undefined,
-        }));
-        onAttachmentsChange((prev: AttachmentFile[]) => [
-          ...prev,
-          ...newFiles,
-        ]);
+        for (let index = 0; index < res.length; index++) {
+          const doc = res[index];
+          const newFiles: AttachmentFile = {
+            id: `${Date.now()}-${index}`,
+            uri: doc.uri?.startsWith('file://') ? doc.uri : `file://${doc.uri}`,
+            name: doc.name || 'Document',
+            type: 'file' as const,
+            mimeType: doc.type ?? undefined,
+            size: doc.size ?? undefined,
+            isUploading: true,
+          };
+          await processAndUploadFile(newFiles);
+        }
       } catch (err) {
         if (
           isErrorWithCode(err) &&
@@ -247,11 +271,15 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
     const showReplyBanner = Boolean(replyingToCommentId);
     const showInlineCancel = Boolean(editingCommentId);
 
-    const submitLabel = editingCommentId
-      ? 'Save'
-      : replyingToCommentId
-        ? 'Reply'
-        : 'Send';
+    const isAnyAttachmentUploading = attachments.some(a => a.isUploading);
+
+    const submitLabel = isSubmittingComment
+      ? 'Sending...'
+      : editingCommentId
+        ? 'Save'
+        : replyingToCommentId
+          ? 'Reply'
+          : 'Send';
 
     const placeholder = editingCommentId
       ? 'Edit your comment...'
@@ -409,7 +437,7 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
               onChange={onChangeComment}
               onFocus={() => setIsFocused(true)}
               useContainer
-              disabled={false}
+              disabled={isSubmittingComment}
               style={{
                 minHeight: 50,
                 maxHeight: 150,
@@ -459,6 +487,7 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
                         backgroundColor: colors.surface,
                         borderColor: colors.border,
                         borderWidth: 1,
+                        overflow: 'hidden',
                       }}
                     >
                       {isImage ? (
@@ -499,23 +528,43 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
                           </AppText>
                         </View>
                       )}
-                      <TouchableOpacity
-                        onPress={() => handleRemoveAttachment(item.id)}
-                        style={{
-                          position: 'absolute',
-                          top: -6,
-                          right: -6,
-                          backgroundColor: colors.card,
-                          borderRadius: 10,
-                          zIndex: 10,
-                        }}
-                      >
-                        <Ionicons
-                          name='close-circle'
-                          size={20}
-                          color={colors.error || '#FF3B30'}
-                        />
-                      </TouchableOpacity>
+
+                      {item.isUploading && (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backgroundColor: 'rgba(0,0,0,0.4)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <ActivityIndicator
+                            size='small'
+                            color={colors.white || '#FFFFFF'}
+                          />
+                        </View>
+                      )}
+
+                      {!isSubmittingComment && (
+                        <TouchableOpacity
+                          onPress={() => handleRemoveAttachment(item.id)}
+                          style={{
+                            position: 'absolute',
+                            top: -6,
+                            right: -6,
+                            backgroundColor: colors.card,
+                            borderRadius: 10,
+                            zIndex: 10,
+                          }}
+                        >
+                          <Ionicons
+                            name='close-circle'
+                            size={20}
+                            color={colors.error || '#FF3B30'}
+                          />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 })}
@@ -537,6 +586,7 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
                     <TouchableOpacity
                       onPress={openBottomSheet}
                       activeOpacity={0.7}
+                      disabled={isSubmittingComment}
                       style={{
                         paddingHorizontal: 10,
                         paddingVertical: 8,
@@ -555,6 +605,7 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
                     <TouchableOpacity
                       onPress={handleToggleCase}
                       activeOpacity={0.7}
+                      disabled={isSubmittingComment}
                       style={{
                         paddingHorizontal: 8,
                         paddingVertical: 6,
@@ -612,7 +663,10 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
                     style={{ gap: 12, paddingRight: 10, paddingLeft: 6 }}
                   >
                     {showInlineCancel && (
-                      <TouchableOpacity onPress={onCancelEdit}>
+                      <TouchableOpacity
+                        onPress={onCancelEdit}
+                        disabled={isSubmittingComment}
+                      >
                         <AppText
                           variant='body'
                           color={colors.textSecondary}
@@ -624,13 +678,21 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
                     )}
 
                     <TouchableOpacity
-                      disabled={isCommentEmpty || isSubmittingComment}
+                      disabled={
+                        isCommentEmpty ||
+                        isSubmittingComment ||
+                        isAnyAttachmentUploading
+                      }
                       onPress={onSubmit}
                     >
                       <AppText
                         variant='body'
                         color={
-                          !isCommentEmpty ? colors.primary : colors.secondary
+                          !isCommentEmpty &&
+                          !isSubmittingComment &&
+                          !isAnyAttachmentUploading
+                            ? colors.primary
+                            : colors.secondary
                         }
                         className='font-bold'
                       >

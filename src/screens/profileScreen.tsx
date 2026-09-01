@@ -522,7 +522,7 @@ const ProfileScreen = () => {
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => navigation.navigate('updateDetails')}
-              className='absolute bottom-0 right-0 items-center justify-center rounded-full border'
+              className='absolute bottom-0 right-[7%] items-center justify-center rounded-full border'
               style={{
                 width: moderateScale(26),
                 height: moderateScale(26),
@@ -655,7 +655,7 @@ const ProfileScreen = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: layout.elementGap / 2 }}
             >
-              {Array.from({ length: 2 }).map((_, idx) => (
+              {Array.from({ length: 4 }).map((_, idx) => (
                 <FilterChipSkeleton key={`chip-skel-${idx}`} />
               ))}
             </ScrollView>
