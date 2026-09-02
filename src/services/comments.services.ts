@@ -6,7 +6,15 @@ import {
   TASK_COMMENT,
   TASK_COMMENT_ID,
   TASK_COMMENT_REPLIES,
+  POST_USERSTORY_COMMENT_ATTACHMENT,
+  POST_TASK_COMMENT_ATTACHMENT,
 } from '../constants/apiServiceEndpoint';
+import {
+  TaskCommentAttachmentResponse,
+  UploadTaskCommentByTaskAttachmentParams,
+  UploadUserStoryCommentAttachmentParams,
+  UploadUserStoryCommentAttachmentResponse,
+} from '../types/attachment.type';
 import {
   CreateTaskCommentParams,
   CreateTaskCommentRequest,
@@ -297,6 +305,70 @@ export const getTaskCommentRepliesService = async ({
     });
   } catch (error) {
     console.error('Get Task Comment Replies API failed:', error);
+    throw error;
+  }
+};
+
+export const uploadUserStoryCommentAttachmentService = async ({
+  projectId,
+  userStoryId,
+  file,
+}: UploadUserStoryCommentAttachmentParams): Promise<UploadUserStoryCommentAttachmentResponse> => {
+  try {
+    const url = POST_USERSTORY_COMMENT_ATTACHMENT.replace(
+      '{project_id}',
+      projectId,
+    ).replace('{user_story_id}', userStoryId);
+
+    const formData = new FormData();
+    const fileUri = file.uri.startsWith('file://')
+      ? file.uri
+      : `file://${file.uri}`;
+    formData.append('file', {
+      uri: fileUri,
+      name: file.name,
+      type: file.type,
+    } as any);
+
+    return await post<UploadUserStoryCommentAttachmentResponse, FormData>(
+      url,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
+  } catch (error) {
+    console.error('Upload User Story Comment Attachment API failed:', error);
+    throw error;
+  }
+};
+
+export const uploadTaskCommentAttachmentService = async ({
+  taskId,
+  file,
+}: UploadTaskCommentByTaskAttachmentParams): Promise<TaskCommentAttachmentResponse> => {
+  try {
+    const url = POST_TASK_COMMENT_ATTACHMENT.replace('{task_id}', taskId);
+
+    const formData = new FormData();
+    const fileUri = file.uri.startsWith('file://')
+      ? file.uri
+      : `file://${file.uri}`;
+    formData.append('file', {
+      uri: fileUri,
+      name: file.name,
+      type: file.type,
+    } as any);
+
+    return await post<TaskCommentAttachmentResponse, FormData>(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  } catch (error) {
+    console.error('Upload Task Comment Attachment API failed:', error);
     throw error;
   }
 };

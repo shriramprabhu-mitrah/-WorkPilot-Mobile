@@ -43,6 +43,8 @@ import {
   createUserStoryComment,
   updateUserStoryComment,
   deleteUserStoryComment,
+  uploadUserStoryCommentAttachment,
+  uploadTaskCommentAttachment,
 } from '../store/comments_store/action/comments.thunk';
 import {
   deleteCommentLocally,
@@ -84,6 +86,11 @@ import {
   getCustomStatusData,
   getUserStoryStatusData,
 } from '../store/customStatus_store/action/customstatus.thunk';
+import {
+  AttachmentFile,
+  TaskCommentAttachmentResponse,
+  UploadUserStoryCommentAttachmentResponse,
+} from '../types/attachment.type';
 
 type IssueDetailRouteProp = RouteProp<RootStackParamList, 'issue'>;
 
@@ -140,6 +147,9 @@ const IssueDetailScreen = () => {
   const [expandedCommentIds, setExpandedCommentIds] = useState<
     Record<string, boolean>
   >({});
+  const [commentAttachments, setCommentAttachments] = useState<
+    AttachmentFile[]
+  >([]);
 
   const isTaskView = Boolean(taskId);
   const currentItem: any = isTaskView
@@ -474,11 +484,89 @@ const IssueDetailScreen = () => {
     [dispatch, taskId, userStoryId, projectId],
   );
 
+  // 1. Uploads file immediately upon selection and saves its URL to the item
+  const handleUploadCommentAttachment = async (file: AttachmentFile) => {
+    try {
+      let uploadedUrl: string | undefined;
+
+      if (taskId) {
+        const res = await dispatch(
+          uploadTaskCommentAttachment({
+            taskId,
+            file: {
+              uri: file.uri,
+              name: file.name,
+              type: file.mimeType || file.type,
+            },
+          }),
+        );
+        if (res.meta.requestStatus === 'fulfilled') {
+          const payload = res.payload as TaskCommentAttachmentResponse;
+          uploadedUrl = payload?.data?.[0]?.url;
+        }
+      } else if (userStoryId) {
+        const res = await dispatch(
+          uploadUserStoryCommentAttachment({
+            projectId,
+            userStoryId,
+            file: {
+              uri: file.uri,
+              name: file.name,
+              type: file.mimeType || file.type,
+            },
+          }),
+        );
+        if (res.meta.requestStatus === 'fulfilled') {
+          const payload =
+            res.payload as UploadUserStoryCommentAttachmentResponse;
+          uploadedUrl = payload?.data?.[0]?.url;
+        }
+      }
+
+      if (uploadedUrl) {
+        setCommentAttachments(prev =>
+          prev.map(item =>
+            item.id === file.id
+              ? { ...item, remoteUrl: uploadedUrl, isUploading: false }
+              : item,
+          ),
+        );
+      } else {
+        setCommentAttachments(prev => prev.filter(item => item.id !== file.id));
+      }
+    } catch (err) {
+      setCommentAttachments(prev => prev.filter(item => item.id !== file.id));
+    }
+  };
+
+  // 2. Inserts uploaded URLs into HTML and sends comment on Send button click
   const handleSendComment = async () => {
-    const trimmed = comment.trim();
-    if (!trimmed || isSubmittingComment) {
+    const rawText = comment.trim();
+    if ((!rawText && commentAttachments.length === 0) || isSubmittingComment) {
       return;
     }
+
+    // Embed all pre-uploaded URLs as HTML <img> / <video> tags
+    let mediaHtml = '';
+    commentAttachments.forEach(att => {
+      if (att.remoteUrl) {
+        if (att.type === 'video') {
+          mediaHtml += `<p><video src="${att.remoteUrl}" controls style="max-width: 100%; border-radius: 8px;"></video></p>`;
+        } else {
+          mediaHtml += `<p><img src="${att.remoteUrl}" alt="${att.name}" style="max-width: 100%; border-radius: 8px;" /></p>`;
+        }
+      }
+    });
+
+    const finalContent = `${rawText}${
+      mediaHtml ? `<br/>${mediaHtml}` : ''
+    }`.trim();
+
+    if (!finalContent) {
+      return;
+    }
+
+    setIsSubmittingComment(true);
     const authorName =
       (currentItem &&
         'reporter_name' in currentItem &&
@@ -498,7 +586,7 @@ const IssueDetailScreen = () => {
       full_name: authorName,
       email: '',
       avatar_url: null,
-      content: trimmed,
+      content: finalContent,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       is_deleted: false,
@@ -513,6 +601,7 @@ const IssueDetailScreen = () => {
 
     // Instantly reset input box and focus
     setComment('');
+    setCommentAttachments([]);
     setReplyingToCommentId(null);
     handleDismissInputFocus();
 
@@ -521,7 +610,7 @@ const IssueDetailScreen = () => {
         const result = await dispatch(
           createTaskComment({
             taskId,
-            content: trimmed,
+            content: finalContent,
             parentCommentId: parentCommentId ?? null,
           }),
         );
@@ -538,7 +627,7 @@ const IssueDetailScreen = () => {
                   ...tempComment,
                   ...created,
                   id: created.id,
-                  content: trimmed,
+                  content: finalContent,
                   task_id: taskId,
                   parent_comment_id: parentCommentId,
                   is_deleted: false,
@@ -566,7 +655,7 @@ const IssueDetailScreen = () => {
           createUserStoryComment({
             projectId,
             userStoryId,
-            content: trimmed,
+            content: finalContent,
             parentCommentId: parentCommentId ?? null,
           }),
         );
@@ -583,7 +672,7 @@ const IssueDetailScreen = () => {
                   ...tempComment,
                   ...created,
                   id: created.id,
-                  content: trimmed,
+                  content: finalContent,
                   user_story_id: userStoryId,
                   parent_comment_id: parentCommentId,
                   is_deleted: false,
@@ -987,6 +1076,9 @@ const IssueDetailScreen = () => {
             replyingToCommentId={replyingToCommentId}
             replyingToName={replyingToName}
             onCancelReply={() => setReplyingToCommentId(null)}
+            attachments={commentAttachments}
+            onAttachmentsChange={setCommentAttachments}
+            onUploadAttachment={handleUploadCommentAttachment}
           />
         </View>
       </KeyboardAvoidingView>

@@ -176,3 +176,57 @@ export interface AttachmentState {
   refreshing: boolean;
   error: string | null;
 }
+
+export interface UploadUserStoryCommentAttachmentParams {
+  projectId: string;
+  userStoryId: string;
+  file: {
+    uri: string;
+    name: string;
+    type: string;
+  };
+}
+
+export interface AttachmentUploadItem {
+  id: string;
+  project_id?: string;
+  user_story_id?: string;
+  task_id?: string;
+  comment_id?: string;
+  original_filename: string;
+  mime_type: string;
+  file_size?: number;
+  url?: string;
+  uploaded_by?: string;
+  uploaded_by_name?: string;
+  uploaded_at?: string;
+  updated_at?: string;
+}
+
+export interface UploadUserStoryCommentAttachmentResponse extends ApiResponse<
+  AttachmentUploadItem[]
+> {}
+
+export interface UploadTaskCommentByTaskAttachmentParams {
+  taskId: string;
+  file: {
+    uri: string;
+    name: string;
+    type: string;
+  };
+}
+
+export interface TaskCommentAttachmentResponse extends ApiResponse<
+  AttachmentUploadItem[]
+> {}
+
+export interface AttachmentFile {
+  id: string;
+  uri: string;
+  name: string;
+  type: 'image' | 'video' | 'file' | 'document';
+  mimeType?: string | undefined;
+  size?: number;
+  isUploading?: boolean;
+  remoteUrl?: string;
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, Image } from 'react-native';
 
 export const renderParsedHtml = (htmlString: string, baseStyle: any) => {
   if (!htmlString) {
@@ -57,6 +57,28 @@ export const renderParsedHtml = (htmlString: string, baseStyle: any) => {
       }
       if (lower.startsWith('</li')) {
         flushInline(index);
+        return;
+      }
+
+      if (lower.startsWith('<img')) {
+        const srcMatch = part.match(/src=["']([^"']+)["']/);
+        const src = srcMatch ? srcMatch[1] : null;
+        if (src) {
+          currentInlineElements.push(
+            <Image
+              key={index}
+              source={{ uri: src }}
+              style={{
+                width: 220,
+                height: 160,
+                resizeMode: 'contain',
+                marginVertical: 6,
+                borderRadius: 8,
+                backgroundColor: 'rgba(0,0,0,0.05)',
+              }}
+            />,
+          );
+        }
         return;
       }
 

@@ -8,6 +8,11 @@ import {
   GetTaskCommentsResponse,
 } from '../../../types/comments.type';
 import {
+  Attachment,
+  UploadUserStoryCommentAttachmentResponse,
+  TaskCommentAttachmentResponse,
+} from '../../../types/attachment.type';
+import {
   fetchUserStoryComments,
   fetchTaskComments,
   createTaskComment,
@@ -19,13 +24,27 @@ import {
   updateUserStoryComment,
   deleteUserStoryComment,
   fetchUserStoryCommentReplies,
+  uploadUserStoryCommentAttachment,
+  uploadTaskCommentAttachment,
 } from '../action/comments.thunk';
+export interface ExtendedCommentsState extends CommentsState {
+  userStoryCommentAttachments: Attachment[];
+  taskCommentAttachments: Attachment[];
+  uploading: boolean;
+  deleting: boolean;
+  refreshing: boolean;
+}
 
-const initialState: CommentsState = {
+const initialState: ExtendedCommentsState = {
   comments: [],
   meta: null,
   loading: false,
   error: null,
+  userStoryCommentAttachments: [],
+  taskCommentAttachments: [],
+  uploading: false,
+  deleting: false,
+  refreshing: false,
 };
 
 const commentsSlice = createSlice({
@@ -90,12 +109,27 @@ const commentsSlice = createSlice({
         target.is_pending = false;
         target.is_failed = true;
         target.retry_count = (target.retry_count || 0) + 1;
-        
+
         // Initial failure = 1, Retry 1 = 2, Retry 2 = 3, Retry 3 = 4.
         if (target.retry_count >= 4) {
           state.comments.splice(index, 1);
         }
       }
+    },
+    clearCommentAttachmentsState: state => {
+      state.userStoryCommentAttachments = [];
+      state.taskCommentAttachments = [];
+      state.loading = false;
+      state.uploading = false;
+      state.deleting = false;
+      state.refreshing = false;
+      state.error = null;
+    },
+    clearUserStoryCommentAttachments: state => {
+      state.userStoryCommentAttachments = [];
+    },
+    clearTaskCommentAttachments: state => {
+      state.taskCommentAttachments = [];
     },
   },
   extraReducers: builder => {
@@ -180,7 +214,9 @@ const commentsSlice = createSlice({
         (state, action: PayloadAction<GetUserStoryCommentByIdResponse>) => {
           state.loading = false;
           const incomingData = action.payload?.data;
-          const incoming = Array.isArray(incomingData) ? incomingData[0] : (incomingData as unknown as CommentItem);
+          const incoming = Array.isArray(incomingData)
+            ? incomingData[0]
+            : (incomingData as unknown as CommentItem);
           if (incoming?.id) {
             const comments = state.comments;
             const index = comments.findIndex(c => c.id === incoming.id);
@@ -212,7 +248,94 @@ const commentsSlice = createSlice({
             }
           });
         },
-      );
+      )
+      .addCase(uploadUserStoryCommentAttachment.pending, state => {
+        state.uploading = true;
+        state.error = null;
+      })
+      .addCase(
+        uploadUserStoryCommentAttachment.fulfilled,
+        (
+          state,
+          action: PayloadAction<UploadUserStoryCommentAttachmentResponse>,
+        ) => {
+          state.uploading = false;
+          const dataList = action.payload?.data;
+          const uploaded =
+            Array.isArray(dataList) && dataList.length > 0
+              ? dataList[0]
+              : undefined;
+          if (uploaded?.id) {
+            const attachment: Attachment = {
+              id: uploaded.id,
+              project_id: uploaded.project_id,
+              user_story_id: uploaded.user_story_id,
+              comment_id: uploaded.comment_id,
+              original_filename: uploaded.original_filename,
+              mime_type: uploaded.mime_type,
+              file_size: uploaded.file_size,
+              url: uploaded.url,
+              uploaded_by: uploaded.uploaded_by,
+              uploaded_by_name: uploaded.uploaded_by_name,
+              uploaded_at: uploaded.uploaded_at,
+              updated_at: uploaded.updated_at,
+            };
+            const existingIds = new Set(
+              state.userStoryCommentAttachments.map(a => a.id),
+            );
+            if (!existingIds.has(attachment.id)) {
+              state.userStoryCommentAttachments.push(attachment);
+            }
+          }
+        },
+      )
+      .addCase(uploadUserStoryCommentAttachment.rejected, (state, action) => {
+        state.uploading = false;
+        state.error =
+          action.payload || 'Failed to upload user story comment attachment';
+      })
+      .addCase(uploadTaskCommentAttachment.pending, state => {
+        state.uploading = true;
+        state.error = null;
+      })
+      .addCase(
+        uploadTaskCommentAttachment.fulfilled,
+        (state, action: PayloadAction<TaskCommentAttachmentResponse>) => {
+          state.uploading = false;
+          const dataList = action.payload?.data;
+          const uploaded =
+            Array.isArray(dataList) && dataList.length > 0
+              ? dataList[0]
+              : undefined;
+          if (uploaded?.id) {
+            const attachment: Attachment = {
+              id: uploaded.id,
+              project_id: uploaded.project_id,
+              task_id: uploaded.task_id,
+              comment_id: uploaded.comment_id,
+              original_filename: uploaded.original_filename,
+              mime_type: uploaded.mime_type,
+              file_size: uploaded.file_size,
+              url: uploaded.url,
+              uploaded_by: uploaded.uploaded_by,
+              uploaded_by_name: uploaded.uploaded_by_name,
+              uploaded_at: uploaded.uploaded_at,
+              updated_at: uploaded.updated_at,
+            };
+            const existingIds = new Set(
+              state.taskCommentAttachments.map(a => a.id),
+            );
+            if (!existingIds.has(attachment.id)) {
+              state.taskCommentAttachments.push(attachment);
+            }
+          }
+        },
+      )
+      .addCase(uploadTaskCommentAttachment.rejected, (state, action) => {
+        state.uploading = false;
+        state.error =
+          action.payload || 'Failed to upload task comment attachment';
+      });
   },
 });
 
@@ -226,5 +349,8 @@ export const {
   incrementReplyCount,
   decrementReplyCount,
   markCommentFailed,
+  clearCommentAttachmentsState,
+  clearUserStoryCommentAttachments,
+  clearTaskCommentAttachments,
 } = commentsSlice.actions;
 export default commentsSlice.reducer;
