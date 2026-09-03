@@ -73,7 +73,6 @@ export type QuickLinks = {
   iconName?: IoniconName;
   color?: string;
   navigateUrl?: undefined | string;
-  isFavorites?: boolean;
 };
 
 export const getQuickLinks = (
@@ -85,7 +84,7 @@ export const getQuickLinks = (
     iconName: (strings.profile?.icons?.starred ||
       'star-outline') as IoniconName,
     color: colors.warning,
-    isFavorites: true,
+    navigateUrl: 'Favorites',
   },
   {
     label: strings.profile?.myOpenIssues || 'My open issues',

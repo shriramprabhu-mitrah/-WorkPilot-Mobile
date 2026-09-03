@@ -27,6 +27,7 @@ import WebSignupScreen from '../screens/WebSignup';
 import SearchScreen from '../screens/searchScreen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoginScreen from '../screens/login';
+import Favorites from '../screens/favorites.tsx';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -115,6 +116,7 @@ const AppNavigator = () => {
             <Stack.Screen name='newIssues' component={AddNewIssues} />
             <Stack.Screen name='QuickAccess' component={QuickAccessScreen} />
             <Stack.Screen name='Search' component={SearchScreen} />
+            <Stack.Screen name='Favorites' component={Favorites} />
             <Stack.Screen
               name='updateDetails'
               component={UpdateUserDetailsScreen}

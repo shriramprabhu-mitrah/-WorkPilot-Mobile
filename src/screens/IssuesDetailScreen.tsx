@@ -94,6 +94,19 @@ import {
 
 type IssueDetailRouteProp = RouteProp<RootStackParamList, 'issue'>;
 
+const parseCommentContent = (
+  html: string,
+): { content: string; images: string[] } => {
+  const imageSrcRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
+  const images: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = imageSrcRegex.exec(html)) !== null) {
+    images.push(match[1]);
+  }
+  const content = html.replace(imageSrcRegex, '').trim();
+  return { content, images };
+};
+
 const IssueDetailScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<IssueDetailRouteProp>();
@@ -175,7 +188,7 @@ const IssueDetailScreen = () => {
     if (currentItem && currentItem.id !== currentItemIdRef.current) {
       currentItemIdRef.current = currentItem.id;
       const p = currentItem.priority || 'medium';
-      const sp = currentItem.story_points ?? 0;
+      const sp = currentItem.story_points || 0;
       const desc = currentItem.description || '';
       setPriority(p);
       setStoryPoints(sp);
@@ -449,12 +462,17 @@ const IssueDetailScreen = () => {
 
   const handleStoryPointsBlur = useCallback(
     (value: string) => {
-      const parsed = parseInt(value, 10);
+      const parsed = parseInt(value.trim(), 10);
       const sanitized = Number.isNaN(parsed)
         ? 0
         : Math.max(0, Math.min(100, parsed));
+      const currentPoints = currentItem?.story_points ?? 0;
       setStoryPoints(sanitized);
+      setStoryPointsText(sanitized.toString());
       if (!projectId) {
+        return;
+      }
+      if (sanitized === currentPoints) {
         return;
       }
       if (taskId) {
@@ -481,14 +499,14 @@ const IssueDetailScreen = () => {
         );
       }
     },
-    [dispatch, taskId, userStoryId, projectId],
+    [dispatch, taskId, userStoryId, projectId, currentItem],
   );
 
   // 1. Uploads file immediately upon selection and saves its URL to the item
   const handleUploadCommentAttachment = async (file: AttachmentFile) => {
     try {
       let uploadedUrl: string | undefined;
-
+      let attachment_id: string | undefined;
       if (taskId) {
         const res = await dispatch(
           uploadTaskCommentAttachment({
@@ -503,6 +521,7 @@ const IssueDetailScreen = () => {
         if (res.meta.requestStatus === 'fulfilled') {
           const payload = res.payload as TaskCommentAttachmentResponse;
           uploadedUrl = payload?.data?.[0]?.url;
+          attachment_id = payload?.data?.[0]?.id;
         }
       } else if (userStoryId) {
         const res = await dispatch(
@@ -520,14 +539,20 @@ const IssueDetailScreen = () => {
           const payload =
             res.payload as UploadUserStoryCommentAttachmentResponse;
           uploadedUrl = payload?.data?.[0]?.url;
+          attachment_id = payload?.data?.[0]?.id;
         }
       }
 
-      if (uploadedUrl) {
+      if (uploadedUrl && attachment_id) {
         setCommentAttachments(prev =>
           prev.map(item =>
             item.id === file.id
-              ? { ...item, remoteUrl: uploadedUrl, isUploading: false }
+              ? {
+                  ...item,
+                  id: attachment_id,
+                  remoteUrl: uploadedUrl,
+                  isUploading: false,
+                }
               : item,
           ),
         );
@@ -553,7 +578,7 @@ const IssueDetailScreen = () => {
         if (att.type === 'video') {
           mediaHtml += `<p><video src="${att.remoteUrl}" controls style="max-width: 100%; border-radius: 8px;"></video></p>`;
         } else {
-          mediaHtml += `<p><img src="${att.remoteUrl}" alt="${att.name}" style="max-width: 100%; border-radius: 8px;" /></p>`;
+          mediaHtml += `<p><img src="${att.remoteUrl}?attachment_id=${att.id}" alt="${att.name}" style="max-width: 100%; border-radius: 8px;" /></p>`;
         }
       }
     });
@@ -825,19 +850,38 @@ const IssueDetailScreen = () => {
   };
 
   const handleUpdateComment = async () => {
-    const trimmed = comment.trim();
-    if (!trimmed || !editingCommentId || isSubmittingComment) {
+    const rawText = comment.trim();
+    if (!editingCommentId || isSubmittingComment) {
       return;
     }
     const commentIdToUpdate = editingCommentId;
     const previousComments = [...apiComments];
 
+    let mediaHtml = '';
+    commentAttachments.forEach(att => {
+      const url = att.remoteUrl || att.uri;
+      if (url) {
+        mediaHtml += `<p><img src="${url}" alt="${att.name}" style="max-width: 100%; border-radius: 8px;" /></p>`;
+      }
+    });
+
+    const finalContent =
+      `${rawText}${mediaHtml ? `<br/>${mediaHtml}` : ''}`.trim();
+
+    if (!finalContent) {
+      return;
+    }
+
     setIsSubmittingComment(true);
     dispatch(
-      updateCommentLocally({ commentId: commentIdToUpdate, content: trimmed }),
+      updateCommentLocally({
+        commentId: commentIdToUpdate,
+        content: finalContent,
+      }),
     );
 
     setComment('');
+    setCommentAttachments([]);
     setEditingCommentId(null);
     handleDismissInputFocus();
 
@@ -849,7 +893,7 @@ const IssueDetailScreen = () => {
           updateTaskComment({
             taskId,
             commentId: commentIdToUpdate,
-            content: trimmed,
+            content: finalContent,
           }),
         );
         if (result.meta.requestStatus === 'fulfilled') {
@@ -863,7 +907,7 @@ const IssueDetailScreen = () => {
             projectId,
             userStoryId,
             commentId: commentIdToUpdate,
-            content: trimmed,
+            content: finalContent,
           }),
         );
         if (result.meta.requestStatus === 'fulfilled') {
@@ -920,13 +964,27 @@ const IssueDetailScreen = () => {
 
   const handleStartEditComment = (commentId: string, text: string) => {
     setReplyingToCommentId(null);
+
+    const { content, images } = parseCommentContent(text);
     setEditingCommentId(commentId);
-    setComment(text);
+    setComment(content);
+
+    const restoredAttachments: AttachmentFile[] = images.map((url, index) => ({
+      id: `existing-${commentId}-${index}-${Date.now()}`,
+      uri: url,
+      name: url.split('/').pop() || `image-${index + 1}`,
+      type: 'image' as const,
+      mimeType: 'image/*',
+      remoteUrl: url,
+      isUploading: false,
+    }));
+    setCommentAttachments(restoredAttachments);
   };
 
   const handleCancelEditComment = () => {
     setEditingCommentId(null);
     setComment('');
+    setCommentAttachments([]);
   };
 
   const handleCommentSubmit = () => {

@@ -3,7 +3,6 @@ import {
   View,
   TouchableOpacity,
   ActivityIndicator,
-  Modal,
   ScrollView,
   StyleSheet,
 } from 'react-native';
@@ -18,10 +17,9 @@ import {
   fetchUserStoryCommentReplies,
 } from '../store/comments_store/action/comments.thunk';
 import { CommentItem } from '../types/comments.type';
-import {
-  CommentsSectionSkeleton,
-} from './skeleton/issueDetailSkeleton';
+import { CommentsSectionSkeleton } from './skeleton/issueDetailSkeleton';
 import { renderParsedHtml } from '../utils/htmlParser';
+import DeleteColumnModal from './DeleteColumnModal';
 
 interface Props {
   colors: ThemeColors;
@@ -171,7 +169,9 @@ export const IssueCommentsSection: React.FC<Props> = ({
     }
   };
 
-  const renderCommentRow = (item: CommentItem & { is_pending?: boolean; is_failed?: boolean }) => {
+  const renderCommentRow = (
+    item: CommentItem & { is_pending?: boolean; is_failed?: boolean },
+  ) => {
     // Render "Sending..." state for pending optimistic comments
     if (item.is_pending) {
       const authorName = item.full_name || item.user_name || 'User';
@@ -184,7 +184,11 @@ export const IssueCommentsSection: React.FC<Props> = ({
       const commentText = item.content || '';
 
       return (
-        <View key={item.id} className='flex-row' style={[{ gap: 12 }, styles.pendingContainer]}>
+        <View
+          key={item.id}
+          className='flex-row'
+          style={[{ gap: 12 }, styles.pendingContainer]}
+        >
           <Avatar
             size='medium'
             initials={avatarInitials}
@@ -462,65 +466,15 @@ export const IssueCommentsSection: React.FC<Props> = ({
       )}
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <DeleteColumnModal
         visible={isDeleteModalVisible}
-        transparent
-        animationType='fade'
-        onRequestClose={() => setIsDeleteModalVisible(false)}
-      >
-        <View
-          className='flex-1 items-center justify-center px-4'
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-        >
-          <View
-            className='w-full max-w-sm rounded-2xl p-6'
-            style={{ backgroundColor: colors.card || colors.surface }}
-          >
-            <AppText
-              variant='bodyLarge'
-              color={colors.text}
-              className='mb-2 font-bold'
-            >
-              Delete Comment
-            </AppText>
-
-            <AppText
-              variant='body'
-              color={colors.textSecondary}
-              className='mb-6'
-            >
-              Are you sure you want to delete this comment? This action cannot
-              be undone.
-            </AppText>
-
-            <View className='flex-row justify-end' style={{ gap: 12 }}>
-              <TouchableOpacity
-                className='rounded-lg px-4 py-2.5'
-                style={{ backgroundColor: colors.surface }}
-                onPress={() => setIsDeleteModalVisible(false)}
-              >
-                <AppText variant='body' color={colors.text}>
-                  Cancel
-                </AppText>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className='rounded-lg px-4 py-2.5'
-                style={{ backgroundColor: colors.error }}
-                onPress={handleConfirmDelete}
-              >
-                <AppText
-                  variant='body'
-                  color={colors.white}
-                  className='font-bold'
-                >
-                  Delete
-                </AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title='Delete Comment'
+        columnTitle='this comment'
+        colors={colors}
+        loading={Boolean(deletingId)}
+        onClose={() => setIsDeleteModalVisible(false)}
+        onDelete={handleConfirmDelete}
+      />
     </View>
   );
 };

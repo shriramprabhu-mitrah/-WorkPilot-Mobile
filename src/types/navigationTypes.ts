@@ -49,6 +49,7 @@ export type RootStackParamList = {
   QuickAccess: undefined;
   Create: undefined;
   loginScreen: undefined;
+  Favorites: undefined;
 };
 
 export type ProjectTopTabParamList = {
