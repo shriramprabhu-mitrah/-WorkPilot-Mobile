@@ -18,15 +18,11 @@ import ProjectCardSkeleton from '../skeleton/ProjectCardSkeleton';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { moderateScale } from '../../utils/responsive';
-import { RootState, useAppDispatch, useAppSelector } from '../../store';
+import { RootState, useAppSelector } from '../../store';
 import {
-  getAllProjectInfo,
-  getSprintsThunk,
-} from '../../store/project_store/action/project_thunk';
-import {
-  resetProjects,
-  resetSprints,
-} from '../../store/project_store/reducer/project_reducer';
+  useGetProjectsQuery,
+  useGetSprintsQuery,
+} from '../../store/api/projectApi';
 import { WorkItemIcon } from './getWorkItemIcon';
 
 export interface ProjectListBottomSheetProps {
@@ -69,49 +65,90 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   hasMore: hasMoreProp,
   isFetchingMore: isFetchingMoreProp,
 }) => {
-  const dispatch = useAppDispatch();
   const { colors, strings } = useTheme();
   const { layout } = useAuthLayout();
   const insets = useSafeAreaInsets();
   const closeIconSize = moderateScale(20);
   const bottomPadding = Math.max(insets.bottom, 16);
 
-  // Extract pagination states from Redux
-  const {
-    projects,
-    project,
-    sprints,
-    loading,
-    isFetchingMore: reduxIsFetchingMore,
-    hasMore: reduxHasMore,
-  } = useAppSelector((state: RootState) => state.projects);
+  const { project } = useAppSelector((state: RootState) => state.projects);
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [refetchKey, setRefetchKey] = useState(0);
   const isSprint = mode === 'sprints';
-
-  // Effective state combining props and Redux store values
-  const effectiveHasMore = hasMoreProp ?? reduxHasMore;
-  const effectiveIsFetchingMore = isFetchingMoreProp || reduxIsFetchingMore;
 
   // Resolved active project ID from props or store fallback
   const resolvedProjectId =
     projectId || project?.id?.toString() || (project as any)?._id?.toString();
+
+  // RTK Query: Fetch projects
+  const {
+    data: projectsResponse,
+    isLoading: isProjectsLoading,
+    isFetching: isProjectsFetching,
+  } = useGetProjectsQuery(
+    { page, _refetchKey: refetchKey },
+    { skip: !visible || isSprint },
+  );
+
+  // RTK Query: Fetch sprints
+  const {
+    data: sprintsResponse,
+    isLoading: isSprintsLoading,
+    isFetching: isSprintsFetching,
+  } = useGetSprintsQuery(
+    { project_id: resolvedProjectId!, page, _refetchKey: refetchKey },
+    { skip: !visible || !isSprint || !resolvedProjectId },
+  );
+
+  // Extract list data
+  const projectsData = projectsResponse?.data || [];
+  const sprintsData = sprintsResponse?.data || [];
+
+  const listData = isSprint
+    ? sprintsData?.length
+      ? sprintsData
+      : project?.sprints || []
+    : projectsData || [];
+
+  // Pagination meta
+  const currentMeta = isSprint
+    ? sprintsResponse?.meta
+    : projectsResponse?.meta;
+
+  const rtkHasMore =
+    currentMeta?.has_next !== undefined
+      ? currentMeta.has_next
+      : currentMeta?.total_pages !== undefined
+        ? page < currentMeta.total_pages
+        : false;
+
+  const isCurrentFetching = isSprint ? isSprintsFetching : isProjectsFetching;
+  const isCurrentLoading = isSprint ? isSprintsLoading : isProjectsLoading;
+
+  // Show skeleton only on the very first API call when no cached data exists
+  const isFirstTime = isSprint
+    ? sprintsResponse === undefined
+    : projectsResponse === undefined;
+  const showSkeleton =
+    isFirstTime && (isCurrentLoading || isCurrentFetching) && page === 1;
+
+  const loading = isCurrentLoading || (isCurrentFetching && page === 1);
+  const reduxIsFetchingMore = isCurrentFetching && page > 1;
+
+  // Effective state combining props and query state
+  const effectiveHasMore = hasMoreProp ?? rtkHasMore;
+  const effectiveIsFetchingMore = isFetchingMoreProp || reduxIsFetchingMore;
 
   // Reset page and trigger initial fetch when modal becomes visible or mode/projectId changes
   useFocusEffect(
     useCallback(() => {
       if (visible) {
         setPage(1);
-        if (mode === 'projects') {
-          dispatch(resetProjects());
-          dispatch(getAllProjectInfo({ page: 1 }));
-        } else if (mode === 'sprints' && resolvedProjectId) {
-          dispatch(resetSprints());
-          dispatch(getSprintsThunk({ project_id: resolvedProjectId, page: 1 }));
-        }
+        setRefetchKey(prev => prev + 1);
       }
-    }, [visible, mode, resolvedProjectId, dispatch]),
+    }, [visible, mode, resolvedProjectId]),
   );
 
   // Handle loading next page when scrolling reaches threshold
@@ -123,14 +160,6 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     const nextPage = page + 1;
     setPage(nextPage);
 
-    if (mode === 'projects') {
-      dispatch(getAllProjectInfo({ page: nextPage }));
-    } else if (mode === 'sprints' && resolvedProjectId) {
-      dispatch(
-        getSprintsThunk({ project_id: resolvedProjectId, page: nextPage }),
-      );
-    }
-
     onEndReachedProp?.();
   }, [
     search,
@@ -138,17 +167,8 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     effectiveIsFetchingMore,
     effectiveHasMore,
     page,
-    mode,
-    resolvedProjectId,
-    dispatch,
     onEndReachedProp,
   ]);
-
-  const listData = isSprint
-    ? sprints?.length
-      ? sprints
-      : project?.sprints || []
-    : projects || [];
 
   const sheetTitle = title || (isSprint ? 'Select Sprint' : 'Select Project');
   const searchPlaceholder = isSprint
@@ -248,7 +268,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
             />
           </View>
 
-          {loading && page === 1 ? (
+          {showSkeleton ? (
             <View className='pt-2'>
               <ListSkeleton
                 count={5}
