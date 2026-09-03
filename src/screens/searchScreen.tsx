@@ -4,7 +4,6 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import AppText from '../components/common/AppText';
-import { AppInput } from '../components/common/Input';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { useAppDispatch, useAppSelector } from '../store';
@@ -255,72 +254,27 @@ const SearchScreen = () => {
         variant='search'
         title='Search'
         onBackPress={() => navigation.goBack()}
+        searchQuery={searchQuery}
+        onChangeSearchQuery={setSearchQuery}
+        searchAutoFocus
+        searchPlaceholder='Search tasks, stories, projects...'
+        categoryOptions={CATEGORY_OPTIONS.map(opt => ({
+          label: opt.label,
+          value: opt.value,
+        }))}
+        selectedCategory={selectedCategory}
+        onSelectCategory={value => setSelectedCategory(value as SearchCategory)}
       />
-      <View
-        style={{
-          paddingHorizontal: layout.paddingHorizontal,
-          paddingBottom: layout.elementGap,
-        }}
-      >
-        <AppInput
-          autoFocus={true}
-          placeholder='Search tasks, stories, projects...'
-          leftIcon={
-            <Ionicons
-              name='search-outline'
-              size={moderateScale(18)}
-              color={colors.textSecondary}
-            />
-          }
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
 
-      <View
-        style={{
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
           paddingHorizontal: layout.paddingHorizontal,
-          paddingBottom: layout.elementGap,
+          paddingTop: moderateScale(5),
+          paddingBottom: hp(10),
         }}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: layout.elementGap / 2 }}
-        >
-          {CATEGORY_OPTIONS.map(cat => {
-            const isActive = selectedCategory === cat.value;
-            return (
-              <TouchableOpacity
-                key={cat.value}
-                activeOpacity={0.8}
-                onPress={() => setSelectedCategory(cat.value)}
-                className='rounded-full border px-3 py-1.5'
-                style={{
-                  backgroundColor: isActive
-                    ? colors.primary
-                    : colors.background,
-                  borderColor: isActive ? colors.primary : colors.border,
-                }}
-              >
-                <AppText
-                  variant='caption'
-                  className='font-semibold'
-                  color={isActive ? colors.white : colors.textSecondary}
-                >
-                  {cat.label}
-                </AppText>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      <View
-        style={{
-          flex: 1,
-          paddingHorizontal: layout.paddingHorizontal,
-        }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps='handled'
       >
         <FlatList
           data={filteredResults}
@@ -329,12 +283,13 @@ const SearchScreen = () => {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmptyState}
           contentContainerStyle={{
-            paddingBottom: hp(10),
+            flexGrow: 1,
             gap: layout.tightGap,
           }}
+          scrollEnabled={false}
           keyboardShouldPersistTaps='handled'
         />
-      </View>
+      </ScrollView>
     </Screen>
   );
 };

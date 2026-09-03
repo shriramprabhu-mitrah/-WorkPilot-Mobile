@@ -104,6 +104,7 @@ export interface FavoriteUserStoryItem extends BaseFavoriteItem {
   user_story_name: string;
   user_story_title: string;
   user_story: UserStory;
+  title: string;
 }
 
 export interface FavoriteTaskItem extends BaseFavoriteItem {
@@ -112,6 +113,7 @@ export interface FavoriteTaskItem extends BaseFavoriteItem {
   task_name: string;
   task_title: string;
   task: Task;
+  title: string;
 }
 
 export type FavoriteItem = FavoriteUserStoryItem | FavoriteTaskItem;

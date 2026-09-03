@@ -28,6 +28,11 @@ export type HeaderVariant =
   | 'taskDetails'
   | 'search';
 
+export interface SearchCategoryOption<T = string> {
+  label: string;
+  value: T;
+}
+
 export interface HeaderProps {
   variant?: HeaderVariant;
   title?: string;
@@ -51,6 +56,13 @@ export interface HeaderProps {
   rightComponent?: React.ReactNode;
   children?: React.ReactNode;
   containerStyle?: StyleProp<ViewStyle>;
+  searchQuery?: string;
+  onChangeSearchQuery?: (text: string) => void;
+  searchPlaceholder?: string;
+  searchAutoFocus?: boolean;
+  categoryOptions?: SearchCategoryOption[];
+  selectedCategory?: string;
+  onSelectCategory?: (value: string) => void;
 }
 
 export const CommonHeader: React.FC<HeaderProps> = ({
@@ -76,6 +88,13 @@ export const CommonHeader: React.FC<HeaderProps> = ({
   rightComponent,
   children,
   containerStyle,
+  searchQuery = '',
+  onChangeSearchQuery,
+  searchPlaceholder,
+  searchAutoFocus = false,
+  categoryOptions,
+  selectedCategory,
+  onSelectCategory,
 }) => {
   const { colors, strings } = useTheme();
   const { layout, moderateScale } = useAuthLayout();
@@ -402,6 +421,65 @@ export const CommonHeader: React.FC<HeaderProps> = ({
 
   const renderBottomSection = () => {
     if (children) return <View className='mt-3'>{children}</View>;
+
+    if (variant === 'search') {
+      return (
+        <View className='mt-3'>
+          <AppInput
+            autoFocus={searchAutoFocus}
+            placeholder={
+              searchPlaceholder || strings.home?.searchPlaceholder || 'Search'
+            }
+            onChangeText={onChangeSearchQuery}
+            value={searchQuery}
+            leftIcon={
+              <Ionicons
+                name='search-outline'
+                size={moderateScale(18)}
+                color={colors.textSecondary}
+              />
+            }
+          />
+
+          {categoryOptions && categoryOptions.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                gap: layout.elementGap / 2,
+                paddingTop: layout.elementGap,
+              }}
+            >
+              {categoryOptions.map(option => {
+                const isActive = selectedCategory === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    activeOpacity={0.8}
+                    onPress={() => onSelectCategory?.(option.value)}
+                    className='rounded-full border px-3 py-1.5'
+                    style={{
+                      backgroundColor: isActive
+                        ? colors.primary
+                        : colors.background,
+                      borderColor: isActive ? colors.primary : colors.border,
+                    }}
+                  >
+                    <AppText
+                      variant='caption'
+                      className='font-semibold'
+                      color={isActive ? colors.white : colors.textSecondary}
+                    >
+                      {option.label}
+                    </AppText>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+      );
+    }
 
     if (variant === 'home') {
       return (
