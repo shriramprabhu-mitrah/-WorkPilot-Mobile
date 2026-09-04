@@ -153,8 +153,15 @@ const Report = () => {
   const layout = useAuthLayout();
   const moderateScale = layout?.moderateScale || ((size: number) => size);
 
-  const { burndownData, burndownLoading, project, currentSprint } =
+  /*
+   * Project and Sprint now come directly from Redux.
+   * No route params are required.
+   */
+  const { project, currentSprint, burndownData, burndownLoading } =
     useAppSelector(state => state.projects);
+
+  const projectId = project?.id;
+  const sprintId = currentSprint?.id;
 
   const [activeModal, setActiveModal] = useState<ActiveModalType>(null);
   const [selectedTimeFilter, setSelectedTimeFilter] =
@@ -175,13 +182,13 @@ const Report = () => {
   // Fetch Burndown Chart data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (!project?.id || !currentSprint?.id) {
+      if (!projectId || !sprintId) {
         setIsFocusLoading(false);
         return;
       }
 
       let isMounted = true;
-      const currentKey = `${project.id}_${currentSprint.id}`;
+      const currentKey = `${projectId}_${sprintId}`;
 
       // Show skeleton only on initial load or if Project/Sprint ID changes
       if (lastFetchedKeyRef.current !== currentKey) {
@@ -191,8 +198,8 @@ const Report = () => {
 
       dispatch(
         getBurndownChartThunk({
-          projectId: project.id,
-          sprintId: currentSprint.id,
+          projectId,
+          sprintId,
         }),
       ).finally(() => {
         if (isMounted) {
@@ -203,7 +210,7 @@ const Report = () => {
       return () => {
         isMounted = false;
       };
-    }, [dispatch, project?.id, currentSprint?.id]),
+    }, [dispatch, projectId, sprintId]),
   );
 
   const showBurndownSkeleton =

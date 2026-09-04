@@ -46,9 +46,10 @@ export const Backlogs = () => {
     project,
   } = useAppSelector(state => state.projects);
 
+  // Project ID comes directly from Redux
   const projectId = project?.id;
 
-  // Show skeleton ONLY on first screen focus or when projectId changes
+  // Show skeleton ONLY on first screen focus or when project changes
   const showSkeleton = isInitialLoading;
   const showFooterSpinner = backlogUserStoryLoading && isFetchingNextPage;
 
@@ -414,7 +415,7 @@ export const Backlogs = () => {
                           navigation.navigate('issue', {
                             projectId,
                             taskId: task.id,
-                            task: task,
+                            task,
                           })
                         }
                       >

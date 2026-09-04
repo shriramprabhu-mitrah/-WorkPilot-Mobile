@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Screen from '../components/common/ScreenWapper';
 import ProjectTopNavigator from '../navigation/projectTopNavigator';
@@ -15,17 +21,21 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import {
-  getProjectById,
-  getSprintByIdThunk,
-  getSprintsThunk,
-} from '../store/project_store/action/project_thunk';
+  useGetProjectByIdQuery,
+  useGetSprintByIdQuery,
+} from '../store/api/projectApi';
+import { useGetSprintsQuery } from '../store/api/projectApi';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { ViewState } from '../screens/projectScreens/setting';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
 import { moderateScale } from '../utils/responsive';
 import { Sprint } from '../types/project.type';
 import { useTheme } from '../theme/ThemeProvider';
-import { getProjectName } from '../store/project_store/reducer/project_reducer';
-
+import {
+  getProjectName,
+  getProjectData,
+  getCurrentSprintData,
+} from '../store/project_store/reducer/project_reducer';
 const ProjectDetails: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'projectDetails'>>();
@@ -35,152 +45,170 @@ const ProjectDetails: React.FC = () => {
   const dispatch = useAppDispatch();
 
   // Redux Selectors for reactive UI rendering
+  const { projectName, sprints, active_sprint } = useAppSelector(
+    (state: RootState) => state?.projects,
+  );
+
   const {
-    project,
-    projectName,
-    currentSprint,
-    sprints,
-    active_sprint,
-    getCurrentSprintLoading,
-  } = useAppSelector((state: RootState) => state?.projects);
+    data: projectDetails,
+    isLoading: projectDetailsLoading,
+    isFetching: projectDetailsFetching,
+  } = useGetProjectByIdQuery(
+    routeProjectId
+      ? {
+          project_id: routeProjectId,
+        }
+      : skipToken,
+  );
+
+  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
+  const [sprintRefetchKey, setSprintRefetchKey] = useState(0);
+  const [currentSprintIdState, setCurrentSprintIdState] = useState<
+    string | undefined
+  >(undefined);
+
+  // Tracks if the user explicitly clicked a sprint to stop auto-reversion
+  const userHasSelected = useRef(false);
+
+  const { data: sprintsResponse } = useGetSprintsQuery(
+    routeProjectId
+      ? { project_id: routeProjectId, _refetchKey: sprintRefetchKey }
+      : skipToken,
+  );
+
+  const {
+    data: sprintByIdData,
+    isLoading: sprintByIdLoading,
+    isFetching: sprintByIdFetching,
+  } = useGetSprintByIdQuery(
+    currentSprintIdState && routeProjectId
+      ? { project_id: routeProjectId, sprint_id: currentSprintIdState }
+      : skipToken,
+  );
+
+  const currentSprint = sprintByIdData?.data;
+  const getCurrentSprintLoading = sprintByIdLoading || sprintByIdFetching;
 
   const [projectSheetVisible, setProjectSheetVisible] =
     useState<boolean>(false);
   const [sprintListVisible, setSprintListVisible] = useState<boolean>(false);
   const [settingsView, setSettingsView] = useState<ViewState>('MAIN_SETTINGS');
   const [activeTab, setActiveTab] = useState<string>('Summary');
-  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
 
-  const fetchProjectDetailsData = async (id: string) => {
-    try {
-      const [projectData, sprintsResponse] = await Promise.all([
-        dispatch(
-          getProjectById({
-            projectId: id,
-            handleSuccess: () => setSettingsView('MAIN_SETTINGS'),
-          }),
-        ).unwrap(),
-        dispatch(getSprintsThunk({ project_id: id })).unwrap(),
-      ]);
+  const sprintList = useMemo<Sprint[]>(() => {
+    return projectDetails?.sprints || sprintsResponse?.data || sprints || [];
+  }, [projectDetails?.sprints, sprintsResponse?.data, sprints]);
 
-      const fetchedSprints: Sprint[] = sprintsResponse?.response?.data || [];
-      const activeSprint = projectData?.active_sprint || active_sprint;
-      const totalCount =
-        projectData?.metrics?.total_sprints ?? fetchedSprints.length;
+  // Reset sprint selection tracking when the route project changes
+  useEffect(() => {
+    userHasSelected.current = false;
+    setCurrentSprintIdState(undefined);
+    setSelectedSprint(null);
+  }, [routeProjectId]);
 
-      const targetSprint =
-        activeSprint ||
-        fetchedSprints[totalCount - 1] ||
-        fetchedSprints[fetchedSprints.length - 1];
+  // Initial sprint selection (only triggers if user hasn't made a manual pick)
+  useEffect(() => {
+    if (userHasSelected.current || !routeProjectId) return;
 
-      const targetSprintId =
-        targetSprint?.id?.toString() || (targetSprint as any)?._id?.toString();
+    const availableSprints = sprintList;
+    if (!availableSprints || availableSprints.length === 0) return;
 
-      if (targetSprintId) {
-        await dispatch(
-          getSprintByIdThunk({
-            project_id: id,
-            sprint_id: targetSprintId,
-          }),
-        ).unwrap();
-      }
-    } catch (error) {
-      console.error('Failed to fetch project details:', error);
+    const activeSprint = projectDetails?.active_sprint || active_sprint;
+    const totalCount =
+      projectDetails?.metrics?.total_sprints ?? availableSprints.length;
+
+    const targetSprint =
+      activeSprint ||
+      availableSprints[totalCount - 1] ||
+      availableSprints[availableSprints.length - 1];
+
+    const targetSprintId =
+      targetSprint?.id?.toString() || (targetSprint as any)?._id?.toString();
+
+    if (targetSprintId && targetSprintId !== currentSprintIdState) {
+      setCurrentSprintIdState(targetSprintId);
+      setSelectedSprint(targetSprint);
     }
-  };
+  }, [
+    sprintList,
+    projectDetails?.active_sprint,
+    projectDetails?.metrics?.total_sprints,
+    active_sprint,
+    routeProjectId,
+    currentSprintIdState,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
       setSettingsView('MAIN_SETTINGS');
 
-      const targetProjectId =
-        routeProjectId ||
-        project?.id?.toString() ||
-        (project as any)?._id?.toString();
-
       if (routeProjectName) {
         dispatch(getProjectName(routeProjectName));
       }
 
-      if (targetProjectId) {
-        fetchProjectDetailsData(targetProjectId);
+      if (routeProjectId) {
+        setSprintRefetchKey(prev => prev + 1);
       }
     }, [routeProjectId, routeProjectName, dispatch]),
   );
 
-  // Sync selected sprint state using total_sprints metric and active sprint
   useEffect(() => {
-    const sprintList: Sprint[] = project?.sprints || sprints || [];
-    const totalSprints =
-      project?.metrics?.total_sprints ?? sprintList.length ?? 0;
+    dispatch(
+      getProjectData({
+        data: projectDetails,
+        isLoading: projectDetailsLoading,
+        isFetching: projectDetailsFetching,
+      }),
+    );
+  }, [projectDetails, projectDetailsLoading, projectDetailsFetching, dispatch]);
 
-    if (totalSprints > 0) {
-      const active = project?.active_sprint || active_sprint;
-      const targetSprint =
-        active ||
-        sprintList[totalSprints - 1] ||
-        sprintList[sprintList.length - 1];
-      setSelectedSprint(targetSprint || null);
-    } else {
-      setSelectedSprint(null);
+  useEffect(() => {
+    if (sprintByIdData?.data) {
+      dispatch(getCurrentSprintData(sprintByIdData.data));
     }
-  }, [
-    project?.sprints,
-    project?.metrics?.total_sprints,
-    project?.active_sprint,
-    active_sprint,
-    sprints,
-  ]);
+  }, [sprintByIdData, dispatch]);
 
   const handleOnSelectProject = (id: string, name: string) => {
-    const currentId =
-      project?.id?.toString() || (project as any)?._id?.toString();
-    if (!id || id === currentId) return;
+    if (!id || id === routeProjectId) {
+      setProjectSheetVisible(false);
+      return;
+    }
 
     dispatch(getProjectName(name));
     setProjectSheetVisible(false);
-    fetchProjectDetailsData(id);
+    navigation.push('projectDetails', {
+      projectId: id,
+      projectName: name,
+    });
   };
 
   const handleSelectSprint = (sprintId: string) => {
-    if (!sprintId || sprintId === currentSprint?.id?.toString()) return;
-    setSprintListVisible(false);
+    if (!sprintId) {
+      setSprintListVisible(false);
+      return;
+    }
 
-    const sprintList: Sprint[] = project?.sprints || sprints || [];
     const foundSprint = sprintList.find(
-      (s: Sprint) =>
-        (s.id?.toString() || (s as any)._id?.toString()) === sprintId,
+      (sprint: Sprint) =>
+        (sprint.id?.toString() || (sprint as any)._id?.toString()) ===
+        sprintId.toString(),
     );
 
+    // Lock automatic selection and apply manual choice
+    userHasSelected.current = true;
     if (foundSprint) {
       setSelectedSprint(foundSprint);
     }
-
-    const projectId =
-      project?.id?.toString() ||
-      (project as any)?._id?.toString() ||
-      routeProjectId;
-
-    if (projectId && sprintId) {
-      dispatch(
-        getSprintByIdThunk({
-          project_id: projectId,
-          sprint_id: sprintId,
-        }),
-      );
-    }
+    setCurrentSprintIdState(sprintId.toString());
+    setSprintListVisible(false);
   };
 
   const getHeaderTitle = (): string => {
     if (activeTab.toLowerCase() === 'settings') {
-      if (settingsView === 'DETAILS') {
-        return 'Project details';
-      }
-      if (settingsView === 'FEATURES') {
-        return 'Features';
-      }
+      if (settingsView === 'DETAILS') return 'Project details';
+      if (settingsView === 'FEATURES') return 'Features';
     }
-    return project?.name || projectName || 'Select Project';
+    return projectDetails?.name || projectName || 'Select Project';
   };
 
   const handleBackPress = () => {
@@ -191,10 +219,12 @@ const ProjectDetails: React.FC = () => {
     }
   };
 
-  const currentSprintName = currentSprint?.name;
+  const currentSprintName = currentSprint?.name || selectedSprint?.name;
 
   const currentProjectId =
-    project?.id?.toString() || (project as any)?._id?.toString();
+    projectDetails?.id?.toString() ||
+    (projectDetails as any)?._id?.toString() ||
+    routeProjectId;
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
@@ -304,7 +334,7 @@ const ProjectDetails: React.FC = () => {
         setSettingsView={setSettingsView}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        projectName={project?.name || projectName}
+        projectName={projectDetails?.name || projectName}
       />
 
       {/* Project Bottom Sheet */}

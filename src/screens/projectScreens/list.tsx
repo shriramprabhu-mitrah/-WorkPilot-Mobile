@@ -15,7 +15,7 @@ import { Radius } from '../../constants/Radius';
 import { WorkItemIcon } from '../../components/common/getWorkItemIcon';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { getUserStories } from '../../store/project_store/action/project_thunk';
-import { Sprint, UserStory } from '../../types/project.type';
+import { UserStory } from '../../types/project.type';
 import ListSkeleton from '../../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../../components/skeleton/ProjectCardSkeleton';
 import { RootStackParamList } from '../../types/navigationTypes';
@@ -33,22 +33,18 @@ const List = () => {
   // Ref to track previous context (Project ID & Sprint ID)
   const lastFetchedKeyRef = useRef<string | null>(null);
 
+  // Force skeleton only during initial mount or context (project/sprint) change
   const {
-    userStories,
-    currentSprint,
     project,
-    userStoryLoading,
+    currentSprint,
+    userStories,
     userStoryMeta,
+    userStoryLoading,
   } = useAppSelector(state => state.projects);
 
-  const activeSprint =
-    currentSprint ||
-    project?.sprints?.find((sprint: Sprint) => sprint.status === 'active') ||
-    project?.sprints?.find((sprint: Sprint) => sprint.status === 'planning');
-
   const projectId = project?.id;
+  const activeSprintId = currentSprint?.id;
 
-  // Force skeleton only during initial mount or context (project/sprint) change
   const showSkeleton =
     isFocusLoading ||
     (userStoryLoading &&
@@ -58,13 +54,13 @@ const List = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (!projectId || !activeSprint?.id) {
+      if (!projectId || !activeSprintId) {
         setIsFocusLoading(false);
         return;
       }
 
       let isMounted = true;
-      const currentKey = `${projectId}_${activeSprint.id}`;
+      const currentKey = `${projectId}_${activeSprintId}`;
 
       // Only show skeleton if key changed (or on initial load)
       if (lastFetchedKeyRef.current !== currentKey) {
@@ -80,7 +76,7 @@ const List = () => {
           payload: {
             page: 1,
             page_size: 10,
-            sprint_id: activeSprint.id,
+            sprint_id: activeSprintId,
           },
         }),
       ).finally(() => {
@@ -92,7 +88,7 @@ const List = () => {
       return () => {
         isMounted = false;
       };
-    }, [dispatch, projectId, activeSprint?.id]),
+    }, [dispatch, projectId, activeSprintId]),
   );
 
   const handleLoadMore = async () => {
@@ -102,7 +98,7 @@ const List = () => {
       !isFocusLoading &&
       userStoryMeta?.has_next &&
       projectId &&
-      activeSprint?.id
+      activeSprintId
     ) {
       try {
         setIsFetchingNextPage(true);
@@ -112,7 +108,7 @@ const List = () => {
             payload: {
               page: (userStoryMeta.page || 1) + 1,
               page_size: userStoryMeta.page_size || 10,
-              sprint_id: activeSprint.id,
+              sprint_id: activeSprintId,
             },
           }),
         );
@@ -348,7 +344,6 @@ const List = () => {
                   </AppText>
                 </View>
 
-                {/* Right Status Badge */}
                 <View
                   className='flex-row items-center'
                   style={{ gap: layout.elementGap }}
