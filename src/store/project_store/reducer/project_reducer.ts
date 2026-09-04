@@ -76,6 +76,7 @@ const initialState: ProjectState & {
   burndownData: SprintBurndownData | null;
   burndownLoading: boolean;
   burndownError: any | null;
+  isProjectFetching: boolean;
 } = {
   projectName: '',
   projects: [],
@@ -129,6 +130,7 @@ const initialState: ProjectState & {
   burndownData: null,
   burndownLoading: false,
   burndownError: null,
+  isProjectFetching: false,
 };
 
 const projectSlice = createSlice({
@@ -138,6 +140,14 @@ const projectSlice = createSlice({
   reducers: {
     getProjectName: (state, action: PayloadAction<string>) => {
       state.projectName = action.payload;
+    },
+    getProjectData: (state, action) => {
+      state.project = action.payload.data;
+      state.projectLoading = action.payload.isLoading;
+      state.isProjectFetching = action.payload.isFetching;
+    },
+    getCurrentSprintData: (state, action) => {
+      state.currentSprint = action.payload;
     },
     resetProjects: state => {
       state.projects = [];
@@ -505,6 +515,8 @@ export const {
   setFilter,
   resetFilters,
   setTasks,
+  getProjectData,
+  getCurrentSprintData,
 } = projectSlice.actions;
 
 export default projectSlice.reducer;

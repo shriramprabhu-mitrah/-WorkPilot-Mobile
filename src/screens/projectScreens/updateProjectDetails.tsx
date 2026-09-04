@@ -18,7 +18,7 @@ import {
   deleteProject,
   getAllProjectInfo,
 } from '../../store/project_store/action/project_thunk';
-import { useLazyGetProjectByIdQuery } from '../../store/api/projectDetailsApi';
+import { useLazyGetProjectByIdQuery } from '../../store/api/projectApi';
 import { showSuccessToast } from '../../utils/utils';
 import { getValidStatus, ProjectStatus, STATUS_LABELS } from '../../utils/enum';
 import { useNavigation } from '@react-navigation/native';

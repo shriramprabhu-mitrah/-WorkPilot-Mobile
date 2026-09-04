@@ -16,24 +16,15 @@ import { AppText } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
 import SummarySkeleton from '../../components/skeleton/summarySkeleton';
 import { ProjectTopTabParamList } from '../../types/navigationTypes';
-import { useGetProjectByIdQuery } from '../../store/api/projectDetailsApi';
+import { useGetProjectByIdQuery } from '../../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
 
 export const Summary: React.FC = () => {
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
-
-  const route = useRoute<RouteProp<ProjectTopTabParamList, 'Summary'>>();
-  const { projectId } = route.params ?? {};
-
-  const {
-    data: project,
-    isLoading: projectLoading,
-    isFetching: projectFetching,
-  } = useGetProjectByIdQuery(projectId ? { project_id: projectId } : skipToken);
-  // const { project, loading } = useAppSelector(
-  //   (state: RootState) => state?.projects,
-  // );
+  const { project, projectLoading, isProjectFetching } = useAppSelector(
+    (state: RootState) => state?.projects,
+  );
 
   // Animation values
   const drawAnim = useRef(new Animated.Value(0)).current;

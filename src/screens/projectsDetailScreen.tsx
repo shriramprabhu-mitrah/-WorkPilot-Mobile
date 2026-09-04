@@ -12,14 +12,11 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import AppText from '../components/common/AppText';
 import TaskCard from '../components/TaskCard';
-import {
-  RootStackParamList,
-  ProjectTopTabParamList,
-} from '../types/navigationTypes';
+import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { UserStory, UserStoryTask } from '../types/project.type';
@@ -46,11 +43,6 @@ import { CustomStatus } from '../types/customstatus.type';
 import { updateTaskThunk } from '../store/task_store/action/task.thunk';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
-import {
-  useGetProjectByIdQuery,
-  useGetSprintByIdQuery,
-} from '../store/api/projectDetailsApi';
-import { skipToken } from '@reduxjs/toolkit/query';
 
 type DropZone = {
   storyId: string;
@@ -62,8 +54,6 @@ type DropZone = {
   scrollXAtMeasure: number;
   scrollYAtMeasure: number;
 };
-
-type ProjectDetailsRouteProp = RouteProp<ProjectTopTabParamList, 'Board'>;
 
 const USER_STORY_WIDTH = 250;
 const STATUS_COLUMN_WIDTH = 260;
@@ -628,7 +618,6 @@ const UserStoryBoardRow = ({
 
 const ProjectDeatailsScreen = () => {
   const dispatch = useAppDispatch();
-  const route = useRoute<ProjectDetailsRouteProp>();
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
   const verticalScrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -636,39 +625,26 @@ const ProjectDeatailsScreen = () => {
   const horizontalScrollOffset = useSharedValue(0);
   const verticalScrollOffset = useSharedValue(0);
 
-  const { projectId, sprintId: routeSprintId } = route.params ?? {};
-
-  const { data: projectDetails, isLoading: projectLoading } =
-    useGetProjectByIdQuery(projectId ? { project_id: projectId } : skipToken);
-
-  const activeSprint = projectDetails?.active_sprint;
-
-  const { data: sprintDetails, isLoading: sprintLoading } =
-    useGetSprintByIdQuery(
-      (routeSprintId || activeSprint?.id) && projectId
-        ? {
-            project_id: projectId,
-            sprint_id: routeSprintId || activeSprint!.id,
-          }
-        : skipToken,
-    );
-
-  const currentSprint = sprintDetails?.data || activeSprint;
-
   // Redux Selectors
   const {
+    project,
+    currentSprint,
     userStories,
     userStoryMeta,
     customStatuses,
     loading: storeLoading,
   } = useAppSelector((state: RootState) => state.projects);
+
   console.log('userStories', userStories);
 
-  const projectIdFromDetails = projectDetails?.id?.toString() || projectId;
+  const projectId =
+    project?.id?.toString() || (project as any)?._id?.toString();
+
+  const currentSprintId =
+    currentSprint?.id?.toString() || (currentSprint as any)?._id?.toString();
 
   // Local State
   const [localUserStories, setLocalUserStories] = useState<UserStory[]>([]);
-  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
   const [expandedStories, setExpandedStories] = useState<
     Record<string, boolean>
   >({});
@@ -687,7 +663,6 @@ const ProjectDeatailsScreen = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const isInitialLoad = useRef(true);
   const hasInitializedStories = useRef(false);
-  const currentSprintId = currentSprint?.id;
 
   // Helper – stories already carry is_favourite from the API, just pass through
   const mapStoriesFromApi = useCallback(
@@ -722,7 +697,6 @@ const ProjectDeatailsScreen = () => {
       if (!projectId || !currentSprintId) return;
 
       dispatch(getCustomStatusData({ projectId }));
-      setSelectedSprintId(currentSprintId);
 
       dispatch(
         getUserStories({
@@ -730,11 +704,11 @@ const ProjectDeatailsScreen = () => {
           payload: {
             page: 1,
             page_size: PAGE_SIZE,
-            sprint_id: selectedSprintId ?? currentSprintId,
+            sprint_id: currentSprintId,
           },
         }),
       );
-    }, [dispatch, projectId, currentSprintId, selectedSprintId]),
+    }, [dispatch, projectId, currentSprintId]),
   );
 
   useEffect(() => {
@@ -746,7 +720,7 @@ const ProjectDeatailsScreen = () => {
     setDropSuccessZone(null);
     setCurrentPage(1);
     setExpandedStories({});
-  }, [projectId, selectedSprintId]);
+  }, [projectId, currentSprintId]);
 
   // Seed / append from Redux into local list – is_favourite comes from the API
   useEffect(() => {
@@ -793,14 +767,14 @@ const ProjectDeatailsScreen = () => {
         payload: {
           page: nextPage,
           page_size: PAGE_SIZE,
-          ...(selectedSprintId ? { sprint_id: selectedSprintId } : {}),
+          ...(currentSprintId ? { sprint_id: currentSprintId } : {}),
         },
       }),
     );
   }, [
     dispatch,
     projectId,
-    selectedSprintId,
+    currentSprintId,
     currentPage,
     userStoryMeta,
     isFetchingMore,
@@ -818,11 +792,11 @@ const ProjectDeatailsScreen = () => {
         payload: {
           page: 1,
           page_size: PAGE_SIZE,
-          ...(selectedSprintId ? { sprint_id: selectedSprintId } : {}),
+          ...(currentSprintId ? { sprint_id: currentSprintId } : {}),
         },
       }),
     );
-  }, [dispatch, projectId, selectedSprintId]);
+  }, [dispatch, projectId, currentSprintId]);
 
   const handleToggleStoryFavorite = useCallback(
     (storyId: string) => {

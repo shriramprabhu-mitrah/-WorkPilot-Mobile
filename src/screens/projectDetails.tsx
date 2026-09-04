@@ -23,7 +23,7 @@ import { RootState, useAppDispatch, useAppSelector } from '../store';
 import {
   useGetProjectByIdQuery,
   useGetSprintByIdQuery,
-} from '../store/api/projectDetailsApi';
+} from '../store/api/projectApi';
 import { useGetSprintsQuery } from '../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { ViewState } from '../screens/projectScreens/setting';
@@ -31,7 +31,11 @@ import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
 import { moderateScale } from '../utils/responsive';
 import { Sprint } from '../types/project.type';
 import { useTheme } from '../theme/ThemeProvider';
-import { getProjectName } from '../store/project_store/reducer/project_reducer';
+import {
+  getProjectName,
+  getProjectData,
+  getCurrentSprintData,
+} from '../store/project_store/reducer/project_reducer';
 const ProjectDetails: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'projectDetails'>>();
@@ -147,6 +151,22 @@ const ProjectDetails: React.FC = () => {
       }
     }, [routeProjectId, routeProjectName, dispatch]),
   );
+
+  useEffect(() => {
+    dispatch(
+      getProjectData({
+        data: projectDetails,
+        isLoading: projectDetailsLoading,
+        isFetching: projectDetailsFetching,
+      }),
+    );
+  }, [projectDetails, projectDetailsLoading, projectDetailsFetching, dispatch]);
+
+  useEffect(() => {
+    if (sprintByIdData?.data) {
+      dispatch(getCurrentSprintData(sprintByIdData.data));
+    }
+  }, [sprintByIdData, dispatch]);
 
   const handleOnSelectProject = (id: string, name: string) => {
     if (!id || id === routeProjectId) {
@@ -315,8 +335,6 @@ const ProjectDetails: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         projectName={projectDetails?.name || projectName}
-        projectId={routeProjectId}
-        sprintId={currentSprintIdState}
       />
 
       {/* Project Bottom Sheet */}

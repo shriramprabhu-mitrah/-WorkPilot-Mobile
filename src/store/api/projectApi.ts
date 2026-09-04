@@ -1,11 +1,20 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import axiosBaseQuery from './axiosBaseQuery';
-import { GET_PROJECTS, GET_SPRINTS } from '../../constants/apiServiceEndpoint';
+import {
+  GET_PROJECTS,
+  GET_SPRINTS,
+  GET_PROJECT_BY_ID,
+  GET_SPRINT_BY_Id,
+} from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsParams,
   GetProjectsResponse,
   GetSprintsParams,
   GetSprintResponse,
+  GetProjectByIdResponse,
+  ProjectDetails,
+  GetSprintByIdParams,
+  GetSprintByIdResponse,
 } from '../../types/project.type';
 
 export interface GetProjectsQueryArgs extends GetProjectsParams {
@@ -18,10 +27,19 @@ export interface GetSprintsQueryArgs extends GetSprintsParams {
   _refetchKey?: number;
 }
 
+export interface GetProjectByIdQueryArgs {
+  project_id: string;
+  _refetchKey?: number;
+}
+
+export interface GetSprintByIdQueryArgs extends GetSprintByIdParams {
+  _refetchKey?: number;
+}
+
 export const projectApi = createApi({
   reducerPath: 'projectApi',
   baseQuery: axiosBaseQuery,
-  tagTypes: ['Projects', 'Sprints'],
+  tagTypes: ['Projects', 'Sprints', 'ProjectDetails', 'SprintDetails'],
   endpoints: build => ({
     getProjects: build.query<GetProjectsResponse, GetProjectsQueryArgs | void>({
       query: args => {
@@ -117,6 +135,67 @@ export const projectApi = createApi({
 
       providesTags: ['Sprints'],
     }),
+
+    getProjectById: build.query<ProjectDetails, GetProjectByIdQueryArgs>({
+      query: ({ project_id }) => ({
+        url: GET_PROJECT_BY_ID.replace('{project_id}', project_id),
+        method: 'GET',
+      }),
+
+      transformResponse: (response: GetProjectByIdResponse) => response.data,
+
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        return `${endpointName}_${queryArgs.project_id}`;
+      },
+
+      forceRefetch({ currentArg, previousArg }) {
+        return (
+          currentArg?.project_id !== previousArg?.project_id ||
+          currentArg?._refetchKey !== previousArg?._refetchKey
+        );
+      },
+
+      providesTags: (_result, _error, { project_id }) => [
+        {
+          type: 'ProjectDetails',
+          id: project_id,
+        },
+      ],
+    }),
+
+    /* ---------------------------------------------------------------------- */
+    /*                            Get Sprint By ID                             */
+    /* ---------------------------------------------------------------------- */
+
+    getSprintById: build.query<GetSprintByIdResponse, GetSprintByIdQueryArgs>({
+      query: ({ project_id, sprint_id }) => ({
+        url: GET_SPRINT_BY_Id.replace('{project_id}', project_id).replace(
+          '{sprint_id}',
+          sprint_id,
+        ),
+        method: 'GET',
+      }),
+
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        const { _refetchKey, ...rest } = queryArgs;
+
+        return `${endpointName}_${JSON.stringify(rest)}`;
+      },
+
+      forceRefetch({ currentArg, previousArg }) {
+        return (
+          currentArg?.sprint_id !== previousArg?.sprint_id ||
+          currentArg?._refetchKey !== previousArg?._refetchKey
+        );
+      },
+
+      providesTags: (_result, _error, { project_id, sprint_id }) => [
+        {
+          type: 'SprintDetails',
+          id: `${project_id}_${sprint_id}`,
+        },
+      ],
+    }),
   }),
 });
 
@@ -125,8 +204,13 @@ export const {
   useGetSprintsQuery,
   useLazyGetProjectsQuery,
   useLazyGetSprintsQuery,
+  useGetProjectByIdQuery,
+  useLazyGetProjectByIdQuery,
+  useGetSprintByIdQuery,
+  useLazyGetSprintByIdQuery,
 } = projectApi;
 
 // Aliases matching thunk names
 export const useGetAllProjectInfoQuery = useGetProjectsQuery;
 export const useGetSprintsThunkQuery = useGetSprintsQuery;
+export const useGetSprintByIdThunkQuery = useGetSprintByIdQuery;

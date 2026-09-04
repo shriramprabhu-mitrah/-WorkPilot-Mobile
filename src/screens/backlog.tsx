@@ -5,12 +5,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import {
-  useFocusEffect,
-  useNavigation,
-  useRoute,
-  RouteProp,
-} from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { AppText, AppInput } from '../components';
@@ -23,24 +18,13 @@ import { getUserStories } from '../store/project_store/action/project_thunk';
 import { UserStory } from '../types/project.type';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
-import {
-  RootStackParamList,
-  ProjectTopTabParamList,
-} from '../types/navigationTypes';
-import { useGetProjectByIdQuery } from '../store/api/projectDetailsApi';
-import { skipToken } from '@reduxjs/toolkit/query';
+import { RootStackParamList } from '../types/navigationTypes';
 
 export const Backlogs = () => {
   const { colors } = useTheme();
   const { moderateScale, layout, hp } = useAuthLayout();
   const dispatch = useAppDispatch();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-
-  const route = useRoute<RouteProp<ProjectTopTabParamList, 'Backlogs'>>();
-  const { projectId } = route.params ?? {};
-
-  const { data: projectDetails, isLoading: projectLoading } =
-    useGetProjectByIdQuery(projectId ? { project_id: projectId } : skipToken);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
@@ -55,26 +39,31 @@ export const Backlogs = () => {
   >({});
 
   // Using separate backlog state keys from Redux store
-  const { backlogUserStories, backlogUserStoryMeta, backlogUserStoryLoading } =
-    useAppSelector(state => state.projects);
+  const {
+    backlogUserStories,
+    backlogUserStoryMeta,
+    backlogUserStoryLoading,
+    project,
+  } = useAppSelector(state => state.projects);
 
-  const effectiveProjectId = projectDetails?.id?.toString() || projectId;
+  // Project ID comes directly from Redux
+  const projectId = project?.id;
 
-  // Show skeleton ONLY on first screen focus or when projectId changes
+  // Show skeleton ONLY on first screen focus or when project changes
   const showSkeleton = isInitialLoading;
   const showFooterSpinner = backlogUserStoryLoading && isFetchingNextPage;
 
   // Fetch backlog stories on focus
   useFocusEffect(
     useCallback(() => {
-      if (!effectiveProjectId) {
+      if (!projectId) {
         setIsInitialLoading(false);
         return;
       }
 
       let isMounted = true;
       const isProjectChangedOrFirstLoad =
-        prevProjectIdRef.current !== effectiveProjectId;
+        prevProjectIdRef.current !== projectId;
 
       // Only enable full-screen skeleton if first time loading or project changed
       if (isProjectChangedOrFirstLoad) {
@@ -85,7 +74,7 @@ export const Backlogs = () => {
 
       dispatch(
         getUserStories({
-          projectId: effectiveProjectId,
+          projectId,
           payload: {
             page: 1,
             page_size: 10,
@@ -95,14 +84,14 @@ export const Backlogs = () => {
       ).finally(() => {
         if (isMounted) {
           setIsInitialLoading(false);
-          prevProjectIdRef.current = effectiveProjectId;
+          prevProjectIdRef.current = projectId;
         }
       });
 
       return () => {
         isMounted = false;
       };
-    }, [dispatch, effectiveProjectId]),
+    }, [dispatch, projectId]),
   );
 
   const handleLoadMore = async () => {
@@ -111,13 +100,13 @@ export const Backlogs = () => {
       !isFetchingNextPage &&
       !isInitialLoading &&
       backlogUserStoryMeta?.has_next &&
-      effectiveProjectId
+      projectId
     ) {
       try {
         setIsFetchingNextPage(true);
         await dispatch(
           getUserStories({
-            projectId: effectiveProjectId,
+            projectId,
             payload: {
               page: (backlogUserStoryMeta.page || 1) + 1,
               page_size: backlogUserStoryMeta.page_size || 10,
@@ -281,7 +270,7 @@ export const Backlogs = () => {
                 className='flex-1 flex-row items-center'
                 onPress={() =>
                   navigation.navigate('issue', {
-                    projectId: effectiveProjectId,
+                    projectId,
                     userStoryId: item?.id,
                     story: item,
                   })
@@ -426,7 +415,7 @@ export const Backlogs = () => {
                           navigation.navigate('issue', {
                             projectId,
                             taskId: task.id,
-                            task: task,
+                            task,
                           })
                         }
                       >

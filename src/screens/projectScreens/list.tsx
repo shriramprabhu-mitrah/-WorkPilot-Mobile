@@ -5,12 +5,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import {
-  useFocusEffect,
-  useNavigation,
-  useRoute,
-  RouteProp,
-} from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { AppText, AppInput } from '../../components';
@@ -20,18 +15,10 @@ import { Radius } from '../../constants/Radius';
 import { WorkItemIcon } from '../../components/common/getWorkItemIcon';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { getUserStories } from '../../store/project_store/action/project_thunk';
-import { Sprint, UserStory } from '../../types/project.type';
+import { UserStory } from '../../types/project.type';
 import ListSkeleton from '../../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../../components/skeleton/ProjectCardSkeleton';
-import {
-  RootStackParamList,
-  ProjectTopTabParamList,
-} from '../../types/navigationTypes';
-import {
-  useGetProjectByIdQuery,
-  useGetSprintByIdQuery,
-} from '../../store/api/projectDetailsApi';
-import { skipToken } from '@reduxjs/toolkit/query';
+import { RootStackParamList } from '../../types/navigationTypes';
 
 const List = () => {
   const { colors } = useTheme();
@@ -39,40 +26,25 @@ const List = () => {
   const dispatch = useAppDispatch();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  const route = useRoute<RouteProp<ProjectTopTabParamList, 'List'>>();
-  const { projectId, sprintId: routeSprintId } = route.params ?? {};
-
   const [searchQuery, setSearchQuery] = useState('');
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [isFocusLoading, setIsFocusLoading] = useState(true);
-
-  const { data: projectDetails, isLoading: projectLoading } =
-    useGetProjectByIdQuery(projectId ? { project_id: projectId } : skipToken);
-
-  const activeSprint = projectDetails?.active_sprint;
-
-  const { data: sprintDetails, isLoading: sprintLoading } =
-    useGetSprintByIdQuery(
-      (routeSprintId || activeSprint?.id) && projectId
-        ? {
-            project_id: projectId,
-            sprint_id: routeSprintId || activeSprint!.id,
-          }
-        : skipToken,
-    );
-
-  const currentSprint = sprintDetails?.data || activeSprint;
-
-  const { userStories, userStoryMeta, userStoryLoading } = useAppSelector(
-    state => state.projects,
-  );
-
-  const activeSprintId = currentSprint?.id;
 
   // Ref to track previous context (Project ID & Sprint ID)
   const lastFetchedKeyRef = useRef<string | null>(null);
 
   // Force skeleton only during initial mount or context (project/sprint) change
+  const {
+    project,
+    currentSprint,
+    userStories,
+    userStoryMeta,
+    userStoryLoading,
+  } = useAppSelector(state => state.projects);
+
+  const projectId = project?.id;
+  const activeSprintId = currentSprint?.id;
+
   const showSkeleton =
     isFocusLoading ||
     (userStoryLoading &&
@@ -372,7 +344,6 @@ const List = () => {
                   </AppText>
                 </View>
 
-                {/* Right Status Badge */}
                 <View
                   className='flex-row items-center'
                   style={{ gap: layout.elementGap }}

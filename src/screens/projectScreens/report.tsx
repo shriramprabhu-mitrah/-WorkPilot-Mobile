@@ -7,7 +7,7 @@ import {
   Dimensions,
 } from 'react-native';
 import Svg, { Path, Line, Text as SvgText } from 'react-native-svg';
-import { useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { LineChart } from 'react-native-chart-kit';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
@@ -26,12 +26,6 @@ import {
   TimeFilterOption,
   Y_AXIS_TICKS,
 } from '../../utils/reportData';
-import { ProjectTopTabParamList } from '../../types/navigationTypes';
-import {
-  useGetProjectByIdQuery,
-  useGetSprintByIdQuery,
-} from '../../store/api/projectDetailsApi';
-import { skipToken } from '@reduxjs/toolkit/query';
 
 interface FilterCheckboxProps {
   label: string;
@@ -159,29 +153,15 @@ const Report = () => {
   const layout = useAuthLayout();
   const moderateScale = layout?.moderateScale || ((size: number) => size);
 
-  const route = useRoute<RouteProp<ProjectTopTabParamList, 'Report'>>();
-  const { projectId, sprintId: routeSprintId } = route.params ?? {};
+  /*
+   * Project and Sprint now come directly from Redux.
+   * No route params are required.
+   */
+  const { project, currentSprint, burndownData, burndownLoading } =
+    useAppSelector(state => state.projects);
 
-  const { data: projectDetails, isLoading: projectLoading } =
-    useGetProjectByIdQuery(projectId ? { project_id: projectId } : skipToken);
-
-  const activeSprint = projectDetails?.active_sprint;
-
-  const { data: sprintDetails, isLoading: sprintLoading } =
-    useGetSprintByIdQuery(
-      (routeSprintId || activeSprint?.id) && projectId
-        ? {
-            project_id: projectId,
-            sprint_id: routeSprintId || activeSprint!.id,
-          }
-        : skipToken,
-    );
-
-  const currentSprint = sprintDetails?.data || activeSprint;
-
-  const { burndownData, burndownLoading } = useAppSelector(
-    state => state.projects,
-  );
+  const projectId = project?.id;
+  const sprintId = currentSprint?.id;
 
   const [activeModal, setActiveModal] = useState<ActiveModalType>(null);
   const [selectedTimeFilter, setSelectedTimeFilter] =
@@ -202,13 +182,13 @@ const Report = () => {
   // Fetch Burndown Chart data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (!projectId || !currentSprint?.id) {
+      if (!projectId || !sprintId) {
         setIsFocusLoading(false);
         return;
       }
 
       let isMounted = true;
-      const currentKey = `${projectId}_${currentSprint.id}`;
+      const currentKey = `${projectId}_${sprintId}`;
 
       // Show skeleton only on initial load or if Project/Sprint ID changes
       if (lastFetchedKeyRef.current !== currentKey) {
@@ -219,7 +199,7 @@ const Report = () => {
       dispatch(
         getBurndownChartThunk({
           projectId,
-          sprintId: currentSprint.id,
+          sprintId,
         }),
       ).finally(() => {
         if (isMounted) {
@@ -230,7 +210,7 @@ const Report = () => {
       return () => {
         isMounted = false;
       };
-    }, [dispatch, projectId, currentSprint?.id]),
+    }, [dispatch, projectId, sprintId]),
   );
 
   const showBurndownSkeleton =

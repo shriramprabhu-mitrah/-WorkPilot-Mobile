@@ -53,11 +53,11 @@ export type RootStackParamList = {
 };
 
 export type ProjectTopTabParamList = {
-  Summary: { projectId: string; sprintId?: string } | undefined;
-  Board: { projectId: string; sprintId?: string } | undefined;
-  List: { projectId: string; sprintId?: string } | undefined;
-  Backlogs: { projectId: string; sprintId?: string } | undefined;
-  Settings: { projectId: string; sprintId?: string } | undefined;
-  Report: { projectId: string; sprintId?: string } | undefined;
-  Calendar: { projectId: string; sprintId?: string } | undefined;
+  Summary: undefined;
+  Board: undefined;
+  List: undefined;
+  Backlogs: undefined;
+  Settings: undefined;
+  Report: undefined;
+  Calendar: undefined;
 };

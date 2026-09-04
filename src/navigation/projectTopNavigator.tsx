@@ -18,8 +18,6 @@ interface ProjectTopNavigatorProps {
   activeTab?: string;
   setActiveTab?: (tabName: string) => void;
   projectName?: string;
-  projectId?: string;
-  sprintId?: string;
 }
 
 const TopTab = createMaterialTopTabNavigator<ProjectTopTabParamList>();
@@ -29,13 +27,8 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
   setSettingsView,
   setActiveTab,
   projectName,
-  projectId,
-  sprintId,
 }) => {
   const { colors } = useTheme();
-  const initialParams = projectId
-    ? { projectId, ...(sprintId ? { sprintId } : {}) }
-    : undefined;
 
   return (
     <TopTab.Navigator
@@ -89,35 +82,18 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
         tabBarInactiveTintColor: colors.textSecondary,
       }}
     >
-      <TopTab.Screen
-        name='Summary'
-        component={Summary}
-        initialParams={initialParams}
-      />
+      <TopTab.Screen name='Summary' component={Summary} />
       <TopTab.Screen
         name='Board'
         component={ProjectDeatailsScreen}
         options={{
           swipeEnabled: false,
         }}
-        initialParams={initialParams}
       />
-      <TopTab.Screen
-        name='List'
-        component={List}
-        initialParams={initialParams}
-      />
-      <TopTab.Screen
-        name='Report'
-        component={Report}
-        initialParams={initialParams}
-      />
-      <TopTab.Screen
-        name='Backlogs'
-        component={Backlogs}
-        initialParams={initialParams}
-      />
-      <TopTab.Screen name='Settings' initialParams={initialParams}>
+      <TopTab.Screen name='List' component={List} />
+      <TopTab.Screen name='Report' component={Report} />
+      <TopTab.Screen name='Backlogs' component={Backlogs} />
+      <TopTab.Screen name='Settings'>
         {props => (
           <Settings
             {...props}
