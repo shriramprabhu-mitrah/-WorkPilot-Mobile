@@ -16,7 +16,10 @@ import { useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import AppText from '../components/common/AppText';
 import TaskCard from '../components/TaskCard';
-import { RootStackParamList } from '../types/navigationTypes';
+import {
+  RootStackParamList,
+  ProjectTopTabParamList,
+} from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { UserStory, UserStoryTask } from '../types/project.type';
@@ -43,6 +46,11 @@ import { CustomStatus } from '../types/customstatus.type';
 import { updateTaskThunk } from '../store/task_store/action/task.thunk';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
+import {
+  useGetProjectByIdQuery,
+  useGetSprintByIdQuery,
+} from '../store/api/projectDetailsApi';
+import { skipToken } from '@reduxjs/toolkit/query';
 
 type DropZone = {
   storyId: string;
@@ -55,7 +63,7 @@ type DropZone = {
   scrollYAtMeasure: number;
 };
 
-type ProjectDetailsRouteProp = RouteProp<RootStackParamList, 'projectDetails'>;
+type ProjectDetailsRouteProp = RouteProp<ProjectTopTabParamList, 'Board'>;
 
 const USER_STORY_WIDTH = 250;
 const STATUS_COLUMN_WIDTH = 260;
@@ -628,18 +636,35 @@ const ProjectDeatailsScreen = () => {
   const horizontalScrollOffset = useSharedValue(0);
   const verticalScrollOffset = useSharedValue(0);
 
+  const { projectId, sprintId: routeSprintId } = route.params ?? {};
+
+  const { data: projectDetails, isLoading: projectLoading } =
+    useGetProjectByIdQuery(projectId ? { project_id: projectId } : skipToken);
+
+  const activeSprint = projectDetails?.active_sprint;
+
+  const { data: sprintDetails, isLoading: sprintLoading } =
+    useGetSprintByIdQuery(
+      (routeSprintId || activeSprint?.id) && projectId
+        ? {
+            project_id: projectId,
+            sprint_id: routeSprintId || activeSprint!.id,
+          }
+        : skipToken,
+    );
+
+  const currentSprint = sprintDetails?.data || activeSprint;
+
   // Redux Selectors
   const {
-    project,
     userStories,
     userStoryMeta,
     customStatuses,
-    currentSprint,
     loading: storeLoading,
   } = useAppSelector((state: RootState) => state.projects);
   console.log('userStories', userStories);
 
-  const projectId = project?.id;
+  const projectIdFromDetails = projectDetails?.id?.toString() || projectId;
 
   // Local State
   const [localUserStories, setLocalUserStories] = useState<UserStory[]>([]);

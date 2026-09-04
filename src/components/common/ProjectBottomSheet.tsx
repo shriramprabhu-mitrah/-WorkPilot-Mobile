@@ -113,9 +113,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     : projectsData || [];
 
   // Pagination meta
-  const currentMeta = isSprint
-    ? sprintsResponse?.meta
-    : projectsResponse?.meta;
+  const currentMeta = isSprint ? sprintsResponse?.meta : projectsResponse?.meta;
 
   const rtkHasMore =
     currentMeta?.has_next !== undefined

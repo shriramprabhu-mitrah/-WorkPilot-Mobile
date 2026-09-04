@@ -6,7 +6,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useRoute } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { DonutChart } from 'react-native-chart-kit/v2';
 import { RootState, useAppSelector } from '../../store';
@@ -15,42 +15,54 @@ import { Radius } from '../../constants/Radius';
 import { AppText } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
 import SummarySkeleton from '../../components/skeleton/summarySkeleton';
+import { ProjectTopTabParamList } from '../../types/navigationTypes';
+import { useGetProjectByIdQuery } from '../../store/api/projectDetailsApi';
+import { skipToken } from '@reduxjs/toolkit/query';
 
 export const Summary: React.FC = () => {
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
-  const { project, loading } = useAppSelector(
-    (state: RootState) => state?.projects,
-  );
+
+  const route = useRoute<RouteProp<ProjectTopTabParamList, 'Summary'>>();
+  const { projectId } = route.params ?? {};
+
+  const {
+    data: project,
+    isLoading: projectLoading,
+    isFetching: projectFetching,
+  } = useGetProjectByIdQuery(projectId ? { project_id: projectId } : skipToken);
+  // const { project, loading } = useAppSelector(
+  //   (state: RootState) => state?.projects,
+  // );
 
   // Animation values
   const drawAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Track project changes and initial mount state
-  const lastProjectIdRef = useRef<string | null>(null);
-  const isInitialMountRef = useRef<boolean>(true);
+  // const lastProjectIdRef = useRef<string | null>(null);
+  // const isInitialMountRef = useRef<boolean>(true);
 
-  const currentProjectId =
-    project?.id?.toString() || (project as any)?._id?.toString() || null;
+  // const currentProjectId =
+  //   project?.id?.toString() || (project as any)?._id?.toString() || null;
 
   // Update tracking refs once project finishes loading
-  useEffect(() => {
-    if (project && !loading && currentProjectId) {
-      lastProjectIdRef.current = currentProjectId;
-      isInitialMountRef.current = false;
-    }
-  }, [project, loading, currentProjectId]);
+  // useEffect(() => {
+  //   if (project && !loading && currentProjectId) {
+  //     lastProjectIdRef.current = currentProjectId;
+  //     isInitialMountRef.current = false;
+  //   }
+  // }, [project, loading, currentProjectId]);
 
   // Determine whether to show skeleton (Only on 1st load OR when project changes)
-  const isProjectChanged = currentProjectId !== lastProjectIdRef.current;
-  const shouldShowSkeleton =
-    !project || (loading && (isInitialMountRef.current || isProjectChanged));
+  // const isProjectChanged = currentProjectId !== lastProjectIdRef.current;
+  // const shouldShowSkeleton =
+  //   !project || (loading && (isInitialMountRef.current || isProjectChanged));
 
   // Re-run animation whenever the screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (!loading && project) {
+      if (!projectLoading && project) {
         // Reset animation states on focus
         drawAnim.setValue(0);
         fadeAnim.setValue(0);
@@ -71,7 +83,7 @@ export const Summary: React.FC = () => {
           }),
         ]).start();
       }
-    }, [loading, project, drawAnim, fadeAnim]),
+    }, [projectLoading, project, drawAnim, fadeAnim]),
   );
 
   // Interpolate rotation from -360deg to 0deg for "circle drawing" effect
@@ -80,8 +92,11 @@ export const Summary: React.FC = () => {
     outputRange: ['-360deg', '0deg'],
   });
 
-  if (shouldShowSkeleton) {
+  if (!project && projectLoading) {
     return <SummarySkeleton />;
+  }
+  if (!project) {
+    return null;
   }
 
   const totalTasks = project?.metrics?.total_tasks;

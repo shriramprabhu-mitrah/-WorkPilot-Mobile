@@ -12,6 +12,7 @@ import commentsReducer from './comments_store/reducer/comments_reducer';
 import attachmentReducer from './comments_store/reducer/attachment.reducer';
 import { homeApi } from './api/homeApi';
 import { projectApi } from './api/projectApi';
+import { projectDetailsApi } from './api/projectDetailsApi';
 
 export const RESET_STORE = 'RESET_STORE';
 
@@ -72,6 +73,7 @@ const appReducer = combineReducers({
   attachments: attachmentReducer,
   [homeApi.reducerPath]: homeApi.reducer,
   [projectApi.reducerPath]: projectApi.reducer,
+  [projectDetailsApi.reducerPath]: projectDetailsApi.reducer,
 });
 
 const rootReducer = (
@@ -94,7 +96,8 @@ export const store = configureStore({
       serializableCheck: false,
     })
       .concat(homeApi.middleware)
-      .concat(projectApi.middleware),
+      .concat(projectApi.middleware)
+      .concat(projectDetailsApi.middleware),
   devTools: __DEV__,
   enhancers: getDefaultEnhancers => {
     if (__DEV__) {

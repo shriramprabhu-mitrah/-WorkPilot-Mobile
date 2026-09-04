@@ -15,10 +15,10 @@ import { PrimaryButton } from '../../components/common/Button';
 import { RootState, useAppSelector, useAppDispatch } from '../../store';
 import {
   updateProject,
-  getProjectById,
   deleteProject,
   getAllProjectInfo,
 } from '../../store/project_store/action/project_thunk';
+import { useLazyGetProjectByIdQuery } from '../../store/api/projectDetailsApi';
 import { showSuccessToast } from '../../utils/utils';
 import { getValidStatus, ProjectStatus, STATUS_LABELS } from '../../utils/enum';
 import { useNavigation } from '@react-navigation/native';
@@ -37,6 +37,7 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
   initialProjectName = 'My Software Team',
 }) => {
   const dispatch = useAppDispatch();
+  const [getProjectByIdQuery] = useLazyGetProjectByIdQuery();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const {
@@ -126,12 +127,9 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
             message || 'Project updated successfully',
             'success',
           );
-          dispatch(
-            getProjectById({
-              projectId,
-              handleSuccess,
-            }),
-          );
+          getProjectByIdQuery({ project_id: projectId }).then(() => {
+            handleSuccess();
+          });
         },
         onError: errorMessage => {
           showSuccessToast?.(

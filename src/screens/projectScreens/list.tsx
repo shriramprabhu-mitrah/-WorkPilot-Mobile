@@ -5,7 +5,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  RouteProp,
+} from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { AppText, AppInput } from '../../components';
@@ -18,7 +23,15 @@ import { getUserStories } from '../../store/project_store/action/project_thunk';
 import { Sprint, UserStory } from '../../types/project.type';
 import ListSkeleton from '../../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../../components/skeleton/ProjectCardSkeleton';
-import { RootStackParamList } from '../../types/navigationTypes';
+import {
+  RootStackParamList,
+  ProjectTopTabParamList,
+} from '../../types/navigationTypes';
+import {
+  useGetProjectByIdQuery,
+  useGetSprintByIdQuery,
+} from '../../store/api/projectDetailsApi';
+import { skipToken } from '@reduxjs/toolkit/query';
 
 const List = () => {
   const { colors } = useTheme();
@@ -26,27 +39,38 @@ const List = () => {
   const dispatch = useAppDispatch();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
+  const route = useRoute<RouteProp<ProjectTopTabParamList, 'List'>>();
+  const { projectId, sprintId: routeSprintId } = route.params ?? {};
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [isFocusLoading, setIsFocusLoading] = useState(true);
 
+  const { data: projectDetails, isLoading: projectLoading } =
+    useGetProjectByIdQuery(projectId ? { project_id: projectId } : skipToken);
+
+  const activeSprint = projectDetails?.active_sprint;
+
+  const { data: sprintDetails, isLoading: sprintLoading } =
+    useGetSprintByIdQuery(
+      (routeSprintId || activeSprint?.id) && projectId
+        ? {
+            project_id: projectId,
+            sprint_id: routeSprintId || activeSprint!.id,
+          }
+        : skipToken,
+    );
+
+  const currentSprint = sprintDetails?.data || activeSprint;
+
+  const { userStories, userStoryMeta, userStoryLoading } = useAppSelector(
+    state => state.projects,
+  );
+
+  const activeSprintId = currentSprint?.id;
+
   // Ref to track previous context (Project ID & Sprint ID)
   const lastFetchedKeyRef = useRef<string | null>(null);
-
-  const {
-    userStories,
-    currentSprint,
-    project,
-    userStoryLoading,
-    userStoryMeta,
-  } = useAppSelector(state => state.projects);
-
-  const activeSprint =
-    currentSprint ||
-    project?.sprints?.find((sprint: Sprint) => sprint.status === 'active') ||
-    project?.sprints?.find((sprint: Sprint) => sprint.status === 'planning');
-
-  const projectId = project?.id;
 
   // Force skeleton only during initial mount or context (project/sprint) change
   const showSkeleton =
@@ -58,13 +82,13 @@ const List = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (!projectId || !activeSprint?.id) {
+      if (!projectId || !activeSprintId) {
         setIsFocusLoading(false);
         return;
       }
 
       let isMounted = true;
-      const currentKey = `${projectId}_${activeSprint.id}`;
+      const currentKey = `${projectId}_${activeSprintId}`;
 
       // Only show skeleton if key changed (or on initial load)
       if (lastFetchedKeyRef.current !== currentKey) {
@@ -80,7 +104,7 @@ const List = () => {
           payload: {
             page: 1,
             page_size: 10,
-            sprint_id: activeSprint.id,
+            sprint_id: activeSprintId,
           },
         }),
       ).finally(() => {
@@ -92,7 +116,7 @@ const List = () => {
       return () => {
         isMounted = false;
       };
-    }, [dispatch, projectId, activeSprint?.id]),
+    }, [dispatch, projectId, activeSprintId]),
   );
 
   const handleLoadMore = async () => {
@@ -102,7 +126,7 @@ const List = () => {
       !isFocusLoading &&
       userStoryMeta?.has_next &&
       projectId &&
-      activeSprint?.id
+      activeSprintId
     ) {
       try {
         setIsFetchingNextPage(true);
@@ -112,7 +136,7 @@ const List = () => {
             payload: {
               page: (userStoryMeta.page || 1) + 1,
               page_size: userStoryMeta.page_size || 10,
-              sprint_id: activeSprint.id,
+              sprint_id: activeSprintId,
             },
           }),
         );
