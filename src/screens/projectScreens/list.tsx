@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -13,8 +13,9 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
 import { WorkItemIcon } from '../../components/common/getWorkItemIcon';
-import { useAppDispatch, useAppSelector } from '../../store';
-import { getUserStories } from '../../store/project_store/action/project_thunk';
+import { RootState, useAppSelector } from '../../store';
+import { useGetUserStoriesQuery } from '../../store/api/projectApi';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { UserStory } from '../../types/project.type';
 import ListSkeleton from '../../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../../components/skeleton/ProjectCardSkeleton';
@@ -23,150 +24,121 @@ import { RootStackParamList } from '../../types/navigationTypes';
 const List = () => {
   const { colors } = useTheme();
   const { moderateScale, layout } = useAuthLayout();
-  const dispatch = useAppDispatch();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
-  const [isFocusLoading, setIsFocusLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isFocusLoading, setIsFocusLoading] = useState(false);
+  const [refetchKey, setRefetchKey] = useState(0);
 
-  // Ref to track previous context (Project ID & Sprint ID)
-  const lastFetchedKeyRef = useRef<string | null>(null);
+  // 1. Stable Primitive Selectors
+  const projectId = useAppSelector(
+    (state: RootState) =>
+      state.projects.project?.id?.toString() ||
+      (state.projects.project as any)?._id?.toString(),
+  );
 
-  // Force skeleton only during initial mount or context (project/sprint) change
+  const activeSprintId = useAppSelector(
+    (state: RootState) =>
+      state.projects.currentSprint?.id?.toString() ||
+      (state.projects.currentSprint as any)?._id?.toString(),
+  );
+
+  // 2. Query runs only when the screen is focused
   const {
-    project,
-    currentSprint,
-    userStories,
-    userStoryMeta,
-    userStoryLoading,
-  } = useAppSelector(state => state.projects);
-
-  const projectId = project?.id;
-  const activeSprintId = currentSprint?.id;
-
-  const showSkeleton =
-    isFocusLoading ||
-    (userStoryLoading &&
-      !isFetchingNextPage &&
-      lastFetchedKeyRef.current === null);
-  const showFooterSpinner = userStoryLoading && isFetchingNextPage;
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!projectId || !activeSprintId) {
-        setIsFocusLoading(false);
-        return;
-      }
-
-      let isMounted = true;
-      const currentKey = `${projectId}_${activeSprintId}`;
-
-      // Only show skeleton if key changed (or on initial load)
-      if (lastFetchedKeyRef.current !== currentKey) {
-        setIsFocusLoading(true);
-        lastFetchedKeyRef.current = currentKey;
-      }
-
-      setIsFetchingNextPage(false);
-
-      dispatch(
-        getUserStories({
+    data: userStoriesResponse,
+    isLoading: userStoriesLoading,
+    isFetching: userStoriesFetching,
+  } = useGetUserStoriesQuery(
+    isFocusLoading && projectId && activeSprintId
+      ? {
           projectId,
           payload: {
-            page: 1,
+            page: currentPage,
             page_size: 10,
             sprint_id: activeSprintId,
           },
-        }),
-      ).finally(() => {
-        if (isMounted) {
-          setIsFocusLoading(false);
+          _refetchKey: refetchKey,
         }
-      });
-
-      return () => {
-        isMounted = false;
-      };
-    }, [dispatch, projectId, activeSprintId]),
+      : skipToken,
   );
 
-  const handleLoadMore = async () => {
-    if (
-      !userStoryLoading &&
-      !isFetchingNextPage &&
-      !isFocusLoading &&
-      userStoryMeta?.has_next &&
-      projectId &&
-      activeSprintId
-    ) {
-      try {
-        setIsFetchingNextPage(true);
-        await dispatch(
-          getUserStories({
-            projectId,
-            payload: {
-              page: (userStoryMeta.page || 1) + 1,
-              page_size: userStoryMeta.page_size || 10,
-              sprint_id: activeSprintId,
-            },
-          }),
-        );
-      } catch (error) {
-        console.error('Failed to load next page:', error);
-      } finally {
-        setIsFetchingNextPage(false);
+  // 3. Screen focus lifecycle
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocusLoading(true);
+      setRefetchKey(prev => prev + 1);
+
+      return () => {
+        setIsFocusLoading(false);
+      };
+    }, []),
+  );
+
+  // 4. Stable data resolution
+  const userStories = (userStoriesResponse?.data as UserStory[]) ?? [];
+  const userStoryMeta = userStoriesResponse?.meta ?? null;
+
+  // Show full skeleton only on cold initial fetch (no cached data yet)
+
+  const handleLoadMore = useCallback(() => {
+    if (userStoryMeta?.has_next && !userStoriesFetching) {
+      setCurrentPage(prev => prev + 1);
+    }
+  }, [userStoryMeta?.has_next, userStoriesFetching]);
+
+  const filteredStories = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return userStories;
+
+    return userStories.filter(story => {
+      const title = story?.title || '';
+      const serial = story?.formatted_serial_number || '';
+      const sprint = story?.sprint_name || '';
+      const status = story?.status || '';
+      const query = searchQuery.toLowerCase();
+      return (
+        title.toLowerCase().includes(query) ||
+        serial.toLowerCase().includes(query) ||
+        sprint.toLowerCase().includes(query) ||
+        status.toLowerCase().includes(query)
+      );
+    });
+  }, [userStories, searchQuery]);
+
+  const getPriorityConfig = useCallback(
+    (priority?: string) => {
+      const p = (priority || '').toLowerCase();
+      switch (p) {
+        case 'highest':
+        case 'high':
+          return { label: 'High', color: colors.error, bgColor: '#FEE2E2' };
+        case 'medium':
+          return { label: 'Medium', color: '#F59E0B', bgColor: '#FEF3C7' };
+        case 'low':
+        case 'lowest':
+          return { label: 'Low', color: '#10B981', bgColor: '#D1FAE5' };
+        default:
+          return {
+            label: priority || 'Normal',
+            color: colors.textSecondary,
+            bgColor: colors.surface,
+          };
       }
-    }
-  };
+    },
+    [colors.error, colors.textSecondary, colors.surface],
+  );
 
-  const rawStories = (userStories as UserStory[]) || [];
-
-  const filteredStories = rawStories.filter(story => {
-    const title = story?.title || '';
-    const serial = story?.formatted_serial_number || '';
-    const sprint = story?.sprint_name || '';
-    const status = story?.status || '';
-    const query = searchQuery.toLowerCase();
-
-    return (
-      title.toLowerCase().includes(query) ||
-      serial.toLowerCase().includes(query) ||
-      sprint.toLowerCase().includes(query) ||
-      status.toLowerCase().includes(query)
-    );
-  });
-
-  const getPriorityConfig = (priority?: string) => {
-    const p = (priority || '').toLowerCase();
-    switch (p) {
-      case 'highest':
-      case 'high':
-        return { label: 'High', color: colors.error, bgColor: '#FEE2E2' };
-      case 'medium':
-        return { label: 'Medium', color: '#F59E0B', bgColor: '#FEF3C7' };
-      case 'low':
-      case 'lowest':
-        return { label: 'Low', color: '#10B981', bgColor: '#D1FAE5' };
-      default:
-        return {
-          label: priority || 'Normal',
-          color: colors.textSecondary,
-          bgColor: colors.surface,
-        };
-    }
-  };
-
-  const renderFooter = () => {
-    if (!showFooterSpinner) return null;
+  const renderFooter = useCallback(() => {
+    if (!userStoriesFetching || currentPage === 1) return null;
     return (
       <View className='items-center justify-center py-4'>
         <ActivityIndicator size='small' color={colors.primary} />
       </View>
     );
-  };
+  }, [userStoriesFetching, currentPage, colors.primary]);
 
-  const renderHeader = () => {
+  const renderHeader = useCallback(() => {
     if (filteredStories.length === 0) return null;
     return (
       <View
@@ -200,49 +172,67 @@ const List = () => {
         </View>
       </View>
     );
-  };
+  }, [
+    filteredStories.length,
+    layout.elementGap,
+    colors.textSecondary,
+    colors.primary,
+    colors.white,
+    moderateScale,
+    userStoryMeta?.total_items,
+  ]);
 
-  const renderEmptyState = () => (
-    <View className='flex-1 items-center justify-center px-6 py-12'>
-      <AppText
-        variant='body'
-        className='mb-1 text-center text-lg font-bold'
-        color={colors.text}
-      >
-        {searchQuery.trim() ? 'No Matching Stories' : 'No User Stories Found'}
-      </AppText>
-
-      <AppText
-        variant='caption'
-        className='mb-5 text-center text-sm leading-5'
-        color={colors.textSecondary}
-      >
-        {searchQuery.trim()
-          ? `We couldn't find any stories matching "${searchQuery}". Check for typos or try another search.`
-          : 'There are no user stories created or assigned to this sprint yet.'}
-      </AppText>
-
-      {searchQuery.trim() ? (
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => setSearchQuery('')}
-          className='border px-4 py-2'
-          style={{
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-            borderRadius: Radius.md,
-          }}
+  const renderEmptyState = useCallback(
+    () => (
+      <View className='flex-1 items-center justify-center px-6 py-12'>
+        <AppText
+          variant='body'
+          className='mb-1 text-center text-lg font-bold'
+          color={colors.text}
         >
-          <AppText
-            variant='caption'
-            className='font-bold'
-            color={colors.primary}
+          {searchQuery.trim() ? 'No Matching Stories' : 'No User Stories Found'}
+        </AppText>
+
+        <AppText
+          variant='caption'
+          className='mb-5 text-center text-sm leading-5'
+          color={colors.textSecondary}
+        >
+          {searchQuery.trim()
+            ? `We couldn't find any stories matching "${searchQuery}". Check for typos or try another search.`
+            : 'There are no user stories created or assigned to this sprint yet.'}
+        </AppText>
+
+        {searchQuery.trim() ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setSearchQuery('')}
+            className='border px-4 py-2'
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderRadius: Radius.md,
+            }}
           >
-            Clear Search
-          </AppText>
-        </TouchableOpacity>
-      ) : null}
-    </View>
+            <AppText
+              variant='caption'
+              className='font-bold'
+              color={colors.primary}
+            >
+              Clear Search
+            </AppText>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    ),
+    [
+      searchQuery,
+      colors.text,
+      colors.textSecondary,
+      colors.card,
+      colors.border,
+      colors.primary,
+    ],
   );
 
   return (
@@ -264,7 +254,7 @@ const List = () => {
       </View>
 
       {/* Main List / Skeleton State */}
-      {showSkeleton ? (
+      {userStoriesLoading ? (
         <View className='flex-1 px-4 py-6'>
           <ListSkeleton
             count={5}

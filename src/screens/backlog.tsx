@@ -13,8 +13,9 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { Radius } from '../constants/Radius';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
-import { useAppDispatch, useAppSelector } from '../store';
-import { getUserStories } from '../store/project_store/action/project_thunk';
+import { useAppSelector } from '../store';
+import { useGetUserStoriesQuery } from '../store/api/projectApi';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { UserStory } from '../types/project.type';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
@@ -23,7 +24,6 @@ import { RootStackParamList } from '../types/navigationTypes';
 export const Backlogs = () => {
   const { colors } = useTheme();
   const { moderateScale, layout, hp } = useAuthLayout();
-  const dispatch = useAppDispatch();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,18 +39,31 @@ export const Backlogs = () => {
   >({});
 
   // Using separate backlog state keys from Redux store
-  const {
-    backlogUserStories,
-    backlogUserStoryMeta,
-    backlogUserStoryLoading,
-    project,
-  } = useAppSelector(state => state.projects);
+  const { project } = useAppSelector(state => state.projects);
 
   // Project ID comes directly from Redux
   const projectId = project?.id;
 
+  // RTK Query hook for user stories (backlog: sprint_id = null)
+  const {
+    data: backlogUserStories,
+    isLoading: backlogUserStoryLoading,
+    refetch: refetchBacklog,
+  } = useGetUserStoriesQuery(
+    projectId
+      ? {
+          projectId,
+          payload: {
+            page: 1,
+            page_size: 10,
+            sprint_id: null,
+          },
+        }
+      : skipToken,
+  );
+
   // Show skeleton ONLY on first screen focus or when project changes
-  const showSkeleton = isInitialLoading;
+  const showSkeleton = backlogUserStoryLoading;
   const showFooterSpinner = backlogUserStoryLoading && isFetchingNextPage;
 
   // Fetch backlog stories on focus
@@ -71,27 +84,16 @@ export const Backlogs = () => {
       }
 
       setIsFetchingNextPage(false);
+      refetchBacklog();
 
-      dispatch(
-        getUserStories({
-          projectId,
-          payload: {
-            page: 1,
-            page_size: 10,
-            sprint_id: null,
-          },
-        }),
-      ).finally(() => {
+      return () => {
         if (isMounted) {
           setIsInitialLoading(false);
           prevProjectIdRef.current = projectId;
+          isMounted = false;
         }
-      });
-
-      return () => {
-        isMounted = false;
       };
-    }, [dispatch, projectId]),
+    }, [projectId, refetchBacklog]),
   );
 
   const handleLoadMore = async () => {
@@ -99,26 +101,10 @@ export const Backlogs = () => {
       !backlogUserStoryLoading &&
       !isFetchingNextPage &&
       !isInitialLoading &&
-      backlogUserStoryMeta?.has_next &&
+      backlogUserStories?.meta?.has_next &&
       projectId
     ) {
-      try {
-        setIsFetchingNextPage(true);
-        await dispatch(
-          getUserStories({
-            projectId,
-            payload: {
-              page: (backlogUserStoryMeta.page || 1) + 1,
-              page_size: backlogUserStoryMeta.page_size || 10,
-              sprint_id: null,
-            },
-          }),
-        );
-      } catch (error) {
-        console.error('Failed to load next page for backlog:', error);
-      } finally {
-        setIsFetchingNextPage(false);
-      }
+      setIsFetchingNextPage(false);
     }
   };
 
@@ -130,7 +116,7 @@ export const Backlogs = () => {
   }, []);
 
   const rawStories = useMemo(
-    () => (backlogUserStories as UserStory[]) || [],
+    () => (backlogUserStories?.data as UserStory[]) || [],
     [backlogUserStories],
   );
 
@@ -536,7 +522,8 @@ export const Backlogs = () => {
                 className='text-xs font-bold'
                 color={colors.white}
               >
-                {backlogUserStoryMeta?.total_items || filteredStories.length}
+                {backlogUserStories?.meta?.total_items ||
+                  filteredStories.length}
               </AppText>
             </View>
           </View>

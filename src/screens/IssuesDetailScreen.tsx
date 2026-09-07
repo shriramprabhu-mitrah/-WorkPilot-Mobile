@@ -83,9 +83,10 @@ import {
   IssueCommentInputRef,
 } from '../components/issueCommentInput';
 import {
-  getCustomStatusData,
-  getUserStoryStatusData,
-} from '../store/customStatus_store/action/customstatus.thunk';
+  useGetCustomStatusQuery,
+  useGetUserStoryStatusQuery,
+} from '../store/api/projectApi';
+import { skipToken } from '@reduxjs/toolkit/query';
 import {
   AttachmentFile,
   TaskCommentAttachmentResponse,
@@ -133,8 +134,6 @@ const IssueDetailScreen = () => {
     tasksMeta,
     loading,
     loadingMore,
-    customStatuses,
-    userStoryStatuses,
     userStoryDetailLoading,
     taskDetailLoading,
   } = useAppSelector((state: RootState) => state.projects);
@@ -227,15 +226,16 @@ const IssueDetailScreen = () => {
     return currentId;
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!projectId) {
-        return;
-      }
-      dispatch(getCustomStatusData({ projectId }));
-      dispatch(getUserStoryStatusData({ projectId }));
-    }, [dispatch, projectId]),
-  );
+  const { data: customStatusData, refetch: refetchCustomStatus } =
+    useGetCustomStatusQuery(projectId ? { project_id: projectId } : skipToken);
+
+  const { data: userStoryStatusData, refetch: refetchUserStoryStatus } =
+    useGetUserStoryStatusQuery(
+      projectId ? { project_id: projectId } : skipToken,
+    );
+
+  const customStatuses = customStatusData?.data ?? [];
+  const userStoryStatuses = userStoryStatusData?.data ?? [];
 
   useEffect(() => {
     if (!projectId) {
@@ -297,6 +297,14 @@ const IssueDetailScreen = () => {
       setStatus(currentItem.status);
     }
   }, [currentItem]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!projectId) return;
+      refetchCustomStatus();
+      refetchUserStoryStatus();
+    }, [projectId, refetchCustomStatus, refetchUserStoryStatus]),
+  );
 
   const activeStatusColor = useMemo(() => {
     if (!isTaskView && statusId) {

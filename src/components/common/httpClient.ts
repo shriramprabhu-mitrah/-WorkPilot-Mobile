@@ -55,13 +55,13 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
 
-    console.log('[API REQUEST]', {
-      url: config.url,
-      method: config.method,
-      isPublicRoute,
-      hasAccessToken: !!accessToken,
-      hasAuthorization: !!config.headers.Authorization,
-    });
+    // console.log('[API REQUEST]', {
+    //   url: config.url,
+    //   method: config.method,
+    //   isPublicRoute,
+    //   hasAccessToken: !!accessToken,
+    //   hasAuthorization: !!config.headers.Authorization,
+    // });
 
     return config;
   },

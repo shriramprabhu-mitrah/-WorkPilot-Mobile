@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -6,7 +6,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { RouteProp, useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { DonutChart } from 'react-native-chart-kit/v2';
 import { RootState, useAppSelector } from '../../store';
@@ -15,74 +15,90 @@ import { Radius } from '../../constants/Radius';
 import { AppText } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
 import SummarySkeleton from '../../components/skeleton/summarySkeleton';
-import { ProjectTopTabParamList } from '../../types/navigationTypes';
 import { useGetProjectByIdQuery } from '../../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
 
 export const Summary: React.FC = () => {
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
-  const { project, projectLoading, isProjectFetching } = useAppSelector(
-    (state: RootState) => state?.projects,
+
+  // 1. Redux Selectors
+  const { project, projectLoading } = useAppSelector(
+    (state: RootState) => state.projects,
   );
 
-  // Animation values
+  const projectId =
+    project?.id?.toString() || (project as any)?._id?.toString();
+
+  // 2. RTK Query Hook
+  const { refetch } = useGetProjectByIdQuery(
+    projectId ? { project_id: projectId } : skipToken,
+  );
+
+  // 3. Animation values
   const drawAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Track project changes and initial mount state
-  // const lastProjectIdRef = useRef<string | null>(null);
-  // const isInitialMountRef = useRef<boolean>(true);
-
-  // const currentProjectId =
-  //   project?.id?.toString() || (project as any)?._id?.toString() || null;
-
-  // Update tracking refs once project finishes loading
-  // useEffect(() => {
-  //   if (project && !loading && currentProjectId) {
-  //     lastProjectIdRef.current = currentProjectId;
-  //     isInitialMountRef.current = false;
-  //   }
-  // }, [project, loading, currentProjectId]);
-
-  // Determine whether to show skeleton (Only on 1st load OR when project changes)
-  // const isProjectChanged = currentProjectId !== lastProjectIdRef.current;
-  // const shouldShowSkeleton =
-  //   !project || (loading && (isInitialMountRef.current || isProjectChanged));
-
-  // Re-run animation whenever the screen comes into focus
+  // 4. Focus Effect
   useFocusEffect(
     useCallback(() => {
-      if (!projectLoading && project) {
-        // Reset animation states on focus
-        drawAnim.setValue(0);
-        fadeAnim.setValue(0);
-
-        Animated.parallel([
-          // Smooth fade in
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-          // Full 360-degree circular sweep draw effect
-          Animated.timing(drawAnim, {
-            toValue: 1,
-            duration: 1100,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-        ]).start();
+      if (projectId) {
+        refetch();
       }
-    }, [projectLoading, project, drawAnim, fadeAnim]),
+
+      drawAnim.setValue(0);
+      fadeAnim.setValue(0);
+
+      Animated.parallel([
+        // Smooth fade in
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        // Full 360-degree circular sweep draw effect
+        Animated.timing(drawAnim, {
+          toValue: 1,
+          duration: 1100,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [projectId, refetch, drawAnim, fadeAnim]),
   );
 
-  // Interpolate rotation from -360deg to 0deg for "circle drawing" effect
-  const circleDraw = drawAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['-360deg', '0deg'],
-  });
+  // 5. ALL useMemo hooks MUST be declared before any return statements
+  const circleDraw = useMemo(
+    () =>
+      drawAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['-360deg', '0deg'],
+      }),
+    [drawAnim],
+  );
 
+  const chartData = useMemo(
+    () => [
+      { status: 'To Do', value: 6, color: `${colors.secondary}75` },
+      { status: 'Done', value: 4, color: `${colors.success}75` },
+      { status: 'In Progress', value: 5, color: `${colors.primary}75` },
+      { status: 'In Review', value: 3, color: `${colors.accentOrange}75` },
+    ],
+    [colors.secondary, colors.success, colors.primary, colors.accentOrange],
+  );
+
+  const chartTotal = useMemo(
+    () => chartData.reduce((total, item) => total + item.value, 0),
+    [chartData],
+  );
+
+  const donutTheme = useMemo(() => {
+    if (colors.background === '#FFFFFF') return 'light';
+    if (colors.background === '#121212') return 'dark';
+    return 'system';
+  }, [colors.background]);
+
+  // 6. Early returns are placed AFTER all hooks have executed
   if (!project && projectLoading) {
     return <SummarySkeleton />;
   }
@@ -95,22 +111,6 @@ export const Summary: React.FC = () => {
   const updatedTasks = project?.metrics?.pending_tasks;
   const createdTasks = project?.metrics?.total_tasks;
   const dueSoonTasks = project?.metrics?.overdue_tasks;
-
-  const chartData = [
-    { status: 'To Do', value: 6, color: `${colors.secondary}75` },
-    { status: 'Done', value: 4, color: `${colors.success}75` },
-    { status: 'In Progress', value: 5, color: `${colors.primary}75` },
-    { status: 'In Review', value: 3, color: `${colors.accentOrange}75` },
-  ];
-
-  const chartTotal = chartData.reduce((total, item) => total + item.value, 0);
-
-  const donutTheme =
-    colors.background === '#FFFFFF'
-      ? 'light'
-      : colors.background === '#121212'
-        ? 'dark'
-        : 'system';
 
   return (
     <ScrollView

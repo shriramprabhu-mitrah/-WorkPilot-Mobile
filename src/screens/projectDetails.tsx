@@ -53,6 +53,7 @@ const ProjectDetails: React.FC = () => {
     data: projectDetails,
     isLoading: projectDetailsLoading,
     isFetching: projectDetailsFetching,
+    refetch: refetchProject,
   } = useGetProjectByIdQuery(
     routeProjectId
       ? {
@@ -62,7 +63,6 @@ const ProjectDetails: React.FC = () => {
   );
 
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
-  const [sprintRefetchKey, setSprintRefetchKey] = useState(0);
   const [currentSprintIdState, setCurrentSprintIdState] = useState<
     string | undefined
   >(undefined);
@@ -70,16 +70,15 @@ const ProjectDetails: React.FC = () => {
   // Tracks if the user explicitly clicked a sprint to stop auto-reversion
   const userHasSelected = useRef(false);
 
-  const { data: sprintsResponse } = useGetSprintsQuery(
-    routeProjectId
-      ? { project_id: routeProjectId, _refetchKey: sprintRefetchKey }
-      : skipToken,
+  const { data: sprintsResponse, refetch: refetchSprints } = useGetSprintsQuery(
+    routeProjectId ? { project_id: routeProjectId } : skipToken,
   );
 
   const {
     data: sprintByIdData,
     isLoading: sprintByIdLoading,
     isFetching: sprintByIdFetching,
+    refetch: refetchSprintById,
   } = useGetSprintByIdQuery(
     currentSprintIdState && routeProjectId
       ? { project_id: routeProjectId, sprint_id: currentSprintIdState }
@@ -147,9 +146,21 @@ const ProjectDetails: React.FC = () => {
       }
 
       if (routeProjectId) {
-        setSprintRefetchKey(prev => prev + 1);
+        refetchProject();
+        refetchSprints();
+        if (currentSprintIdState) {
+          refetchSprintById();
+        }
       }
-    }, [routeProjectId, routeProjectName, dispatch]),
+    }, [
+      routeProjectId,
+      routeProjectName,
+      currentSprintIdState,
+      dispatch,
+      refetchProject,
+      refetchSprints,
+      refetchSprintById,
+    ]),
   );
 
   useEffect(() => {
