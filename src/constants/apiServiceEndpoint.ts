@@ -27,6 +27,8 @@ export const UPDATE_PROJECT = `/project/update/{project_id}`;
 export const DELETE_PROJECT = `/project/{project_id}`;
 export const GET_RECENT_PROJECTS = `/project/recent`;
 export const UPDATE_USER_STORY = `/projects/{project_id}/user-stories/{user_story_id}`;
+export const GETPROJECTOVERVIEW = `/{project_id}/overview`;
+
 //Activity
 export const GET_AUDIT = `/audit`;
 

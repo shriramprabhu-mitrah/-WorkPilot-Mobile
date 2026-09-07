@@ -21,7 +21,10 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { UserStory, UserStoryTask } from '../types/project.type';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
-import { getUserStories } from '../store/project_store/action/project_thunk';
+import {
+  useGetCustomStatusQuery,
+  useGetUserStoriesQuery,
+} from '../store/api/projectApi';
 import {
   favouriteTaskThunk,
   unfavouriteTaskThunk,
@@ -38,7 +41,7 @@ import Animated, {
   SharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { getCustomStatusData } from '../store/customStatus_store/action/customstatus.thunk';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { CustomStatus } from '../types/customstatus.type';
 import { updateTaskThunk } from '../store/task_store/action/task.thunk';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -479,7 +482,6 @@ const UserStoryBoardRow = ({
   verticalScrollOffset,
 }: UserStoryBoardRowProps) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  console.log('LINE484', story);
   return (
     <View
       style={{
@@ -629,19 +631,53 @@ const ProjectDeatailsScreen = () => {
   const {
     project,
     currentSprint,
-    userStories,
-    userStoryMeta,
-    customStatuses,
+    customStatuses: CustomStatuses,
     loading: storeLoading,
   } = useAppSelector((state: RootState) => state.projects);
-
-  console.log('userStories', userStories);
 
   const projectId =
     project?.id?.toString() || (project as any)?._id?.toString();
 
   const currentSprintId =
     currentSprint?.id?.toString() || (currentSprint as any)?._id?.toString();
+
+  // Screen Focus & Refetch Token State
+  const [isFocused, setIsFocused] = useState(false);
+  const [refetchKey, setRefetchKey] = useState(0);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+  // RTK Query hooks — conditioned completely on screen focus
+  const { data: customStatusData, isFetching: isCustomStatusFetching } =
+    useGetCustomStatusQuery(
+      isFocused && projectId
+        ? { project_id: projectId, _refetchKey: refetchKey }
+        : skipToken,
+    );
+  const customStatuses = customStatusData?.data ?? CustomStatuses;
+
+  const {
+    data: userStoriesResponse,
+    isFetching: isStoriesFetching,
+    isLoading: isStoriesLoading,
+  } = useGetUserStoriesQuery(
+    isFocused && projectId && currentSprintId
+      ? {
+          projectId,
+          payload: {
+            page: currentPage,
+            page_size: PAGE_SIZE,
+            sprint_id: currentSprintId,
+          },
+          _refetchKey: refetchKey,
+        }
+      : skipToken,
+  );
+
+  const userStories = (userStoriesResponse?.data as UserStory[]) ?? [];
+  const userStoryMeta = userStoriesResponse?.meta ?? null;
 
   // Local State
   const [localUserStories, setLocalUserStories] = useState<UserStory[]>([]);
@@ -658,9 +694,6 @@ const ProjectDeatailsScreen = () => {
     statusId: string;
   } | null>(null);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const isInitialLoad = useRef(true);
   const hasInitializedStories = useRef(false);
 
@@ -694,23 +727,16 @@ const ProjectDeatailsScreen = () => {
   // Updated useFocusEffect to dispatch getCustomStatusData and getUserStories on focus
   useFocusEffect(
     useCallback(() => {
-      if (!projectId || !currentSprintId) return;
+      setIsFocused(true);
+      setRefetchKey(prev => prev + 1);
 
-      dispatch(getCustomStatusData({ projectId }));
-
-      dispatch(
-        getUserStories({
-          projectId,
-          payload: {
-            page: 1,
-            page_size: PAGE_SIZE,
-            sprint_id: currentSprintId,
-          },
-        }),
-      );
-    }, [dispatch, projectId, currentSprintId]),
+      return () => {
+        setIsFocused(false);
+      };
+    }, []),
   );
 
+  // Reset pagination and local list on project or sprint changes
   useEffect(() => {
     hasInitializedStories.current = false;
     isInitialLoad.current = true;
@@ -725,15 +751,15 @@ const ProjectDeatailsScreen = () => {
   // Seed / append from Redux into local list – is_favourite comes from the API
   useEffect(() => {
     if (!userStories?.length && currentPage === 1) {
-      if (!storeLoading) {
-        setLocalUserStories([]);
+      if (!storeLoading && !isStoriesFetching) {
+        setLocalUserStories(prev => (prev.length > 0 ? [] : prev));
         hasInitializedStories.current = true;
         isInitialLoad.current = false;
       }
       return;
     }
 
-    if (!hasInitializedStories.current) {
+    if (!hasInitializedStories.current && userStories?.length > 0) {
       setLocalUserStories(mapStoriesFromApi(userStories));
       hasInitializedStories.current = true;
       isInitialLoad.current = false;
@@ -744,59 +770,34 @@ const ProjectDeatailsScreen = () => {
         const fresh = userStories.filter(
           (s: UserStory) => !existingIds.has(s.id),
         );
-        return [...prev, ...mapStoriesFromApi(fresh)];
+        return fresh.length > 0 ? [...prev, ...mapStoriesFromApi(fresh)] : prev;
       });
       setIsFetchingMore(false);
     } else {
       setLocalUserStories(mapStoriesFromApi(userStories));
     }
-  }, [userStories, currentPage, storeLoading, mapStoriesFromApi]);
+  }, [
+    userStories,
+    currentPage,
+    storeLoading,
+    isStoriesFetching,
+    mapStoriesFromApi,
+  ]);
 
   const loadNextPage = useCallback(() => {
-    if (!projectId) return;
-    if (!userStoryMeta?.has_next) return;
-    if (isFetchingMore) return;
-
-    const nextPage = currentPage + 1;
-    setCurrentPage(nextPage);
-    setIsFetchingMore(true);
-
-    dispatch(
-      getUserStories({
-        projectId,
-        payload: {
-          page: nextPage,
-          page_size: PAGE_SIZE,
-          ...(currentSprintId ? { sprint_id: currentSprintId } : {}),
-        },
-      }),
-    );
-  }, [
-    dispatch,
-    projectId,
-    currentSprintId,
-    currentPage,
-    userStoryMeta,
-    isFetchingMore,
-  ]);
+    if (userStoryMeta?.has_next && !isStoriesFetching && !isFetchingMore) {
+      setIsFetchingMore(true);
+      setCurrentPage(prev => prev + 1);
+    }
+  }, [userStoryMeta?.has_next, isStoriesFetching, isFetchingMore]);
 
   const toggleStory = useCallback((storyId: string) => {
     setExpandedStories(prev => ({ ...prev, [storyId]: !prev[storyId] }));
   }, []);
 
-  const refetchUserStories = useCallback(() => {
-    if (!projectId) return Promise.resolve();
-    return dispatch(
-      getUserStories({
-        projectId,
-        payload: {
-          page: 1,
-          page_size: PAGE_SIZE,
-          ...(currentSprintId ? { sprint_id: currentSprintId } : {}),
-        },
-      }),
-    );
-  }, [dispatch, projectId, currentSprintId]);
+  const triggerManualRefetch = useCallback(() => {
+    setRefetchKey(prev => prev + 1);
+  }, []);
 
   const handleToggleStoryFavorite = useCallback(
     (storyId: string) => {
@@ -824,7 +825,7 @@ const ProjectDeatailsScreen = () => {
             ),
           );
 
-          await refetchUserStories();
+          triggerManualRefetch();
         } catch {}
       });
     },
@@ -833,7 +834,7 @@ const ProjectDeatailsScreen = () => {
       projectId,
       optimisticStories,
       addOptimisticUpdate,
-      refetchUserStories,
+      triggerManualRefetch,
     ],
   );
 
@@ -864,7 +865,7 @@ const ProjectDeatailsScreen = () => {
             })),
           );
 
-          await refetchUserStories();
+          triggerManualRefetch();
         } catch {}
       });
     },
@@ -873,7 +874,7 @@ const ProjectDeatailsScreen = () => {
       projectId,
       optimisticStories,
       addOptimisticUpdate,
-      refetchUserStories,
+      triggerManualRefetch,
     ],
   );
 
@@ -1117,7 +1118,7 @@ const ProjectDeatailsScreen = () => {
             paddingTop: layout.tightGap,
           }}
         >
-          {isInitialLoading ? (
+          {isStoriesLoading ? (
             <BoardSkeleton
               columnCount={Math.max(customStatuses?.length ?? 0, 3)}
             />
@@ -1187,19 +1188,21 @@ const ProjectDeatailsScreen = () => {
                 />
               ))}
 
-              {!storeLoading && localUserStories.length === 0 && (
-                <View
-                  style={{
-                    paddingVertical: 48,
-                    paddingHorizontal: 24,
-                    alignItems: 'center',
-                  }}
-                >
-                  <AppText variant='body' color='#9CA3AF'>
-                    No user stories found for this sprint.
-                  </AppText>
-                </View>
-              )}
+              {!storeLoading &&
+                !isStoriesFetching &&
+                localUserStories.length === 0 && (
+                  <View
+                    style={{
+                      paddingVertical: 48,
+                      paddingHorizontal: 24,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <AppText variant='body' color='#9CA3AF'>
+                      No user stories found for this sprint.
+                    </AppText>
+                  </View>
+                )}
 
               {userStoryMeta?.has_next && (
                 <View style={{ alignItems: 'flex-start', paddingVertical: 16 }}>

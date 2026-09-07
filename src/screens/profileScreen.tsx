@@ -116,16 +116,6 @@ const ProfileScreen = () => {
     }, [dispatch]),
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      favoritesRef.current = false;
-      dispatch(getFavouritesThunk({ params: { page: 1 } }));
-      return () => {
-        favoritesRef.current = false;
-      };
-    }, [dispatch]),
-  );
-
   // Navigation to full-screen activity
   const openActivityFullScreen = useCallback(() => {
     setIsActivityFullScreen(true);
@@ -183,47 +173,6 @@ const ProfileScreen = () => {
         setIsFetchingMore(false);
       });
   }, [activities.length, loading, meta, dispatch]);
-
-  const handleFavoritesScroll = useCallback(
-    (event: any) => {
-      if (!event?.nativeEvent) {
-        if (
-          !favoritesRef.current &&
-          !favoritesLoading &&
-          favoritesMeta?.has_next
-        ) {
-          favoritesRef.current = true;
-          dispatch(
-            getFavouritesThunk({
-              params: { page: (favoritesMeta?.page || 1) + 1 },
-            }),
-          );
-        }
-        return;
-      }
-
-      const { contentOffset, layoutMeasurement, contentSize } =
-        event.nativeEvent;
-      const isNearEnd =
-        layoutMeasurement.height + contentOffset.y >=
-        contentSize.height - moderateScale(50);
-
-      if (
-        isNearEnd &&
-        !favoritesRef.current &&
-        !favoritesLoading &&
-        favoritesMeta?.has_next
-      ) {
-        favoritesRef.current = true;
-        dispatch(
-          getFavouritesThunk({
-            params: { page: (favoritesMeta?.page || 1) + 1 },
-          }),
-        );
-      }
-    },
-    [dispatch, favoritesLoading, favoritesMeta, moderateScale],
-  );
 
   useEffect(() => {
     if (!favoritesLoading) {

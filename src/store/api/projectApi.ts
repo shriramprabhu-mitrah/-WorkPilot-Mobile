@@ -5,6 +5,12 @@ import {
   GET_SPRINTS,
   GET_PROJECT_BY_ID,
   GET_SPRINT_BY_Id,
+  GETPROJECTOVERVIEW,
+  GET_CUSTOMSTATUS,
+  GET_USERSTORY_STATUS,
+  GET_USERSTORY,
+  GET_TASK_BY_ID,
+  GET_BURNDOWN_BY_PROJECT_SPRINT,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsParams,
@@ -15,31 +21,46 @@ import {
   ProjectDetails,
   GetSprintByIdParams,
   GetSprintByIdResponse,
+  GetProjectOverviewResponse,
+  GetUserStoriesResponse,
+  GetUserStorieThunkArgs,
+  GetProjectsQueryArgs,
+  GetSprintsQueryArgs,
+  GetProjectByIdQueryArgs,
+  GetProjectOverviewQueryArgs,
+  GetSprintByIdQueryArgs,
+  GetCustomStatusQueryArgs,
+  GetUserStoryStatusQueryArgs,
+  GetUserStoriesQueryArgs,
+  GetTaskByIdQueryArgs,
+  GetBurndownChartQueryArgs,
 } from '../../types/project.type';
-
-export interface GetProjectsQueryArgs extends GetProjectsParams {
-  /** Changing this value forces a refetch. Not sent to the API. */
-  _refetchKey?: number;
-}
-
-export interface GetSprintsQueryArgs extends GetSprintsParams {
-  /** Changing this value forces a refetch. Not sent to the API. */
-  _refetchKey?: number;
-}
-
-export interface GetProjectByIdQueryArgs {
-  project_id: string;
-  _refetchKey?: number;
-}
-
-export interface GetSprintByIdQueryArgs extends GetSprintByIdParams {
-  _refetchKey?: number;
-}
+import {
+  GetTaskByIdResponse,
+  GetTaskByIdParams,
+  GetBurndownResponse,
+  GetBurnbownParams,
+} from '../../types/project.type';
+import {
+  GetCustomStatusResponse,
+  GetUserStoryStatusResponse,
+} from '../../types/customstatus.type';
 
 export const projectApi = createApi({
   reducerPath: 'projectApi',
   baseQuery: axiosBaseQuery,
-  tagTypes: ['Projects', 'Sprints', 'ProjectDetails', 'SprintDetails'],
+  tagTypes: [
+    'Projects',
+    'Sprints',
+    'ProjectDetails',
+    'SprintDetails',
+    'ProjectOverview',
+    'CustomStatus',
+    'UserStoryStatus',
+    'UserStories',
+    'TaskDetail',
+    'BurndownChart',
+  ],
   endpoints: build => ({
     getProjects: build.query<GetProjectsResponse, GetProjectsQueryArgs | void>({
       query: args => {
@@ -139,33 +160,12 @@ export const projectApi = createApi({
     getProjectById: build.query<ProjectDetails, GetProjectByIdQueryArgs>({
       query: ({ project_id }) => ({
         url: GET_PROJECT_BY_ID.replace('{project_id}', project_id),
-        method: 'GET',
       }),
-
       transformResponse: (response: GetProjectByIdResponse) => response.data,
-
-      serializeQueryArgs: ({ endpointName, queryArgs }) => {
-        return `${endpointName}_${queryArgs.project_id}`;
-      },
-
-      forceRefetch({ currentArg, previousArg }) {
-        return (
-          currentArg?.project_id !== previousArg?.project_id ||
-          currentArg?._refetchKey !== previousArg?._refetchKey
-        );
-      },
-
       providesTags: (_result, _error, { project_id }) => [
-        {
-          type: 'ProjectDetails',
-          id: project_id,
-        },
+        { type: 'ProjectDetails', id: project_id },
       ],
     }),
-
-    /* ---------------------------------------------------------------------- */
-    /*                            Get Sprint By ID                             */
-    /* ---------------------------------------------------------------------- */
 
     getSprintById: build.query<GetSprintByIdResponse, GetSprintByIdQueryArgs>({
       query: ({ project_id, sprint_id }) => ({
@@ -173,27 +173,139 @@ export const projectApi = createApi({
           '{sprint_id}',
           sprint_id,
         ),
-        method: 'GET',
       }),
+      providesTags: (_result, _error, { project_id, sprint_id }) => [
+        { type: 'SprintDetails', id: `${project_id}_${sprint_id}` },
+      ],
+    }),
+
+    getProjectOverview: build.query<
+      GetProjectOverviewResponse,
+      GetProjectOverviewQueryArgs
+    >({
+      query: ({ project_id, sprint_id }) => ({
+        url: GETPROJECTOVERVIEW.replace('{project_id}', project_id),
+        params: sprint_id ? { sprint_id } : undefined,
+      }),
+      providesTags: (_result, _error, { project_id }) => [
+        { type: 'ProjectOverview', id: project_id },
+      ],
+    }),
+
+    getCustomStatus: build.query<
+      GetCustomStatusResponse,
+      GetCustomStatusQueryArgs
+    >({
+      query: ({ project_id }) => ({
+        url: GET_CUSTOMSTATUS.replace('{project_id}', project_id),
+      }),
+      providesTags: (_result, _error, { project_id }) => [
+        { type: 'CustomStatus', id: project_id },
+      ],
+    }),
+
+    getUserStoryStatus: build.query<
+      GetUserStoryStatusResponse,
+      GetUserStoryStatusQueryArgs
+    >({
+      query: ({ project_id }) => ({
+        url: GET_USERSTORY_STATUS.replace('{project_id}', project_id),
+      }),
+      providesTags: (_result, _error, { project_id }) => [
+        { type: 'UserStoryStatus', id: project_id },
+      ],
+    }),
+
+    getUserStories: build.query<
+      GetUserStoriesResponse,
+      GetUserStoriesQueryArgs
+    >({
+      query: ({ projectId, payload }) => {
+        const { page, page_size, ...rest } = payload || {};
+
+        const cleanedParams = payload
+          ? Object.fromEntries(
+              Object.entries({ ...rest, page, page_size })
+                .filter(([_, val]) => val !== undefined && val !== '--')
+                .map(([key, val]) => [key, val === null ? 'null' : val]),
+            )
+          : undefined;
+
+        return {
+          url: GET_USERSTORY.replace('{project_id}', projectId),
+          params: cleanedParams,
+        };
+      },
 
       serializeQueryArgs: ({ endpointName, queryArgs }) => {
-        const { _refetchKey, ...rest } = queryArgs;
+        const { _refetchKey, payload, ...rest } = queryArgs;
+        const { page, ...payloadRest } = payload || {};
+        return `${endpointName}_${JSON.stringify({ ...rest, payload: payloadRest })}`;
+      },
 
-        return `${endpointName}_${JSON.stringify(rest)}`;
+      merge(currentCache, newItems, { arg }) {
+        if (
+          (arg?.payload?.page || 1) === 1 ||
+          !currentCache?.data ||
+          !Array.isArray(currentCache.data)
+        ) {
+          return newItems;
+        }
+
+        const existingIds = new Set(
+          currentCache.data.map(
+            (s: any) => s.id?.toString() || s._id?.toString(),
+          ),
+        );
+        const incoming = Array.isArray(newItems?.data) ? newItems.data : [];
+        const uniqueNew = incoming.filter(
+          (s: any) => !existingIds.has(s.id?.toString() || s._id?.toString()),
+        );
+
+        currentCache.data.push(...uniqueNew);
+        currentCache.meta = newItems.meta;
       },
 
       forceRefetch({ currentArg, previousArg }) {
         return (
-          currentArg?.sprint_id !== previousArg?.sprint_id ||
+          currentArg?.payload?.page !== previousArg?.payload?.page ||
+          currentArg?.payload?.sprint_id !== previousArg?.payload?.sprint_id ||
           currentArg?._refetchKey !== previousArg?._refetchKey
         );
       },
 
-      providesTags: (_result, _error, { project_id, sprint_id }) => [
+      providesTags: (_result, _error, { projectId, payload }) => [
         {
-          type: 'SprintDetails',
-          id: `${project_id}_${sprint_id}`,
+          type: 'UserStories',
+          id: `${projectId}_${payload?.sprint_id ?? 'all'}`,
         },
+      ],
+    }),
+
+    getTaskById: build.query<GetTaskByIdResponse, GetTaskByIdQueryArgs>({
+      query: ({ projectId, taskId }) => ({
+        url: GET_TASK_BY_ID.replace('{project_id}', projectId).replace(
+          '{task_id}',
+          taskId,
+        ),
+      }),
+      providesTags: (_result, _error, { projectId, taskId }) => [
+        { type: 'TaskDetail', id: `${projectId}_${taskId}` },
+      ],
+    }),
+
+    getBurndownChart: build.query<
+      GetBurndownResponse,
+      GetBurndownChartQueryArgs
+    >({
+      query: ({ projectId, sprintId }) => ({
+        url: GET_BURNDOWN_BY_PROJECT_SPRINT.replace(
+          '{project_id}',
+          projectId,
+        ).replace('{sprint_id}', sprintId),
+      }),
+      providesTags: (_result, _error, { projectId, sprintId }) => [
+        { type: 'BurndownChart', id: `${projectId}_${sprintId}` },
       ],
     }),
   }),
@@ -202,12 +314,24 @@ export const projectApi = createApi({
 export const {
   useGetProjectsQuery,
   useGetSprintsQuery,
+  useGetProjectByIdQuery,
+  useGetSprintByIdQuery,
+  useGetProjectOverviewQuery,
+  useGetCustomStatusQuery,
+  useGetUserStoryStatusQuery,
+  useGetUserStoriesQuery,
+  useGetTaskByIdQuery,
+  useGetBurndownChartQuery,
   useLazyGetProjectsQuery,
   useLazyGetSprintsQuery,
-  useGetProjectByIdQuery,
   useLazyGetProjectByIdQuery,
-  useGetSprintByIdQuery,
   useLazyGetSprintByIdQuery,
+  useLazyGetProjectOverviewQuery,
+  useLazyGetCustomStatusQuery,
+  useLazyGetUserStoryStatusQuery,
+  useLazyGetUserStoriesQuery,
+  useLazyGetTaskByIdQuery,
+  useLazyGetBurndownChartQuery,
 } = projectApi;
 
 // Aliases matching thunk names

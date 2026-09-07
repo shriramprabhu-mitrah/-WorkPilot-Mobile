@@ -189,6 +189,73 @@ export interface GetProjectByIdResponse {
   data: ProjectDetails;
 }
 
+export interface ProjectOverviewMetrics {
+  completed: number;
+  due_soon: number;
+  overdue: number;
+  pending: number;
+  total_tasks: number;
+}
+
+export interface GetProjectOverviewResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: ProjectOverviewMetrics;
+}
+
+export interface GetProjectOverviewParams {
+  project_id: string;
+  sprint_id?: string;
+}
+
+export interface GetProjectsQueryArgs extends GetProjectsParams {
+  /** Changing this value forces a refetch. Not sent to the API. */
+  _refetchKey?: number;
+}
+
+export interface GetSprintsQueryArgs extends GetSprintsParams {
+  /** Changing this value forces a refetch. Not sent to the API. */
+  _refetchKey?: number;
+}
+
+export interface GetProjectByIdQueryArgs {
+  project_id: string;
+  _refetchKey?: number;
+}
+
+export interface GetSprintByIdQueryArgs extends GetSprintByIdParams {
+  _refetchKey?: number;
+}
+
+export interface GetProjectOverviewQueryArgs {
+  project_id: string;
+  sprint_id?: string;
+  _refetchKey?: number;
+}
+
+export interface GetCustomStatusQueryArgs {
+  project_id: string;
+  _refetchKey?: number;
+}
+
+export interface GetUserStoryStatusQueryArgs {
+  project_id: string;
+  _refetchKey?: number;
+}
+
+export interface GetUserStoriesQueryArgs extends GetUserStorieThunkArgs {
+  _refetchKey?: number;
+}
+
+export interface GetTaskByIdQueryArgs extends GetTaskByIdParams {
+  _refetchKey?: number;
+}
+
+export interface GetBurndownChartQueryArgs extends GetBurnbownParams {
+  _refetchKey?: number;
+}
+
 export interface DeleteProjectResponse {
   data: string;
   message: string;
