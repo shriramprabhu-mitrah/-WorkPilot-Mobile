@@ -138,8 +138,8 @@ export interface ResendEmailVerificationResponse extends ApiResponse {}
 // Update User
 export interface UpdateUserProfileThunkPayload {
   formData: FormData;
-  showSuccessToast: (message: string, type: 'success' | 'error') => void;
-  handleSuccess: () => void;
+  showSuccessToast?: (message: string, type: 'success' | 'error') => void;
+  handleSuccess?: () => void;
 }
 
 export interface UpdateUserPayload extends UpdateUserProfilePayload {

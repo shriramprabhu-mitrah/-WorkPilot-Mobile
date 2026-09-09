@@ -18,7 +18,7 @@ import PrimaryButton from '../components/common/Button/PrimaryButton';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { showSuccessToast } from '../utils/utils';
+import { showSnackbar } from '../components/common/Snackbar';
 import { useAppDispatch, useAppSelector } from '../store';
 import PopupModel from '../components/popupModel';
 import { Radius } from '../constants/Radius';
@@ -73,7 +73,10 @@ const UpdateUserDetailsScreen = () => {
       setAvatarUri(image.path);
     } catch (error: any) {
       if (error?.code !== 'E_PICKER_CANCELLED') {
-        showSuccessToast('Failed to select image', 'error');
+        showSnackbar({
+          message: 'Failed to select image',
+          type: 'error',
+        });
       }
     }
   };
@@ -95,7 +98,10 @@ const UpdateUserDetailsScreen = () => {
       setAvatarUri(image.path);
     } catch (error: any) {
       if (error?.code !== 'E_PICKER_CANCELLED') {
-        showSuccessToast('Failed to capture photo', 'error');
+        showSnackbar({
+          message: 'Failed to capture photo',
+          type: 'error',
+        });
       }
     }
   };
@@ -140,9 +146,8 @@ const UpdateUserDetailsScreen = () => {
     return isValid;
   };
 
-  const handleUpdateDetails = () => {
+  const handleUpdateDetails = async () => {
     if (!validate()) return;
-    setLoading(true);
     const formData = new FormData();
     if (name !== user?.name) {
       formData.append('full_name', name);
@@ -164,22 +169,26 @@ const UpdateUserDetailsScreen = () => {
       } as any);
     }
     if ((formData as FormData & { _parts: unknown[] })._parts.length === 0) {
-      showSuccessToast('No changes to update', 'error');
-      setLoading(false);
+      showSnackbar({
+        message: 'No changes to update',
+        type: 'error',
+      });
       return;
     }
-    dispatch(
-      updateUserProfileInfo({
-        formData,
-        showSuccessToast,
-        handleSuccess,
-      }),
-    );
-  };
-
-  const handleSuccess = () => {
-    dispatch(getUserProfileInfo());
-    navigation.goBack();
+    setLoading(true);
+    try {
+      await dispatch(
+        updateUserProfileInfo({
+          formData,
+        }),
+      ).unwrap();
+      dispatch(getUserProfileInfo());
+      navigation.goBack();
+    } catch (error: any) {
+      // Failed - loader will be reset in finally block
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isActiveUser = user?.is_active ?? true;

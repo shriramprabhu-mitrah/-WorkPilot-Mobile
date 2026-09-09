@@ -47,6 +47,7 @@ export const CustomDrawerContent: React.FC<
   const params = { include_sprints: include_sprints };
   const handleNavigation = (routeName: string) => {
     if (props.navigation && typeof props.navigation.navigate === 'function') {
+      props.navigation.closeDrawer();
       props.navigation.navigate(routeName);
     }
   };
@@ -92,8 +93,8 @@ export const CustomDrawerContent: React.FC<
   };
 
   const handleLogoutConfirm = () => {
-    dispatch(logoutUser(showSuccessToast));
-    console.log('project', project);
+    setIsLogoutModalVisible(false);
+    dispatch(logoutUser());
   };
 
   // const handleOnSelectProject = (id: string, name: string) => {

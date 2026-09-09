@@ -27,7 +27,7 @@ const DrawerNavigator = () => {
         drawerType: 'front',
       }}
     >
-      {/* <Drawer.Screen name='MainTabs' component={TabNavigator} /> */}
+      <Drawer.Screen name='Home' component={Home} />
       <Drawer.Screen name='MainTabs' component={Home} />
       <Drawer.Screen name='Profile' component={ProfileScreen} />
       {/* <Drawer.Screen name='Teams' component={TeamsScreen} /> */}

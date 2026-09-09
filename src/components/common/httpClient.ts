@@ -18,7 +18,8 @@ import {
   SIGNUP,
 } from '../../constants/apiServiceEndpoint';
 import { logout } from '../../store/auth_store/reducer/auth.reducer';
-import { API_URL, showSuccessToast } from '../../utils/utils';
+import { API_URL } from '../../utils/utils';
+import { showSnackbar } from './Snackbar';
 import reactotron from '../../config/ReactotronConfig';
 import { setNetworkError } from '../../store/commonSlice';
 
@@ -123,22 +124,23 @@ apiClient.interceptors.response.use(
 
       store.dispatch(logout());
 
-      showSuccessToast(
-        'Your session has expired. Please login again.',
-        'error',
-      );
+      showSnackbar({
+        message: 'Your session has expired. Please login again.',
+        type: 'error',
+      });
 
       return Promise.reject(error);
     }
 
     // Other API errors
-    showSuccessToast(
-      error.response?.data?.message ||
+    showSnackbar({
+      message:
+        error.response?.data?.message ||
         error.response?.data?.error?.message ||
         error.message ||
         'Something went wrong',
-      'error',
-    );
+      type: 'error',
+    });
 
     return Promise.reject(error);
   },

@@ -31,6 +31,7 @@ import {
   favouriteUserStoryThunk,
   unfavouriteUserStoryThunk,
 } from '../store/project_store/action/projectBoard.thunk';
+import { showSnackbar } from '../components/common/Snackbar';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -812,11 +813,11 @@ const ProjectDeatailsScreen = () => {
           if (currentFav) {
             await dispatch(
               unfavouriteUserStoryThunk({ projectId, userStoryId: storyId }),
-            );
+            ).unwrap();
           } else {
             await dispatch(
               favouriteUserStoryThunk({ projectId, userStoryId: storyId }),
-            );
+            ).unwrap();
           }
 
           setLocalUserStories(prev =>
@@ -826,7 +827,13 @@ const ProjectDeatailsScreen = () => {
           );
 
           triggerManualRefetch();
-        } catch {}
+        } catch {
+          addOptimisticUpdate({ kind: 'story', storyId, isFav: currentFav });
+          showSnackbar({
+            message: 'Failed to update favourite',
+            type: 'error',
+          });
+        }
       });
     },
     [
@@ -851,9 +858,11 @@ const ProjectDeatailsScreen = () => {
 
         try {
           if (currentFav) {
-            await dispatch(unfavouriteTaskThunk({ projectId, taskId }));
+            await dispatch(
+              unfavouriteTaskThunk({ projectId, taskId }),
+            ).unwrap();
           } else {
-            await dispatch(favouriteTaskThunk({ projectId, taskId }));
+            await dispatch(favouriteTaskThunk({ projectId, taskId })).unwrap();
           }
 
           setLocalUserStories(prev =>
@@ -866,7 +875,13 @@ const ProjectDeatailsScreen = () => {
           );
 
           triggerManualRefetch();
-        } catch {}
+        } catch {
+          addOptimisticUpdate({ kind: 'task', taskId, isFav: currentFav });
+          showSnackbar({
+            message: 'Failed to update favourite',
+            type: 'error',
+          });
+        }
       });
     },
     [

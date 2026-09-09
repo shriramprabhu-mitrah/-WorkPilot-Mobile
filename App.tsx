@@ -27,6 +27,7 @@ import { navigate } from './src/navigation/navigationRef';
 import NetworkErrorScreen from './src/screens/networkErrorScreen';
 import { setNetworkError } from './src/store/commonSlice';
 import NetInfo from '@react-native-community/netinfo';
+import { SnackbarProvider } from './src/components/common/Snackbar';
 
 function App() {
   return (
@@ -35,7 +36,9 @@ function App() {
         <ThemeProvider>
           <SafeAreaProvider>
             <PaperProvider>
-              <AppContent />
+              <SnackbarProvider>
+                <AppContent />
+              </SnackbarProvider>
             </PaperProvider>
           </SafeAreaProvider>
         </ThemeProvider>

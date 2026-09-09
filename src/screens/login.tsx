@@ -15,8 +15,8 @@ import { useAppDispatch, useAppSelector } from '../store';
 import { signInUser } from '../store/auth_store/action/auth.thunks';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { moderateScale, useResponsive } from '../utils/responsive';
-import { showSuccessToast } from '../utils/utils';
 import { handleLoading } from '../store/auth_store/reducer/auth.reducer';
+import { showSnackbar } from '../components/common/Snackbar';
 
 const LoginScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -67,14 +67,26 @@ const LoginScreen = () => {
       return;
     }
     dispatch(handleLoading(true));
-    dispatch(
-      signInUser({
-        payload: {
-          email,
-          password,
-        },
-      }),
-    );
+    try {
+      await dispatch(
+        signInUser({
+          payload: {
+            email,
+            password,
+          },
+        }),
+      ).unwrap();
+
+      showSnackbar({
+        message: 'Login success!',
+        type: 'success',
+      });
+    } catch (error: any) {
+      showSnackbar({
+        message: typeof error === 'string' ? error : 'Login failed',
+        type: 'error',
+      });
+    }
   };
 
   return (

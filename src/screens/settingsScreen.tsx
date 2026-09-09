@@ -15,6 +15,7 @@ import { Radius } from '../constants/Radius';
 import CustomBottomSheet from '../components/common/CustomBottomDialog';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { showSuccessToast } from '../utils/utils';
+import { showSnackbar } from '../components/common/Snackbar';
 import { useAppDispatch, useAppSelector } from '../store';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -114,7 +115,8 @@ export default function SettingsScreen() {
   ];
 
   const handleLogoutConfirm = () => {
-    dispatch(logoutUser(showSuccessToast));
+    setIsLogoutModalVisible(false);
+    dispatch(logoutUser());
   };
 
   return (

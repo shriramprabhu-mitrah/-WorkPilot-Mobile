@@ -7,7 +7,11 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  useNavigation,
+  useFocusEffect,
+  DrawerActions,
+} from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Screen from '../components/common/ScreenWapper';
@@ -23,6 +27,7 @@ import { useAppDispatch, useAppSelector } from '../store';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
 import { getFavouritesThunk } from '../store/project_store/action/projectBoard.thunk';
 import { showSuccessToast } from '../utils/utils';
+import { showSnackbar } from '../components/common/Snackbar';
 import { Radius } from '../constants/Radius';
 import { getRoleLabel } from '../constants/role';
 import { Activity, UserInsights } from '../types/home.type';
@@ -83,7 +88,8 @@ const ProfileScreen = () => {
   const quickLinks = getQuickLinks(colors, strings);
 
   const handleLogoutConfirm = () => {
-    dispatch(logoutUser(showSuccessToast));
+    setIsLogoutModalVisible(false);
+    dispatch(logoutUser());
   };
 
   // Fetch initial activity data
@@ -399,9 +405,27 @@ const ProfileScreen = () => {
         }}
       >
         <View className='mb-6 flex-row items-center justify-between'>
-          <AppText variant='h4' color={colors.white}>
-            {strings.profile?.title || 'Profile'}
-          </AppText>
+          <View className='flex-row items-center'>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              className='items-center justify-center rounded-full bg-white/20'
+              style={{
+                width: moderateScale(36),
+                height: moderateScale(36),
+                marginRight: moderateScale(12),
+              }}
+            >
+              <Ionicons
+                name='menu-outline'
+                size={moderateScale(22)}
+                color={colors.white}
+              />
+            </TouchableOpacity>
+            <AppText variant='h4' color={colors.white}>
+              {strings.profile?.title || 'Profile'}
+            </AppText>
+          </View>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => navigation.navigate('Settings')}
