@@ -5,7 +5,6 @@ import {
   ScrollView,
   Image,
   FlatList,
-  ActivityIndicator,
 } from 'react-native';
 import {
   useNavigation,
@@ -25,13 +24,11 @@ import { useAuthLayout } from '../hooks/useAuthLayout';
 import { QuickLinks, getQuickLinks, getStats } from '../data/profileScreenData';
 import { useAppDispatch, useAppSelector } from '../store';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
-import { getFavouritesThunk } from '../store/project_store/action/projectBoard.thunk';
 import { showSuccessToast } from '../utils/utils';
 import { showSnackbar } from '../components/common/Snackbar';
 import { Radius } from '../constants/Radius';
 import { getRoleLabel } from '../constants/role';
 import { Activity, UserInsights } from '../types/home.type';
-import { FavoriteItem } from '../types/projectBoard.type';
 import { formatAction, formatDate, getInitials } from '../utils/utils';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
@@ -41,9 +38,9 @@ import {
   getUserInsightsData,
 } from '../store/home_store/action/home.thunk';
 import { resetAuditData } from '../store/home_store/reducer/home.reducer';
-import { getAllProjectInfo } from '../store/project_store/action/project_thunk';
-import { resetProjects } from '../store/project_store/reducer/project_reducer';
+import { useGetProjectsQuery } from '../store/api/projectApi';
 import { FilterChipSkeleton } from '../components/skeleton/filterChipSkeleton';
+import { Project } from '../types/project.type';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -67,16 +64,12 @@ const ProfileScreen = () => {
     insightsLoading,
   } = useAppSelector(state => state.home);
 
-  const { projects, loading: projectsLoading } = useAppSelector(
-    state => state.projects,
-  );
+  // const { favorites, favoritesLoading, favoritesMeta } = useAppSelector(
+  //   state => state.projectBoard,
+  // );
 
-  const { favorites, favoritesLoading, favoritesMeta } = useAppSelector(
-    state => state.projectBoard,
-  );
-
-  const [favoritesExpanded, setFavoritesExpanded] = useState(false);
-  const favoritesRef = useRef(false);
+  // const [favoritesExpanded, setFavoritesExpanded] = useState(false);
+  // const favoritesRef = useRef(false);
 
   // Pagination refs
   const currentPageRef = useRef(1);
@@ -116,11 +109,13 @@ const ProfileScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      dispatch(resetProjects());
-      dispatch(getAllProjectInfo({ page: 1 }));
       return () => {};
-    }, [dispatch]),
+    }, []),
   );
+
+  const { data: projectsResponse, isLoading: projectsLoading } =
+    useGetProjectsQuery({ page: 1 });
+  const projects = (projectsResponse?.data as Project[]) || [];
 
   // Navigation to full-screen activity
   const openActivityFullScreen = useCallback(() => {
@@ -180,11 +175,11 @@ const ProfileScreen = () => {
       });
   }, [activities.length, loading, meta, dispatch]);
 
-  useEffect(() => {
-    if (!favoritesLoading) {
-      favoritesRef.current = false;
-    }
-  }, [favoritesLoading]);
+  // useEffect(() => {
+  //   if (!favoritesLoading) {
+  //     favoritesRef.current = false;
+  //   }
+  // }, [favoritesLoading]);
 
   const handleActivityNavigation = (item: Activity) => {
     const resourceType = item?.resource_type?.toLowerCase();

@@ -86,7 +86,7 @@ const ProjectDetails: React.FC = () => {
   );
 
   const currentSprint = sprintByIdData?.data;
-  const getCurrentSprintLoading = sprintByIdLoading || sprintByIdFetching;
+  const getCurrentSprintLoading = sprintByIdLoading;
 
   const [projectSheetVisible, setProjectSheetVisible] =
     useState<boolean>(false);

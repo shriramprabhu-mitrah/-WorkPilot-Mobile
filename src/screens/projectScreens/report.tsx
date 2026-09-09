@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -14,8 +14,8 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { AppText } from '../../components';
-import { useAppDispatch, useAppSelector } from '../../store';
-import { getBurndownChartThunk } from '../../store/project_store/action/project_thunk';
+import { useAppSelector } from '../../store';
+import { useGetBurndownChartQuery } from '../../store/api/projectApi';
 import {
   ActiveModalType,
   CHART_DATA_BY_FILTER,
@@ -148,7 +148,6 @@ const BurndownChartSkeleton: React.FC<{ height?: number }> = ({
 };
 
 const Report = () => {
-  const dispatch = useAppDispatch();
   const { colors } = useTheme();
   const layout = useAuthLayout();
   const moderateScale = layout?.moderateScale || ((size: number) => size);
@@ -157,8 +156,7 @@ const Report = () => {
    * Project and Sprint now come directly from Redux.
    * No route params are required.
    */
-  const { project, currentSprint, burndownData, burndownLoading } =
-    useAppSelector(state => state.projects);
+  const { project, currentSprint } = useAppSelector(state => state.projects);
 
   const projectId = project?.id;
   const sprintId = currentSprint?.id;
@@ -196,22 +194,31 @@ const Report = () => {
         lastFetchedKeyRef.current = currentKey;
       }
 
-      dispatch(
-        getBurndownChartThunk({
-          projectId,
-          sprintId,
-        }),
-      ).finally(() => {
-        if (isMounted) {
-          setIsFocusLoading(false);
-        }
-      });
-
+      if (isMounted) {
+        setIsFocusLoading(false);
+      }
+      refetchBurndown();
       return () => {
         isMounted = false;
       };
-    }, [dispatch, projectId, sprintId]),
+    }, [projectId, sprintId]),
   );
+
+  const {
+    data: burndownResponse,
+    isLoading: burndownLoading,
+    refetch: refetchBurndown,
+  } = useGetBurndownChartQuery(
+    { projectId: projectId!, sprintId: sprintId! },
+    { skip: !projectId || !sprintId },
+  );
+  const burndownData = burndownResponse?.data;
+
+  useEffect(() => {
+    if (!burndownLoading && lastFetchedKeyRef.current !== null) {
+      setIsFocusLoading(false);
+    }
+  }, [burndownLoading]);
 
   const showBurndownSkeleton =
     isFocusLoading || (burndownLoading && lastFetchedKeyRef.current === null);

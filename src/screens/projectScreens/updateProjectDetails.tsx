@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -12,13 +12,12 @@ import { WorkItemIcon } from '../../components/common/getWorkItemIcon';
 import AppText from '../../components/common/AppText';
 import { AppInput } from '../../components/common/Input';
 import { PrimaryButton } from '../../components/common/Button';
-import { RootState, useAppSelector, useAppDispatch } from '../../store';
+import { RootState, useAppSelector } from '../../store';
 import {
-  updateProject,
-  deleteProject,
-  getAllProjectInfo,
-} from '../../store/project_store/action/project_thunk';
-import { useLazyGetProjectByIdQuery } from '../../store/api/projectApi';
+  useUpdateProjectMutation,
+  useDeleteProjectMutation,
+  useLazyGetProjectByIdQuery,
+} from '../../store/api/projectApi';
 import { showSuccessToast } from '../../utils/utils';
 import { getValidStatus, ProjectStatus, STATUS_LABELS } from '../../utils/enum';
 import { useNavigation } from '@react-navigation/native';
@@ -31,13 +30,9 @@ interface UpdateProjectDetailsProps {
   initialProjectName?: string;
 }
 
-const PAGE_SIZE = 10;
-
 export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
   initialProjectName = 'My Software Team',
 }) => {
-  const dispatch = useAppDispatch();
-  const [getProjectByIdQuery] = useLazyGetProjectByIdQuery();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const {
@@ -58,18 +53,12 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
     getValidStatus(project?.status),
   );
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
 
-  useLayoutEffect(() => {
-    dispatch(
-      getAllProjectInfo({
-        page: 1,
-        page_size: PAGE_SIZE,
-      }),
-    );
-  }, [dispatch]);
+  const [updateProjectMutation, { isLoading }] = useUpdateProjectMutation();
+  const [deleteProjectMutation] = useDeleteProjectMutation();
+  const [getProjectByIdQuery] = useLazyGetProjectByIdQuery();
 
   useEffect(() => {
     if (project?.name) {
@@ -95,11 +84,11 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
 
   const statusCategories = Object.values(ProjectStatus);
 
-  const handleSuccess = () => {
-    navigation.navigate('projectDetails');
-  };
+  // const handleSuccess = () => {
+  //   navigation.navigate('projectDetails');
+  // };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const projectId = project?.id;
 
     if (!name.trim()) {
@@ -112,63 +101,49 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
       return;
     }
 
-    setIsLoading(true);
-
-    dispatch(
-      updateProject({
-        projectId,
+    try {
+      const response = await updateProjectMutation({
+        project_id: projectId,
         payload: {
           name: name.trim(),
           description: description.trim(),
           status,
         },
-        onSuccess: message => {
-          showSuccessToast(
-            message || 'Project updated successfully',
-            'success',
-          );
-          getProjectByIdQuery({ project_id: projectId }).then(() => {
-            handleSuccess();
-          });
-        },
-        onError: errorMessage => {
-          showSuccessToast?.(
-            errorMessage || 'Failed to update project',
-            'error',
-          );
-        },
-        onFinally: () => {
-          setIsLoading(false);
-        },
-      }),
-    );
+      }).unwrap();
+
+      showSuccessToast(
+        response.message || 'Project updated successfully',
+        'success',
+      );
+
+      await getProjectByIdQuery({ project_id: projectId });
+    } catch (error: any) {
+      showSuccessToast?.(error?.message || 'Failed to update project', 'error');
+    }
   };
 
-  const handleDeleteProject = () => {
+  const handleDeleteProject = async () => {
     const projectId = project?.id;
     if (!projectId) {
       showSuccessToast?.('Project ID not found', 'error');
       return;
     }
     setIsDeleting(true);
-    dispatch(
-      deleteProject({
-        projectId,
-        onSuccess: message => {
-          showSuccessToast?.(message || 'Project moved to trash', 'success');
-          navigation.navigate('HomeTabs');
-        },
-        onError: errorMessage => {
-          showSuccessToast?.(
-            errorMessage || 'Failed to delete project',
-            'error',
-          );
-        },
-        onFinally: () => {
-          setIsDeleting(false);
-        },
-      }),
-    );
+    try {
+      const response = await deleteProjectMutation({
+        project_id: projectId,
+      }).unwrap();
+
+      showSuccessToast?.(
+        response.message || 'Project moved to trash',
+        'success',
+      );
+      navigation.navigate('HomeTabs');
+    } catch (error: any) {
+      showSuccessToast?.(error?.message || 'Failed to delete project', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (

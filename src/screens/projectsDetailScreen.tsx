@@ -44,7 +44,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { CustomStatus } from '../types/customstatus.type';
-import { updateTaskThunk } from '../store/task_store/action/task.thunk';
+import { useUpdateTaskMutation } from '../store/api/userStoryApi';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
 
@@ -663,6 +663,7 @@ const ProjectDeatailsScreen = () => {
     data: userStoriesResponse,
     isFetching: isStoriesFetching,
     isLoading: isStoriesLoading,
+    refetch: refetchUserStories, // <-- Destructure refetch here
   } = useGetUserStoriesQuery(
     isFocused && projectId && currentSprintId
       ? {
@@ -679,6 +680,7 @@ const ProjectDeatailsScreen = () => {
 
   const userStories = (userStoriesResponse?.data as UserStory[]) ?? [];
   const userStoryMeta = userStoriesResponse?.meta ?? null;
+  const [updateTask] = useUpdateTaskMutation();
 
   // Local State
   const [localUserStories, setLocalUserStories] = useState<UserStory[]>([]);
@@ -796,10 +798,6 @@ const ProjectDeatailsScreen = () => {
     setExpandedStories(prev => ({ ...prev, [storyId]: !prev[storyId] }));
   }, []);
 
-  const triggerManualRefetch = useCallback(() => {
-    setRefetchKey(prev => prev + 1);
-  }, []);
-
   const handleToggleStoryFavorite = useCallback(
     (storyId: string) => {
       if (!projectId) return;
@@ -826,7 +824,7 @@ const ProjectDeatailsScreen = () => {
             ),
           );
 
-          triggerManualRefetch();
+          await refetchUserStories(); // Optional short delay if backend eventual-consistency lags
         } catch {
           addOptimisticUpdate({ kind: 'story', storyId, isFav: currentFav });
           showSnackbar({
@@ -836,13 +834,7 @@ const ProjectDeatailsScreen = () => {
         }
       });
     },
-    [
-      dispatch,
-      projectId,
-      optimisticStories,
-      addOptimisticUpdate,
-      triggerManualRefetch,
-    ],
+    [dispatch, projectId, optimisticStories, addOptimisticUpdate],
   );
 
   const handleToggleTaskFavorite = useCallback(
@@ -874,7 +866,7 @@ const ProjectDeatailsScreen = () => {
             })),
           );
 
-          triggerManualRefetch();
+          await refetchUserStories(); // Optional short delay if backend eventual-consistency lags
         } catch {
           addOptimisticUpdate({ kind: 'task', taskId, isFav: currentFav });
           showSnackbar({
@@ -884,13 +876,7 @@ const ProjectDeatailsScreen = () => {
         }
       });
     },
-    [
-      dispatch,
-      projectId,
-      optimisticStories,
-      addOptimisticUpdate,
-      triggerManualRefetch,
-    ],
+    [dispatch, projectId, optimisticStories, addOptimisticUpdate],
   );
 
   const registerTaskDropZone = useCallback((zone: DropZone) => {
@@ -1053,27 +1039,28 @@ const ProjectDeatailsScreen = () => {
         return;
       }
 
-      dispatch(
-        updateTaskThunk({
-          projectId,
-          taskId: task.id,
-          payload: {
-            user_story_id: targetStoryId,
-            status_id: targetStatusId,
-          },
-          onSuccess: () => {
-            setTimeout(() => setDropSuccessZone(null), 700);
-          },
-          onError: () => {
-            setDropSuccessZone(null);
-            rollbackLocalMove(sourceTask, sourceStoryId, targetStoryId);
-          },
-          onFinally: () => {},
-        }),
-      );
+      updateTask({
+        projectId,
+        taskId: task.id,
+        payload: {
+          user_story_id: targetStoryId,
+          status_id: targetStatusId,
+        },
+      })
+        .unwrap()
+        .then(() => {
+          setTimeout(() => setDropSuccessZone(null), 700);
+        })
+        .catch(() => {
+          setDropSuccessZone(null);
+          rollbackLocalMove(sourceTask, sourceStoryId, targetStoryId);
+          showSnackbar({
+            message: 'Failed to move task',
+            type: 'error',
+          });
+        });
     },
     [
-      dispatch,
       findDropZone,
       localUserStories,
       projectId,

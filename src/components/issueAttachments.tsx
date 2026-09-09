@@ -26,17 +26,18 @@ import {
   VideoAttachment,
 } from '../types/attachment.type';
 import {
-  fetchUserStoryAttachments,
-  uploadUserStoryAttachment,
-  deleteUserStoryAttachment,
-  fetchTaskAttachments,
-  uploadTaskAttachment,
-  deleteTaskAttachment,
-} from '../store/comments_store/action/attachment.thunk';
-import {
   addLocalVideo,
   removeLocalVideo,
 } from '../store/comments_store/reducer/attachment.reducer';
+import {
+  useGetUserStoryAttachmentsQuery,
+  useGetTaskAttachmentsQuery,
+  useUploadUserStoryAttachmentMutation,
+  useDeleteUserStoryAttachmentMutation,
+  useUploadTaskAttachmentMutation,
+  useDeleteTaskAttachmentMutation,
+} from '../store/api/userStoryApi';
+import { skipToken } from '@reduxjs/toolkit/query';
 import AttachmentsSkeleton from './skeleton/issueDetailSkeleton';
 import { moderateScale } from '../utils/responsive';
 
@@ -97,6 +98,12 @@ export const IssueAttachments: React.FC<Props> = ({
 }) => {
   const dispatch = useAppDispatch();
   const { layout } = useAuthLayout();
+  const { localVideos } = useAppSelector((state: any) => state.attachments);
+
+  const [uploadUserStoryAttachment] = useUploadUserStoryAttachmentMutation();
+  const [deleteUserStoryAttachment] = useDeleteUserStoryAttachmentMutation();
+  const [uploadTaskAttachment] = useUploadTaskAttachmentMutation();
+  const [deleteTaskAttachment] = useDeleteTaskAttachmentMutation();
 
   const [menuVisible, setMenuVisible] = useState(false);
   const [localAttachments, setLocalAttachments] = useState<LocalAttachment[]>(
@@ -117,26 +124,29 @@ export const IssueAttachments: React.FC<Props> = ({
   localAttachmentsRef.current = localAttachments;
 
   const {
-    userStoryAttachments,
-    taskCommentAttachments,
-    localVideos,
-    loading,
-    refreshing,
-  } = useAppSelector((state: any) => state.attachments);
+    data: userStoryAttachmentsResponse,
+    isLoading: userStoryAttachmentsLoading,
+    isFetching: userStoryAttachmentsFetching,
+    refetch: refetchUserStoryAttachments,
+  } = useGetUserStoryAttachmentsQuery(
+    userStoryId && projectId ? { projectId, userStoryId } : skipToken,
+  );
 
-  useEffect(() => {
-    if (!projectId) return;
-    if (userStoryId) {
-      dispatch(
-        fetchUserStoryAttachments({ projectId, userStoryId, isInitial: true }),
-      );
-    }
-  }, [dispatch, projectId, userStoryId]);
+  const {
+    data: taskAttachmentsResponse,
+    isLoading: taskAttachmentsLoading,
+    isFetching: taskAttachmentsFetching,
+    refetch: refetchTaskAttachments,
+  } = useGetTaskAttachmentsQuery(
+    taskId && projectId ? { projectId, taskId } : skipToken,
+  );
 
-  useEffect(() => {
-    if (!taskId || !projectId) return;
-    dispatch(fetchTaskAttachments({ projectId, taskId, isInitial: true }));
-  }, [dispatch, taskId, projectId]);
+  const userStoryAttachments = userStoryAttachmentsResponse ?? [];
+  const taskCommentAttachments = taskAttachmentsResponse ?? [];
+  const loading = isTask ? taskAttachmentsLoading : userStoryAttachmentsLoading;
+  const refreshing = isTask
+    ? taskAttachmentsFetching && !taskAttachmentsLoading
+    : userStoryAttachmentsFetching && !userStoryAttachmentsLoading;
 
   const generateTempId = () => {
     uploadCounterRef.current += 1;
@@ -196,29 +206,25 @@ export const IssueAttachments: React.FC<Props> = ({
       try {
         let result;
         if (isTask && taskId && projectId) {
-          result = await dispatch(
-            uploadTaskAttachment({ projectId, taskId, file }),
-          );
-          if (uploadTaskAttachment.fulfilled.match(result)) {
+          result = await uploadTaskAttachment({
+            projectId,
+            taskId,
+            file,
+          });
+          if (result?.data) {
             removeLocalAttachment(file.tempId);
-            dispatch(
-              fetchTaskAttachments({ projectId, taskId, isInitial: false }),
-            );
+            refetchTaskAttachments();
             return;
           }
         } else if (userStoryId && projectId) {
-          result = await dispatch(
-            uploadUserStoryAttachment({ projectId, userStoryId, file }),
-          );
-          if (uploadUserStoryAttachment.fulfilled.match(result)) {
+          result = await uploadUserStoryAttachment({
+            projectId,
+            userStoryId,
+            file,
+          });
+          if (result?.data) {
             removeLocalAttachment(file.tempId);
-            dispatch(
-              fetchUserStoryAttachments({
-                projectId,
-                userStoryId,
-                isInitial: false,
-              }),
-            );
+            refetchUserStoryAttachments();
             return;
           }
         }
@@ -234,13 +240,16 @@ export const IssueAttachments: React.FC<Props> = ({
       }
     },
     [
-      dispatch,
       isTask,
       taskId,
       userStoryId,
       projectId,
       removeLocalAttachment,
       updateLocalAttachment,
+      refetchTaskAttachments,
+      refetchUserStoryAttachments,
+      uploadTaskAttachment,
+      uploadUserStoryAttachment,
     ],
   );
 
@@ -432,37 +441,34 @@ export const IssueAttachments: React.FC<Props> = ({
     try {
       setDeletingId(targetId);
       if (isTask && taskId && projectId) {
-        await dispatch(
-          deleteTaskAttachment({ projectId, taskId, attachmentId: targetId }),
-        );
-        dispatch(fetchTaskAttachments({ projectId, taskId, isInitial: false }));
+        await deleteTaskAttachment({
+          projectId,
+          taskId,
+          attachmentId: targetId,
+        });
+        refetchTaskAttachments();
       } else if (userStoryId && projectId) {
-        await dispatch(
-          deleteUserStoryAttachment({
-            projectId,
-            userStoryId,
-            attachmentId: targetId,
-          }),
-        );
-        dispatch(
-          fetchUserStoryAttachments({
-            projectId,
-            userStoryId,
-            isInitial: false,
-          }),
-        );
+        await deleteUserStoryAttachment({
+          projectId,
+          userStoryId,
+          attachmentId: targetId,
+        });
+        refetchUserStoryAttachments();
       }
     } finally {
       setDeletingId(null);
     }
   }, [
-    dispatch,
     deletingAttachment,
     isTask,
     taskId,
     userStoryId,
     projectId,
     closeDeleteModal,
+    refetchTaskAttachments,
+    refetchUserStoryAttachments,
+    deleteTaskAttachment,
+    deleteUserStoryAttachment,
   ]);
 
   const isLocalAttachment = (

@@ -15,7 +15,7 @@ import { Radius } from '../../constants/Radius';
 import { AppText } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
 import SummarySkeleton from '../../components/skeleton/summarySkeleton';
-import { useGetProjectByIdQuery } from '../../store/api/projectApi';
+import { useGetProjectOverviewQuery } from '../../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
 
 export const Summary: React.FC = () => {
@@ -31,9 +31,14 @@ export const Summary: React.FC = () => {
     project?.id?.toString() || (project as any)?._id?.toString();
 
   // 2. RTK Query Hook
-  const { refetch } = useGetProjectByIdQuery(
+  const {
+    data: overviewResponse,
+    isLoading,
+    refetch,
+  } = useGetProjectOverviewQuery(
     projectId ? { project_id: projectId } : skipToken,
   );
+  const overviewData = overviewResponse?.data;
 
   // 3. Animation values
   const drawAnim = useRef(new Animated.Value(0)).current;
@@ -99,18 +104,18 @@ export const Summary: React.FC = () => {
   }, [colors.background]);
 
   // 6. Early returns are placed AFTER all hooks have executed
-  if (!project && projectLoading) {
+  if (isLoading || projectLoading) {
     return <SummarySkeleton />;
   }
-  if (!project) {
+  if (!overviewData) {
     return null;
   }
 
-  const totalTasks = project?.metrics?.total_tasks;
-  const completedTasks = project?.metrics?.completed_tasks;
-  const updatedTasks = project?.metrics?.pending_tasks;
-  const createdTasks = project?.metrics?.total_tasks;
-  const dueSoonTasks = project?.metrics?.overdue_tasks;
+  const totalTasks = overviewData?.total_tasks;
+  const completedTasks = overviewData?.completed;
+  const updatedTasks = overviewData?.pending;
+  const createdTasks = overviewData?.total_tasks;
+  const dueSoonTasks = overviewData?.due_soon;
 
   return (
     <ScrollView

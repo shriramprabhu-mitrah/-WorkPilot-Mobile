@@ -30,22 +30,22 @@ import {
   setIsEditingDescription,
 } from '../store/issue_store/reducer/issue.reducer';
 import {
-  getTaskById,
-  getUserStoryById,
-  updateUserStory,
-} from '../store/project_store/action/project_thunk';
-import {
-  fetchUserStoryComments,
-  fetchTaskComments,
-  createTaskComment,
-  updateTaskComment,
-  deleteTaskComment,
-  createUserStoryComment,
-  updateUserStoryComment,
-  deleteUserStoryComment,
-  uploadUserStoryCommentAttachment,
-  uploadTaskCommentAttachment,
-} from '../store/comments_store/action/comments.thunk';
+  useGetUserStoryByIdQuery,
+  useGetTaskByIdQuery,
+  useGetUserStoryCommentsQuery,
+  useGetTaskCommentsQuery,
+  useGetTasksQuery,
+  useUpdateUserStoryMutation,
+  useUpdateTaskMutation,
+  useCreateUserStoryCommentMutation,
+  useUpdateUserStoryCommentMutation,
+  useDeleteUserStoryCommentMutation,
+  useCreateTaskCommentMutation,
+  useUpdateTaskCommentMutation,
+  useDeleteTaskCommentMutation,
+  useUploadUserStoryCommentAttachmentMutation,
+  useUploadTaskCommentAttachmentMutation,
+} from '../store/api/userStoryApi';
 import {
   deleteCommentLocally,
   setComments,
@@ -64,10 +64,6 @@ import {
   UserStoryPriority,
 } from '../types/project.type';
 import { UpdateTaskPayload } from '../types/task.type';
-import {
-  getTasks,
-  updateTaskThunk,
-} from '../store/task_store/action/task.thunk';
 import Screen from '../components/common/ScreenWapper';
 import CommonHeader from '../components/common/CommonHeader';
 import AppText from '../components/common/AppText';
@@ -128,19 +124,62 @@ const IssueDetailScreen = () => {
     (state: RootState) => state.issue,
   );
   const {
-    selectedUserStory,
-    selectedTask,
-    tasks,
-    tasksMeta,
-    loading,
-    loadingMore,
-    userStoryDetailLoading,
-    taskDetailLoading,
-  } = useAppSelector((state: RootState) => state.projects);
-
-  const { comments: apiComments, loading: commentsLoading } = useAppSelector(
-    (state: RootState) => state.comments || { comments: [], loading: false },
+    data: userStoryResponse,
+    isLoading: userStoryLoading,
+    refetch: refetchUserStory,
+  } = useGetUserStoryByIdQuery(
+    projectId && userStoryId ? { projectId, userStoryId } : skipToken,
   );
+
+  const {
+    data: taskResponse,
+    isLoading: taskLoading,
+    refetch: refetchTask,
+  } = useGetTaskByIdQuery(
+    projectId && taskId ? { projectId, taskId } : skipToken,
+  );
+
+  const {
+    data: userStoryCommentsResponse,
+    isLoading: userStoryCommentsLoading,
+    refetch: refetchUserStoryComments,
+  } = useGetUserStoryCommentsQuery(
+    projectId && userStoryId
+      ? { projectId, userStoryId, page: 1, pageSize: 10 }
+      : skipToken,
+  );
+
+  const {
+    data: taskCommentsResponse,
+    isLoading: taskCommentsLoading,
+    refetch: refetchTaskComments,
+  } = useGetTaskCommentsQuery(
+    taskId ? { taskId, page: 1, pageSize: 10 } : skipToken,
+  );
+
+  const {
+    data: tasksResponse,
+    isLoading: tasksLoading,
+    isFetching: tasksFetching,
+    refetch: refetchTasks,
+  } = useGetTasksQuery(
+    projectId && userStoryId
+      ? { projectId, page: 1, page_size: 8, user_story_id: userStoryId }
+      : skipToken,
+  );
+
+  const [updateUserStory] = useUpdateUserStoryMutation();
+  const [updateTask] = useUpdateTaskMutation();
+  const [createUserStoryComment] = useCreateUserStoryCommentMutation();
+  const [updateUserStoryComment] = useUpdateUserStoryCommentMutation();
+  const [deleteUserStoryComment] = useDeleteUserStoryCommentMutation();
+  const [createTaskComment] = useCreateTaskCommentMutation();
+  const [updateTaskComment] = useUpdateTaskCommentMutation();
+  const [deleteTaskComment] = useDeleteTaskCommentMutation();
+  const [uploadUserStoryCommentAttachment] =
+    useUploadUserStoryCommentAttachmentMutation();
+  const [uploadTaskCommentAttachment] =
+    useUploadTaskCommentAttachmentMutation();
 
   const [priority, setPriority] = useState<string>('');
   const [storyPoints, setStoryPoints] = useState<number>(0);
@@ -165,11 +204,20 @@ const IssueDetailScreen = () => {
 
   const isTaskView = Boolean(taskId);
   const currentItem: any = isTaskView
-    ? selectedTask || task || selectedTask
-    : selectedUserStory || userStory || selectedUserStory;
-  const isDetailsLoading = isTaskView
-    ? taskDetailLoading
-    : userStoryDetailLoading;
+    ? (taskResponse ?? task)
+    : (userStoryResponse ?? userStory);
+  const isDetailsLoading = isTaskView ? taskLoading : userStoryLoading;
+
+  const apiComments = isTaskView
+    ? (taskCommentsResponse?.data ?? [])
+    : (userStoryCommentsResponse?.data ?? []);
+
+  const commentsLoading = isTaskView
+    ? taskCommentsLoading
+    : userStoryCommentsLoading;
+
+  const tasks = tasksResponse?.data ?? [];
+  const tasksMeta = tasksResponse?.meta ?? null;
 
   const handleDismissInputFocus = useCallback(() => {
     Keyboard.dismiss();
@@ -242,55 +290,23 @@ const IssueDetailScreen = () => {
       return;
     }
     if (projectId && taskId && statusId) {
-      dispatch(
-        updateTaskThunk({
-          projectId,
-          taskId: taskId,
-          payload: {
-            status_id: statusId,
-          },
-        }),
-      );
+      updateTask({
+        projectId,
+        taskId,
+        payload: {
+          status_id: statusId,
+        },
+      });
     } else if (projectId && userStoryId && statusId) {
-      dispatch(
-        updateUserStory({
-          projectId,
-          userStoryId,
-          payload: {
-            status_id: statusId,
-          },
-        }),
-      );
+      updateUserStory({
+        projectId,
+        userStoryId,
+        payload: {
+          status_id: statusId,
+        },
+      });
     }
-  }, [dispatch, statusId]);
-
-  useEffect(() => {
-    if (!projectId) {
-      return;
-    }
-    if (taskId) {
-      dispatch(getTaskById({ projectId, taskId }));
-      dispatch(fetchTaskComments({ taskId, page: 1, pageSize: 10 }));
-    } else if (userStoryId) {
-      dispatch(getUserStoryById({ projectId, userStoryId }));
-      dispatch(
-        fetchUserStoryComments({
-          projectId,
-          userStoryId,
-          page: 1,
-          pageSize: 10,
-        }),
-      );
-      dispatch(
-        getTasks({
-          projectId,
-          page: 1,
-          page_size: 8,
-          user_story_id: userStoryId,
-        }),
-      );
-    }
-  }, [dispatch, projectId, taskId, userStoryId]);
+  }, [projectId, taskId, userStoryId, statusId, updateTask, updateUserStory]);
 
   useEffect(() => {
     if (currentItem?.status) {
@@ -303,7 +319,26 @@ const IssueDetailScreen = () => {
       if (!projectId) return;
       refetchCustomStatus();
       refetchUserStoryStatus();
-    }, [projectId, refetchCustomStatus, refetchUserStoryStatus]),
+      if (taskId) {
+        refetchTask();
+        refetchTaskComments();
+      } else if (userStoryId) {
+        refetchUserStory();
+        refetchUserStoryComments();
+        refetchTasks();
+      }
+    }, [
+      projectId,
+      taskId,
+      userStoryId,
+      refetchCustomStatus,
+      refetchUserStoryStatus,
+      refetchTask,
+      refetchTaskComments,
+      refetchUserStory,
+      refetchUserStoryComments,
+      refetchTasks,
+    ]),
   );
 
   const activeStatusColor = useMemo(() => {
@@ -409,30 +444,26 @@ const IssueDetailScreen = () => {
           const taskPayload: UpdateTaskPayload = {
             description: trimmedDescription,
           };
-          dispatch(
-            updateTaskThunk({
-              projectId,
-              taskId,
-              payload: taskPayload,
-            }),
-          );
+          updateTask({
+            projectId,
+            taskId,
+            payload: taskPayload,
+          });
         } else if (userStoryId) {
           const userStoryPayload: UpdateUserStoryPayload = {
             description: trimmedDescription,
           };
-          dispatch(
-            updateUserStory({
-              projectId,
-              userStoryId,
-              payload: userStoryPayload,
-            }),
-          );
+          updateUserStory({
+            projectId,
+            userStoryId,
+            payload: userStoryPayload,
+          });
         }
       } catch (error) {
         console.error('Failed to update description:', error);
       }
     },
-    [dispatch, taskId, userStoryId, projectId],
+    [taskId, userStoryId, projectId, updateTask, updateUserStory],
   );
 
   const handlePrioritySelect = useCallback(
@@ -445,27 +476,23 @@ const IssueDetailScreen = () => {
         const taskPayload: UpdateTaskPayload = {
           priority: selectedPriority,
         };
-        dispatch(
-          updateTaskThunk({
-            projectId,
-            taskId,
-            payload: taskPayload,
-          }),
-        );
+        updateTask({
+          projectId,
+          taskId,
+          payload: taskPayload,
+        });
       } else if (userStoryId) {
         const userStoryPayload: UpdateUserStoryPayload = {
           priority: selectedPriority as UserStoryPriority,
         };
-        dispatch(
-          updateUserStory({
-            projectId,
-            userStoryId,
-            payload: userStoryPayload,
-          }),
-        );
+        updateUserStory({
+          projectId,
+          userStoryId,
+          payload: userStoryPayload,
+        });
       }
     },
-    [dispatch, taskId, userStoryId, projectId],
+    [taskId, userStoryId, projectId, updateTask, updateUserStory],
   );
 
   const handleStoryPointsBlur = useCallback(
@@ -487,27 +514,31 @@ const IssueDetailScreen = () => {
         const taskPayload: UpdateTaskPayload = {
           story_points: sanitized,
         };
-        dispatch(
-          updateTaskThunk({
-            projectId,
-            taskId,
-            payload: taskPayload,
-          }),
-        );
+        updateTask({
+          projectId,
+          taskId,
+          payload: taskPayload,
+        });
       } else if (userStoryId) {
         const userStoryPayload: UpdateUserStoryPayload = {
           story_points: sanitized,
         };
-        dispatch(
-          updateUserStory({
-            projectId,
-            userStoryId,
-            payload: userStoryPayload,
-          }),
-        );
+        updateUserStory({
+          projectId,
+          userStoryId,
+          payload: userStoryPayload,
+        });
       }
     },
-    [dispatch, taskId, userStoryId, projectId, currentItem],
+    [
+      dispatch,
+      taskId,
+      userStoryId,
+      projectId,
+      currentItem,
+      updateTask,
+      updateUserStory,
+    ],
   );
 
   // 1. Uploads file immediately upon selection and saves its URL to the item
@@ -516,36 +547,32 @@ const IssueDetailScreen = () => {
       let uploadedUrl: string | undefined;
       let attachment_id: string | undefined;
       if (taskId) {
-        const res = await dispatch(
-          uploadTaskCommentAttachment({
-            taskId,
-            file: {
-              uri: file.uri,
-              name: file.name,
-              type: file.mimeType || file.type,
-            },
-          }),
-        );
-        if (res.meta.requestStatus === 'fulfilled') {
-          const payload = res.payload as TaskCommentAttachmentResponse;
+        const result = await uploadTaskCommentAttachment({
+          taskId,
+          file: {
+            uri: file.uri,
+            name: file.name,
+            type: file.mimeType || file.type,
+          },
+        });
+        if (result.data) {
+          const payload = result.data as TaskCommentAttachmentResponse;
           uploadedUrl = payload?.data?.[0]?.url;
           attachment_id = payload?.data?.[0]?.id;
         }
       } else if (userStoryId) {
-        const res = await dispatch(
-          uploadUserStoryCommentAttachment({
-            projectId,
-            userStoryId,
-            file: {
-              uri: file.uri,
-              name: file.name,
-              type: file.mimeType || file.type,
-            },
-          }),
-        );
-        if (res.meta.requestStatus === 'fulfilled') {
+        const result = await uploadUserStoryCommentAttachment({
+          projectId,
+          userStoryId,
+          file: {
+            uri: file.uri,
+            name: file.name,
+            type: file.mimeType || file.type,
+          },
+        });
+        if (result.data) {
           const payload =
-            res.payload as UploadUserStoryCommentAttachmentResponse;
+            result.data as UploadUserStoryCommentAttachmentResponse;
           uploadedUrl = payload?.data?.[0]?.url;
           attachment_id = payload?.data?.[0]?.id;
         }
@@ -640,18 +667,15 @@ const IssueDetailScreen = () => {
 
     try {
       if (taskId) {
-        const result = await dispatch(
-          createTaskComment({
-            taskId,
-            content: finalContent,
-            parentCommentId: parentCommentId ?? null,
-          }),
-        );
+        const result = await createTaskComment({
+          taskId,
+          content: finalContent,
+          parentCommentId: parentCommentId ?? null,
+        });
 
-        if (result.meta.requestStatus === 'fulfilled') {
-          const created = (
-            result.payload as CreateTaskCommentResponse | undefined
-          )?.data;
+        if (result.data) {
+          const created = (result.data as CreateTaskCommentResponse | undefined)
+            ?.data;
           if (created?.id) {
             dispatch(
               replaceCommentLocally({
@@ -684,18 +708,16 @@ const IssueDetailScreen = () => {
           dispatch(markCommentFailed(tempId));
         }
       } else if (userStoryId) {
-        const result = await dispatch(
-          createUserStoryComment({
-            projectId,
-            userStoryId,
-            content: finalContent,
-            parentCommentId: parentCommentId ?? null,
-          }),
-        );
+        const result = await createUserStoryComment({
+          projectId,
+          userStoryId,
+          content: finalContent,
+          parentCommentId: parentCommentId ?? null,
+        });
 
-        if (result.meta.requestStatus === 'fulfilled') {
+        if (result.data) {
           const created = (
-            result.payload as CreateUserStoryCommentResponse | undefined
+            result.data as CreateUserStoryCommentResponse | undefined
           )?.data;
           if (created?.id) {
             dispatch(
@@ -762,18 +784,15 @@ const IssueDetailScreen = () => {
 
     try {
       if (taskId) {
-        const result = await dispatch(
-          createTaskComment({
-            taskId,
-            content,
-            parentCommentId,
-          }),
-        );
+        const result = await createTaskComment({
+          taskId,
+          content,
+          parentCommentId,
+        });
 
-        if (result.meta.requestStatus === 'fulfilled') {
-          const created = (
-            result.payload as CreateTaskCommentResponse | undefined
-          )?.data;
+        if (result.data) {
+          const created = (result.data as CreateTaskCommentResponse | undefined)
+            ?.data;
           if (created?.id) {
             dispatch(
               replaceCommentLocally({
@@ -806,18 +825,16 @@ const IssueDetailScreen = () => {
           dispatch(markCommentFailed(commentId));
         }
       } else if (userStoryId) {
-        const result = await dispatch(
-          createUserStoryComment({
-            projectId,
-            userStoryId,
-            content,
-            parentCommentId,
-          }),
-        );
+        const result = await createUserStoryComment({
+          projectId,
+          userStoryId,
+          content,
+          parentCommentId,
+        });
 
-        if (result.meta.requestStatus === 'fulfilled') {
+        if (result.data) {
           const created = (
-            result.payload as CreateUserStoryCommentResponse | undefined
+            result.data as CreateUserStoryCommentResponse | undefined
           )?.data;
           if (created?.id) {
             dispatch(
@@ -897,28 +914,24 @@ const IssueDetailScreen = () => {
       let isSuccess = false;
 
       if (taskId) {
-        const result = await dispatch(
-          updateTaskComment({
-            taskId,
-            commentId: commentIdToUpdate,
-            content: finalContent,
-          }),
-        );
-        if (result.meta.requestStatus === 'fulfilled') {
+        const result = await updateTaskComment({
+          taskId,
+          commentId: commentIdToUpdate,
+          content: finalContent,
+        });
+        if (result.data) {
           isSuccess = true;
         } else {
           dispatch(setComments(previousComments));
         }
       } else if (userStoryId) {
-        const result = await dispatch(
-          updateUserStoryComment({
-            projectId,
-            userStoryId,
-            commentId: commentIdToUpdate,
-            content: finalContent,
-          }),
-        );
-        if (result.meta.requestStatus === 'fulfilled') {
+        const result = await updateUserStoryComment({
+          projectId,
+          userStoryId,
+          commentId: commentIdToUpdate,
+          content: finalContent,
+        });
+        if (result.data) {
           isSuccess = true;
         } else {
           dispatch(setComments(previousComments));
@@ -941,24 +954,20 @@ const IssueDetailScreen = () => {
       dispatch(deleteCommentLocally(commentId));
       try {
         if (taskId) {
-          const result = await dispatch(
-            deleteTaskComment({
-              taskId,
-              commentId,
-            }),
-          );
-          if (result.meta.requestStatus !== 'fulfilled') {
+          const result = await deleteTaskComment({
+            taskId,
+            commentId,
+          });
+          if (!result.data) {
             dispatch(setComments(previousComments));
           }
         } else if (userStoryId) {
-          const result = await dispatch(
-            deleteUserStoryComment({
-              projectId,
-              userStoryId,
-              commentId,
-            }),
-          );
-          if (result.meta.requestStatus !== 'fulfilled') {
+          const result = await deleteUserStoryComment({
+            projectId,
+            userStoryId,
+            commentId,
+          });
+          if (!result.data) {
             dispatch(setComments(previousComments));
           }
         }
@@ -967,7 +976,15 @@ const IssueDetailScreen = () => {
         console.error('Error deleting comment:', error);
       }
     },
-    [dispatch, taskId, userStoryId, projectId, apiComments],
+    [
+      dispatch,
+      taskId,
+      userStoryId,
+      projectId,
+      apiComments,
+      deleteTaskComment,
+      deleteUserStoryComment,
+    ],
   );
 
   const handleStartEditComment = (commentId: string, text: string) => {
@@ -1100,8 +1117,8 @@ const IssueDetailScreen = () => {
                 projectId={projectId}
                 navigation={navigation}
                 meta={tasksMeta}
-                loading={loading}
-                loadingMore={loadingMore}
+                loading={tasksLoading}
+                loadingMore={tasksFetching}
                 userStoryId={userStoryId}
               />
             )}

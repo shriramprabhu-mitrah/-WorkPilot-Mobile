@@ -9,8 +9,9 @@ import {
   GET_CUSTOMSTATUS,
   GET_USERSTORY_STATUS,
   GET_USERSTORY,
-  GET_TASK_BY_ID,
   GET_BURNDOWN_BY_PROJECT_SPRINT,
+  DELETE_PROJECT,
+  UPDATE_PROJECT,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsParams,
@@ -32,12 +33,14 @@ import {
   GetCustomStatusQueryArgs,
   GetUserStoryStatusQueryArgs,
   GetUserStoriesQueryArgs,
-  GetTaskByIdQueryArgs,
   GetBurndownChartQueryArgs,
+  CreateProjectPayload,
+  CreateProjectResponse,
+  UpdateProjectPayload,
+  UpdateProjectResponse,
+  DeleteProjectResponse,
 } from '../../types/project.type';
 import {
-  GetTaskByIdResponse,
-  GetTaskByIdParams,
   GetBurndownResponse,
   GetBurnbownParams,
 } from '../../types/project.type';
@@ -282,18 +285,6 @@ export const projectApi = createApi({
       ],
     }),
 
-    getTaskById: build.query<GetTaskByIdResponse, GetTaskByIdQueryArgs>({
-      query: ({ projectId, taskId }) => ({
-        url: GET_TASK_BY_ID.replace('{project_id}', projectId).replace(
-          '{task_id}',
-          taskId,
-        ),
-      }),
-      providesTags: (_result, _error, { projectId, taskId }) => [
-        { type: 'TaskDetail', id: `${projectId}_${taskId}` },
-      ],
-    }),
-
     getBurndownChart: build.query<
       GetBurndownResponse,
       GetBurndownChartQueryArgs
@@ -308,6 +299,31 @@ export const projectApi = createApi({
         { type: 'BurndownChart', id: `${projectId}_${sprintId}` },
       ],
     }),
+    updateProject: build.mutation<
+      UpdateProjectResponse,
+      { project_id: string; payload: UpdateProjectPayload }
+    >({
+      query: ({ project_id, payload }) => ({
+        url: UPDATE_PROJECT.replace('{project_id}', project_id),
+        method: 'PATCH',
+        data: payload,
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'ProjectDetails', id: project_id },
+        'Projects',
+      ],
+    }),
+
+    deleteProject: build.mutation<
+      DeleteProjectResponse,
+      { project_id: string }
+    >({
+      query: ({ project_id }) => ({
+        url: DELETE_PROJECT.replace('{project_id}', project_id),
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Projects'],
+    }),
   }),
 });
 
@@ -320,18 +336,10 @@ export const {
   useGetCustomStatusQuery,
   useGetUserStoryStatusQuery,
   useGetUserStoriesQuery,
-  useGetTaskByIdQuery,
   useGetBurndownChartQuery,
-  useLazyGetProjectsQuery,
-  useLazyGetSprintsQuery,
+  useUpdateProjectMutation,
+  useDeleteProjectMutation,
   useLazyGetProjectByIdQuery,
-  useLazyGetSprintByIdQuery,
-  useLazyGetProjectOverviewQuery,
-  useLazyGetCustomStatusQuery,
-  useLazyGetUserStoryStatusQuery,
-  useLazyGetUserStoriesQuery,
-  useLazyGetTaskByIdQuery,
-  useLazyGetBurndownChartQuery,
 } = projectApi;
 
 // Aliases matching thunk names
