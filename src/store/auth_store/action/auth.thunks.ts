@@ -30,9 +30,11 @@ import {
 // import { storage } from '../../../storage/storage';
 import { handleLoading } from '../reducer/auth.reducer';
 import { clearStorage } from '../../store';
+import { showSnackbar } from '../../../components/common/Snackbar';
+
 interface SignInThunkPayload {
   payload: SignInPayload;
-  showSuccessToast: (message: string, type: string) => void;
+  showSuccessToast?: (message: string, type: string) => void;
 }
 
 export const signUpUser = createAsyncThunk(
@@ -95,19 +97,16 @@ export const refreshToken = createAsyncThunk(
 
 export const logoutUser = createAsyncThunk(
   'auth/logoutUser',
-  async (
-    showSuccessToast: (message: string, type: string) => void,
-    { rejectWithValue },
-  ) => {
+  async (_arg: void | undefined, { rejectWithValue }) => {
     try {
       const response = await logoutService();
       console.log('LoginoutResponse', response);
       if (response.message.includes('successfully') && response.success) {
         clearStorage();
-        showSuccessToast(
-          response.message || 'Loggedout successfully',
-          'success',
-        );
+        showSnackbar({
+          message: 'Logout success!',
+          type: 'success',
+        });
         return response;
       }
     } catch (error: any) {
@@ -240,28 +239,38 @@ export const updateUserProfileInfo = createAsyncThunk<
 >(
   'auth/update-profile',
   async (
-    { formData, showSuccessToast, handleSuccess },
+    { formData, handleSuccess },
     { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await updateUserService(formData);
       if (response.success) {
-        showSuccessToast(
-          response.message || 'Profile updated successfully',
-          'success',
-        );
-        handleSuccess();
+        showSnackbar({
+          message: response.message || 'Profile updated successfully',
+          type: 'success',
+        });
+        handleSuccess?.();
         return response;
       }
-      return rejectWithValue('User Data Update Failed');
+      const failMsg = response.message || 'User Data Update Failed';
+      showSnackbar({
+        message: failMsg,
+        type: 'error',
+      });
+      return rejectWithValue(failMsg);
     } catch (error: any) {
-      showSuccessToast(
-        error.response?.data?.message || 'User Data Update Failed',
-        'error',
-      );
-      return rejectWithValue(
-        error.response?.data?.message || 'User Data Update Failed',
-      );
+      const errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.message ||
+        'User Data Update Failed';
+      if (!error.response) {
+        showSnackbar({
+          message: errorMsg,
+          type: 'error',
+        });
+      }
+      return rejectWithValue(errorMsg);
     } finally {
       dispatch(handleLoading(false));
     }

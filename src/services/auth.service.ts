@@ -159,7 +159,7 @@ export const updateUserService = async (
       },
     });
   } catch (error) {
-    console.error('Update User API failed:', error);
+    // console.error('Update User API failed:', error);
     throw error;
   }
 };
