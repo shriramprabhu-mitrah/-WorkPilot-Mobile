@@ -48,6 +48,7 @@ export const Backlogs = () => {
   const {
     data: backlogUserStories,
     isLoading: backlogUserStoryLoading,
+    isFetching: backlogUserStoryFetching,
     refetch: refetchBacklog,
   } = useGetUserStoriesQuery(
     projectId
@@ -63,8 +64,7 @@ export const Backlogs = () => {
   );
 
   // Show skeleton ONLY on first screen focus or when project changes
-  const showSkeleton = backlogUserStoryLoading;
-  const showFooterSpinner = backlogUserStoryLoading && isFetchingNextPage;
+  const showFooterSpinner = backlogUserStoryFetching && isFetchingNextPage;
 
   // Fetch backlog stories on focus
   useFocusEffect(
@@ -172,7 +172,7 @@ export const Backlogs = () => {
   }, [showFooterSpinner, colors.primary]);
 
   const renderEmptyState = useCallback(() => {
-    if (showSkeleton) {
+    if (backlogUserStoryLoading) {
       return (
         <View className='px-4 py-3'>
           <ListSkeleton
@@ -228,7 +228,7 @@ export const Backlogs = () => {
         ) : null}
       </View>
     );
-  }, [showSkeleton, searchQuery, colors, layout.elementGap]);
+  }, [backlogUserStoryLoading, searchQuery, colors, layout.elementGap]);
 
   // User Story Card Renderer
   const renderStoryCard = useCallback(
@@ -495,7 +495,7 @@ export const Backlogs = () => {
           />
         </View>
 
-        {!showSkeleton && filteredStories.length > 0 ? (
+        {!backlogUserStoryLoading && filteredStories.length > 0 ? (
           <View
             className='mb-3 flex-row items-center'
             style={{ gap: layout.elementGap }}
@@ -532,7 +532,7 @@ export const Backlogs = () => {
 
       {/* Backlog List */}
       <FlatList
-        data={showSkeleton ? [] : filteredStories}
+        data={filteredStories}
         keyExtractor={(item: UserStory, index: number) =>
           item.id?.toString() || index.toString()
         }
