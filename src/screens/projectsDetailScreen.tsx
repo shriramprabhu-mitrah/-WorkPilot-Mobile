@@ -632,7 +632,6 @@ const ProjectDeatailsScreen = () => {
   const {
     project,
     currentSprint,
-    customStatuses: CustomStatuses,
     loading: storeLoading,
   } = useAppSelector((state: RootState) => state.projects);
 
@@ -657,7 +656,7 @@ const ProjectDeatailsScreen = () => {
         ? { project_id: projectId, _refetchKey: refetchKey }
         : skipToken,
     );
-  const customStatuses = customStatusData?.data ?? CustomStatuses;
+  const customStatuses = customStatusData?.data ?? [];
 
   const {
     data: userStoriesResponse,

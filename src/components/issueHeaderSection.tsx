@@ -19,9 +19,7 @@ interface Props {
   onToggleStatusPicker: () => void;
   onSelectStatus: (status: string) => void;
   onSelectId: (status: string) => void;
-  customStatuses: CustomStatus[];
-  userStoryStatuses: UserStoryStatusItem[];
-  isUserStory?: boolean;
+  statuses: CustomStatus[] | UserStoryStatusItem[] | [];
 }
 
 export const IssueHeaderSection: React.FC<Props> = ({
@@ -32,9 +30,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
   onToggleStatusPicker,
   onSelectStatus,
   onSelectId,
-  customStatuses,
-  userStoryStatuses,
-  isUserStory = false,
+  statuses,
 }) => {
   const { layout } = useAuthLayout();
   const { colors } = useTheme();
@@ -175,7 +171,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
                 elevation: 5,
               }}
             >
-              {(isUserStory ? userStoryStatuses : customStatuses)
+              {statuses
                 ?.slice()
                 .sort(
                   (a, b) => (a?.display_order ?? 0) - (b?.display_order ?? 0),
