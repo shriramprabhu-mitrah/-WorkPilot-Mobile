@@ -6,9 +6,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import AppText from '../components/common/AppText';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { useAppDispatch, useAppSelector } from '../store';
-import { globalSearchData } from '../store/home_store/action/home.thunk';
-import { clearSearchResults } from '../store/home_store/reducer/home.reducer';
+import { useGlobalSearchQuery } from '../store/api/homeApi';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { SearchItem } from '../types/home.type';
 import CommonHeader from '../components/common/CommonHeader';
 import { RootStackParamList } from '../types/navigationTypes';
@@ -49,11 +48,8 @@ const ICONS: Record<string, string> = {
 const SearchScreen = () => {
   const { colors } = useTheme();
   const { layout, hp, moderateScale } = useAuthLayout();
-  const dispatch = useAppDispatch();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { searchResults, searchLoading, searchError } = useAppSelector(
-    state => state.home,
-  );
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] =
@@ -62,24 +58,31 @@ const SearchScreen = () => {
   useEffect(() => {
     setSearchQuery('');
     setSelectedCategory('all');
-    dispatch(clearSearchResults());
-  }, [dispatch]);
+  }, []);
 
   useEffect(() => {
     const trimmedQuery = searchQuery.trim();
-    const timeoutId = setTimeout(() => {
-      if (trimmedQuery.length > 0) {
-        dispatch(globalSearchData({ query: trimmedQuery }));
-      } else {
-        dispatch(clearSearchResults());
-      }
-    }, 300);
+    const timeoutId = setTimeout(() => setDebouncedQuery(trimmedQuery), 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, dispatch]);
+  }, [searchQuery]);
+
+  const {
+    data: searchResponse,
+    isLoading: SearchLoading,
+    isFetching: searchFetching,
+  } = useGlobalSearchQuery(
+    debouncedQuery ? { query: debouncedQuery } : skipToken,
+    {
+      refetchOnMountOrArgChange: true,
+    },
+  );
+
+  const searchLoading = SearchLoading || searchFetching;
 
   const filteredResults = useMemo(() => {
-    if (!searchResults) return [];
+    const searchResults = searchResponse?.data;
+    if (!searchResults || !debouncedQuery) return [];
 
     if (selectedCategory === 'all') {
       return (
@@ -100,7 +103,7 @@ const SearchScreen = () => {
       ...item,
       type: selectedCategory,
     }));
-  }, [searchResults, selectedCategory]);
+  }, [searchResponse?.data, selectedCategory, debouncedQuery]);
 
   const getItemSubtitle = (item: SearchItem) => {
     if (item.project_name) return item.project_name;
@@ -239,11 +242,9 @@ const SearchScreen = () => {
       <AppText variant='body' color={colors.textSecondary}>
         {searchLoading
           ? 'Searching...'
-          : searchError
-            ? searchError
-            : searchQuery.trim().length > 0
-              ? 'No results found'
-              : 'Type something to search'}
+          : searchQuery.trim().length > 0
+            ? 'No results found'
+            : 'Type something to search'}
       </AppText>
     </View>
   );

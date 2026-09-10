@@ -1,6 +1,7 @@
 import Toast from 'react-native-toast-message';
 
-export const API_URL = 'https://workpilot-backend-arxt.onrender.com/api/v1';
+export const API_URL = 'https://workpilot-backend-arxt.onrender.com/api/v1'; //goLang
+// export const API_URL = 'https://citrus-cola-never.ngrok-free.dev/api/v1'; //python
 
 export const showSuccessToast = (message: string, type: string) => {
   Toast.show({

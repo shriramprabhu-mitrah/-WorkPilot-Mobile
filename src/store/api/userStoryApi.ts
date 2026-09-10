@@ -5,8 +5,10 @@ import {
   GET_TASK_BY_ID,
   USERSTORIES_COMMENT,
   USERSTORIES_COMMENT_BY_ID,
+  USER_STORIES_COMMENT_REPLIES,
   TASK_COMMENT,
   TASK_COMMENT_ID,
+  TASK_COMMENT_REPLIES,
   POST_USERSTORY_COMMENT_ATTACHMENT,
   POST_TASK_COMMENT_ATTACHMENT,
   GET_TASKS,
@@ -31,6 +33,9 @@ import {
   GetUserStoryCommentsResponse,
   GetTaskCommentsParams,
   GetTaskCommentsResponse,
+  GetUserStoryCommentRepliesParams,
+  GetUserStoryCommentRepliesResponse,
+  GetTaskCommentRepliesParams,
   CreateUserStoryCommentParams,
   CreateUserStoryCommentResponse,
   UpdateUserStoryCommentParams,
@@ -130,6 +135,43 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       }),
       providesTags: (_result, _error, { taskId }) => [
         { type: 'Comments', id: `task_${taskId}` },
+      ],
+    }),
+
+    getUserStoryCommentReplies: build.query<
+      GetUserStoryCommentRepliesResponse,
+      GetUserStoryCommentRepliesParams
+    >({
+      query: ({
+        projectId,
+        userStoryId,
+        commentId,
+        page = 1,
+        pageSize = 10,
+      }) => ({
+        url: USER_STORIES_COMMENT_REPLIES.replace('{project_id}', projectId)
+          .replace('{user_story_id}', userStoryId)
+          .replace('{comment_id}', commentId),
+        params: { page, page_size: pageSize },
+      }),
+      providesTags: (_result, _error, { userStoryId, commentId }) => [
+        { type: 'Comments', id: `userStory_${userStoryId}_${commentId}` },
+      ],
+    }),
+
+    getTaskCommentReplies: build.query<
+      GetTaskCommentsResponse,
+      GetTaskCommentRepliesParams
+    >({
+      query: ({ taskId, parentCommentId, page = 1, pageSize = 10 }) => ({
+        url: TASK_COMMENT_REPLIES.replace('{task_id}', taskId!).replace(
+          '{parent_comment_id}',
+          parentCommentId!,
+        ),
+        params: { page, page_size: pageSize },
+      }),
+      providesTags: (_result, _error, { taskId, parentCommentId }) => [
+        { type: 'Comments', id: `task_${taskId}_${parentCommentId}` },
       ],
     }),
 
@@ -495,6 +537,10 @@ export const {
   useGetTaskByIdQuery,
   useGetUserStoryCommentsQuery,
   useGetTaskCommentsQuery,
+  useGetUserStoryCommentRepliesQuery,
+  useGetTaskCommentRepliesQuery,
+  useLazyGetUserStoryCommentRepliesQuery,
+  useLazyGetTaskCommentRepliesQuery,
   useGetTasksQuery,
   useGetUserStoryAttachmentsQuery,
   useGetTaskAttachmentsQuery,

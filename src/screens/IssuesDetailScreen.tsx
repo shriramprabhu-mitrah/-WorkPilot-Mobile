@@ -111,6 +111,9 @@ const IssueDetailScreen = () => {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const commentInputRef = useRef<IssueCommentInputRef>(null);
+  const refreshRepliesRef = useRef<
+    ((rootCommentId: string) => Promise<void>) | null
+  >(null);
 
   const projectId = route.params?.projectId || (route.params?.id as string);
   const taskId = route.params?.taskId;
@@ -224,6 +227,13 @@ const IssueDetailScreen = () => {
     commentInputRef.current?.dismissFocus();
   }, []);
 
+  const handleRefreshRepliesReady = useCallback(
+    (refresh: (rootCommentId: string) => Promise<void>) => {
+      refreshRepliesRef.current = refresh;
+    },
+    [],
+  );
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', () => {
       handleDismissInputFocus();
@@ -282,8 +292,9 @@ const IssueDetailScreen = () => {
       projectId ? { project_id: projectId } : skipToken,
     );
 
-  const customStatuses = customStatusData?.data ?? [];
-  const userStoryStatuses = userStoryStatusData?.data ?? [];
+  const statuses = isTaskView
+    ? (customStatusData?.data ?? [])
+    : (userStoryStatusData?.data ?? []);
 
   useEffect(() => {
     if (!projectId) {
@@ -317,13 +328,13 @@ const IssueDetailScreen = () => {
   useFocusEffect(
     useCallback(() => {
       if (!projectId) return;
-      refetchCustomStatus();
-      refetchUserStoryStatus();
       if (taskId) {
         refetchTask();
+        refetchCustomStatus();
         refetchTaskComments();
       } else if (userStoryId) {
         refetchUserStory();
+        refetchUserStoryStatus();
         refetchUserStoryComments();
         refetchTasks();
       }
@@ -342,14 +353,14 @@ const IssueDetailScreen = () => {
   );
 
   const activeStatusColor = useMemo(() => {
-    if (!isTaskView && statusId) {
-      const matchedStatus = userStoryStatuses.find(s => s.id === statusId);
+    if (statusId) {
+      const matchedStatus = statuses.find(s => s.id === statusId);
       if (matchedStatus) {
         return matchedStatus.color;
       }
     }
     return getStatusThemeColor(status || currentItem?.status, colors);
-  }, [isTaskView, statusId, userStoryStatuses, status, currentItem, colors]);
+  }, [statuses, statusId, status, currentItem, colors]);
 
   const details = useMemo(() => {
     if (!currentItem) return [];
@@ -700,6 +711,7 @@ const IssueDetailScreen = () => {
                 ...prev,
                 [rootId]: true,
               }));
+              await refreshRepliesRef.current?.(rootId);
             }
           } else {
             dispatch(markCommentFailed(tempId));
@@ -743,6 +755,7 @@ const IssueDetailScreen = () => {
                 ...prev,
                 [rootId]: true,
               }));
+              await refreshRepliesRef.current?.(rootId);
             }
           } else {
             dispatch(markCommentFailed(tempId));
@@ -817,6 +830,7 @@ const IssueDetailScreen = () => {
                 ...prev,
                 [rootId]: true,
               }));
+              await refreshRepliesRef.current?.(rootId);
             }
           } else {
             dispatch(markCommentFailed(commentId));
@@ -860,6 +874,7 @@ const IssueDetailScreen = () => {
                 ...prev,
                 [rootId]: true,
               }));
+              await refreshRepliesRef.current?.(rootId);
             }
           } else {
             dispatch(markCommentFailed(commentId));
@@ -1075,9 +1090,7 @@ const IssueDetailScreen = () => {
               colors={colors}
               currentItem={currentItem}
               status={status}
-              customStatuses={customStatuses}
-              userStoryStatuses={userStoryStatuses}
-              isUserStory={!!userStoryId}
+              statuses={statuses}
               activeStatusColor={activeStatusColor}
               showStatusPicker={showStatusPicker}
               onToggleStatusPicker={toggleStatusPicker}
@@ -1133,6 +1146,7 @@ const IssueDetailScreen = () => {
               onRetry={handleRetryComment}
               expandedCommentIds={expandedCommentIds}
               onToggleExpand={toggleExpanded}
+              onRefreshReplies={handleRefreshRepliesReady}
               taskId={taskId}
               userStoryId={userStoryId}
               projectId={projectId}

@@ -1,12 +1,13 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import axiosBaseQuery from './axiosBaseQuery';
-import { AuditResponse } from '../../types/home.type';
+import { AuditResponse, SearchResponse } from '../../types/home.type';
 import {
   GET_AUDIT,
   GET_RECENT_PROJECTS,
   GET_USER,
   GET_ORGANIZATION_DETAIL,
   GET_FAVOURITES,
+  GLOBAL_SEARCH,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetRecentProjectResponse,
@@ -32,6 +33,10 @@ export interface GetAuditQueryArgs {
 export interface GetFavouritesQueryArgs extends GetFavouritesParams {
   /** Changing this value forces a refetch on screen focus. Not sent to the API. */
   _refetchKey?: number;
+}
+
+export interface GetGlobalSearchQueryArgs {
+  query: string;
 }
 
 export const homeApi = createApi({
@@ -130,6 +135,16 @@ export const homeApi = createApi({
         );
       },
     }),
+
+    globalSearch: build.query<SearchResponse, GetGlobalSearchQueryArgs>({
+      query: ({ query }) => ({
+        url: GLOBAL_SEARCH,
+        params: { q: query },
+      }),
+      // Each distinct query string is its own cache entry, so typing a new
+      // term automatically triggers a fresh request.
+      serializeQueryArgs: ({ queryArgs }) => queryArgs.query,
+    }),
   }),
 });
 
@@ -139,4 +154,5 @@ export const {
   useGetUserProfileQuery,
   useGetOrganizationDetailQuery,
   useGetFavouritesQuery,
+  useGlobalSearchQuery,
 } = homeApi;

@@ -14,17 +14,17 @@ import { useAppDispatch, useAppSelector } from '../store';
 import { Radius } from '../constants/Radius';
 import Screen from './common/ScreenWapper';
 import { ProjectListBottomSheet } from './common/ProjectBottomSheet';
-import {
-  getAllProjectInfo,
-  getProjectById,
-  getSprintByIdThunk,
-  getSprintsThunk,
-} from '../store/project_store/action/project_thunk';
+// import {
+//   getAllProjectInfo,
+//   getProjectById,
+//   getSprintByIdThunk,
+//   getSprintsThunk,
+// } from '../store/project_store/action/project_thunk';
 import CustomBottomSheet from '../components/common/CustomBottomDialog';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
-import { showSuccessToast } from '../utils/utils';
+// import { showSuccessToast } from '../utils/utils';
 import { getProjectName } from '../store/project_store/reducer/project_reducer';
-import { Sprint } from '../types/project.type';
+// import { Sprint } from '../types/project.type';
 import { RootStackParamList } from '../types/navigationTypes';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
@@ -36,15 +36,15 @@ export const CustomDrawerContent: React.FC<
   const dispatch = useAppDispatch();
   const { moderateScale, layout } = useAuthLayout();
   const { user } = useAppSelector(state => state.auth);
-  const { projects, project, loading, sprints } = useAppSelector(
-    state => state.projects,
-  );
+  // const { projects, project, loading, sprints } = useAppSelector(
+  //   state => state.projects,
+  // );
   const stackNavigation =
     useNavigation<StackNavigationProp<RootStackParamList>>();
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
-  const [include_sprints, setInclude_sprints] = useState(true);
-  const params = { include_sprints: include_sprints };
+  // const [include_sprints, setInclude_sprints] = useState(true);
+  // const params = { include_sprints: include_sprints };
   const handleNavigation = (routeName: string) => {
     if (props.navigation && typeof props.navigation.navigate === 'function') {
       props.navigation.closeDrawer();
@@ -82,7 +82,7 @@ export const CustomDrawerContent: React.FC<
   const handleItemPress = (item: (typeof drawerList)[0]) => {
     if (item.route === 'ProjectSelection') {
       props.navigation.closeDrawer();
-      dispatch(getAllProjectInfo(params));
+      // dispatch(getAllProjectInfo(params));
       setTimeout(() => setProjectSheetVisible(true), 300);
     } else if (item.route === 'Logout') {
       props.navigation.closeDrawer();

@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react';
 import {
   View,
   TouchableOpacity,
@@ -11,12 +17,15 @@ import AppText from './common/AppText';
 import Avatar from './Avatar';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { ThemeColors } from '../constants/Colors';
-import { useAppDispatch } from '../store';
 import {
-  fetchTaskCommentReplies,
-  fetchUserStoryCommentReplies,
-} from '../store/comments_store/action/comments.thunk';
-import { CommentItem } from '../types/comments.type';
+  useLazyGetTaskCommentRepliesQuery,
+  useLazyGetUserStoryCommentRepliesQuery,
+} from '../store/api/userStoryApi';
+import {
+  GetTaskCommentsResponse,
+  GetUserStoryCommentRepliesResponse,
+  CommentItem,
+} from '../types/comments.type';
 import { CommentsSectionSkeleton } from './skeleton/issueDetailSkeleton';
 import { renderParsedHtml } from '../utils/htmlParser';
 import DeleteColumnModal from './DeleteColumnModal';
@@ -29,6 +38,9 @@ interface Props {
   onStartEdit: (commentId: string, text: string) => void;
   onDeleteComment: (commentId: string) => Promise<void> | void;
   onReply?: (commentId: string) => void;
+  onRefreshReplies?: (
+    refresh: (rootCommentId: string) => Promise<void>,
+  ) => void;
   onRetry?: (commentId: string) => void;
   expandedCommentIds?: Record<string, boolean>;
   onToggleExpand?: (commentId: string) => void;
@@ -45,6 +57,7 @@ export const IssueCommentsSection: React.FC<Props> = ({
   onStartEdit,
   onDeleteComment,
   onReply,
+  onRefreshReplies,
   onRetry,
   expandedCommentIds = {},
   onToggleExpand,
@@ -52,19 +65,23 @@ export const IssueCommentsSection: React.FC<Props> = ({
   userStoryId,
   projectId,
 }) => {
-  const dispatch = useAppDispatch();
+  const [triggerTaskReplies] = useLazyGetTaskCommentRepliesQuery();
+  const [triggerUserStoryReplies] = useLazyGetUserStoryCommentRepliesQuery();
   const { layout } = useAuthLayout();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(
     null,
   );
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [repliesByRoot, setRepliesByRoot] = useState<
+    Record<string, CommentItem[]>
+  >({});
   const fetchedReplyRefs = useRef<Set<string>>(new Set());
   const lastTaskIdRef = useRef<string | null>(null);
   const lastUserStoryIdRef = useRef<string | null>(null);
 
   // Build a flattened thread per root comment using parent_comment_id.
-  const { roots, repliesByRoot } = useMemo(() => {
+  const { roots } = useMemo(() => {
     const flat = (apiComments || []).filter(item => !item.is_deleted);
     const byId = new Map<string, CommentItem>(
       flat.map(item => [item.id, item]),
@@ -84,66 +101,94 @@ export const IssueCommentsSection: React.FC<Props> = ({
     };
 
     const rootList: CommentItem[] = [];
-    const repliesMap: Record<string, CommentItem[]> = {};
 
     flat.forEach(item => {
       const rid = rootIdOf(item.id);
       if (rid === item.id) {
         rootList.push(item);
-      } else {
-        if (!repliesMap[rid]) repliesMap[rid] = [];
-        repliesMap[rid].push(item);
       }
     });
 
     return {
       roots: rootList,
-      repliesByRoot: repliesMap,
     };
   }, [apiComments]);
 
   useEffect(() => {
-    const activeId = taskId || userStoryId;
-    if (!activeId) {
-      return;
-    }
-
     if (taskId && lastTaskIdRef.current !== taskId) {
       lastTaskIdRef.current = taskId;
       fetchedReplyRefs.current.clear();
+      setRepliesByRoot({});
     }
     if (userStoryId && lastUserStoryIdRef.current !== userStoryId) {
       lastUserStoryIdRef.current = userStoryId;
       fetchedReplyRefs.current.clear();
+      setRepliesByRoot({});
     }
+  }, [taskId, userStoryId]);
+
+  const fetchRepliesForComment = useCallback(
+    async (commentId: string, force = false) => {
+      if (!force && fetchedReplyRefs.current.has(commentId)) return;
+      fetchedReplyRefs.current.add(commentId);
+      try {
+        if (taskId) {
+          const res = await triggerTaskReplies({
+            taskId,
+            parentCommentId: commentId,
+          }).unwrap();
+          const replies = (res as GetTaskCommentsResponse)?.data || [];
+          setRepliesByRoot(prev => ({
+            ...prev,
+            [commentId]: replies,
+          }));
+          return;
+        }
+        if (userStoryId && projectId) {
+          const res = await triggerUserStoryReplies({
+            projectId,
+            userStoryId,
+            commentId,
+          }).unwrap();
+          const replies =
+            (res as GetUserStoryCommentRepliesResponse)?.data || [];
+          setRepliesByRoot(prev => ({
+            ...prev,
+            [commentId]: replies,
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch comment replies:', error);
+        fetchedReplyRefs.current.delete(commentId);
+      }
+    },
+    [
+      taskId,
+      userStoryId,
+      projectId,
+      triggerTaskReplies,
+      triggerUserStoryReplies,
+    ],
+  );
+
+  useEffect(() => {
+    const activeId = taskId || userStoryId;
+    if (!activeId) return;
 
     const allComments = apiComments || [];
     const rootsWithReplies = allComments.filter(
       c => (c.replies_count ?? 0) > 0 && !c.is_deleted,
     );
 
-    rootsWithReplies.forEach(comment => {
-      if (!fetchedReplyRefs.current.has(comment.id)) {
-        fetchedReplyRefs.current.add(comment.id);
-        if (taskId) {
-          dispatch(
-            fetchTaskCommentReplies({
-              taskId,
-              parentCommentId: comment.id,
-            }),
-          );
-        } else if (userStoryId && projectId) {
-          dispatch(
-            fetchUserStoryCommentReplies({
-              projectId,
-              userStoryId,
-              commentId: comment.id,
-            }),
-          );
-        }
-      }
+    rootsWithReplies.forEach(comment => fetchRepliesForComment(comment.id));
+  }, [taskId, userStoryId, apiComments, fetchRepliesForComment]);
+
+  useEffect(() => {
+    if (!onRefreshReplies) return;
+    onRefreshReplies(async (rootCommentId: string) => {
+      await fetchRepliesForComment(rootCommentId, true);
     });
-  }, [taskId, userStoryId, projectId, apiComments, dispatch]);
+  }, [onRefreshReplies, fetchRepliesForComment]);
 
   const handleOpenDeleteModal = (commentId: string) => {
     setSelectedCommentId(commentId);
@@ -171,6 +216,7 @@ export const IssueCommentsSection: React.FC<Props> = ({
 
   const renderCommentRow = (
     item: CommentItem & { is_pending?: boolean; is_failed?: boolean },
+    initialParentCommentId?: string,
   ) => {
     // Render "Sending..." state for pending optimistic comments
     if (item.is_pending) {
@@ -338,7 +384,7 @@ export const IssueCommentsSection: React.FC<Props> = ({
               {onReply && (
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={() => onReply(item.id)}
+                  onPress={() => onReply(initialParentCommentId || item.id)}
                 >
                   <AppText
                     variant='caption'
@@ -408,20 +454,19 @@ export const IssueCommentsSection: React.FC<Props> = ({
 
   const renderRoot = (item: CommentItem): React.ReactElement => {
     const replies = repliesByRoot[item.id] || [];
-    const hasReplies = replies.length > 0;
     const isExpanded = Boolean(expandedCommentIds[item.id]);
 
     return (
       <View key={item.id} style={{ gap: 8 }}>
-        {renderCommentRow(item)}
+        {renderCommentRow(item, item.id)}
 
-        {hasReplies && isExpanded && (
+        {isExpanded && (
           <View className='ml-8' style={{ gap: 12 }}>
             <View
               className='border-l-2 pl-4'
               style={{ borderColor: colors.border, gap: 12 }}
             >
-              {replies.map(reply => renderCommentRow(reply))}
+              {replies.map(reply => renderCommentRow(reply, item.id))}
             </View>
           </View>
         )}
