@@ -6,6 +6,7 @@ import {
   Alert,
   PermissionsAndroid,
   Platform,
+  ImageBackground,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -27,6 +28,7 @@ import {
   updateUserProfileInfo,
 } from '../store/auth_store/action/auth.thunks';
 import { getRoleLabel } from '../constants/role';
+type PickerTarget = 'avatar' | 'cover';
 
 const UpdateUserDetailsScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -37,10 +39,14 @@ const UpdateUserDetailsScreen = () => {
   const [avatarUri, setAvatarUri] = useState<string | undefined>(
     user?.avatar_url,
   );
+  const [coverUri, setCoverUri] = useState<string | undefined>(
+    (user as any)?.cover_img_url,
+  );
   const [name, setName] = useState<string>(user?.name ?? '');
   const [username, setUsername] = useState<string>(user?.username ?? '');
   const [email, setEmail] = useState<string>(user?.email ?? '');
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget>('avatar');
   const [errors, setErrors] = useState({
     name: '',
     username: '',
@@ -48,6 +54,10 @@ const UpdateUserDetailsScreen = () => {
     password: '',
   });
   const [loading, setLoading] = useState(false);
+  const openPicker = (target: PickerTarget) => {
+    setPickerTarget(target);
+    setPickerModalVisible(true);
+  };
 
   const requestCameraPermission = async () => {
     if (Platform.OS === 'android') {
@@ -68,9 +78,15 @@ const UpdateUserDetailsScreen = () => {
       const image = await ImagePicker.openPicker({
         mediaType: 'photo',
         cropping: true,
+        width: pickerTarget === 'cover' ? 1200 : 600,
+        height: pickerTarget === 'cover' ? 480 : 600,
         compressImageQuality: 0.8,
       });
-      setAvatarUri(image.path);
+      if (pickerTarget === 'cover') {
+        setCoverUri(image.path);
+      } else {
+        setAvatarUri(image.path);
+      }
     } catch (error: any) {
       if (error?.code !== 'E_PICKER_CANCELLED') {
         showSnackbar({
@@ -95,7 +111,11 @@ const UpdateUserDetailsScreen = () => {
         freeStyleCropEnabled: true,
         compressImageQuality: 0.8,
       });
-      setAvatarUri(image.path);
+      if (pickerTarget === 'cover') {
+        setCoverUri(image.path);
+      } else {
+        setAvatarUri(image.path);
+      }
     } catch (error: any) {
       if (error?.code !== 'E_PICKER_CANCELLED') {
         showSnackbar({
@@ -108,6 +128,11 @@ const UpdateUserDetailsScreen = () => {
 
   const handleRemovePhoto = async () => {
     setPickerModalVisible(false);
+    if (pickerTarget === 'cover') {
+      setCoverUri(undefined);
+    } else {
+      setAvatarUri(undefined);
+    }
   };
 
   const validate = () => {
@@ -145,6 +170,26 @@ const UpdateUserDetailsScreen = () => {
     setErrors(newErrors);
     return isValid;
   };
+  const appendImageIfChanged = (
+    formData: FormData,
+    fieldName: string,
+    uri: string | undefined,
+    originalUrl: string | undefined,
+  ) => {
+    if (uri && uri !== originalUrl) {
+      const fileName = uri.split('/').pop() || 'image.jpg';
+      const fileType = fileName.endsWith('.png')
+        ? 'image/png'
+        : fileName.endsWith('.webp')
+          ? 'image/webp'
+          : 'image/jpeg';
+      formData.append(fieldName, {
+        uri,
+        name: fileName,
+        type: fileType,
+      } as any);
+    }
+  };
 
   const handleUpdateDetails = async () => {
     if (!validate()) return;
@@ -155,19 +200,13 @@ const UpdateUserDetailsScreen = () => {
     if (username !== user?.username) {
       formData.append('username', username);
     }
-    if (avatarUri && avatarUri !== user?.avatar_url) {
-      const fileName = avatarUri.split('/').pop() || 'avatar.jpg';
-      const fileType = fileName.endsWith('.png')
-        ? 'image/png'
-        : fileName.endsWith('.webp')
-          ? 'image/webp'
-          : 'image/jpeg';
-      formData.append('avatar', {
-        uri: avatarUri,
-        name: fileName,
-        type: fileType,
-      } as any);
-    }
+    appendImageIfChanged(formData, 'avatar', avatarUri, user?.avatar_url);
+    appendImageIfChanged(
+      formData,
+      'cover_image',
+      coverUri,
+      (user as any)?.cover_img_url,
+    );
     if ((formData as FormData & { _parts: unknown[] })._parts.length === 0) {
       showSnackbar({
         message: 'No changes to update',
@@ -193,50 +232,94 @@ const UpdateUserDetailsScreen = () => {
 
   const isActiveUser = user?.is_active ?? true;
 
-  return (
-    <Screen scroll={true}>
-      <View style={{ backgroundColor: colors.primary }}>
+  const HeaderContent = (
+    <View
+      style={{
+        paddingHorizontal: layout.paddingHorizontal,
+        paddingTop: isSmallHeight ? moderateScale(12) : moderateScale(16),
+        paddingBottom: isSmallHeight ? moderateScale(24) : moderateScale(32),
+      }}
+    >
+      <View
+        className='flex-row items-center justify-between'
+        style={{ gap: layout.elementGap }}
+      >
         <View
+          className='flex-row items-center'
+          style={{ gap: layout.elementGap }}
+        >
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => navigation.goBack()}
+            style={{ padding: moderateScale(4) }}
+          >
+            <Ionicons
+              name='arrow-back'
+              size={layout.iconSize * 1.1}
+              color={colors.white}
+            />
+          </TouchableOpacity>
+          <AppText
+            variant='bodyLarge'
+            className='font-bold'
+            style={{
+              fontSize: moderateScale(18),
+              color: colors.white,
+            }}
+          >
+            Profile
+          </AppText>
+        </View>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => openPicker('cover')}
           style={{
-            paddingHorizontal: layout.paddingHorizontal,
-            paddingTop: isSmallHeight ? moderateScale(12) : moderateScale(16),
-            paddingBottom: isSmallHeight
-              ? moderateScale(24)
-              : moderateScale(32),
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: moderateScale(4),
+            paddingHorizontal: moderateScale(10),
+            paddingVertical: moderateScale(6),
+            borderRadius: Radius.circle,
+            backgroundColor: 'rgba(0,0,0,0.35)',
           }}
         >
+          <Ionicons
+            name='camera'
+            size={moderateScale(16)}
+            color={colors.white}
+          />
+          <AppText variant='caption' style={{ color: colors.white }}>
+            Edit cover
+          </AppText>
+        </TouchableOpacity>
+      </View>
+
+      <View className='items-center' style={{ gap: layout.elementGap }}>
+        <TouchableOpacity
+          className='relative'
+          activeOpacity={0.8}
+          onPress={() => openPicker('avatar')}
+        >
           <View
-            className='flex-row items-center'
-            style={{ gap: layout.elementGap }}
+            className='items-center justify-center'
+            style={{
+              width: isSmallHeight ? moderateScale(100) : moderateScale(116),
+              height: isSmallHeight ? moderateScale(100) : moderateScale(116),
+              marginRight: moderateScale(14),
+              borderRadius: Radius.circle,
+            }}
           >
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => navigation.goBack()}
-              style={{ padding: moderateScale(4) }}
-            >
-              <Ionicons
-                name='arrow-back'
-                size={layout.iconSize * 1.1}
-                color={colors.white}
+            {avatarUri ? (
+              <Image
+                source={{ uri: avatarUri }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: Radius.circle,
+                }}
+                resizeMode='cover'
               />
-            </TouchableOpacity>
-            <AppText
-              variant='bodyLarge'
-              className='font-bold'
-              style={{
-                fontSize: moderateScale(18),
-                color: colors.white,
-              }}
-            >
-              Profile
-            </AppText>
-          </View>
-          <View className='items-center' style={{ gap: layout.elementGap }}>
-            <TouchableOpacity
-              className='relative'
-              activeOpacity={0.8}
-              onPress={() => setPickerModalVisible(true)}
-            >
+            ) : (
               <View
                 className='items-center justify-center'
                 style={{
@@ -246,206 +329,196 @@ const UpdateUserDetailsScreen = () => {
                   height: isSmallHeight
                     ? moderateScale(100)
                     : moderateScale(116),
-                  marginRight: moderateScale(14),
+                  backgroundColor: colors.accentOrange,
                   borderRadius: Radius.circle,
                 }}
               >
-                {user?.avatar_url ? (
-                  <Image
-                    source={{ uri: user.avatar_url }}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      borderRadius: Radius.circle,
-                    }}
-                    resizeMode='cover'
-                  />
-                ) : (
-                  <View
-                    className='items-center justify-center'
-                    style={{
-                      width: isSmallHeight
-                        ? moderateScale(100)
-                        : moderateScale(116),
-                      height: isSmallHeight
-                        ? moderateScale(100)
-                        : moderateScale(116),
-                      backgroundColor: colors.accentOrange,
-                      borderRadius: Radius.circle,
-                    }}
-                  >
-                    <AppText
-                      style={{
-                        fontSize: moderateScale(36),
-                        fontWeight: 'bold',
-                        color: colors.white,
-                      }}
-                    >
-                      {user?.name
-                        ?.split(' ')
-                        .map((word: any) => word[0])
-                        .join('')
-                        .substring(0, 2)
-                        .toUpperCase() || 'U'}
-                    </AppText>
-                  </View>
-                )}
+                <AppText
+                  style={{
+                    fontSize: moderateScale(36),
+                    fontWeight: 'bold',
+                    color: colors.white,
+                  }}
+                >
+                  {user?.name
+                    ?.split(' ')
+                    .map((word: any) => word[0])
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase() || 'U'}
+                </AppText>
               </View>
-              <View
-                className='absolute bottom-0 right-0 items-center justify-center'
-                style={{
-                  width: isSmallHeight ? moderateScale(30) : moderateScale(34),
-                  height: isSmallHeight ? moderateScale(30) : moderateScale(34),
-                  borderRadius: Radius.circle,
-                  backgroundColor: colors.primary,
-                  borderWidth: 2,
-                  borderColor: colors.white,
-                }}
-              >
-                <Ionicons
-                  name='camera'
-                  size={
-                    (isSmallHeight ? moderateScale(30) : moderateScale(34)) *
-                    0.5
-                  }
-                  color={colors.white}
-                />
-              </View>
-            </TouchableOpacity>
-            <AppText
-              variant='h2'
-              className='text-center font-bold'
-              style={{
-                fontSize: isSmallHeight ? moderateScale(20) : moderateScale(22),
-                color: colors.white,
-              }}
-            >
-              {user?.name || strings?.updateUser?.headerTitle}
-            </AppText>
-            <AppText
-              variant='body'
-              className='text-center'
-              style={{ color: colors.white }}
-            >
-              {getRoleLabel(user?.role)}
-            </AppText>
-            <View
-              className='flex-row items-center justify-center'
-              style={{
-                backgroundColor: colors.card || colors.surface,
-                paddingHorizontal: moderateScale(12),
-                paddingVertical: moderateScale(3),
-                borderRadius: Radius.circle,
-                gap: moderateScale(6),
-              }}
-            >
-              <View
-                style={{
-                  width: moderateScale(8),
-                  height: moderateScale(8),
-                  borderRadius: Radius.circle,
-                  backgroundColor: isActiveUser ? colors.success : colors.error,
-                }}
-              />
-              <AppText
-                variant='caption'
-                className='font-bold'
-                style={{
-                  color: colors.text,
-                }}
-              >
-                {isActiveUser
-                  ? strings?.updateUser?.statusActive || 'Active'
-                  : strings?.updateUser?.statusInactive || 'Inactive'}
-              </AppText>
-            </View>
+            )}
           </View>
-        </View>
-        <View
+          <View
+            className='absolute bottom-0 right-0 items-center justify-center'
+            style={{
+              width: isSmallHeight ? moderateScale(30) : moderateScale(34),
+              height: isSmallHeight ? moderateScale(30) : moderateScale(34),
+              borderRadius: Radius.circle,
+              backgroundColor: colors.primary,
+              borderWidth: 2,
+              borderColor: colors.white,
+            }}
+          >
+            <Ionicons
+              name='camera'
+              size={
+                (isSmallHeight ? moderateScale(30) : moderateScale(34)) * 0.5
+              }
+              color={colors.white}
+            />
+          </View>
+        </TouchableOpacity>
+        <AppText
+          variant='h2'
+          className='text-center font-bold'
           style={{
-            flex: 1,
-            backgroundColor: colors.background,
-            borderTopLeftRadius: moderateScale(28),
-            borderTopRightRadius: moderateScale(28),
-            paddingHorizontal: layout.paddingHorizontal,
-            paddingTop: isSmallHeight ? moderateScale(20) : moderateScale(28),
-            paddingBottom: isSmallHeight
-              ? moderateScale(20)
-              : moderateScale(32),
-            gap: layout.largeSectionGap,
+            fontSize: isSmallHeight ? moderateScale(20) : moderateScale(22),
+            color: colors.white,
           }}
         >
-          <AppInput
-            label={strings?.updateUser?.NameLabel || 'Name'}
-            placeholder={
-              strings?.updateUser?.NamePlaceholder || 'Enter full name'
-            }
-            leftIcon={
-              <Ionicons
-                name='person-outline'
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-            }
-            value={name}
-            error={errors.name}
-            onChangeText={text => {
-              setName(text);
-              setErrors(prev => ({ ...prev, name: '' }));
-            }}
-          />
-          <AppInput
-            label={strings?.updateUser?.userNameLabel || 'Username'}
-            placeholder={
-              strings?.updateUser?.userNamePlaceholder || 'Enter username'
-            }
-            leftIcon={
-              <Ionicons
-                name='at-outline'
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-            }
-            value={username}
-            error={errors.username}
-            onChangeText={text => {
-              setUsername(text);
-              setErrors(prev => ({ ...prev, username: '' }));
-            }}
-          />
-          <AppInput
-            label={strings?.updateUser?.emailLabel || 'Email Address'}
-            placeholder={
-              strings?.updateUser?.emailPlaceholder || 'Enter email address'
-            }
-            keyboardType='email-address'
-            disabled
-            autoCapitalize='none'
-            leftIcon={
-              <Ionicons
-                name='mail-outline'
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-            }
-            value={email}
-            error={errors.email}
-            onChangeText={text => {
-              setEmail(text);
-              setErrors(prev => ({ ...prev, email: '' }));
-            }}
-          />
-          <PrimaryButton
-            title={strings?.updateUser?.submitButton || 'Save Changes'}
+          {user?.name || strings?.updateUser?.headerTitle}
+        </AppText>
+        <AppText
+          variant='body'
+          className='text-center'
+          style={{ color: colors.white }}
+        >
+          {getRoleLabel(user?.role)}
+        </AppText>
+        <View
+          className='flex-row items-center justify-center'
+          style={{
+            backgroundColor: colors.card || colors.surface,
+            paddingHorizontal: moderateScale(12),
+            paddingVertical: moderateScale(3),
+            borderRadius: Radius.circle,
+            gap: moderateScale(6),
+          }}
+        >
+          <View
             style={{
-              marginTop: isSmallHeight
-                ? layout.largeSectionGap
-                : layout.elementGap,
+              width: moderateScale(8),
+              height: moderateScale(8),
+              borderRadius: Radius.circle,
+              backgroundColor: isActiveUser ? colors.success : colors.error,
             }}
-            loading={loading}
-            onPress={handleUpdateDetails}
           />
+          <AppText
+            variant='caption'
+            className='font-bold'
+            style={{
+              color: colors.text,
+            }}
+          >
+            {isActiveUser
+              ? strings?.updateUser?.statusActive || 'Active'
+              : strings?.updateUser?.statusInactive || 'Inactive'}
+          </AppText>
         </View>
+      </View>
+    </View>
+  );
+
+  return (
+    <Screen scroll={true}>
+      {coverUri ? (
+        <ImageBackground
+          source={{ uri: coverUri }}
+          resizeMode='cover'
+          style={{ backgroundColor: colors.primary }}
+        >
+          <View style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+            {HeaderContent}
+          </View>
+        </ImageBackground>
+      ) : (
+        <View style={{ backgroundColor: colors.primary }}>{HeaderContent}</View>
+      )}
+
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          borderTopLeftRadius: moderateScale(28),
+          borderTopRightRadius: moderateScale(28),
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingTop: isSmallHeight ? moderateScale(20) : moderateScale(28),
+          paddingBottom: isSmallHeight ? moderateScale(20) : moderateScale(32),
+          gap: layout.largeSectionGap,
+        }}
+      >
+        <AppInput
+          label={strings?.updateUser?.NameLabel || 'Name'}
+          placeholder={
+            strings?.updateUser?.NamePlaceholder || 'Enter full name'
+          }
+          leftIcon={
+            <Ionicons
+              name='person-outline'
+              size={moderateScale(18)}
+              color={colors.textSecondary}
+            />
+          }
+          value={name}
+          error={errors.name}
+          onChangeText={text => {
+            setName(text);
+            setErrors(prev => ({ ...prev, name: '' }));
+          }}
+        />
+        <AppInput
+          label={strings?.updateUser?.userNameLabel || 'Username'}
+          placeholder={
+            strings?.updateUser?.userNamePlaceholder || 'Enter username'
+          }
+          leftIcon={
+            <Ionicons
+              name='at-outline'
+              size={moderateScale(18)}
+              color={colors.textSecondary}
+            />
+          }
+          value={username}
+          error={errors.username}
+          onChangeText={text => {
+            setUsername(text);
+            setErrors(prev => ({ ...prev, username: '' }));
+          }}
+        />
+        <AppInput
+          label={strings?.updateUser?.emailLabel || 'Email Address'}
+          placeholder={
+            strings?.updateUser?.emailPlaceholder || 'Enter email address'
+          }
+          keyboardType='email-address'
+          disabled
+          autoCapitalize='none'
+          leftIcon={
+            <Ionicons
+              name='mail-outline'
+              size={moderateScale(18)}
+              color={colors.textSecondary}
+            />
+          }
+          value={email}
+          error={errors.email}
+          onChangeText={text => {
+            setEmail(text);
+            setErrors(prev => ({ ...prev, email: '' }));
+          }}
+        />
+        <PrimaryButton
+          title={strings?.updateUser?.submitButton || 'Save Changes'}
+          style={{
+            marginTop: isSmallHeight
+              ? layout.largeSectionGap
+              : layout.elementGap,
+          }}
+          loading={loading}
+          onPress={handleUpdateDetails}
+        />
       </View>
       <PopupModel
         visible={pickerModalVisible}
@@ -453,7 +526,7 @@ const UpdateUserDetailsScreen = () => {
         onSelectCamera={handleTakePhoto}
         onSelectGallery={handleChooseFromGallery}
         onRemovePhoto={handleRemovePhoto}
-        showRemoveOption={!!avatarUri}
+        showRemoveOption={pickerTarget === 'cover' ? !!coverUri : !!avatarUri}
       />
     </Screen>
   );

@@ -85,7 +85,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
             paddingHorizontal: layout.paddingHorizontal,
             paddingVertical: layout.elementGap,
 
-            gap: layout.tightGap,
+            gap: layout.elementGap,
           }}
         >
           {/* Status dot */}
@@ -197,7 +197,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
 
                         paddingVertical: layout.tightGap,
 
-                        gap: layout.tightGap,
+                        gap: layout.elementGap,
                       }}
                     >
                       {/* Status dot */}

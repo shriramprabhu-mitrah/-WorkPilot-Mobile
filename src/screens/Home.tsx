@@ -596,9 +596,12 @@ export const Home: React.FC = () => {
 
   const renderItemCard = ({ item }: { item: any }) => {
     const title =
-      item.title ||
-      item.name ||
-      item.details ||
+      item.task_title ||
+      item.user_story_title ||
+      item.task_name ||
+      item.user_story_name ||
+      item.task?.title ||
+      item.user_story?.title ||
       (item.action ? formatAction(item.action) : 'Activity Item');
     const resourceType =
       item.resource_type || item.type || item.item_type || 'task';

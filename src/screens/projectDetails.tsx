@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, Animated, Easing } from 'react-native';
 import Screen from '../components/common/ScreenWapper';
 import ProjectTopNavigator from '../navigation/projectTopNavigator';
 import CommonHeader from '../components/common/CommonHeader';
@@ -63,12 +63,14 @@ const ProjectDetails: React.FC = () => {
   );
 
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
+  const [isSprintChanging, setIsSprintChanging] = useState(false);
   const [currentSprintIdState, setCurrentSprintIdState] = useState<
     string | undefined
   >(undefined);
 
   // Tracks if the user explicitly clicked a sprint to stop auto-reversion
   const userHasSelected = useRef(false);
+  const progressAnim = useRef(new Animated.Value(-1)).current;
 
   const { data: sprintsResponse, refetch: refetchSprints } = useGetSprintsQuery(
     routeProjectId ? { project_id: routeProjectId } : skipToken,
@@ -86,7 +88,35 @@ const ProjectDetails: React.FC = () => {
   );
 
   const currentSprint = sprintByIdData?.data;
-  const getCurrentSprintLoading = sprintByIdLoading;
+  const getCurrentSprintLoading =
+    sprintByIdLoading || isSprintChanging || sprintByIdFetching;
+
+  useEffect(() => {
+    if (!isSprintChanging) return;
+    if (!sprintByIdFetching && !sprintByIdLoading) {
+      setIsSprintChanging(false);
+    }
+  }, [isSprintChanging, sprintByIdFetching, sprintByIdLoading]);
+
+  useEffect(() => {
+    if (!getCurrentSprintLoading) {
+      progressAnim.stopAnimation();
+      progressAnim.setValue(-1);
+      return;
+    }
+    const animation = Animated.loop(
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    animation.start();
+    return () => {
+      animation.stop();
+    };
+  }, [getCurrentSprintLoading, progressAnim]);
 
   const [projectSheetVisible, setProjectSheetVisible] =
     useState<boolean>(false);
@@ -194,7 +224,7 @@ const ProjectDetails: React.FC = () => {
   };
 
   const handleSelectSprint = (sprintId: string) => {
-    if (!sprintId) {
+    if (!sprintId || isSprintChanging) {
       setSprintListVisible(false);
       return;
     }
@@ -205,6 +235,7 @@ const ProjectDetails: React.FC = () => {
         sprintId.toString(),
     );
 
+    setIsSprintChanging(true);
     // Lock automatic selection and apply manual choice
     userHasSelected.current = true;
     if (foundSprint) {
@@ -301,6 +332,8 @@ const ProjectDetails: React.FC = () => {
             style={{
               backgroundColor: colors.card,
               borderColor: colors.border,
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
             <View className='flex-1 justify-center pr-1'>
@@ -312,20 +345,14 @@ const ProjectDetails: React.FC = () => {
                 Sprint
               </AppText>
 
-              {getCurrentSprintLoading ? (
-                <View className='items-start py-0.5'>
-                  <ActivityIndicator size='small' color={colors.primary} />
-                </View>
-              ) : (
-                <AppText
-                  variant='body'
-                  color={colors.primary}
-                  className='font-semibold capitalize'
-                  numberOfLines={1}
-                >
-                  {currentSprintName || 'Select Sprint'}
-                </AppText>
-              )}
+              <AppText
+                variant='body'
+                color={colors.primary}
+                className='font-semibold capitalize'
+                numberOfLines={1}
+              >
+                {currentSprintName || 'Select Sprint'}
+              </AppText>
             </View>
             <Ionicons
               name={
@@ -336,6 +363,36 @@ const ProjectDetails: React.FC = () => {
               size={moderateScale(16)}
               color={colors.textSecondary}
             />
+            {getCurrentSprintLoading && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 3,
+                  backgroundColor: colors.border,
+                  overflow: 'hidden',
+                }}
+              >
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    width: '35%',
+                    height: '100%',
+                    backgroundColor: colors.primary,
+                    transform: [
+                      {
+                        translateX: progressAnim.interpolate({
+                          inputRange: [-1, 1],
+                          outputRange: [-100, 250],
+                        }),
+                      },
+                    ],
+                  }}
+                />
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       )}

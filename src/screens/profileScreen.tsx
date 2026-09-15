@@ -28,16 +28,18 @@ import { showSuccessToast } from '../utils/utils';
 import { showSnackbar } from '../components/common/Snackbar';
 import { Radius } from '../constants/Radius';
 import { getRoleLabel } from '../constants/role';
-import { Activity, UserInsights } from '../types/home.type';
+import {
+  Activity,
+  AuditResponse,
+  UserInsights,
+  PaginationMeta,
+} from '../types/home.type';
 import { formatAction, formatDate, getInitials } from '../utils/utils';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import RecentActivitySkeleton from '../components/skeleton/RecentActivitySkeleton';
-import {
-  getAudit,
-  getUserInsightsData,
-} from '../store/home_store/action/home.thunk';
-import { resetAuditData } from '../store/home_store/reducer/home.reducer';
+import { useGetUserInsightsQuery } from '../store/api/profileApi';
+import { useGetAuditQuery } from '../store/api/homeApi';
 import { useGetProjectsQuery } from '../store/api/projectApi';
 import { FilterChipSkeleton } from '../components/skeleton/filterChipSkeleton';
 import { Project } from '../types/project.type';
@@ -52,30 +54,55 @@ const ProfileScreen = () => {
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [isActivityFullScreen, setIsActivityFullScreen] = useState(false);
   const [isProjectSheetVisible, setIsProjectSheetVisible] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
+  const [auditMeta, setAuditMeta] = useState<PaginationMeta | null>(null);
+  const [refetchKey, setRefetchKey] = useState(0);
+
   const profileIcons = strings.profile?.icons;
 
   const { user } = useAppSelector(state => state.auth);
+
+  const previousAuditDataRef = useRef<AuditResponse | null>(null);
+
   const {
-    activities,
-    user: homeUser,
-    loading,
-    meta,
-    insights,
-    insightsLoading,
-  } = useAppSelector(state => state.home);
+    data: auditData,
+    isLoading: auditLoading,
+    isFetching: auditFetching,
+  } = useGetAuditQuery({
+    type: 'activity',
+    page: currentPage,
+    _refetchKey: refetchKey,
+  });
 
-  // const { favorites, favoritesLoading, favoritesMeta } = useAppSelector(
-  //   state => state.projectBoard,
-  // );
+  const { data: insights, isLoading: insightsLoading } =
+    useGetUserInsightsQuery({ _refetchKey: refetchKey });
 
-  // const [favoritesExpanded, setFavoritesExpanded] = useState(false);
-  // const favoritesRef = useRef(false);
+  const homeUser = auditData?.data?.user ?? null;
+  const activities = allActivities;
+  const loading = auditLoading;
+  const meta = auditMeta;
 
-  // Pagination refs
-  const currentPageRef = useRef(1);
-  const fetchingRef = useRef(false);
-  const lastRequestedPageRef = useRef<number | null>(null);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  useEffect(() => {
+    const newActivities = auditData?.data?.activities ?? [];
+    if (!auditData || newActivities.length === 0) return;
+    previousAuditDataRef.current = auditData;
+    if (currentPage === 1) {
+      setAllActivities(newActivities);
+    } else {
+      setAllActivities(prev => {
+        const existingIds = new Set(prev.map(item => item.id?.toString()));
+        const uniqueActivities = newActivities.filter(item => {
+          if (!item.id) return true;
+          return !existingIds.has(item.id.toString());
+        });
+        return [...prev, ...uniqueActivities];
+      });
+    }
+    setAuditMeta(auditData?.meta ?? null);
+  }, [auditData, currentPage]);
+
+  const isFetchingMore = currentPage > 1 && auditFetching;
 
   const stats = getStats(colors, insights as UserInsights);
   const quickLinks = getQuickLinks(colors, strings);
@@ -88,28 +115,9 @@ const ProfileScreen = () => {
   // Fetch initial activity data
   useFocusEffect(
     useCallback(() => {
-      currentPageRef.current = 1;
-      lastRequestedPageRef.current = null;
-      fetchingRef.current = false;
-      setIsFetchingMore(false);
-      dispatch(getUserInsightsData());
-      dispatch(resetAuditData());
-      dispatch(
-        getAudit({
-          type: 'activity',
-          page: 1,
-        }),
-      );
-      return () => {
-        fetchingRef.current = false;
-        setIsFetchingMore(false);
-      };
-    }, [dispatch]),
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      return () => {};
+      setRefetchKey(prev => prev + 1);
+      setCurrentPage(1);
+      previousAuditDataRef.current = null;
     }, []),
   );
 
@@ -127,53 +135,15 @@ const ProfileScreen = () => {
   }, []);
 
   const handleLoadMore = useCallback(() => {
-    if (fetchingRef.current) {
+    if (auditLoading && allActivities.length === 0) {
       return;
     }
-    if (loading && activities.length === 0) {
-      return;
-    }
-    const currentPage = currentPageRef.current;
-    const hasNextPage =
-      meta?.has_next !== undefined
-        ? meta.has_next
-        : meta?.total_pages !== undefined
-          ? currentPage < meta.total_pages
-          : true;
+    const hasNextPage = meta?.has_next ?? true;
     if (!hasNextPage) {
       return;
     }
-    const nextPage = currentPage + 1;
-    if (lastRequestedPageRef.current === nextPage) {
-      return;
-    }
-    fetchingRef.current = true;
-    lastRequestedPageRef.current = nextPage;
-    setIsFetchingMore(true);
-    dispatch(
-      getAudit({
-        type: 'activity',
-        page: nextPage,
-      }),
-    )
-      .unwrap()
-      .then(response => {
-        const responsePage = response?.meta?.page;
-        if (typeof responsePage === 'number' && responsePage >= nextPage) {
-          currentPageRef.current = responsePage;
-        } else {
-          currentPageRef.current = nextPage;
-        }
-      })
-      .catch(error => {
-        console.log('Load more error:', error);
-        lastRequestedPageRef.current = null;
-      })
-      .finally(() => {
-        fetchingRef.current = false;
-        setIsFetchingMore(false);
-      });
-  }, [activities.length, loading, meta, dispatch]);
+    setCurrentPage(prev => prev + 1);
+  }, [auditLoading, allActivities.length, meta]);
 
   // useEffect(() => {
   //   if (!favoritesLoading) {
