@@ -47,6 +47,7 @@ import { CustomStatus } from '../types/customstatus.type';
 import { useUpdateTaskMutation } from '../store/api/userStoryApi';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
+import { ThemeColors } from '../constants/Colors';
 
 type DropZone = {
   storyId: string;
@@ -218,7 +219,8 @@ const TaskDropZone = ({
   children,
   horizontalScrollOffset,
   verticalScrollOffset,
-}: TaskDropZoneProps) => {
+  colors,
+}: TaskDropZoneProps & { colors: ThemeColors }) => {
   const dropZoneRef = useRef<View>(null);
 
   const measureZone = useCallback(() => {
@@ -253,11 +255,11 @@ const TaskDropZone = ({
         minHeight: 100,
         padding: 8,
         borderLeftWidth: 1,
-        borderLeftColor: '#E5E7EB',
+        borderLeftColor: colors.border,
         backgroundColor: isSuccess
-          ? '#D1FAE5'
+          ? `${colors.success}30`
           : isActive
-            ? '#E0E7FF'
+            ? colors.textOnPrimarySubtle
             : 'transparent',
       }}
     >
@@ -300,7 +302,8 @@ const DraggableTask = ({
   verticalScrollRef,
   horizontalScrollOffset,
   verticalScrollOffset,
-}: DraggableTaskProps) => {
+  colors,
+}: DraggableTaskProps & { colors: ThemeColors }) => {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(false);
@@ -390,7 +393,7 @@ const DraggableTask = ({
     ],
     zIndex: isDragging.value ? 9999 : 1,
     elevation: isDragging.value ? 10 : 0,
-    shadowColor: isDragging.value ? '#000' : 'transparent',
+    shadowColor: isDragging.value ? colors.black : 'transparent',
     shadowOffset: { width: 0, height: isDragging.value ? 4 : 0 },
     shadowOpacity: isDragging.value ? 0.2 : 0,
     shadowRadius: isDragging.value ? 8 : 0,
@@ -407,7 +410,7 @@ const DraggableTask = ({
               priority: task.priority,
               points: `${task.story_points ?? 0}p`,
               avatar: task.assignee_name?.charAt(0)?.toUpperCase() || '?',
-              avatarColor: '#6366F1',
+              avatarColor: colors.primary,
             }}
             projectId={projectId}
           />
@@ -426,7 +429,7 @@ const DraggableTask = ({
       >
         <AppText
           style={{
-            color: task.is_favourite ? '#F59E0B' : '#9CA3AF',
+            color: task.is_favourite ? colors.warning : colors.textSecondary,
             fontSize: 20,
           }}
         >
@@ -481,14 +484,15 @@ const UserStoryBoardRow = ({
   verticalScrollRef,
   horizontalScrollOffset,
   verticalScrollOffset,
-}: UserStoryBoardRowProps) => {
+  colors,
+}: UserStoryBoardRowProps & { colors: ThemeColors }) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   return (
     <View
       style={{
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: colors.border,
         minHeight: expanded ? 250 : 100,
       }}
     >
@@ -503,70 +507,121 @@ const UserStoryBoardRow = ({
         activeOpacity={0.7}
         style={{
           width: USER_STORY_WIDTH,
-          padding: 12,
-          backgroundColor: '#F9FAFB',
+          minHeight: 90,
+          paddingHorizontal: 12,
+          paddingVertical: 12,
+          backgroundColor: colors.card || colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-          <AppText
-            variant='body'
-            style={{ marginRight: 8 }}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            width: '100%',
+          }}
+        >
+          <TouchableOpacity
             onPress={e => {
               e.stopPropagation();
               onToggle();
             }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{
+              width: 22,
+              height: 22,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            {expanded ? '▼' : '▶'}
-          </AppText>
+            <AppText
+              style={{
+                fontSize: 15,
+                lineHeight: 14,
+                color: colors.text,
+              }}
+            >
+              {expanded ? '▼' : '▶'}
+            </AppText>
+          </TouchableOpacity>
 
           <View
             style={{
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: story.status_color ?? '#9CA3AF',
-              marginTop: 5,
-              marginRight: 8,
+              width: 18,
+              height: 22,
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-          />
-
-          <View style={{ flex: 1 }}>
+          >
             <View
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                width: 10,
+                height: 10,
+                borderRadius: 6,
+                backgroundColor: story.status_color || colors.textSecondary,
+              }}
+            />
+          </View>
+
+          <View
+            style={{
+              flex: 1,
+              minWidth: 0,
+              paddingLeft: 4,
+              paddingRight: 8,
+            }}
+          >
+            <AppText
+              variant='body'
+              className='font-semibold'
+              numberOfLines={1}
+              ellipsizeMode='tail'
+              style={{
+                lineHeight: 20,
+                color: colors.text,
               }}
             >
-              <AppText
-                variant='body'
-                className='font-semibold'
-                style={{ flex: 1 }}
-              >
-                {story.title}
-              </AppText>
-              <TouchableOpacity
-                onPress={e => {
-                  e.stopPropagation();
-                  onToggleStoryFavorite?.(story.id);
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ marginLeft: 4 }}
-              >
-                <AppText
-                  style={{
-                    color: story.is_favourite ? '#F59E0B' : '#9CA3AF',
-                    fontSize: 20,
-                  }}
-                >
-                  {story.is_favourite ? '★' : '☆'}
-                </AppText>
-              </TouchableOpacity>
-            </View>
-            <AppText variant='caption' color='#6B7280'>
+              {story.title}
+            </AppText>
+
+            <AppText
+              variant='caption'
+              color={colors.textSecondary}
+              style={{
+                marginTop: 2,
+                lineHeight: 17,
+              }}
+            >
               {story.tasks?.length ?? 0} tasks · {story.story_points ?? 0} pts
             </AppText>
           </View>
+
+          <TouchableOpacity
+            onPress={e => {
+              e.stopPropagation();
+              onToggleStoryFavorite?.(story.id);
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{
+              width: 28,
+              height: 22,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AppText
+              style={{
+                color: story.is_favourite
+                  ? colors.warning
+                  : colors.textSecondary,
+                fontSize: 20,
+                lineHeight: 22,
+              }}
+            >
+              {story.is_favourite ? '★' : '☆'}
+            </AppText>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
 
@@ -592,6 +647,7 @@ const UserStoryBoardRow = ({
             isSuccess={isSuccess}
             horizontalScrollOffset={horizontalScrollOffset}
             verticalScrollOffset={verticalScrollOffset}
+            colors={colors}
           >
             {expanded &&
               tasks.map(task => (
@@ -608,6 +664,7 @@ const UserStoryBoardRow = ({
                   verticalScrollRef={verticalScrollRef}
                   horizontalScrollOffset={horizontalScrollOffset}
                   verticalScrollOffset={verticalScrollOffset}
+                  colors={colors}
                 />
               ))}
           </TaskDropZone>
@@ -650,12 +707,11 @@ const ProjectDeatailsScreen = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   // RTK Query hooks — conditioned completely on screen focus
-  const { data: customStatusData, isFetching: isCustomStatusFetching } =
-    useGetCustomStatusQuery(
-      isFocused && projectId
-        ? { project_id: projectId, _refetchKey: refetchKey }
-        : skipToken,
-    );
+  const { data: customStatusData } = useGetCustomStatusQuery(
+    isFocused && projectId
+      ? { project_id: projectId, _refetchKey: refetchKey }
+      : skipToken,
+  );
   const customStatuses = customStatusData?.data ?? [];
 
   const {
@@ -962,7 +1018,10 @@ const ProjectDeatailsScreen = () => {
           if (s.id === targetStoryId) {
             return {
               ...s,
-              tasks: [...s.tasks, { ...movedTask, status_id: targetStatusId }],
+              tasks: [
+                ...(s.tasks ?? []),
+                { ...movedTask, status_id: targetStatusId },
+              ],
               total_tasks: (s.total_tasks ?? 0) + 1,
             };
           }
@@ -1065,11 +1124,9 @@ const ProjectDeatailsScreen = () => {
       projectId,
       applyLocalMove,
       rollbackLocalMove,
+      updateTask,
     ],
   );
-
-  const isInitialLoading =
-    storeLoading && isInitialLoad.current && localUserStories.length === 0;
 
   return (
     <ScrollView
@@ -1129,7 +1186,7 @@ const ProjectDeatailsScreen = () => {
                 style={{
                   flexDirection: 'row',
                   borderBottomWidth: 1,
-                  borderBottomColor: '#D1D5DB',
+                  borderBottomColor: colors.border,
                 }}
               >
                 <View style={{ width: USER_STORY_WIDTH, padding: 12 }}>
@@ -1144,7 +1201,7 @@ const ProjectDeatailsScreen = () => {
                       width: STATUS_COLUMN_WIDTH,
                       padding: 12,
                       borderLeftWidth: 1,
-                      borderLeftColor: '#E5E7EB',
+                      borderLeftColor: colors.border,
                     }}
                   >
                     <View
@@ -1186,6 +1243,7 @@ const ProjectDeatailsScreen = () => {
                   verticalScrollRef={verticalScrollRef}
                   horizontalScrollOffset={horizontalScrollOffset}
                   verticalScrollOffset={verticalScrollOffset}
+                  colors={colors}
                 />
               ))}
 
@@ -1199,7 +1257,7 @@ const ProjectDeatailsScreen = () => {
                       alignItems: 'center',
                     }}
                   >
-                    <AppText variant='body' color='#9CA3AF'>
+                    <AppText variant='body' color={colors.textSecondary}>
                       No user stories found for this sprint.
                     </AppText>
                   </View>
@@ -1215,10 +1273,10 @@ const ProjectDeatailsScreen = () => {
                         paddingVertical: 12,
                       }}
                     >
-                      <ActivityIndicator size='small' color='#6366F1' />
+                      <ActivityIndicator size='small' color={colors.primary} />
                       <AppText
                         variant='caption'
-                        color='#6B7280'
+                        color={colors.textSecondary}
                         style={{ marginTop: 6 }}
                       >
                         Loading more stories…
@@ -1228,22 +1286,25 @@ const ProjectDeatailsScreen = () => {
                     <TouchableOpacity
                       onPress={loadNextPage}
                       activeOpacity={0.7}
-                      style={{
-                        paddingHorizontal: 20,
-                        paddingVertical: 10,
-                        backgroundColor: '#F3F4F6',
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: '#E5E7EB',
-                        marginLeft: 12,
-                      }}
                     >
-                      <AppText variant='body' color='#374151'>
-                        Load more stories (
-                        {(userStoryMeta?.total_items ?? 0) -
-                          localUserStories.length}{' '}
-                        remaining)
-                      </AppText>
+                      <View
+                        style={{
+                          paddingHorizontal: 20,
+                          paddingVertical: 10,
+                          backgroundColor: colors.card || colors.surface,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          marginLeft: 12,
+                        }}
+                      >
+                        <AppText variant='body' color={colors.text}>
+                          Load more stories (
+                          {(userStoryMeta?.total_items ?? 0) -
+                            localUserStories.length}{' '}
+                          remaining)
+                        </AppText>
+                      </View>
                     </TouchableOpacity>
                   )}
                 </View>
