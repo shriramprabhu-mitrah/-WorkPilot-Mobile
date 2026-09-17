@@ -12,19 +12,17 @@ import {
   GET_BURNDOWN_BY_PROJECT_SPRINT,
   DELETE_PROJECT,
   UPDATE_PROJECT,
+  GETPROJECTMEMBERS,
+  DELETEPROJECTMEMBER,
 } from '../../constants/apiServiceEndpoint';
 import {
-  GetProjectsParams,
   GetProjectsResponse,
-  GetSprintsParams,
   GetSprintResponse,
   GetProjectByIdResponse,
   ProjectDetails,
-  GetSprintByIdParams,
   GetSprintByIdResponse,
   GetProjectOverviewResponse,
   GetUserStoriesResponse,
-  GetUserStorieThunkArgs,
   GetProjectsQueryArgs,
   GetSprintsQueryArgs,
   GetProjectByIdQueryArgs,
@@ -34,11 +32,13 @@ import {
   GetUserStoryStatusQueryArgs,
   GetUserStoriesQueryArgs,
   GetBurndownChartQueryArgs,
-  CreateProjectPayload,
-  CreateProjectResponse,
   UpdateProjectPayload,
   UpdateProjectResponse,
   DeleteProjectResponse,
+  GetProjectMembersQueryArgs,
+  GetProjectMembersResponse,
+  RemoveProjectMemberArgs,
+  RemoveProjectMemberResponse,
 } from '../../types/project.type';
 import {
   GetBurndownResponse,
@@ -63,6 +63,11 @@ export const projectApi = createApi({
     'UserStories',
     'TaskDetail',
     'BurndownChart',
+    'ProjectMembers',
+    'UserStoryDetail',
+    'Tasks',
+    'Comments',
+    'Attachments',
   ],
   endpoints: build => ({
     getProjects: build.query<GetProjectsResponse, GetProjectsQueryArgs | void>({
@@ -299,6 +304,70 @@ export const projectApi = createApi({
         { type: 'BurndownChart', id: `${projectId}_${sprintId}` },
       ],
     }),
+
+    getProjectMembers: build.query<
+      GetProjectMembersResponse,
+      GetProjectMembersQueryArgs
+    >({
+      query: ({ project_id, _refetchKey, ...params }) => ({
+        url: GETPROJECTMEMBERS.replace('{project_id}', project_id),
+        params,
+      }),
+
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        const { page, _refetchKey, ...rest } = queryArgs;
+        return `${endpointName}_${JSON.stringify(rest)}`;
+      },
+
+      merge(currentCache, newItems, { arg }) {
+        if (
+          (arg?.page || 1) === 1 ||
+          !currentCache?.data ||
+          !Array.isArray(currentCache.data)
+        ) {
+          return newItems;
+        }
+
+        const existingIds = new Set(
+          currentCache.data.map(member => member.user_id),
+        );
+        const incoming = Array.isArray(newItems?.data) ? newItems.data : [];
+        const uniqueNew = incoming.filter(
+          member => !existingIds.has(member.user_id),
+        );
+        currentCache.data.push(...uniqueNew);
+        currentCache.meta = newItems.meta;
+      },
+
+      forceRefetch({ currentArg, previousArg }) {
+        return (
+          currentArg?.page !== previousArg?.page ||
+          currentArg?._refetchKey !== previousArg?._refetchKey
+        );
+      },
+
+      providesTags: (_result, _error, { project_id }) => [
+        { type: 'ProjectMembers', id: project_id },
+      ],
+    }),
+
+    removeProjectMember: build.mutation<
+      RemoveProjectMemberResponse,
+      RemoveProjectMemberArgs
+    >({
+      query: ({ project_id, user_id }) => ({
+        url: DELETEPROJECTMEMBER.replace('{project_id}', project_id).replace(
+          '{user_id}',
+          user_id,
+        ),
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'ProjectMembers', id: project_id },
+        { type: 'ProjectDetails', id: project_id },
+      ],
+    }),
+
     updateProject: build.mutation<
       UpdateProjectResponse,
       { project_id: string; payload: UpdateProjectPayload }
@@ -337,6 +406,8 @@ export const {
   useGetUserStoryStatusQuery,
   useGetUserStoriesQuery,
   useGetBurndownChartQuery,
+  useGetProjectMembersQuery,
+  useRemoveProjectMemberMutation,
   useUpdateProjectMutation,
   useDeleteProjectMutation,
   useLazyGetProjectByIdQuery,

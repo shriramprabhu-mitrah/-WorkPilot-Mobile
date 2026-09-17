@@ -53,13 +53,15 @@ const ProjectDetails: React.FC = () => {
     data: projectDetails,
     isLoading: projectDetailsLoading,
     isFetching: projectDetailsFetching,
-    refetch: refetchProject,
   } = useGetProjectByIdQuery(
     routeProjectId
       ? {
           project_id: routeProjectId,
         }
       : skipToken,
+    {
+      refetchOnFocus: true,
+    },
   );
 
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
@@ -176,7 +178,6 @@ const ProjectDetails: React.FC = () => {
       }
 
       if (routeProjectId) {
-        refetchProject();
         refetchSprints();
         if (currentSprintIdState) {
           refetchSprintById();
@@ -187,7 +188,6 @@ const ProjectDetails: React.FC = () => {
       routeProjectName,
       currentSprintIdState,
       dispatch,
-      refetchProject,
       refetchSprints,
       refetchSprintById,
     ]),
@@ -261,7 +261,7 @@ const ProjectDetails: React.FC = () => {
     }
   };
 
-  const currentSprintName = currentSprint?.name || selectedSprint?.name;
+  const currentSprintName = selectedSprint?.name || currentSprint?.name;
 
   const currentProjectId =
     projectDetails?.id?.toString() ||

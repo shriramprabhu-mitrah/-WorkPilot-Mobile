@@ -81,6 +81,23 @@ const Strings = {
     backButton: 'Back to login',
   },
 
+  changePassword: {
+    headerTitle: 'Change Password',
+    subtitle: 'Update your password',
+    description:
+      'Create a new password for your account. Make sure it is different from your previous password.',
+    newPasswordLabel: 'New password',
+    newPasswordPlaceholder: 'Enter your new password',
+    confirmPasswordLabel: 'Confirm new password',
+    confirmPasswordPlaceholder: 'Confirm your password',
+    changeButton: 'Change password',
+    successTitle: 'Password changed!',
+    successSubtitle: 'Your password has been successfully changed.',
+    backButton: 'Back',
+    oldPasswordLabel: 'Old password',
+    oldPasswordPlaceholder: 'Enter your current password',
+  },
+
   verifyEmail: {
     headerTitle: 'Verify Email',
     headerSubtitle: 'Almost there',

@@ -11,6 +11,7 @@ import { ProjectTopTabParamList } from '../types/navigationTypes';
 import ProjectBoardScreen from '../screens/ProjectBoardScreen';
 import Backlogs from '../screens/backlog';
 import ProjectDeatailsScreen from '../screens/projectsDetailScreen';
+import Members from '../screens/members';
 
 interface ProjectTopNavigatorProps {
   settingsView: ViewState;
@@ -47,6 +48,7 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
       screenOptions={{
         // Removes Android press ripple & iOS click shadow overlay
         animationEnabled: false,
+        lazy: true,
         tabBarPressColor: 'transparent',
         tabBarPressOpacity: 1,
         // Tab bar container bottom border (Inactive/Base line)
@@ -93,6 +95,7 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
       <TopTab.Screen name='List' component={List} />
       <TopTab.Screen name='Report' component={Report} />
       <TopTab.Screen name='Backlogs' component={Backlogs} />
+      <TopTab.Screen name='Members' component={Members} />
       <TopTab.Screen name='Settings'>
         {props => (
           <Settings

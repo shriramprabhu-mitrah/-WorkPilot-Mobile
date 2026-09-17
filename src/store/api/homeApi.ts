@@ -8,12 +8,15 @@ import {
   GET_ORGANIZATION_DETAIL,
   GET_FAVOURITES,
   GLOBAL_SEARCH,
+  CHANGE_PASSWORD,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetRecentProjectResponse,
   RecentProject,
 } from '../../types/project.type';
 import {
+  ChangePasswordPayload,
+  ChangePasswordResponse,
   GetUserResponse,
   GetOrganizationResponse,
 } from '../../types/auth.type';
@@ -145,6 +148,17 @@ export const homeApi = createApi({
       // term automatically triggers a fresh request.
       serializeQueryArgs: ({ queryArgs }) => queryArgs.query,
     }),
+
+    changePassword: build.mutation<
+      ChangePasswordResponse,
+      ChangePasswordPayload
+    >({
+      query: payload => ({
+        url: CHANGE_PASSWORD,
+        method: 'POST',
+        data: payload,
+      }),
+    }),
   }),
 });
 
@@ -155,4 +169,5 @@ export const {
   useGetOrganizationDetailQuery,
   useGetFavouritesQuery,
   useGlobalSearchQuery,
+  useChangePasswordMutation,
 } = homeApi;

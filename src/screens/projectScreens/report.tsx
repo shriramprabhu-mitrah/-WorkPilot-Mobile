@@ -26,6 +26,7 @@ import {
   TimeFilterOption,
   Y_AXIS_TICKS,
 } from '../../utils/reportData';
+import { skipToken } from '@reduxjs/toolkit/query';
 
 interface FilterCheckboxProps {
   label: string;
@@ -177,6 +178,23 @@ const Report = () => {
     done: true,
   });
 
+  const {
+    data: burndownResponse,
+    isLoading: burndownLoading,
+    isFetching: burndownFetching,
+    isUninitialized: burndownUninitialized,
+    refetch: refetchBurndown,
+  } = useGetBurndownChartQuery(
+    projectId && sprintId
+      ? {
+          projectId,
+          sprintId,
+        }
+      : skipToken,
+  );
+
+  const burndownData = burndownResponse?.data;
+
   // Fetch Burndown Chart data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -185,7 +203,6 @@ const Report = () => {
         return;
       }
 
-      let isMounted = true;
       const currentKey = `${projectId}_${sprintId}`;
 
       // Show skeleton only on initial load or if Project/Sprint ID changes
@@ -194,34 +211,20 @@ const Report = () => {
         lastFetchedKeyRef.current = currentKey;
       }
 
-      if (isMounted) {
-        setIsFocusLoading(false);
+      // Prevent "Cannot refetch a query that has not been started yet"
+      if (!burndownUninitialized) {
+        refetchBurndown();
       }
-      refetchBurndown();
-      return () => {
-        isMounted = false;
-      };
-    }, [projectId, sprintId]),
+    }, [projectId, sprintId, burndownUninitialized, refetchBurndown]),
   );
-
-  const {
-    data: burndownResponse,
-    isLoading: burndownLoading,
-    refetch: refetchBurndown,
-  } = useGetBurndownChartQuery(
-    { projectId: projectId!, sprintId: sprintId! },
-    { skip: !projectId || !sprintId },
-  );
-  const burndownData = burndownResponse?.data;
 
   useEffect(() => {
-    if (!burndownLoading && lastFetchedKeyRef.current !== null) {
+    if (!burndownLoading && !burndownFetching) {
       setIsFocusLoading(false);
     }
-  }, [burndownLoading]);
+  }, [burndownLoading, burndownFetching]);
 
-  const showBurndownSkeleton =
-    isFocusLoading || (burndownLoading && lastFetchedKeyRef.current === null);
+  const showBurndownSkeleton = isFocusLoading || burndownLoading;
 
   const toggleStatus = useCallback((key: StatusKey) => {
     setStatuses(prev => ({ ...prev, [key]: !prev[key] }));

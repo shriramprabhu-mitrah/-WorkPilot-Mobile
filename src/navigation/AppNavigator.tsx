@@ -17,6 +17,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import TermsScreen from '../screens/TermsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import UpdateUserDetailsScreen from '../screens/updateUserDetailScreen';
+import ChangePasswordScreen from '../screens/changePassword';
 import { navigationRef } from './navigationRef';
 import WebLoginScreen from '../screens/WebLoginScreen';
 import OnboardingScreen from '../screens/onboardingScreen';
@@ -120,6 +121,10 @@ const AppNavigator = () => {
             <Stack.Screen
               name='updateDetails'
               component={UpdateUserDetailsScreen}
+            />
+            <Stack.Screen
+              name='ChangePassword'
+              component={ChangePasswordScreen}
             />
           </Stack.Navigator>
         ) : (

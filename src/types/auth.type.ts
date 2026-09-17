@@ -98,7 +98,7 @@ export interface LogoutResponse extends ApiResponse {}
 // Change Password
 
 export interface ChangePasswordPayload {
-  old_password: string;
+  old_password?: string;
   new_password: string;
 }
 

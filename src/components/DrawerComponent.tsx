@@ -66,13 +66,19 @@ export const CustomDrawerContent: React.FC<
       route: 'ProjectSelection',
     },
     {
-      id: 4,
+      id: 3,
       name: 'Profile',
       icon: 'person-outline',
       route: 'Profile',
     },
     {
-      id: 8,
+      id: 4,
+      name: 'Change Password',
+      icon: 'lock-closed-outline',
+      route: 'ChangePassword',
+    },
+    {
+      id: 5,
       name: 'Logout',
       icon: 'log-out-outline',
       route: 'Logout',
@@ -87,6 +93,9 @@ export const CustomDrawerContent: React.FC<
     } else if (item.route === 'Logout') {
       props.navigation.closeDrawer();
       setTimeout(() => setIsLogoutModalVisible(true), 300);
+    } else if (item.route === 'ChangePassword') {
+      props.navigation.closeDrawer();
+      stackNavigation.navigate('ChangePassword');
     } else {
       handleNavigation(item.route);
     }

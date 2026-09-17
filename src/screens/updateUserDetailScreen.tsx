@@ -222,9 +222,9 @@ const UpdateUserDetailsScreen = () => {
         }),
       ).unwrap();
       dispatch(getUserProfileInfo());
-      navigation.goBack();
+      showSnackbar('Profile updated successfully');
     } catch (error: any) {
-      // Failed - loader will be reset in finally block
+      showSnackbar(error?.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
