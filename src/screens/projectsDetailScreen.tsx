@@ -705,6 +705,9 @@ const ProjectDeatailsScreen = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [isSprintSwitchLoading, setIsSprintSwitchLoading] = useState(false);
+  const previousSprintId = useRef<string | undefined>(undefined);
+  const hasStartedSprintFetch = useRef(false);
 
   // RTK Query hooks — conditioned completely on screen focus
   const { data: customStatusData } = useGetCustomStatusQuery(
@@ -715,9 +718,10 @@ const ProjectDeatailsScreen = () => {
   const customStatuses = customStatusData?.data ?? [];
 
   const {
-    data: userStoriesResponse,
+    currentData: userStoriesResponse,
     isFetching: isStoriesFetching,
     isLoading: isStoriesLoading,
+    isError: isStoriesError,
     refetch: refetchUserStories, // <-- Destructure refetch here
   } = useGetUserStoriesQuery(
     isFocused && projectId && currentSprintId
@@ -796,6 +800,14 @@ const ProjectDeatailsScreen = () => {
 
   // Reset pagination and local list on project or sprint changes
   useEffect(() => {
+    const sprintChanged =
+      previousSprintId.current !== undefined &&
+      previousSprintId.current !== currentSprintId;
+    if (sprintChanged) {
+      setIsSprintSwitchLoading(true);
+      hasStartedSprintFetch.current = false;
+    }
+    previousSprintId.current = currentSprintId;
     hasInitializedStories.current = false;
     isInitialLoad.current = true;
     setLocalUserStories([]);
@@ -805,6 +817,31 @@ const ProjectDeatailsScreen = () => {
     setCurrentPage(1);
     setExpandedStories({});
   }, [projectId, currentSprintId]);
+
+  useEffect(() => {
+    if (!isSprintSwitchLoading) {
+      hasStartedSprintFetch.current = false;
+      return;
+    }
+    if (isStoriesFetching) {
+      hasStartedSprintFetch.current = true;
+      return;
+    }
+    if (
+      hasStartedSprintFetch.current &&
+      (userStoriesResponse !== undefined || isStoriesError) &&
+      currentPage === 1
+    ) {
+      setIsSprintSwitchLoading(false);
+      hasStartedSprintFetch.current = false;
+    }
+  }, [
+    isSprintSwitchLoading,
+    isStoriesFetching,
+    userStoriesResponse,
+    isStoriesError,
+    currentPage,
+  ]);
 
   // Seed / append from Redux into local list – is_favourite comes from the API
   useEffect(() => {
@@ -1176,7 +1213,7 @@ const ProjectDeatailsScreen = () => {
             paddingTop: layout.tightGap,
           }}
         >
-          {isStoriesLoading ? (
+          {isStoriesLoading || isSprintSwitchLoading ? (
             <BoardSkeleton
               columnCount={Math.max(customStatuses?.length ?? 0, 3)}
             />

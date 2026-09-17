@@ -1,9 +1,14 @@
-import { get } from '../components/common/httpClient';
+import { get, post } from '../components/common/httpClient';
 import {
+  CHANGE_PASSWORD,
   GET_AUDIT,
   GET_INSIGHTS,
   GLOBAL_SEARCH,
 } from '../constants/apiServiceEndpoint';
+import {
+  ChangePasswordPayload,
+  ChangePasswordResponse,
+} from '../types/auth.type';
 import {
   AuditResponse,
   SearchResponse,
@@ -54,6 +59,24 @@ export const getUserInsights = async (): Promise<UserInsightsResponse> => {
     return await get<UserInsightsResponse>(GET_INSIGHTS);
   } catch (error) {
     console.error('Get user insights API failed:', error);
+    throw error;
+  }
+};
+
+export const changePasswordService = async (
+  payload: ChangePasswordPayload,
+): Promise<ChangePasswordResponse> => {
+  try {
+    const response = await post<ChangePasswordResponse>(
+      CHANGE_PASSWORD,
+      payload,
+    );
+    return response;
+  } catch (error: any) {
+    console.log(
+      'Change password service error:',
+      error?.response?.data || error?.message,
+    );
     throw error;
   }
 };

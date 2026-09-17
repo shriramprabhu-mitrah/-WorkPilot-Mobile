@@ -114,7 +114,7 @@ export const downloadUserStoryAttachmentService = async ({
   }
 };
 
-export const getTaskCommentAttachmentsService = async ({
+export const getTaskAttachmentsService = async ({
   projectId,
   taskId,
 }: GetTaskCommentAttachmentsParams): Promise<GetTaskCommentAttachmentsResponse> => {
@@ -131,7 +131,7 @@ export const getTaskCommentAttachmentsService = async ({
   }
 };
 
-export const uploadTaskCommentAttachmentService = async ({
+export const uploadTaskAttachmentService = async ({
   projectId,
   taskId,
   file,
@@ -164,7 +164,7 @@ export const uploadTaskCommentAttachmentService = async ({
   }
 };
 
-export const deleteTaskCommentAttachmentService = async ({
+export const deleteTaskAttachmentService = async ({
   projectId,
   taskId,
   attachmentId,
@@ -185,7 +185,7 @@ export const deleteTaskCommentAttachmentService = async ({
   }
 };
 
-export const downloadTaskCommentAttachmentService = async ({
+export const downloadTaskAttachmentService = async ({
   projectId,
   taskId,
   attachmentId,

@@ -44,6 +44,7 @@ export type RootStackParamList = {
   Terms: undefined;
   PrivacyPolicy: undefined;
   updateDetails: undefined;
+  ChangePassword: undefined;
   WebLogin: undefined;
   WebSignup: undefined;
   QuickAccess: undefined;
@@ -59,5 +60,5 @@ export type ProjectTopTabParamList = {
   Backlogs: undefined;
   Settings: undefined;
   Report: undefined;
-  Calendar: undefined;
+  Members: undefined;
 };

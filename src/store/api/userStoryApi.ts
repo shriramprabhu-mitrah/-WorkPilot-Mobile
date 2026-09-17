@@ -9,8 +9,6 @@ import {
   TASK_COMMENT,
   TASK_COMMENT_ID,
   TASK_COMMENT_REPLIES,
-  POST_USERSTORY_COMMENT_ATTACHMENT,
-  POST_TASK_COMMENT_ATTACHMENT,
   GET_TASKS,
   USATTACHMENT,
   DELETEUSATTACHMENT,
@@ -74,10 +72,24 @@ import {
   UpdateTaskPayload,
   UpdateTaskResponse,
 } from '../../types/task.type';
-import { Task } from '../../types/project.type';
+import {
+  uploadTaskAttachmentService,
+  uploadUserStoryAttachmentService,
+} from '../../services/attachment.service';
+import {
+  uploadTaskCommentAttachmentService,
+  uploadUserStoryCommentAttachmentService,
+} from '../../services/comments.services';
 
 const userStoryApiWithTags = projectApi.enhanceEndpoints({
-  addTagTypes: ['UserStoryDetail', 'Tasks', 'Comments', 'Attachments'],
+  addTagTypes: [
+    'UserStoryDetail',
+    'UserStories',
+    'TaskDetail',
+    'Tasks',
+    'Comments',
+    'Attachments',
+  ],
 });
 
 export const userStoryApi = userStoryApiWithTags.injectEndpoints({
@@ -301,23 +313,9 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       UploadUserStoryAttachmentResponse,
       UploadUserStoryAttachmentParams
     >({
-      query: ({ projectId, userStoryId, file }) => {
-        const url = USATTACHMENT.replace('{project_id}', projectId).replace(
-          '{user_story_id}',
-          userStoryId,
-        );
-        const formData = new FormData();
-        formData.append('file', {
-          uri: file.uri,
-          name: file.name,
-          type: file.type,
-        } as any);
-        return {
-          url,
-          method: 'POST',
-          data: formData,
-          headers: { 'Content-Type': 'multipart/form-data' },
-        };
+      queryFn: async args => {
+        const data = await uploadUserStoryAttachmentService(args);
+        return { data };
       },
       invalidatesTags: (_result, _error, { userStoryId }) => [
         { type: 'Attachments', id: `userStory_${userStoryId}` },
@@ -343,26 +341,12 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       UploadTaskCommentAttachmentResponse,
       UploadTaskCommentAttachmentParams
     >({
-      query: ({ projectId, taskId, file }) => {
-        const url = TASKATTACHMENT.replace('{project_id}', projectId).replace(
-          '{task_id}',
-          taskId,
-        );
-        const formData = new FormData();
-        formData.append('file', {
-          uri: file.uri,
-          name: file.name,
-          type: file.type,
-        } as any);
-        return {
-          url,
-          method: 'POST',
-          data: formData,
-          headers: { 'Content-Type': 'multipart/form-data' },
-        };
-      },
-      invalidatesTags: (_result, _error, args) => [
-        { type: 'Attachments', id: `task_${args.taskId}` },
+      queryFn: async args => ({
+        data: await uploadTaskAttachmentService(args),
+      }),
+
+      invalidatesTags: (_result, _error, { taskId }) => [
+        { type: 'Attachments', id: `task_${taskId}` },
       ],
     }),
 
@@ -480,24 +464,10 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       UploadUserStoryCommentAttachmentResponse,
       UploadUserStoryCommentAttachmentParams
     >({
-      query: ({ projectId, userStoryId, file }) => {
-        const url = POST_USERSTORY_COMMENT_ATTACHMENT.replace(
-          '{project_id}',
-          projectId,
-        ).replace('{user_story_id}', userStoryId);
-        const formData = new FormData();
-        formData.append('file', {
-          uri: file.uri,
-          name: file.name,
-          type: file.type,
-        } as any);
-        return {
-          url,
-          method: 'POST',
-          data: formData,
-          headers: { 'Content-Type': 'multipart/form-data' },
-        };
-      },
+      queryFn: async args => ({
+        data: await uploadUserStoryCommentAttachmentService(args),
+      }),
+
       invalidatesTags: (_result, _error, { userStoryId }) => [
         { type: 'Comments', id: `userStory_${userStoryId}` },
       ],
@@ -507,21 +477,10 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       TaskCommentAttachmentResponse,
       UploadTaskCommentByTaskAttachmentParams
     >({
-      query: ({ taskId, file }) => {
-        const url = POST_TASK_COMMENT_ATTACHMENT.replace('{task_id}', taskId);
-        const formData = new FormData();
-        formData.append('file', {
-          uri: file.uri,
-          name: file.name,
-          type: file.type,
-        } as any);
-        return {
-          url,
-          method: 'POST',
-          data: formData,
-          headers: { 'Content-Type': 'multipart/form-data' },
-        };
-      },
+      queryFn: async args => ({
+        data: await uploadTaskCommentAttachmentService(args),
+      }),
+
       invalidatesTags: (_result, _error, { taskId }) => [
         { type: 'Comments', id: `task_${taskId}` },
       ],

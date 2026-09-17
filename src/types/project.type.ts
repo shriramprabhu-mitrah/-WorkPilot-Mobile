@@ -148,6 +148,41 @@ export interface ProjectMember {
   username: string;
   full_name: string;
   role: string;
+  avatar_url: string | null;
+  color: string;
+  organization_name: string;
+  project_key: string;
+}
+
+export interface ProjectMembersMeta {
+  page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
+export interface GetProjectMembersResponse extends ApiResponse<
+  ProjectMember[]
+> {
+  meta: ProjectMembersMeta;
+}
+
+export interface GetProjectMembersQueryArgs {
+  project_id: string;
+  page?: number;
+  page_size?: number;
+  name?: string;
+  /** Changing this value forces a refetch. Not sent to the API. */
+  _refetchKey?: number;
+}
+
+export interface RemoveProjectMemberResponse extends ApiResponse {}
+
+export interface RemoveProjectMemberArgs {
+  project_id: string;
+  user_id: string;
 }
 
 export interface ProjectMetrics {
