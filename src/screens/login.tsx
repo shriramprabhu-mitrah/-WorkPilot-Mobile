@@ -224,13 +224,12 @@ const LoginScreen = () => {
               title={strings.auth.login}
               loading={loading}
               onPress={onLogin}
-              // onPress={() => navigation.navigate('HomeTabs')}
             />
-            {/* <AuthFooter
+            <AuthFooter
               title="Don't have an account?"
               actionText='Sign up'
               onPress={() => navigation.navigate('signUp')}
-            /> */}
+            />
           </View>
         </View>
       </View>

@@ -6,6 +6,9 @@ import {
   Image,
   FlatList,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+// If your project uses Expo instead of a bare RN CLI setup, swap the import
+// above for: import LinearGradient from 'expo-linear-gradient';
 import {
   useNavigation,
   useFocusEffect,
@@ -28,23 +31,50 @@ import { showSuccessToast } from '../utils/utils';
 import { showSnackbar } from '../components/common/Snackbar';
 import { Radius } from '../constants/Radius';
 import { getRoleLabel } from '../constants/role';
-import {
-  Activity,
-  AuditResponse,
-  UserInsights,
-  PaginationMeta,
-} from '../types/home.type';
+import { Activity, UserInsights } from '../types/home.type';
 import { formatAction, formatDate, getInitials } from '../utils/utils';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import RecentActivitySkeleton from '../components/skeleton/RecentActivitySkeleton';
-import { useGetUserInsightsQuery } from '../store/api/profileApi';
-import { useGetAuditQuery } from '../store/api/homeApi';
+import {
+  getAudit,
+  getUserInsightsData,
+} from '../store/home_store/action/home.thunk';
+import { resetAuditData } from '../store/home_store/reducer/home.reducer';
 import { useGetProjectsQuery } from '../store/api/projectApi';
 import { FilterChipSkeleton } from '../components/skeleton/filterChipSkeleton';
 import { Project } from '../types/project.type';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+// Vibrant palette used to cycle color accents across stats / project chips.
+// Falls back gracefully if `colors` from the theme doesn't define these.
+const ACCENT_PALETTE = [
+  '#7C3AED', // violet
+  '#EC4899', // pink
+  '#F59E0B', // amber
+  '#10B981', // emerald
+  '#3B82F6', // blue
+  '#EF4444', // red
+];
+
+const withOpacity = (hex: string, opacity: number) => {
+  if (!hex || !hex.startsWith('#')) return hex;
+  const clean = hex.replace('#', '');
+  const bigint = parseInt(
+    clean.length === 3
+      ? clean
+          .split('')
+          .map(c => c + c)
+          .join('')
+      : clean,
+    16,
+  );
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
 
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -54,55 +84,23 @@ const ProfileScreen = () => {
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [isActivityFullScreen, setIsActivityFullScreen] = useState(false);
   const [isProjectSheetVisible, setIsProjectSheetVisible] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
-  const [auditMeta, setAuditMeta] = useState<PaginationMeta | null>(null);
-  const [refetchKey, setRefetchKey] = useState(0);
-
   const profileIcons = strings.profile?.icons;
 
   const { user } = useAppSelector(state => state.auth);
-
-  const previousAuditDataRef = useRef<AuditResponse | null>(null);
-
   const {
-    data: auditData,
-    isLoading: auditLoading,
-    isFetching: auditFetching,
-  } = useGetAuditQuery({
-    type: 'activity',
-    page: currentPage,
-    _refetchKey: refetchKey,
-  });
+    activities,
+    user: homeUser,
+    loading,
+    meta,
+    insights,
+    insightsLoading,
+  } = useAppSelector(state => state.home);
 
-  const { data: insights, isLoading: insightsLoading } =
-    useGetUserInsightsQuery({ _refetchKey: refetchKey });
-
-  const homeUser = auditData?.data?.user ?? null;
-  const activities = allActivities;
-  const loading = auditLoading;
-  const meta = auditMeta;
-
-  useEffect(() => {
-    const newActivities = auditData?.data?.activities ?? [];
-    if (!auditData || newActivities.length === 0) return;
-    previousAuditDataRef.current = auditData;
-    if (currentPage === 1) {
-      setAllActivities(newActivities);
-    } else {
-      setAllActivities(prev => {
-        const existingIds = new Set(prev.map(item => item.id?.toString()));
-        const uniqueActivities = newActivities.filter(item => {
-          if (!item.id) return true;
-          return !existingIds.has(item.id.toString());
-        });
-        return [...prev, ...uniqueActivities];
-      });
-    }
-    setAuditMeta(auditData?.meta ?? null);
-  }, [auditData, currentPage]);
-
-  const isFetchingMore = currentPage > 1 && auditFetching;
+  // Pagination refs
+  const currentPageRef = useRef(1);
+  const fetchingRef = useRef(false);
+  const lastRequestedPageRef = useRef<number | null>(null);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const stats = getStats(colors, insights as UserInsights);
   const quickLinks = getQuickLinks(colors, strings);
@@ -115,9 +113,28 @@ const ProfileScreen = () => {
   // Fetch initial activity data
   useFocusEffect(
     useCallback(() => {
-      setRefetchKey(prev => prev + 1);
-      setCurrentPage(1);
-      previousAuditDataRef.current = null;
+      currentPageRef.current = 1;
+      lastRequestedPageRef.current = null;
+      fetchingRef.current = false;
+      setIsFetchingMore(false);
+      dispatch(getUserInsightsData());
+      dispatch(resetAuditData());
+      dispatch(
+        getAudit({
+          type: 'activity',
+          page: 1,
+        }),
+      );
+      return () => {
+        fetchingRef.current = false;
+        setIsFetchingMore(false);
+      };
+    }, [dispatch]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {};
     }, []),
   );
 
@@ -135,21 +152,53 @@ const ProfileScreen = () => {
   }, []);
 
   const handleLoadMore = useCallback(() => {
-    if (auditLoading && allActivities.length === 0) {
+    if (fetchingRef.current) {
       return;
     }
-    const hasNextPage = meta?.has_next ?? true;
+    if (loading && activities.length === 0) {
+      return;
+    }
+    const currentPage = currentPageRef.current;
+    const hasNextPage =
+      meta?.has_next !== undefined
+        ? meta.has_next
+        : meta?.total_pages !== undefined
+          ? currentPage < meta.total_pages
+          : true;
     if (!hasNextPage) {
       return;
     }
-    setCurrentPage(prev => prev + 1);
-  }, [auditLoading, allActivities.length, meta]);
-
-  // useEffect(() => {
-  //   if (!favoritesLoading) {
-  //     favoritesRef.current = false;
-  //   }
-  // }, [favoritesLoading]);
+    const nextPage = currentPage + 1;
+    if (lastRequestedPageRef.current === nextPage) {
+      return;
+    }
+    fetchingRef.current = true;
+    lastRequestedPageRef.current = nextPage;
+    setIsFetchingMore(true);
+    dispatch(
+      getAudit({
+        type: 'activity',
+        page: nextPage,
+      }),
+    )
+      .unwrap()
+      .then(response => {
+        const responsePage = response?.meta?.page;
+        if (typeof responsePage === 'number' && responsePage >= nextPage) {
+          currentPageRef.current = responsePage;
+        } else {
+          currentPageRef.current = nextPage;
+        }
+      })
+      .catch(error => {
+        console.log('Load more error:', error);
+        lastRequestedPageRef.current = null;
+      })
+      .finally(() => {
+        fetchingRef.current = false;
+        setIsFetchingMore(false);
+      });
+  }, [activities.length, loading, meta, dispatch]);
 
   const handleActivityNavigation = (item: Activity) => {
     const resourceType = item?.resource_type?.toLowerCase();
@@ -176,7 +225,13 @@ const ProfileScreen = () => {
     }
   };
 
-  const renderActivityItem = ({ item }: { item: Activity }) => {
+  const renderActivityItem = ({
+    item,
+    index,
+  }: {
+    item: Activity;
+    index: number;
+  }) => {
     const activityUser = homeUser || user;
     const userName = activityUser?.name || 'User';
     const actionText = formatAction(item.action);
@@ -184,18 +239,22 @@ const ProfileScreen = () => {
     const resourceType = item.resource_type || 'task';
     const title = item.title || item.details || 'Activity Details';
     const key = item.task_key || item.key || '';
+    const accent = ACCENT_PALETTE[index % ACCENT_PALETTE.length];
 
     return (
       <TouchableOpacity
         activeOpacity={0.8}
-        className='mb-3 rounded-2xl border p-4'
+        className='mb-3 flex-row overflow-hidden rounded-2xl border'
         style={{
           backgroundColor: colors.background,
           borderColor: colors.border,
         }}
         onPress={() => handleActivityNavigation(item)}
       >
-        <View className='flex-row items-center'>
+        {/* Colored accent rail */}
+        <View style={{ width: 4, backgroundColor: accent }} />
+
+        <View className='flex-1 flex-row items-center p-4'>
           <View className='relative mr-3.5 self-center'>
             {activityUser?.avatar_url ? (
               <Image
@@ -208,12 +267,16 @@ const ProfileScreen = () => {
                 resizeMode='cover'
               />
             ) : (
-              <View
-                className='items-center justify-center rounded-full'
+              <LinearGradient
+                colors={[accent, withOpacity(accent, 0.6)]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={{
                   width: moderateScale(40),
                   height: moderateScale(40),
-                  backgroundColor: colors.accentOrange || '#E03E15',
+                  borderRadius: moderateScale(20),
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
                 <AppText
@@ -225,7 +288,7 @@ const ProfileScreen = () => {
                 >
                   {getInitials(userName)}
                 </AppText>
-              </View>
+              </LinearGradient>
             )}
             <View
               style={{
@@ -278,17 +341,22 @@ const ProfileScreen = () => {
               {title}
             </AppText>
             {key ? (
-              <AppText
-                variant='caption'
-                color={colors.textSecondary}
-                style={{
-                  fontSize: moderateScale(12),
-                  marginTop: 2,
-                }}
-                numberOfLines={1}
+              <View
+                className='mt-1 self-start rounded-full px-2 py-0.5'
+                style={{ backgroundColor: withOpacity(accent, 0.14) }}
               >
-                {key}
-              </AppText>
+                <AppText
+                  variant='caption'
+                  style={{
+                    fontSize: moderateScale(11),
+                    color: accent,
+                    fontWeight: '600',
+                  }}
+                  numberOfLines={1}
+                >
+                  {key}
+                </AppText>
+              </View>
             ) : null}
           </View>
         </View>
@@ -358,138 +426,12 @@ const ProfileScreen = () => {
     );
   }
 
+  const avatarSize = moderateScale(88);
+  const coverHeight = hp(isSmallHeight ? 16 : 20);
+
   // Regular Profile View
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
-      <View
-        style={{
-          backgroundColor: colors.primary,
-          paddingHorizontal: layout.paddingHorizontal,
-          paddingTop: layout.paddingTop,
-          paddingBottom: layout.sectionGap * 1.5,
-        }}
-      >
-        <View className='mb-6 flex-row items-center justify-between'>
-          <View className='flex-row items-center'>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-              className='items-center justify-center rounded-full bg-white/20'
-              style={{
-                width: moderateScale(36),
-                height: moderateScale(36),
-                marginRight: moderateScale(12),
-              }}
-            >
-              <Ionicons
-                name='menu-outline'
-                size={moderateScale(22)}
-                color={colors.white}
-              />
-            </TouchableOpacity>
-            <AppText variant='h4' color={colors.white}>
-              {strings.profile?.title || 'Profile'}
-            </AppText>
-          </View>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('Settings')}
-            className='items-center justify-center rounded-full bg-white/20'
-            style={{
-              width: moderateScale(36),
-              height: moderateScale(36),
-            }}
-          >
-            <Ionicons
-              name={
-                (profileIcons?.settings || 'settings-outline') as IoniconName
-              }
-              size={18}
-              color={colors.white}
-            />
-          </TouchableOpacity>
-        </View>
-        <View className='flex-row items-end gap-4'>
-          <View className='relative'>
-            <View
-              className='items-center justify-center'
-              style={{
-                width: moderateScale(74),
-                height: moderateScale(74),
-                marginRight: moderateScale(14),
-                borderRadius: Radius.circle,
-              }}
-            >
-              {user?.avatar_url ? (
-                <Image
-                  source={{ uri: user.avatar_url }}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: Radius.circle,
-                  }}
-                  resizeMode='cover'
-                />
-              ) : (
-                <View
-                  className='items-center justify-center'
-                  style={{
-                    width: moderateScale(74),
-                    height: moderateScale(74),
-                    backgroundColor: colors.accentOrange,
-                    borderRadius: Radius.circle,
-                  }}
-                >
-                  <AppText
-                    style={{
-                      fontSize: moderateScale(28),
-                      fontWeight: 'bold',
-                      color: colors.white,
-                    }}
-                  >
-                    {user?.name
-                      ?.split(' ')
-                      .map(word => word[0])
-                      .join('')
-                      .substring(0, 2)
-                      .toUpperCase() || 'U'}
-                  </AppText>
-                </View>
-              )}
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('updateDetails')}
-              className='absolute bottom-0 right-[7%] items-center justify-center rounded-full border'
-              style={{
-                width: moderateScale(26),
-                height: moderateScale(26),
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-              }}
-            >
-              <Ionicons
-                name={(profileIcons?.edit || 'create-outline') as IoniconName}
-                size={14}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
-          <View style={{ gap: layout.tightGap / 2 }}>
-            <AppText variant='h3' color={colors.white}>
-              {user?.name}
-            </AppText>
-            <AppText variant='body' color={colors.textOnPrimarySubtle}>
-              {getRoleLabel(user?.role) ||
-                strings.profile?.role ||
-                'Senior Software Engineer'}
-            </AppText>
-            <AppText variant='caption' color={colors.textOnPrimarySubtle}>
-              {user?.email || 'alex.johnson@company.com'}
-            </AppText>
-          </View>
-        </View>
-      </View>
       <ScrollView
         contentContainerStyle={{
           paddingBottom: isSmallHeight ? hp(20) : hp(12),
@@ -497,30 +439,192 @@ const ProfileScreen = () => {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Stats Section */}
+        {/* Cover-photo style gradient header */}
+        <View style={{ position: 'relative' }}>
+          <LinearGradient
+            colors={[colors.primary, colors.white, colors.primary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              height: coverHeight,
+              paddingHorizontal: layout.paddingHorizontal,
+              paddingTop: layout.paddingTop,
+            }}
+          >
+            <View className='flex-row items-center justify-between'>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+                className='items-center justify-center rounded-full'
+                style={{
+                  width: moderateScale(36),
+                  height: moderateScale(36),
+                  backgroundColor: 'rgba(255,255,255,0.22)',
+                }}
+              >
+                <Ionicons
+                  name='menu-outline'
+                  size={moderateScale(22)}
+                  color={colors.white}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('Settings')}
+                className='items-center justify-center rounded-full'
+                style={{
+                  width: moderateScale(36),
+                  height: moderateScale(36),
+                  backgroundColor: 'rgba(255,255,255,0.22)',
+                }}
+              >
+                <Ionicons
+                  name={
+                    (profileIcons?.settings ||
+                      'settings-outline') as IoniconName
+                  }
+                  size={18}
+                  color={colors.white}
+                />
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+
+          {/* Floating avatar overlapping the cover edge */}
+          <View
+            style={{
+              position: 'absolute',
+              left: layout.paddingHorizontal,
+              bottom: -(avatarSize / 2),
+            }}
+          >
+            <View className='relative'>
+              <View
+                className='items-center justify-center'
+                style={{
+                  width: avatarSize,
+                  height: avatarSize,
+                  borderRadius: Radius.circle,
+                  borderWidth: 4,
+                  borderColor: colors.surface,
+                  backgroundColor: colors.surface,
+                }}
+              >
+                {user?.avatar_url ? (
+                  <Image
+                    source={{ uri: user.avatar_url }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: Radius.circle,
+                    }}
+                    resizeMode='cover'
+                  />
+                ) : (
+                  <LinearGradient
+                    colors={[colors.accentOrange || '#E03E15', '#7C3AED']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: Radius.circle,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <AppText
+                      style={{
+                        fontSize: moderateScale(28),
+                        fontWeight: 'bold',
+                        color: colors.white,
+                      }}
+                    >
+                      {user?.name
+                        ?.split(' ')
+                        .map(word => word[0])
+                        .join('')
+                        .substring(0, 2)
+                        .toUpperCase() || 'U'}
+                    </AppText>
+                  </LinearGradient>
+                )}
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('updateDetails')}
+                className='absolute bottom-0 right-0 items-center justify-center rounded-full border'
+                style={{
+                  width: moderateScale(28),
+                  height: moderateScale(28),
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                }}
+              >
+                <Ionicons
+                  name={(profileIcons?.edit || 'create-outline') as IoniconName}
+                  size={14}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Name / role / email under the avatar */}
         <View
           style={{
-            marginTop: layout.sectionGap,
+            paddingHorizontal: layout.paddingHorizontal,
+            paddingTop: avatarSize / 2 + moderateScale(12),
+            marginBottom: layout.sectionGap,
+          }}
+        >
+          <AppText variant='h3' color={colors.text}>
+            {user?.name}
+          </AppText>
+          <View
+            className='mt-1 self-start rounded-full px-3 py-1'
+            style={{ backgroundColor: withOpacity(colors.primary, 0.12) }}
+          >
+            <AppText
+              variant='caption'
+              style={{ color: colors.primary, fontWeight: '600' }}
+            >
+              {getRoleLabel(user?.role) ||
+                strings.profile?.role ||
+                'Senior Software Engineer'}
+            </AppText>
+          </View>
+          <AppText
+            variant='caption'
+            color={colors.textSecondary}
+            className='mt-2'
+          >
+            {user?.email || 'alex.johnson@company.com'}
+          </AppText>
+        </View>
+
+        {/* Stats Section — colorful tinted cards */}
+        <View
+          style={{
             marginBottom: layout.sectionGap,
             paddingHorizontal: layout.paddingHorizontal,
           }}
         >
           {insightsLoading ? (
-            <View
-              className='flex-row justify-between rounded-2xl border py-4'
-              style={{
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-              }}
-            >
+            <View className='flex-row justify-between'>
               {Array.from({ length: 4 }).map((_, idx) => (
-                <View key={idx} className='flex-1 items-center'>
+                <View
+                  key={idx}
+                  className='mr-2 flex-1 items-center rounded-2xl py-4'
+                  style={{ backgroundColor: colors.border }}
+                >
                   <View
                     className='rounded'
                     style={{
                       width: moderateScale(40),
                       height: moderateScale(24),
-                      backgroundColor: colors.border,
+                      backgroundColor: colors.background,
                     }}
                   />
                   <View
@@ -528,38 +632,49 @@ const ProfileScreen = () => {
                     style={{
                       width: moderateScale(50),
                       height: moderateScale(10),
-                      backgroundColor: colors.border,
+                      backgroundColor: colors.background,
                     }}
                   />
                 </View>
               ))}
             </View>
           ) : (
-            <View
-              className='flex-row justify-between rounded-2xl border py-4'
-              style={{
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-              }}
-            >
-              {stats.map(item => (
-                <View key={item.label} className='flex-1 items-center'>
-                  <AppText variant='title' style={{ color: item.color }}>
-                    {item.value}
-                  </AppText>
-
-                  <AppText
-                    variant='caption'
-                    color={colors.textSecondary}
-                    className='mt-1 text-center'
+            <View className='flex-row justify-between'>
+              {stats.map((item, idx) => {
+                const accent =
+                  item.color || ACCENT_PALETTE[idx % ACCENT_PALETTE.length];
+                return (
+                  <View
+                    key={item.label}
+                    className='items-center rounded-2xl py-4'
+                    style={{
+                      flex: 1,
+                      marginRight:
+                        idx !== stats.length - 1 ? moderateScale(8) : 0,
+                      backgroundColor: withOpacity(accent, 0.12),
+                    }}
                   >
-                    {item.label}
-                  </AppText>
-                </View>
-              ))}
+                    <AppText
+                      variant='title'
+                      style={{ color: accent, fontWeight: '800' }}
+                    >
+                      {item.value}
+                    </AppText>
+                    <AppText
+                      variant='caption'
+                      color={colors.textSecondary}
+                      className='mt-1 text-center'
+                    >
+                      {item.label}
+                    </AppText>
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
+
+        {/* Projects Section — colorful chips */}
         <View
           style={{
             marginBottom: layout.sectionGap,
@@ -603,44 +718,52 @@ const ProfileScreen = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: layout.elementGap / 2 }}
             >
-              {projects.slice(0, 2).map(projectItem => (
-                <TouchableOpacity
-                  key={projectItem.id}
-                  activeOpacity={0.8}
-                  className='flex-row items-center rounded-xl border px-3 py-2'
-                  style={{
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    maxWidth: moderateScale(140),
-                  }}
-                  onPress={() =>
-                    navigation.navigate('projectDetails', {
-                      projectId: projectItem.id,
-                      projectName: projectItem.name,
-                    })
-                  }
-                >
-                  <View
-                    className='mr-2 items-center justify-center rounded-md'
+              {projects.slice(0, 2).map((projectItem, idx) => {
+                const accent = ACCENT_PALETTE[idx % ACCENT_PALETTE.length];
+                return (
+                  <TouchableOpacity
+                    key={projectItem.id}
+                    activeOpacity={0.8}
+                    className='flex-row items-center rounded-xl px-3 py-2'
                     style={{
-                      width: moderateScale(18),
-                      height: moderateScale(18),
-                      backgroundColor: colors.surface,
+                      backgroundColor: withOpacity(accent, 0.12),
+                      borderWidth: 1,
+                      borderColor: withOpacity(accent, 0.35),
+                      maxWidth: moderateScale(150),
                     }}
+                    onPress={() =>
+                      navigation.navigate('projectDetails', {
+                        projectId: projectItem.id,
+                        projectName: projectItem.name,
+                      })
+                    }
                   >
-                    <WorkItemIcon type='project' size={moderateScale(12)} />
-                  </View>
-                  <AppText
-                    variant='body'
-                    color={colors.text}
-                    className='font-medium'
-                    numberOfLines={1}
-                    style={{ maxWidth: moderateScale(90) }}
-                  >
-                    {projectItem.name}
-                  </AppText>
-                </TouchableOpacity>
-              ))}
+                    <View
+                      className='mr-2 items-center justify-center rounded-md'
+                      style={{
+                        width: moderateScale(20),
+                        height: moderateScale(20),
+                        backgroundColor: accent,
+                      }}
+                    >
+                      <WorkItemIcon
+                        type='project'
+                        size={moderateScale(12)}
+                        color={colors.white}
+                      />
+                    </View>
+                    <AppText
+                      variant='body'
+                      color={colors.text}
+                      className='font-medium'
+                      numberOfLines={1}
+                      style={{ maxWidth: moderateScale(90) }}
+                    >
+                      {projectItem.name}
+                    </AppText>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           ) : (
             <View className='p-4'>
@@ -682,50 +805,44 @@ const ProfileScreen = () => {
           {loading && activities.length === 0 ? (
             <RecentActivitySkeleton />
           ) : activities.length > 0 ? (
-            <View
-              className='rounded-xl border'
-              style={{
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-              }}
-            >
-              {activities.slice(0, 4).map((item: Activity, index: number) => (
-                <TouchableOpacity
-                  key={item.id}
-                  onPress={() => handleActivityNavigation(item)}
-                  activeOpacity={0.7}
-                  className={`flex-row items-start px-4 py-3 ${
-                    index !== 3 && index !== activities.slice(0, 4).length - 1
-                      ? 'border-b'
-                      : ''
-                  }`}
-                  style={{
-                    borderColor: colors.itemDivider,
-                  }}
-                >
-                  <View
-                    className='mr-3 mt-2 rounded-full'
-                    style={{
-                      width: moderateScale(8),
-                      height: moderateScale(8),
-                      backgroundColor: colors.primary,
-                    }}
-                  />
-                  <View className='flex-1'>
-                    <AppText variant='body' color={colors.text}>
-                      {item.title}
-                    </AppText>
-                    <AppText
-                      variant='caption'
-                      color={colors.textSecondary}
-                      className='mt-1'
-                      numberOfLines={1}
-                    >
-                      {item.resource_type} • {formatDate(item.created_at)}
-                    </AppText>
-                  </View>
-                </TouchableOpacity>
-              ))}
+            <View>
+              {activities.slice(0, 4).map((item: Activity, index: number) => {
+                const accent = ACCENT_PALETTE[index % ACCENT_PALETTE.length];
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() => handleActivityNavigation(item)}
+                    activeOpacity={0.7}
+                    className='mb-2 flex-row items-start overflow-hidden rounded-xl'
+                    style={{ backgroundColor: withOpacity(accent, 0.08) }}
+                  >
+                    <View style={{ width: 4, backgroundColor: accent }} />
+                    <View className='flex-1 flex-row items-start px-4 py-3'>
+                      <View
+                        className='mr-3 mt-1 rounded-full'
+                        style={{
+                          width: moderateScale(8),
+                          height: moderateScale(8),
+                          backgroundColor: accent,
+                        }}
+                      />
+                      <View className='flex-1'>
+                        <AppText variant='body' color={colors.text}>
+                          {item.title}
+                        </AppText>
+                        <AppText
+                          variant='caption'
+                          color={colors.textSecondary}
+                          className='mt-1'
+                          numberOfLines={1}
+                        >
+                          {item.resource_type} • {formatDate(item.created_at)}
+                        </AppText>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           ) : (
             <View
@@ -742,6 +859,7 @@ const ProfileScreen = () => {
           )}
         </View>
 
+        {/* Quick Links */}
         <View
           style={{
             marginBottom: layout.sectionGap,
@@ -749,13 +867,12 @@ const ProfileScreen = () => {
           }}
         >
           <View
-            className='rounded-xl border'
-            style={{
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-            }}
+            className='rounded-2xl'
+            style={{ backgroundColor: colors.background }}
           >
             {quickLinks.map((item: QuickLinks, index: number) => {
+              const accent =
+                item.color || ACCENT_PALETTE[index % ACCENT_PALETTE.length];
               return (
                 <TouchableOpacity
                   key={item.label}
@@ -771,15 +888,24 @@ const ProfileScreen = () => {
                     }
                   }}
                 >
-                  <Ionicons
-                    name={item.iconName as IoniconName}
-                    size={20}
-                    color={item.color}
-                  />
+                  <View
+                    className='mr-4 items-center justify-center rounded-xl'
+                    style={{
+                      width: moderateScale(36),
+                      height: moderateScale(36),
+                      backgroundColor: withOpacity(accent, 0.14),
+                    }}
+                  >
+                    <Ionicons
+                      name={item.iconName as IoniconName}
+                      size={18}
+                      color={accent}
+                    />
+                  </View>
                   <AppText
                     variant='body'
                     color={colors.text}
-                    className='flex-1 pl-4 font-medium'
+                    className='flex-1 font-medium'
                   >
                     {item.label}
                   </AppText>
@@ -796,28 +922,34 @@ const ProfileScreen = () => {
             })}
           </View>
         </View>
-        {/* Logout Button */}
+
+        {/* Logout Button — solid gradient danger button */}
         <View style={{ paddingHorizontal: layout.paddingHorizontal }}>
           <TouchableOpacity
-            activeOpacity={0.8}
+            activeOpacity={0.85}
             onPress={() => setIsLogoutModalVisible(true)}
-            className='flex-row items-center justify-center gap-2 rounded-xl border-2 py-3'
-            style={{
-              borderColor: colors.error,
-            }}
           >
-            <Ionicons
-              name={(profileIcons?.logout || 'log-out-outline') as IoniconName}
-              size={18}
-              color={colors.error}
-            />
-            <AppText
-              variant='body'
-              color={colors.error}
-              className='font-semibold'
+            <LinearGradient
+              colors={[colors.error, '#B91C1C']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              className='flex-row items-center justify-center gap-2 rounded-xl py-3'
             >
-              {strings.profile?.logout || 'Log out'}
-            </AppText>
+              <Ionicons
+                name={
+                  (profileIcons?.logout || 'log-out-outline') as IoniconName
+                }
+                size={18}
+                color={colors.white}
+              />
+              <AppText
+                variant='body'
+                color={colors.white}
+                className='font-semibold'
+              >
+                {strings.profile?.logout || 'Log out'}
+              </AppText>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </ScrollView>

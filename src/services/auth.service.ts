@@ -16,7 +16,6 @@ import {
 } from '../constants/apiServiceEndpoint';
 
 import {
-  SignUpPayload,
   SignUpResponse,
   SignInPayload,
   SignInResponse,
@@ -46,10 +45,14 @@ import {
  */
 
 export const signUpService = async (
-  payload: SignUpPayload,
+  formData: FormData,
 ): Promise<SignUpResponse> => {
   try {
-    return await post<SignUpResponse, SignUpPayload>(SIGNUP, payload);
+    return await post<SignUpResponse, FormData>(SIGNUP, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   } catch (error) {
     console.error('Sign Up API failed:', error);
     throw error;

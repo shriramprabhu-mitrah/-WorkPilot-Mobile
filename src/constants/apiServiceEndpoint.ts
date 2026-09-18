@@ -17,6 +17,7 @@ export const PASSWORD_RESET_CONFIRM = `/auth/password-reset/confirm`;
 // ORGANIZATION
 export const GET_ORGANIZATION_DETAIL = `/organization/get`;
 export const CREATE_ORGANIZATION = `/organization/create`;
+export const INVITE_ORGANIZATION = `/organization/invite`;
 
 //PROJECT
 export const PROJECTS = `/project`;
@@ -88,3 +89,6 @@ export const GLOBAL_SEARCH = '/search';
 //Comment Attachments
 export const POST_USERSTORY_COMMENT_ATTACHMENT = `/projects/{project_id}/user-stories/{user_story_id}/comments/attachments`;
 export const POST_TASK_COMMENT_ATTACHMENT = `/task/{task_id}/comments/attachments`;
+
+//public
+export const GET_COUNTRIES = `/countries`;
