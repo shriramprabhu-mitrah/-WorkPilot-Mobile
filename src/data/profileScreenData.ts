@@ -86,13 +86,13 @@ export const getQuickLinks = (
     color: colors.warning,
     navigateUrl: 'Favorites',
   },
-  {
-    label: strings.profile?.myOpenIssues || 'My open issues',
-    iconName: (strings.profile?.icons?.openIssues ||
-      'checkbox-outline') as IoniconName,
-    color: colors.primary,
-    navigateUrl: 'HomeTabs',
-  },
+  // {
+  //   label: strings.profile?.myOpenIssues || 'My open issues',
+  //   iconName: (strings.profile?.icons?.openIssues ||
+  //     'checkbox-outline') as IoniconName,
+  //   color: colors.primary,
+  //   navigateUrl: 'HomeTabs',
+  // },
   {
     label: strings.profile?.settings || 'Settings',
     iconName: (strings.profile?.icons?.settings ||

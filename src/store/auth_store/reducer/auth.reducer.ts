@@ -11,6 +11,7 @@ import {
   checkAuthOnAppStart,
   getUserProfileInfo,
   getOrganizationDetail,
+  createOrganization,
 } from '../action/auth.thunks';
 import { jwtDecode } from 'jwt-decode';
 import reactotron from 'reactotron-react-native';
@@ -274,6 +275,20 @@ const authSlice = createSlice({
         state.user = action.payload as User;
       })
       .addCase(getUserProfileInfo.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(createOrganization.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isAuthenticated = true;
+        state.organization = action.payload;
+        state.error = null;
+      })
+      .addCase(createOrganization.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createOrganization.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

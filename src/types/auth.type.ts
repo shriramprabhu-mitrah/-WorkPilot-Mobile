@@ -189,9 +189,7 @@ export interface Organization {
 // Create Organization
 
 export interface CreateOrganizationPayload {
-  name: string;
-  domain: string;
-  logo_url?: string;
+  payload: FormData;
 }
 
 export interface CreateOrganizationResponse extends ApiResponse {}
@@ -232,3 +230,27 @@ export interface PasswordResetState {
   error: string | null;
   message: string | null;
 }
+
+export type GetCountriesResponse = ApiResponse<Country[]>;
+
+export interface Country {
+  id: string;
+  name: string;
+  iso2: string;
+  iso3: string;
+  phone_code: string;
+  timezone: string[];
+  flag_emoji: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface createOrganizationResponse extends ApiResponse {}
+
+export interface InviteOrganizationPayload {
+  members: {
+    email: string;
+  }[];
+}
+
+export interface InviteOrganizationResponse extends ApiResponse {}

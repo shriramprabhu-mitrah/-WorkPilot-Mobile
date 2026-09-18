@@ -44,7 +44,7 @@ const Strings = {
     privacyPolicy: 'Privacy Policy',
     signUpButton: 'Sign up free',
     footerTitle: 'Already have an account?',
-    footerAction: 'Log in',
+    footerAction: 'Login',
   },
 
   forgotPassword: {

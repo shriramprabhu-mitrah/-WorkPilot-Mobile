@@ -83,7 +83,7 @@ const VerifyEmailScreen = () => {
 
       mmkv.remove('verificationEmail');
 
-      navigation.replace('login');
+      navigation.replace('Organization');
     } catch (error: any) {
       console.log(
         error?.error?.message || error?.message || 'Email verification failed',

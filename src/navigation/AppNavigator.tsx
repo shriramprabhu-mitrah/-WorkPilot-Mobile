@@ -29,6 +29,7 @@ import SearchScreen from '../screens/searchScreen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoginScreen from '../screens/login';
 import Favorites from '../screens/favorites.tsx';
+import Organization from '../screens/organization/organization.tsx';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -145,6 +146,7 @@ const AppNavigator = () => {
             <Stack.Screen name='ForgotPassword' component={ForgotPassword} />
             <Stack.Screen name='resetPassword' component={ResetPassword} />
             <Stack.Screen name='Terms' component={TermsScreen} />
+            <Stack.Screen name='Organization' component={Organization} />
             <Stack.Screen
               name='PrivacyPolicy'
               component={PrivacyPolicyScreen}

@@ -105,19 +105,22 @@ const SignUpScreen = () => {
 
   const handleSignUp = async () => {
     if (!validate()) return;
+
     setLoading(true);
+
     try {
-      const result = await dispatch(
-        signUpUser({
-          full_name: fullName,
-          username,
-          email,
-          password,
-          role: 'super_admin',
-          avatar_url: 'https://example.com/avatars/oliver.jpg',
-          timezone: 'Asia/Kolkata',
-        }),
-      ).unwrap();
+      const formData = new FormData();
+
+      formData.append('full_name', fullName.trim());
+      formData.append('username', username.trim());
+      formData.append('email', email.trim());
+      formData.append('password', password);
+      formData.append('role', 'super_admin');
+      formData.append('avatar_url', 'https://example.com/avatars/oliver.jpg');
+      formData.append('timezone', 'Asia/Kolkata');
+
+      const result = await dispatch(signUpUser(formData)).unwrap();
+
       mmkv.set('verificationEmail', email);
       showSuccessToast(result.message, 'success');
       navigation.navigate('verifyEmail');
@@ -368,7 +371,7 @@ const SignUpScreen = () => {
           <AuthFooter
             title={strings?.signUp?.footerTitle}
             actionText={strings?.signUp?.footerAction}
-            onPress={() => navigation.navigate('login')}
+            onPress={() => navigation.navigate('loginScreen')}
           />
         </View>
       </View>

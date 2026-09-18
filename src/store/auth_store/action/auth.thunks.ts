@@ -17,7 +17,6 @@ import {
 
 import {
   AuthState,
-  SignUpPayload,
   SignInPayload,
   ChangePasswordPayload,
   PasswordResetRequestPayload,
@@ -26,11 +25,13 @@ import {
   ResendEmailVerificationPayload,
   UpdateUserResponse,
   UpdateUserProfileThunkPayload,
+  CreateOrganizationPayload,
 } from '../../../types/auth.type';
 // import { storage } from '../../../storage/storage';
 import { handleLoading } from '../reducer/auth.reducer';
 import { clearStorage } from '../../store';
 import { showSnackbar } from '../../../components/common/Snackbar';
+import { createOrganizationService } from '../../../services/organization.service';
 
 interface SignInThunkPayload {
   payload: SignInPayload;
@@ -39,9 +40,9 @@ interface SignInThunkPayload {
 
 export const signUpUser = createAsyncThunk(
   'auth/signUpUser',
-  async (payload: SignUpPayload, { rejectWithValue }) => {
+  async (formData: FormData, { rejectWithValue }) => {
     try {
-      const response = await signUpService(payload);
+      const response = await signUpService(formData);
       return response;
     } catch (error: any) {
       return rejectWithValue(
@@ -238,10 +239,7 @@ export const updateUserProfileInfo = createAsyncThunk<
   { rejectValue: string }
 >(
   'auth/update-profile',
-  async (
-    { formData, handleSuccess },
-    { dispatch, rejectWithValue },
-  ) => {
+  async ({ formData, handleSuccess }, { dispatch, rejectWithValue }) => {
     try {
       const response = await updateUserService(formData);
       if (response.success) {
@@ -271,6 +269,34 @@ export const updateUserProfileInfo = createAsyncThunk<
         });
       }
       return rejectWithValue(errorMsg);
+    } finally {
+      dispatch(handleLoading(false));
+    }
+  },
+);
+
+export const createOrganization = createAsyncThunk(
+  'organization/createOrganization',
+  async (
+    { payload }: CreateOrganizationPayload,
+    { dispatch, rejectWithValue },
+  ) => {
+    try {
+      const response = await createOrganizationService(payload);
+
+      console.log('Create Organization Response -------->', response);
+
+      if (response?.success) {
+        return response.data;
+      }
+
+      return rejectWithValue(
+        response?.message || 'Organization creation failed',
+      );
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error?.message || 'Organization creation failed',
+      );
     } finally {
       dispatch(handleLoading(false));
     }
