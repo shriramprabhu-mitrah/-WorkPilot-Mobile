@@ -18,6 +18,8 @@ export const PASSWORD_RESET_CONFIRM = `/auth/password-reset/confirm`;
 export const GET_ORGANIZATION_DETAIL = `/organization/get`;
 export const CREATE_ORGANIZATION = `/organization/create`;
 export const INVITE_ORGANIZATION = `/organization/invite`;
+export const UPDATE_ORGANIZATION = `/organization/update`;
+export const GET_ORG_MEMBERS = `/organization/get-users`;
 
 //PROJECT
 export const PROJECTS = `/project`;

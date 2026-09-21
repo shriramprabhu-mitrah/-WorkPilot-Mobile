@@ -30,6 +30,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoginScreen from '../screens/login';
 import Favorites from '../screens/favorites.tsx';
 import Organization from '../screens/organization/organization.tsx';
+import OrganizationDetailsScreen from '../screens/organizationDetails.tsx';
+import OrganizationMembers from '../screens/organizationMembers.tsx';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -126,6 +128,15 @@ const AppNavigator = () => {
             <Stack.Screen
               name='ChangePassword'
               component={ChangePasswordScreen}
+            />
+
+            <Stack.Screen
+              name='OrganizationDetails'
+              component={OrganizationDetailsScreen}
+            />
+            <Stack.Screen
+              name='OrganizationMembers'
+              component={OrganizationMembers}
             />
           </Stack.Navigator>
         ) : (
