@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, View, ScrollView, Image } from 'react-native';
+import {
+  TouchableOpacity,
+  View,
+  ScrollView,
+  Image,
+  Linking,
+} from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-
+import DeviceInfo from 'react-native-device-info';
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import { ThemeSettingsScreen } from '../theme/ThemeSettingsScreen'; // Ensure path is correct
@@ -20,9 +26,17 @@ import { useAppDispatch, useAppSelector } from '../store';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const atlassianSites = [
-  { key: 'team.atlassian.net', name: 'Team Alpha', role: 'Admin' },
-  { key: 'company.atlassian.net', name: 'Company HQ', role: 'Member' },
+const Workpoilet = [
+  {
+    key: 'Contact Support',
+    icon: 'mail-outline' as IoniconName,
+    url: 'https://workpilot.com',
+  },
+  {
+    key: 'WorkPilot Website',
+    icon: 'globe-outline' as IoniconName,
+    url: 'https://workpilot.com',
+  },
 ];
 
 export default function SettingsScreen() {
@@ -43,6 +57,47 @@ export default function SettingsScreen() {
       isThemeSection?: boolean;
     }>;
   }> = [
+    {
+      title: 'Organization',
+      items: [
+        {
+          iconName: 'business-outline',
+          label: 'Organization Management',
+          path: 'OrganizationDetails',
+          color: colors.primary || '#0052CC',
+        },
+        {
+          iconName: 'people-outline',
+          label: 'Members',
+          path: 'OrganizationMembers',
+          color: colors.success || '#36B37E',
+        },
+        {
+          iconName: 'key-outline',
+          label: 'Permissions',
+          path: 'OrganizationPermissions',
+          color: colors.accentPurple || '#6554C0',
+        },
+        {
+          iconName: 'pulse-outline',
+          label: 'Status',
+          path: 'OrganizationStatus',
+          color: colors.avatarBg || '#FFAB00',
+        },
+        {
+          iconName: 'shield-checkmark-outline',
+          label: 'Security',
+          path: 'OrganizationSecurity',
+          color: colors.error || '#FF5630',
+        },
+        {
+          iconName: 'card-outline',
+          label: 'Billing',
+          path: 'OrganizationBilling',
+          color: colors.textSecondary || '#6B778C',
+        },
+      ],
+    },
     {
       title: strings?.settings?.sections?.account || 'Account',
       items: [
@@ -78,7 +133,7 @@ export default function SettingsScreen() {
           iconName: 'notifications-outline',
           label: strings?.settings?.sections?.notifications || 'Notifications',
           path: 'Notifications',
-          color: '#FFAB00',
+          color: colors.avatarBg || '#FFAB00',
         },
         {
           iconName: 'color-palette-outline',
@@ -106,7 +161,7 @@ export default function SettingsScreen() {
         },
         {
           iconName: 'information-circle-outline',
-          label: strings?.settings?.sections?.aboutJira || 'About Jira',
+          label: strings?.settings?.sections?.aboutJira || 'About WorkPilot',
           path: 'About',
           color: colors.textSecondary || '#6B778C',
         },
@@ -118,6 +173,8 @@ export default function SettingsScreen() {
     setIsLogoutModalVisible(false);
     dispatch(logoutUser());
   };
+
+  const appVersion = DeviceInfo.getVersion();
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
@@ -152,7 +209,7 @@ export default function SettingsScreen() {
       >
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('Account' as any)}
+          onPress={() => navigation.navigate('updateDetails')}
           className='flex-row items-center border'
           style={{
             borderRadius: Radius.md,
@@ -177,6 +234,7 @@ export default function SettingsScreen() {
                 style={{
                   width: '100%',
                   height: '100%',
+                  borderRadius: Radius.circle,
                 }}
                 resizeMode='cover'
               />
@@ -312,7 +370,12 @@ export default function SettingsScreen() {
             </View>
           </View>
         ))}
-        <View style={{ marginBottom: layout.sectionGap }}>
+        <View
+          style={{
+            marginBottom: layout.sectionGap,
+            gap: layout.tightGap,
+          }}
+        >
           <AppText
             variant='caption'
             color={colors.textSecondary}
@@ -324,7 +387,7 @@ export default function SettingsScreen() {
               paddingLeft: moderateScale(4),
             }}
           >
-            {strings?.settings?.atlassianSites || 'Atlassian sites'}
+            {strings?.settings?.WorkPilotSites || 'WorkPilot'}
           </AppText>
           <View
             className='border'
@@ -335,70 +398,49 @@ export default function SettingsScreen() {
               borderColor: colors.border,
             }}
           >
-            {atlassianSites.map((site, index) => (
+            {Workpoilet.map((site, index) => (
               <View
                 key={site.key}
-                className='flex-row items-center'
                 style={{
-                  paddingHorizontal: moderateScale(16),
-                  paddingVertical: moderateScale(14),
-                  borderBottomWidth:
-                    index !== atlassianSites.length - 1 ? 1 : 0,
+                  borderBottomWidth: index !== Workpoilet.length - 1 ? 1 : 0,
                   borderBottomColor: colors.border,
                 }}
               >
-                <View
-                  className='items-center justify-center rounded-lg'
+                <TouchableOpacity
+                  activeOpacity={0.6}
+                  onPress={() => Linking.openURL(site.url)}
+                  className='flex-row items-center justify-between'
                   style={{
-                    width: moderateScale(32),
-                    height: moderateScale(32),
-                    backgroundColor: colors.primary,
-                    marginRight: moderateScale(12),
+                    paddingHorizontal: moderateScale(16),
+                    paddingVertical: moderateScale(14),
                   }}
                 >
-                  <AppText
-                    style={{
-                      color: colors.white,
-                      fontSize: moderateScale(12),
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    {site.name[0]}
-                  </AppText>
-                </View>
-                <View className='flex-1'>
-                  <AppText variant='body' style={{ fontWeight: '600' }}>
-                    {site.name}
-                  </AppText>
-                  <AppText variant='caption' color={colors.textSecondary}>
-                    {site.key}
-                  </AppText>
-                </View>
-                <View
-                  style={{
-                    borderRadius: Radius.sm,
-                    paddingHorizontal: moderateScale(8),
-                    paddingVertical: moderateScale(2),
-                    backgroundColor:
-                      site.role === 'Admin'
-                        ? colors.background
-                        : colors.surface,
-                  }}
-                >
-                  <AppText
-                    variant='caption'
-                    style={{
-                      fontSize: moderateScale(11),
-                      fontWeight: '600',
-                      color:
-                        site.role === 'Admin'
-                          ? colors.primary
-                          : colors.textSecondary,
-                    }}
-                  >
-                    {site.role}
-                  </AppText>
-                </View>
+                  <View className='flex-1 flex-row items-center'>
+                    <View
+                      className='items-center justify-center rounded-lg'
+                      style={{
+                        width: moderateScale(32),
+                        height: moderateScale(32),
+                        backgroundColor: `${colors.primary}1A`,
+                        marginRight: moderateScale(12),
+                      }}
+                    >
+                      <Ionicons
+                        name={site.icon}
+                        size={moderateScale(16)}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <AppText variant='body' style={{ fontWeight: '500' }}>
+                      {site.key}
+                    </AppText>
+                  </View>
+                  <Ionicons
+                    name='open-outline'
+                    size={moderateScale(16)}
+                    color={colors.placeholder || colors.textSecondary}
+                  />
+                </TouchableOpacity>
               </View>
             ))}
           </View>
@@ -408,11 +450,11 @@ export default function SettingsScreen() {
           style={{ marginVertical: layout.elementGap }}
         >
           <AppText variant='caption' color={colors.placeholder}>
-            {strings?.settings?.versionInfo || 'Jira Cloud · Version 10.14.2'}
+            {`WorkPilot · Version ${appVersion}`}
           </AppText>
           <AppText variant='caption' color={colors.placeholder}>
             {strings?.settings?.copyright ||
-              '© 2026 Atlassian. All rights reserved.'}
+              '© 2026 WorkPilot. All rights reserved.'}
           </AppText>
         </View>
         <TouchableOpacity

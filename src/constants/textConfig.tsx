@@ -125,11 +125,14 @@ const Strings = {
       theme: 'Theme',
       support: 'Support',
       helpCenter: 'Help center',
-      aboutJira: 'About Jira',
+      aboutJira: 'About WorkPilot',
     },
-    atlassianSites: 'Atlassian sites',
-    versionInfo: 'Jira Cloud · Version 10.14.2',
-    copyright: '© 2026 Atlassian. All rights reserved.',
+    WorkPilotSites: 'WorkPilot Sites',
+    contactSupport: 'Contact Support',
+    privacyPolicy: 'Privacy Policy',
+    visitWebsite: 'Visit WorkPilot Website',
+    versionInfo: 'WorkPilot · Version 1.0.0',
+    copyright: '© 2026 WorkPilot. All rights reserved.',
     logout: 'Log out',
   },
 
@@ -164,6 +167,7 @@ const Strings = {
   },
   common: {
     viewAll: 'View all',
+    saveChanges: 'Save Changes',
   },
   home: {
     title: 'Home',

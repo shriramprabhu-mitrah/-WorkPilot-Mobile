@@ -7,6 +7,7 @@ import {
 import Ionicons, {
   IoniconsIconName,
 } from '@react-native-vector-icons/ionicons';
+import DeviceInfo from 'react-native-device-info'; // <-- For dynamic version
 import AppText from '../components/common/AppText';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
@@ -45,6 +46,9 @@ export const CustomDrawerContent: React.FC<
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   // const [include_sprints, setInclude_sprints] = useState(true);
   // const params = { include_sprints: include_sprints };
+  // App version & build number
+  const appVersion = DeviceInfo.getVersion(); // e.g. "1.0.0"
+
   const handleNavigation = (routeName: string) => {
     if (props.navigation && typeof props.navigation.navigate === 'function') {
       props.navigation.closeDrawer();
@@ -265,6 +269,28 @@ export const CustomDrawerContent: React.FC<
             </React.Fragment>
           ))}
         </DrawerContentScrollView>
+
+        {/* 3. Pinned App Version Footer */}
+        <View
+          style={{
+            paddingHorizontal: layout.paddingHorizontal || 20,
+            paddingVertical: 16,
+            paddingBottom: moderateScale(60),
+            borderTopWidth: 1,
+            borderTopColor: colors.border || '#F1F5F9',
+            backgroundColor: colors.surface,
+          }}
+        >
+          <AppText
+            variant='caption'
+            style={{
+              color: colors.textSecondary || '#94A3B8',
+              letterSpacing: 0.3,
+            }}
+          >
+            App Version {appVersion}
+          </AppText>
+        </View>
       </View>
 
       {/* Bottom Sheet for Project List */}

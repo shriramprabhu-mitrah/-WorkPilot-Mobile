@@ -9,7 +9,9 @@ import { moderateScale } from '../../../utils/responsive';
 interface Props extends TextInputProps {
   label?: string;
   error?: string;
+  helperText?: string;
   leftIcon?: ReactNode;
+  rightIcon?: ReactNode;
   rightSendButton?: ReactNode;
   disabled?: boolean;
 }
@@ -19,7 +21,9 @@ const AppInput = forwardRef<TextInput, Props>(
     {
       label,
       error,
+      helperText,
       leftIcon,
+      rightIcon,
       style,
       rightSendButton,
       disabled = false,
@@ -111,6 +115,17 @@ const AppInput = forwardRef<TextInput, Props>(
               style,
             ]}
           />
+
+          {rightIcon && (
+            <View
+              style={{
+                marginLeft: moderateScale(10),
+              }}
+            >
+              {rightIcon}
+            </View>
+          )}
+
           {rightSendButton && (
             <View
               style={{
@@ -121,7 +136,7 @@ const AppInput = forwardRef<TextInput, Props>(
             </View>
           )}
         </View>
-        {!!error && (
+        {!!error ? (
           <AppText
             variant='caption'
             color={colors.error}
@@ -132,7 +147,18 @@ const AppInput = forwardRef<TextInput, Props>(
           >
             {error}
           </AppText>
-        )}
+        ) : !!helperText ? (
+          <AppText
+            variant='caption'
+            style={{
+              marginTop: layout.tightGap,
+              fontSize: layout.captionFontSize,
+              color: colors.textSecondary,
+            }}
+          >
+            {helperText}
+          </AppText>
+        ) : null}
       </View>
     );
   },

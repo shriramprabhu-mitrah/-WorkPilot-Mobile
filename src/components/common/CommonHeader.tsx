@@ -26,7 +26,8 @@ export type HeaderVariant =
   | 'custom'
   | 'projectdetails'
   | 'taskDetails'
-  | 'search';
+  | 'search'
+  | 'organizationMembers';
 
 export interface SearchCategoryOption<T = string> {
   label: string;
@@ -347,14 +348,21 @@ export const CommonHeader: React.FC<HeaderProps> = ({
         );
 
       case 'search':
+      case 'organizationMembers':
         return (
           <AppText
             variant='body'
             className='font-bold'
-            style={{ fontSize: moderateScale(18), color: colors.text }}
+            style={{
+              fontSize: moderateScale(18),
+              color: colors.text,
+            }}
             numberOfLines={1}
           >
-            {title || 'Search'}
+            {title ||
+              (variant === 'organizationMembers'
+                ? 'Organization Members'
+                : 'Search')}
           </AppText>
         );
 
@@ -422,7 +430,7 @@ export const CommonHeader: React.FC<HeaderProps> = ({
   const renderBottomSection = () => {
     if (children) return <View className='mt-3'>{children}</View>;
 
-    if (variant === 'search') {
+    if (variant === 'search' || variant === 'organizationMembers') {
       return (
         <View className='mt-3'>
           <AppInput

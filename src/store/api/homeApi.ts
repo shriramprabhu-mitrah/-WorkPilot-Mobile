@@ -9,6 +9,8 @@ import {
   GET_FAVOURITES,
   GLOBAL_SEARCH,
   CHANGE_PASSWORD,
+  GET_COUNTRIES,
+  GET_ORG_MEMBERS,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetRecentProjectResponse,
@@ -19,11 +21,16 @@ import {
   ChangePasswordResponse,
   GetUserResponse,
   GetOrganizationResponse,
+  UpdateOrganizationPayload,
+  GetCountriesResponse,
+  GetOrganizationMembersResponse,
+  getOrganizationMemberPayload,
 } from '../../types/auth.type';
 import {
   GetFavoritesResponse,
   GetFavouritesParams,
 } from '../../types/projectBoard.type';
+import { updateOrganizationService } from '../../services/organization.service';
 
 export interface GetAuditQueryArgs {
   type: 'viewed' | 'activity';
@@ -45,6 +52,7 @@ export interface GetGlobalSearchQueryArgs {
 export const homeApi = createApi({
   reducerPath: 'homeApi',
   baseQuery: axiosBaseQuery,
+  tagTypes: ['Organization'],
   endpoints: build => ({
     getAudit: build.query<AuditResponse, GetAuditQueryArgs>({
       query: ({ type, page, page_size }) => {
@@ -105,7 +113,21 @@ export const homeApi = createApi({
     }),
 
     getOrganizationDetail: build.query<GetOrganizationResponse, void>({
-      query: () => ({ url: GET_ORGANIZATION_DETAIL }),
+      query: () => ({
+        url: GET_ORGANIZATION_DETAIL,
+      }),
+      providesTags: ['Organization'],
+    }),
+
+    getOrganizationMembers: build.query<
+      GetOrganizationMembersResponse,
+      getOrganizationMemberPayload
+    >({
+      query: ({ _refetchKey, ...params }) => ({
+        url: GET_ORG_MEMBERS,
+        params,
+      }),
+      providesTags: ['Organization'],
     }),
 
     getFavourites: build.query<GetFavoritesResponse, GetFavouritesQueryArgs>({
@@ -159,6 +181,34 @@ export const homeApi = createApi({
         data: payload,
       }),
     }),
+
+    updateOrganization: build.mutation<
+      GetOrganizationResponse,
+      UpdateOrganizationPayload
+    >({
+      queryFn: async payload => {
+        try {
+          const data = await updateOrganizationService(payload);
+          return { data };
+        } catch (error: any) {
+          return {
+            error: {
+              status: error.response?.status ?? 'CUSTOM_ERROR',
+              data: error.response?.data ?? error.message,
+            },
+          };
+        }
+      },
+
+      invalidatesTags: ['Organization'],
+    }),
+
+    getCountries: build.query<GetCountriesResponse, void>({
+      query: () => ({
+        url: GET_COUNTRIES,
+        method: 'GET',
+      }),
+    }),
   }),
 });
 
@@ -170,4 +220,7 @@ export const {
   useGetFavouritesQuery,
   useGlobalSearchQuery,
   useChangePasswordMutation,
+  useUpdateOrganizationMutation,
+  useGetCountriesQuery,
+  useGetOrganizationMembersQuery,
 } = homeApi;

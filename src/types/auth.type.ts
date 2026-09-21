@@ -254,3 +254,92 @@ export interface InviteOrganizationPayload {
 }
 
 export interface InviteOrganizationResponse extends ApiResponse {}
+
+export interface UpdateOrganizationPayload {
+  name?: string;
+  domain?: string;
+  team_size?: string;
+  country_id?: string;
+  logo?: {
+    uri: string;
+    name: string;
+    type: string;
+  } | null;
+}
+
+export type DropdownType = 'industry' | 'teamSize' | 'country' | null;
+
+export interface FormState {
+  name: string;
+  slug: string;
+  domain: string;
+  industry: string;
+  teamSize: string;
+  selectedCountry: Country | null;
+}
+
+export interface LogoState {
+  uri: string | null | undefined;
+  name: string;
+  type: string;
+}
+
+export interface UIState {
+  activeDropdown: DropdownType;
+  isPickerModalOpen: boolean;
+  countrySearchQuery: string;
+}
+
+export interface OrganizationMember {
+  id: string;
+  organization_id: string;
+  organization_name: string;
+  name: string;
+  username: string;
+  email: string;
+  role: string;
+  avatar_url: string | null;
+  color: string | null;
+  timezone: string;
+  is_active: boolean;
+  is_verified?: boolean;
+  status?: string;
+  created_at?: string;
+  joined_at?: string;
+  total_assigned?: number;
+  in_progress?: number;
+  completed?: number;
+  completion_percentage?: number;
+}
+
+export interface OrganizationMemberMeta {
+  page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
+export interface GetOrganizationMembersResponse extends ApiResponse<
+  OrganizationMember[]
+> {
+  meta?: OrganizationMemberMeta;
+  pagination?: OrganizationMemberMeta;
+}
+
+export interface getOrganizationMemberPayload {
+  page?: number;
+  page_size?: number;
+  full_name?: string;
+  email?: string;
+  username?: string;
+  role?: string;
+  is_active?: boolean;
+  is_verified?: boolean;
+  status?: string;
+  timezone?: string;
+  include_org_admins?: boolean;
+  /** Changes the cache request without being sent to the API. */
+  _refetchKey?: number;
+}

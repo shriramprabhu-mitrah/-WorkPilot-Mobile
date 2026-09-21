@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -27,8 +27,6 @@ import { useAuthLayout } from '../hooks/useAuthLayout';
 import { QuickLinks, getQuickLinks, getStats } from '../data/profileScreenData';
 import { useAppDispatch, useAppSelector } from '../store';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
-import { showSuccessToast } from '../utils/utils';
-import { showSnackbar } from '../components/common/Snackbar';
 import { Radius } from '../constants/Radius';
 import { getRoleLabel } from '../constants/role';
 import { Activity, UserInsights } from '../types/home.type';
@@ -36,11 +34,8 @@ import { formatAction, formatDate, getInitials } from '../utils/utils';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import RecentActivitySkeleton from '../components/skeleton/RecentActivitySkeleton';
-import {
-  getAudit,
-  getUserInsightsData,
-} from '../store/home_store/action/home.thunk';
-import { resetAuditData } from '../store/home_store/reducer/home.reducer';
+import { useGetAuditQuery } from '../store/api/homeApi';
+import { useGetUserInsightsQuery } from '../store/api/profileApi';
 import { useGetProjectsQuery } from '../store/api/projectApi';
 import { FilterChipSkeleton } from '../components/skeleton/filterChipSkeleton';
 import { Project } from '../types/project.type';
@@ -57,6 +52,13 @@ const ACCENT_PALETTE = [
   '#3B82F6', // blue
   '#EF4444', // red
 ];
+
+const EMPTY_INSIGHTS: UserInsights = {
+  total_assigned: 0,
+  in_progress: 0,
+  completed: 0,
+  completion_percentage: 0,
+};
 
 const withOpacity = (hex: string, opacity: number) => {
   if (!hex || !hex.startsWith('#')) return hex;
@@ -84,63 +86,56 @@ const ProfileScreen = () => {
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [isActivityFullScreen, setIsActivityFullScreen] = useState(false);
   const [isProjectSheetVisible, setIsProjectSheetVisible] = useState(false);
+  const [activityPage, setActivityPage] = useState(1);
   const profileIcons = strings.profile?.icons;
 
   const { user } = useAppSelector(state => state.auth);
+
   const {
-    activities,
-    user: homeUser,
-    loading,
-    meta,
-    insights,
-    insightsLoading,
-  } = useAppSelector(state => state.home);
+    data: auditResponse,
+    isLoading: auditLoading,
+    isFetching: auditFetching,
+  } = useGetAuditQuery(
+    { type: 'activity', page: activityPage },
+    {
+      refetchOnFocus: true,
+      refetchOnMountOrArgChange: true,
+    },
+  );
 
-  // Pagination refs
-  const currentPageRef = useRef(1);
-  const fetchingRef = useRef(false);
-  const lastRequestedPageRef = useRef<number | null>(null);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const { data: insights, isLoading: insightsLoading } =
+    useGetUserInsightsQuery(
+      {},
+      {
+        refetchOnFocus: true,
+        refetchOnMountOrArgChange: true,
+      },
+    );
 
-  const stats = getStats(colors, insights as UserInsights);
+  const { data: projectsResponse, isLoading: projectsLoading } =
+    useGetProjectsQuery(
+      { page: 1 },
+      { refetchOnFocus: true, refetchOnMountOrArgChange: true },
+    );
+
+  const activities = auditResponse?.data?.activities ?? [];
+  const homeUser = auditResponse?.data?.user ?? null;
+  const meta = auditResponse?.meta ?? auditResponse?.data?.pagination ?? null;
+  const isFetchingMore = auditFetching && activityPage > 1;
+  const stats = getStats(colors, insights ?? EMPTY_INSIGHTS);
   const quickLinks = getQuickLinks(colors, strings);
+  const projects = (projectsResponse?.data as Project[] | undefined) ?? [];
 
   const handleLogoutConfirm = () => {
     setIsLogoutModalVisible(false);
     dispatch(logoutUser());
   };
 
-  // Fetch initial activity data
   useFocusEffect(
     useCallback(() => {
-      currentPageRef.current = 1;
-      lastRequestedPageRef.current = null;
-      fetchingRef.current = false;
-      setIsFetchingMore(false);
-      dispatch(getUserInsightsData());
-      dispatch(resetAuditData());
-      dispatch(
-        getAudit({
-          type: 'activity',
-          page: 1,
-        }),
-      );
-      return () => {
-        fetchingRef.current = false;
-        setIsFetchingMore(false);
-      };
-    }, [dispatch]),
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      return () => {};
+      setActivityPage(1);
     }, []),
   );
-
-  const { data: projectsResponse, isLoading: projectsLoading } =
-    useGetProjectsQuery({ page: 1 });
-  const projects = (projectsResponse?.data as Project[]) || [];
 
   // Navigation to full-screen activity
   const openActivityFullScreen = useCallback(() => {
@@ -152,53 +147,25 @@ const ProfileScreen = () => {
   }, []);
 
   const handleLoadMore = useCallback(() => {
-    if (fetchingRef.current) {
+    if (auditLoading && activities.length === 0) {
       return;
     }
-    if (loading && activities.length === 0) {
+    if (auditFetching) {
       return;
     }
-    const currentPage = currentPageRef.current;
+
     const hasNextPage =
-      meta?.has_next !== undefined
-        ? meta.has_next
-        : meta?.total_pages !== undefined
-          ? currentPage < meta.total_pages
-          : true;
+      meta?.has_next ??
+      (meta?.total_pages !== undefined
+        ? activityPage < meta.total_pages
+        : true);
+
     if (!hasNextPage) {
       return;
     }
-    const nextPage = currentPage + 1;
-    if (lastRequestedPageRef.current === nextPage) {
-      return;
-    }
-    fetchingRef.current = true;
-    lastRequestedPageRef.current = nextPage;
-    setIsFetchingMore(true);
-    dispatch(
-      getAudit({
-        type: 'activity',
-        page: nextPage,
-      }),
-    )
-      .unwrap()
-      .then(response => {
-        const responsePage = response?.meta?.page;
-        if (typeof responsePage === 'number' && responsePage >= nextPage) {
-          currentPageRef.current = responsePage;
-        } else {
-          currentPageRef.current = nextPage;
-        }
-      })
-      .catch(error => {
-        console.log('Load more error:', error);
-        lastRequestedPageRef.current = null;
-      })
-      .finally(() => {
-        fetchingRef.current = false;
-        setIsFetchingMore(false);
-      });
-  }, [activities.length, loading, meta, dispatch]);
+
+    setActivityPage(previousPage => previousPage + 1);
+  }, [activities.length, auditFetching, auditLoading, activityPage, meta]);
 
   const handleActivityNavigation = (item: Activity) => {
     const resourceType = item?.resource_type?.toLowerCase();
@@ -382,7 +349,7 @@ const ProfileScreen = () => {
             paddingBottom: isSmallHeight ? hp(20) : hp(12),
           }}
         >
-          {loading && activities.length === 0 ? (
+          {auditLoading && activities.length === 0 ? (
             <View>
               {Array.from({ length: 5 }).map((_, idx) => (
                 <View key={idx} className='mb-3'>
@@ -404,7 +371,7 @@ const ProfileScreen = () => {
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.2}
               ListEmptyComponent={
-                !loading ? (
+                !auditLoading ? (
                   <View className='py-10'>
                     <AppText variant='body' color={colors.textSecondary}>
                       No recent activity
@@ -802,7 +769,7 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {loading && activities.length === 0 ? (
+          {auditLoading && activities.length === 0 ? (
             <RecentActivitySkeleton />
           ) : activities.length > 0 ? (
             <View>
