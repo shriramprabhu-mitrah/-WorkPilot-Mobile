@@ -83,6 +83,12 @@ export const CustomDrawerContent: React.FC<
     },
     {
       id: 5,
+      name: 'Settings',
+      icon: 'settings-outline',
+      route: 'Settings',
+    },
+    {
+      id: 6,
       name: 'Logout',
       icon: 'log-out-outline',
       route: 'Logout',

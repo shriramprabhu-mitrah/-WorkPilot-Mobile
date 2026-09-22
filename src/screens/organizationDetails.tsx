@@ -36,6 +36,7 @@ import {
   LogoState,
   UIState,
 } from '../types/auth.type';
+import LinearGradient from 'react-native-linear-gradient';
 
 const formatDisplayLabel = (value: string) =>
   value ? value.replace(/_/g, ' ') : '';
@@ -262,10 +263,11 @@ const OrganizationDetailsScreen = () => {
     <TouchableOpacity
       activeOpacity={readOnly ? 1 : 0.8}
       onPress={readOnly ? undefined : onPress}
-      className='flex-1 flex-row items-center justify-between rounded-lg border bg-white px-[13px]'
+      className='flex-1 flex-row items-center justify-between rounded-lg border px-[13px]'
       style={{
         height: moderateScale(48),
         borderColor: colors.border,
+        backgroundColor: colors.surface,
       }}
     >
       <View
@@ -302,11 +304,13 @@ const OrganizationDetailsScreen = () => {
   );
 
   return (
-    <Screen scroll backgroundColor={colors.background}>
+    <Screen scroll backgroundColor={colors.surface}>
       {/* Header Banner */}
-      <View
+      <LinearGradient
+        colors={[colors.primary, colors.white, colors.primary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={{
-          backgroundColor: colors.primary,
           paddingTop: moderateScale(16),
           paddingBottom: isSmallHeight ? moderateScale(20) : moderateScale(28),
           paddingHorizontal: layout.paddingHorizontal,
@@ -315,7 +319,10 @@ const OrganizationDetailsScreen = () => {
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => navigation.goBack()}
-          style={{ padding: moderateScale(4), marginBottom: moderateScale(12) }}
+          style={{
+            padding: moderateScale(4),
+            marginBottom: moderateScale(12),
+          }}
         >
           <Ionicons
             name='arrow-back'
@@ -386,7 +393,7 @@ const OrganizationDetailsScreen = () => {
           <AppText
             variant='h2'
             className='text-center font-bold'
-            style={{ fontSize: moderateScale(20), color: colors.white }}
+            style={{ fontSize: moderateScale(20), color: colors.black }}
           >
             {formData.name || 'Organization Name'}
           </AppText>
@@ -420,7 +427,7 @@ const OrganizationDetailsScreen = () => {
             </AppText>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Form Fields */}
       <View
@@ -518,8 +525,12 @@ const OrganizationDetailsScreen = () => {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => updateUI({ activeDropdown: 'country' })}
-            className='flex-row items-center justify-between rounded-lg border bg-white px-[14px]'
-            style={{ height: moderateScale(48), borderColor: colors.border }}
+            className='flex-row items-center justify-between rounded-lg border px-[14px]'
+            style={{
+              height: moderateScale(48),
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+            }}
           >
             <AppText
               style={{
@@ -565,7 +576,8 @@ const OrganizationDetailsScreen = () => {
           }
         >
           <TouchableOpacity
-            className='max-h-[70%] rounded-t-[20px] bg-white px-5 pb-[30px] pt-[18px]'
+            className='max-h-[70%] rounded-t-[20px] px-5 pb-[30px] pt-[18px]'
+            style={{ backgroundColor: colors.surface }}
             activeOpacity={1}
             onPress={e => e.stopPropagation()}
           >
@@ -600,7 +612,7 @@ const OrganizationDetailsScreen = () => {
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled
               keyboardShouldPersistTaps='handled'
-              style={{ paddingBottom: moderateScale(25) }}
+              style={{ paddingBottom: moderateScale(50) }}
             >
               {dropdownConfig.options.map(option => {
                 const isSelected = dropdownConfig.selected === option;

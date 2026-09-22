@@ -28,6 +28,7 @@ import {
   updateUserProfileInfo,
 } from '../store/auth_store/action/auth.thunks';
 import { getRoleLabel } from '../constants/role';
+import LinearGradient from 'react-native-linear-gradient';
 type PickerTarget = 'avatar' | 'cover';
 
 const UpdateUserDetailsScreen = () => {
@@ -203,7 +204,7 @@ const UpdateUserDetailsScreen = () => {
     appendImageIfChanged(formData, 'avatar', avatarUri, user?.avatar_url);
     appendImageIfChanged(
       formData,
-      'cover_image',
+      'cover_img',
       coverUri,
       (user as any)?.cover_img_url,
     );
@@ -375,7 +376,7 @@ const UpdateUserDetailsScreen = () => {
           className='text-center font-bold'
           style={{
             fontSize: isSmallHeight ? moderateScale(20) : moderateScale(22),
-            color: colors.white,
+            color: `${coverUri ? colors.white : colors.black}`,
           }}
         >
           {user?.name || strings?.updateUser?.headerTitle}
@@ -383,7 +384,7 @@ const UpdateUserDetailsScreen = () => {
         <AppText
           variant='body'
           className='text-center'
-          style={{ color: colors.white }}
+          style={{ color: `${coverUri ? colors.white : colors.black}` }}
         >
           {getRoleLabel(user?.role)}
         </AppText>
@@ -434,7 +435,16 @@ const UpdateUserDetailsScreen = () => {
           </View>
         </ImageBackground>
       ) : (
-        <View style={{ backgroundColor: colors.primary }}>{HeaderContent}</View>
+        <LinearGradient
+          colors={[colors.primary, colors.white, colors.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            width: '100%',
+          }}
+        >
+          {HeaderContent}
+        </LinearGradient>
       )}
 
       <View
