@@ -536,23 +536,84 @@ export interface UpdateUserStoryResponse {
 
 export interface GetBurnbownParams {
   projectId: string;
-  sprintId: string;
+  sprintId?: string | null;
 }
 
-export interface BurndownPoint {
+export interface BurndownDayPoint {
+  day: number;
   date: string;
-  remaining_points: number | null;
-  ideal_value: number;
+  ideal_hours: number;
+  actual_hours: number;
+}
+
+export interface SprintBurndownItem {
+  sprint_id: string;
+  sprint_name: string;
+  data: BurndownDayPoint[];
 }
 
 export interface SprintBurndownData {
-  sprint_id: string;
-  sprint_name: string;
-  total_story_points: number;
-  burndown_data: BurndownPoint[];
+  sprint_burndown?: SprintBurndownItem[];
+  // Legacy fields kept for backward compatibility if needed
+  sprint_id?: string;
+  sprint_name?: string;
+  total_story_points?: number;
+  burndown_data?: {
+    date: string;
+    remaining_points: number | null;
+    ideal_value: number;
+  }[];
 }
+
 export interface GetBurndownResponse extends ApiResponse {
   data: SprintBurndownData;
+}
+
+export interface TeamWorkloadMember {
+  user_id?: string;
+  id?: string;
+  user_name?: string;
+  name?: string;
+  username?: string;
+  email?: string;
+  profile_picture?: string;
+  avatar_url?: string;
+  tasks_count?: number;
+  total_tasks?: number;
+  tasks?: number;
+  story_points?: number;
+  total_points?: number;
+  points?: number;
+  [key: string]: any;
+}
+
+export interface GetTeamWorkloadResponse extends ApiResponse {
+  data: TeamWorkloadMember[];
+}
+
+export interface GetTeamWorkloadQueryArgs {
+  projectId: string;
+  sprintId?: string | null;
+  _refetchKey?: number;
+}
+
+export interface WeeklyProgressDayItem {
+  day: string;
+  planned: number;
+  completed: number;
+  date?: string;
+  [key: string]: any;
+}
+
+export interface GetWeeklyProgressResponse extends ApiResponse {
+  data: WeeklyProgressDayItem[];
+}
+
+export interface GetWeeklyProgressQueryArgs {
+  projectId: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  _refetchKey?: number;
 }
 
 export interface UserStoryTask {

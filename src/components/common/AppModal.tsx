@@ -3,11 +3,12 @@ import { Modal, TouchableOpacity, View } from 'react-native';
 
 import AppText from './AppText';
 import { ThemeColors } from '../../constants/Colors';
+import { useTheme } from '../../hooks/useTheme';
 
 interface Props {
   visible: boolean;
   title?: string;
-  colors: ThemeColors;
+  colors?: ThemeColors;
   children: React.ReactNode;
   onClose: () => void;
   showCloseButton?: boolean;
@@ -16,11 +17,13 @@ interface Props {
 const AppModal = ({
   visible,
   title,
-  colors,
+  colors: propColors,
   children,
   onClose,
   showCloseButton = true,
 }: Props) => {
+  const { colors: themeColors } = useTheme();
+  const colors = propColors || themeColors;
   return (
     <Modal
       visible={visible}

@@ -18,7 +18,7 @@ import {
   removeQuickAccessItem,
   QuickAccessItem,
 } from '../store/home_store/reducer/home.reducer';
-import { getWorkItemIcon } from '../components/common/getWorkItemIcon';
+import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import { ViewedItem } from '../types/home.type';
 
 const ALL_AVAILABLE_ITEMS: ViewedItem[] = [
@@ -377,10 +377,11 @@ export const QuickAccess: React.FC = () => {
                     borderColor: colors.border,
                   }}
                 >
-                  {getWorkItemIcon(item.type, {
-                    size: moderateScale(16),
-                    color: colors.text,
-                  })}
+                  <WorkItemIcon
+                    type={item.type}
+                    size={moderateScale(16)}
+                    color={colors.text}
+                  />
                 </View>
 
                 <View className='flex-1 pr-3'>
@@ -523,10 +524,11 @@ export const QuickAccess: React.FC = () => {
                         borderColor: colors.border,
                       }}
                     >
-                      {getWorkItemIcon(item.type, {
-                        size: moderateScale(16),
-                        color: colors.text,
-                      })}
+                      <WorkItemIcon
+                        type={item.type}
+                        size={moderateScale(16)}
+                        color={colors.text}
+                      />
                     </View>
 
                     <AppText

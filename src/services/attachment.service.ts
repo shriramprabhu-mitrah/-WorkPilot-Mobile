@@ -201,3 +201,9 @@ export const downloadTaskAttachmentService = async ({
     throw error;
   }
 };
+
+// Backward-compatibility aliases
+export const getTaskCommentAttachmentsService = getTaskAttachmentsService;
+export const uploadTaskCommentAttachmentService = uploadTaskAttachmentService;
+export const deleteTaskCommentAttachmentService = deleteTaskAttachmentService;
+export const downloadTaskCommentAttachmentService = downloadTaskAttachmentService;

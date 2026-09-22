@@ -297,18 +297,16 @@ const List = () => {
               >
                 {/* Left Avatar Icon Box */}
                 <View
-                  className='items-center justify-center'
+                  className='items-center justify-center rounded-lg'
                   style={{
-                    width: moderateScale(44),
-                    height: moderateScale(44),
-                    backgroundColor: colors.primary,
-                    borderRadius: Radius.sm,
+                    width: moderateScale(30),
+                    height: moderateScale(30),
+                    backgroundColor: colors.surface,
                   }}
                 >
                   <WorkItemIcon
-                    type='userStory'
-                    size={20}
-                    color={colors.white}
+                    type='user_story'
+                    size={moderateScale(20)}
                   />
                 </View>
 

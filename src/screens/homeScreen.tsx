@@ -223,7 +223,10 @@ const HomeScreen = () => {
                     key={item.id}
                     activeOpacity={0.8}
                     onPress={() =>
-                      navigation.navigate('projectDetails', { id: item.key })
+                      navigation.navigate('projectDetails', {
+                        projectId: item.key,
+                        projectName: item.name,
+                      })
                     }
                     style={{
                       width: '48.5%',

@@ -424,7 +424,15 @@ export const Home: React.FC = () => {
             );
           })
         ) : (
-          <View className='py-2'>
+          <View
+            className='flex-row items-center py-2'
+            style={{ gap: layout.tightGap }}
+          >
+            <Ionicons
+              name='folder-open-outline'
+              size={moderateScale(16)}
+              color={colors.placeholder || colors.textSecondary}
+            />
             <AppText variant='caption' color={colors.textSecondary}>
               No recent projects
             </AppText>
@@ -683,12 +691,35 @@ export const Home: React.FC = () => {
       return renderStickyTabsHeader();
     }
     if (item.type === 'empty') {
+      const isViewed = activeTab === 'viewed';
       return (
-        <View className='items-center justify-center py-10'>
-          <AppText variant='body' color={colors.textSecondary}>
-            {activeTab === 'viewed'
-              ? 'No recently viewed items'
-              : 'No favorites'}
+        <View
+          className='items-center justify-center'
+          style={{
+            paddingVertical: layout.sectionGap * 2,
+            gap: layout.elementGap,
+          }}
+        >
+          <Ionicons
+            name={isViewed ? 'eye-outline' : 'star-outline'}
+            size={layout.iconSize * 2.5}
+            color={colors.placeholder || colors.textSecondary}
+          />
+          <AppText
+            variant='title'
+            color={colors.text}
+            className='font-semibold'
+          >
+            {isViewed ? 'No recently viewed items' : 'No favorites found'}
+          </AppText>
+          <AppText
+            variant='body'
+            color={colors.textSecondary}
+            className='text-center'
+          >
+            {isViewed
+              ? 'Items you recently viewed will appear here.'
+              : 'Items you mark as favorite will appear here.'}
           </AppText>
         </View>
       );

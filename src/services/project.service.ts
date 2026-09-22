@@ -165,7 +165,7 @@ export const getBurndownChartService = async ({
     const url = GET_BURNDOWN_BY_PROJECT_SPRINT.replace(
       '{project_id}',
       projectId,
-    ).replace('{sprint_id}', sprintId);
+    ).replace('{sprint_id}', sprintId || '');
     return await get<GetBurndownResponse>(url);
   } catch (error) {
     console.error('Get burn down chart API failed:', error);

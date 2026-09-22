@@ -9,13 +9,14 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
 import { ThemeColors } from '../constants/Colors';
+import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { moderateScale } from '../utils/responsive';
 
 interface Props {
   visible: boolean;
   columnTitle: string;
-  colors: ThemeColors;
+  colors?: ThemeColors;
   onClose: () => void;
   onDelete: () => void;
   title?: string;
@@ -25,12 +26,14 @@ interface Props {
 const DeleteColumnModal: React.FC<Props> = ({
   visible,
   columnTitle,
-  colors,
+  colors: propColors,
   onClose,
   onDelete,
   title = 'Delete',
   loading = false,
 }) => {
+  const { colors: themeColors } = useTheme();
+  const colors = propColors || themeColors;
   const { layout, isSmallHeight } = useAuthLayout();
 
   const verticalPadding = isSmallHeight ? moderateScale(16) : moderateScale(20);

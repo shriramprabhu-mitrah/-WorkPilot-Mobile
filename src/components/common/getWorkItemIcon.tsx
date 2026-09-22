@@ -15,8 +15,9 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
   color,
 }) => {
   const { colors } = useTheme();
+  const normalizedType = type?.toLowerCase();
 
-  switch (type) {
+  switch (normalizedType) {
     case 'add':
     case 'attachment':
       return (
@@ -63,7 +64,7 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
       );
     case 'story':
     case 'user_story':
-    case 'userStory':
+    case 'userstory':
       return (
         <Ionicons
           name='bookmark'
@@ -82,7 +83,6 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
         />
       );
     case 'comment':
-    case 'Comment':
       return (
         <Ionicons
           name='chatbubble'
