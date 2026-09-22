@@ -25,12 +25,24 @@ import {
   GetCountriesResponse,
   GetOrganizationMembersResponse,
   getOrganizationMemberPayload,
+  GetRolesResponse,
+  CreateRolePayload,
+  CreateRoleResponse,
+  DeleteRoleResponse,
+  UpdateRolePayload,
+  UpdateRoleResponse,
 } from '../../types/auth.type';
 import {
   GetFavoritesResponse,
   GetFavouritesParams,
 } from '../../types/projectBoard.type';
-import { updateOrganizationService } from '../../services/organization.service';
+import {
+  createRoleService,
+  deleteRoleService,
+  getRolesService,
+  updateRoleService,
+  updateOrganizationService,
+} from '../../services/organization.service';
 
 export interface GetAuditQueryArgs {
   type: 'viewed' | 'activity';
@@ -52,7 +64,7 @@ export interface GetGlobalSearchQueryArgs {
 export const homeApi = createApi({
   reducerPath: 'homeApi',
   baseQuery: axiosBaseQuery,
-  tagTypes: ['Organization'],
+  tagTypes: ['Organization', 'Role'],
   endpoints: build => ({
     getAudit: build.query<AuditResponse, GetAuditQueryArgs>({
       query: ({ type, page, page_size }) => {
@@ -128,6 +140,67 @@ export const homeApi = createApi({
         params,
       }),
       providesTags: ['Organization'],
+    }),
+
+    getRoles: build.query<GetRolesResponse, void>({
+      queryFn: async () => ({
+        data: await getRolesService(),
+      }),
+      providesTags: ['Role'],
+    }),
+
+    createRole: build.mutation<CreateRoleResponse, CreateRolePayload>({
+      queryFn: async payload => {
+        try {
+          const data = await createRoleService(payload);
+          return { data };
+        } catch (error: any) {
+          return {
+            error: {
+              status: error.response?.status ?? 'CUSTOM_ERROR',
+              data: error.response?.data ?? error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['Role'],
+    }),
+
+    updateRole: build.mutation<
+      UpdateRoleResponse,
+      { roleId: string; payload: UpdateRolePayload }
+    >({
+      queryFn: async ({ roleId, payload }) => {
+        try {
+          const data = await updateRoleService(roleId, payload);
+          return { data };
+        } catch (error: any) {
+          return {
+            error: {
+              status: error.response?.status ?? 'CUSTOM_ERROR',
+              data: error.response?.data ?? error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['Role'],
+    }),
+
+    deleteRole: build.mutation<DeleteRoleResponse, { roleId: string }>({
+      queryFn: async ({ roleId }) => {
+        try {
+          const data = await deleteRoleService(roleId);
+          return { data };
+        } catch (error: any) {
+          return {
+            error: {
+              status: error.response?.status ?? 'CUSTOM_ERROR',
+              data: error.response?.data ?? error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['Role'],
     }),
 
     getFavourites: build.query<GetFavoritesResponse, GetFavouritesQueryArgs>({
@@ -223,4 +296,8 @@ export const {
   useUpdateOrganizationMutation,
   useGetCountriesQuery,
   useGetOrganizationMembersQuery,
+  useGetRolesQuery,
+  useCreateRoleMutation,
+  useUpdateRoleMutation,
+  useDeleteRoleMutation,
 } = homeApi;

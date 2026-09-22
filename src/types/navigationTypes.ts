@@ -54,6 +54,7 @@ export type RootStackParamList = {
   Organization: undefined;
   OrganizationDetails: undefined;
   OrganizationMembers: undefined;
+  RoleandPermission: undefined;
 };
 
 export type ProjectTopTabParamList = {

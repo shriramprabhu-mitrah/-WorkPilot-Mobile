@@ -1,9 +1,13 @@
-import { get, patch, post } from '../components/common/httpClient';
+import { del, get, patch, post } from '../components/common/httpClient';
 import {
   CREATE_ORGANIZATION,
   INVITE_ORGANIZATION,
   UPDATE_ORGANIZATION,
   GET_ORG_MEMBERS,
+  GET_ROLES,
+  CREATE_ROLE,
+  DELETE_ROLE,
+  UPDATE_ROLE,
 } from '../constants/apiServiceEndpoint';
 import {
   createOrganizationResponse,
@@ -13,6 +17,12 @@ import {
   UpdateOrganizationPayload,
   GetOrganizationMembersResponse,
   getOrganizationMemberPayload,
+  GetRolesResponse,
+  CreateRolePayload,
+  CreateRoleResponse,
+  DeleteRoleResponse,
+  UpdateRolePayload,
+  UpdateRoleResponse,
 } from '../types/auth.type';
 
 export const createOrganizationService = async (
@@ -93,6 +103,57 @@ export const getOrganizationMembersService = async (
     });
   } catch (error) {
     console.error('Get Organization Members API failed:', error);
+    throw error;
+  }
+};
+
+export const getRolesService = async (): Promise<GetRolesResponse> => {
+  try {
+    return await get<GetRolesResponse>(GET_ROLES);
+  } catch (error) {
+    console.error('Get roles API failed:', error);
+    throw error;
+  }
+};
+
+export const createRoleService = async (
+  payload: CreateRolePayload,
+): Promise<CreateRoleResponse> => {
+  try {
+    return await post<CreateRoleResponse, CreateRolePayload>(
+      CREATE_ROLE,
+      payload,
+    );
+  } catch (error) {
+    console.error('Create role API failed:', error);
+    throw error;
+  }
+};
+
+export const updateRoleService = async (
+  roleId: string,
+  payload: UpdateRolePayload,
+): Promise<UpdateRoleResponse> => {
+  try {
+    return await patch<UpdateRoleResponse, UpdateRolePayload>(
+      UPDATE_ROLE.replace('{role_id}', roleId),
+      payload,
+    );
+  } catch (error) {
+    console.error('Update role API failed:', error);
+    throw error;
+  }
+};
+
+export const deleteRoleService = async (
+  roleId: string,
+): Promise<DeleteRoleResponse> => {
+  try {
+    return await del<DeleteRoleResponse>(
+      DELETE_ROLE.replace('{role_id}', roleId),
+    );
+  } catch (error) {
+    console.error('Delete role API failed:', error);
     throw error;
   }
 };

@@ -32,6 +32,7 @@ import Favorites from '../screens/favorites.tsx';
 import Organization from '../screens/organization/organization.tsx';
 import OrganizationDetailsScreen from '../screens/organizationDetails.tsx';
 import OrganizationMembers from '../screens/organizationMembers.tsx';
+import RolePermission from '../screens/rolePermission.tsx';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -129,7 +130,7 @@ const AppNavigator = () => {
               name='ChangePassword'
               component={ChangePasswordScreen}
             />
-
+            <Stack.Screen name='RoleandPermission' component={RolePermission} />
             <Stack.Screen
               name='OrganizationDetails'
               component={OrganizationDetailsScreen}

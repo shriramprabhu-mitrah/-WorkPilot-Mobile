@@ -3,7 +3,8 @@ import { CreateProjectModal } from './createProjectModel';
 import { CameraPickerModal } from './cameraModal';
 import { ProjectListModal } from './projectListModal';
 
-export type ModalMode = 'camera' | 'createProject' | 'projectList';
+export type ModalMode =
+  'camera' | 'createProject' | 'createRole' | 'projectList';
 
 interface PopupModelProps {
   visible: boolean;
@@ -17,6 +18,9 @@ interface PopupModelProps {
   showRemoveOption?: boolean;
   title?: string;
   onSelectProject?: (projectId: string) => void;
+  onRoleCreate?: (name: string) => Promise<void> | void;
+  validateRoleName?: (name: string) => string | undefined;
+  isCreatingRole?: boolean;
 }
 
 const PopupModel: React.FC<PopupModelProps> = ({
@@ -31,10 +35,32 @@ const PopupModel: React.FC<PopupModelProps> = ({
   showRemoveOption = false,
   title,
   onSelectProject,
+  onRoleCreate,
+  validateRoleName,
+  isCreatingRole,
 }) => {
   if (mode === 'createProject') {
     return (
-      <CreateProjectModal visible={visible} onClose={onClose} title={title} />
+      <CreateProjectModal
+        visible={visible}
+        onClose={onClose}
+        title={title}
+        mode='project'
+      />
+    );
+  }
+
+  if (mode === 'createRole') {
+    return (
+      <CreateProjectModal
+        visible={visible}
+        onClose={onClose}
+        title={title ?? 'Create Role'}
+        mode='role'
+        onCreateRole={onRoleCreate}
+        validateRoleName={validateRoleName}
+        isCreatingRole={isCreatingRole}
+      />
     );
   }
 

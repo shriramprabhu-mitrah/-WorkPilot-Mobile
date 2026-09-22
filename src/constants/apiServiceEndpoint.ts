@@ -20,6 +20,10 @@ export const CREATE_ORGANIZATION = `/organization/create`;
 export const INVITE_ORGANIZATION = `/organization/invite`;
 export const UPDATE_ORGANIZATION = `/organization/update`;
 export const GET_ORG_MEMBERS = `/organization/get-users`;
+export const GET_ROLES = `/organization/roles`;
+export const CREATE_ROLE = `/organization/roles`;
+export const DELETE_ROLE = `/organization/roles/{role_id}`;
+export const UPDATE_ROLE = `/organization/roles/{role_id}`;
 
 //PROJECT
 export const PROJECTS = `/project`;

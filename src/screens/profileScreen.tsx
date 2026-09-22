@@ -394,7 +394,6 @@ const ProfileScreen = () => {
   }
 
   const avatarSize = moderateScale(88);
-  const coverHeight = hp(isSmallHeight ? 16 : 20);
 
   // Regular Profile View
   return (
@@ -408,54 +407,100 @@ const ProfileScreen = () => {
       >
         {/* Cover-photo style gradient header */}
         <View style={{ position: 'relative' }}>
-          <LinearGradient
-            colors={[colors.primary, colors.white, colors.primary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+          <View
             style={{
-              height: coverHeight,
-              paddingHorizontal: layout.paddingHorizontal,
-              paddingTop: layout.paddingTop,
+              position: 'relative',
+              height: moderateScale(150),
+              overflow: 'hidden',
             }}
           >
-            <View className='flex-row items-center justify-between'>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-                className='items-center justify-center rounded-full'
+            {user?.cover_img_url ? (
+              <Image
+                source={{ uri: user.cover_img_url }}
+                resizeMode='cover'
                 style={{
-                  width: moderateScale(36),
-                  height: moderateScale(36),
-                  backgroundColor: 'rgba(255,255,255,0.22)',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  transform: [{ scale: 1.2 }],
                 }}
-              >
-                <Ionicons
-                  name='menu-outline'
-                  size={moderateScale(22)}
-                  color={colors.white}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate('Settings')}
-                className='items-center justify-center rounded-full'
+              />
+            ) : (
+              <LinearGradient
+                colors={[colors.primary, colors.white, colors.primary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={{
-                  width: moderateScale(36),
-                  height: moderateScale(36),
-                  backgroundColor: 'rgba(255,255,255,0.22)',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
                 }}
-              >
-                <Ionicons
-                  name={
-                    (profileIcons?.settings ||
-                      'settings-outline') as IoniconName
+              />
+            )}
+            {user?.cover_img_url && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0,0,0,0.15)',
+                }}
+              />
+            )}
+            <View
+              style={{
+                flex: 1,
+                paddingHorizontal: layout.paddingHorizontal,
+                paddingTop: layout.paddingTop,
+              }}
+            >
+              <View className='flex-row items-center justify-between'>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    navigation.dispatch(DrawerActions.openDrawer())
                   }
-                  size={18}
-                  color={colors.white}
-                />
-              </TouchableOpacity>
+                  className='items-center justify-center rounded-full'
+                  style={{
+                    width: moderateScale(36),
+                    height: moderateScale(36),
+                    backgroundColor: 'rgba(0,0,0,0.35)',
+                  }}
+                >
+                  <Ionicons
+                    name='menu-outline'
+                    size={moderateScale(22)}
+                    color={colors.white}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('Settings')}
+                  className='items-center justify-center rounded-full'
+                  style={{
+                    width: moderateScale(36),
+                    height: moderateScale(36),
+                    backgroundColor: 'rgba(0,0,0,0.35)',
+                  }}
+                >
+                  <Ionicons
+                    name={
+                      (profileIcons?.settings ||
+                        'settings-outline') as IoniconName
+                    }
+                    size={18}
+                    color={colors.white}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </LinearGradient>
+          </View>
 
           {/* Floating avatar overlapping the cover edge */}
           <View

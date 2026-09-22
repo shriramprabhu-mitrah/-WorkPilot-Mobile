@@ -75,7 +75,7 @@ export default function SettingsScreen() {
         {
           iconName: 'key-outline',
           label: 'Permissions',
-          path: 'OrganizationPermissions',
+          path: 'RoleandPermission',
           color: colors.accentPurple || '#6554C0',
         },
         {

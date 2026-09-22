@@ -162,6 +162,7 @@ export interface User {
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
+  cover_img_url?: string;
 }
 
 // Get User
@@ -342,4 +343,67 @@ export interface getOrganizationMemberPayload {
   include_org_admins?: boolean;
   /** Changes the cache request without being sent to the API. */
   _refetchKey?: number;
+}
+
+// Roles & Permissions
+
+export interface PermissionActions {
+  view: boolean;
+  add: boolean;
+  modify: boolean;
+  delete: boolean;
+}
+
+export interface RolePermissionsMap {
+  projects?: PermissionActions;
+  sprints?: PermissionActions;
+  user_stories?: PermissionActions;
+  tasks?: PermissionActions;
+  comments?: PermissionActions;
+  [key: string]: PermissionActions | undefined;
+}
+
+export interface RoleApiItem {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string;
+  is_system: boolean;
+  permissions: RolePermissionsMap;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GetRolesResponse extends ApiResponse<RoleApiItem[]> {}
+
+export interface CreateRolePayload {
+  name: string;
+  permissions: RolePermissionsMap;
+}
+
+export interface CreateRoleResponse extends ApiResponse<RoleApiItem> {}
+
+export interface UpdateRolePayload {
+  permissions: RolePermissionsMap;
+}
+
+export interface UpdateRoleResponse extends ApiResponse<RoleApiItem> {}
+
+export interface DeleteRoleResponse extends ApiResponse {}
+
+// Use RoleApiItem instead of maintaining a duplicate Role interface.
+export type Role = RoleApiItem;
+
+export interface ActionMeta {
+  key: keyof PermissionActions;
+  label: string;
+  subtitle: string;
+  icon: any;
+}
+
+export interface GroupMeta {
+  id: string;
+  title: string;
+  icon: any;
+  actions: ActionMeta[];
 }
