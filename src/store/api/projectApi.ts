@@ -9,7 +9,9 @@ import {
   GET_CUSTOMSTATUS,
   GET_USERSTORY_STATUS,
   GET_USERSTORY,
-  GET_BURNDOWN_BY_PROJECT_SPRINT,
+  GET_SPRINT_BURNDOWN,
+  GET_TEAM_WORKLOAD,
+  GET_WEEKLY_PROGRESS,
   DELETE_PROJECT,
   UPDATE_PROJECT,
   GETPROJECTMEMBERS,
@@ -32,6 +34,10 @@ import {
   GetUserStoryStatusQueryArgs,
   GetUserStoriesQueryArgs,
   GetBurndownChartQueryArgs,
+  GetTeamWorkloadResponse,
+  GetTeamWorkloadQueryArgs,
+  GetWeeklyProgressResponse,
+  GetWeeklyProgressQueryArgs,
   UpdateProjectPayload,
   UpdateProjectResponse,
   DeleteProjectResponse,
@@ -39,10 +45,7 @@ import {
   GetProjectMembersResponse,
   RemoveProjectMemberArgs,
   RemoveProjectMemberResponse,
-} from '../../types/project.type';
-import {
   GetBurndownResponse,
-  GetBurnbownParams,
 } from '../../types/project.type';
 import {
   GetCustomStatusResponse,
@@ -63,6 +66,8 @@ export const projectApi = createApi({
     'UserStories',
     'TaskDetail',
     'BurndownChart',
+    'TeamWorkload',
+    'WeeklyProgress',
     'ProjectMembers',
     'UserStoryDetail',
     'Tasks',
@@ -295,13 +300,40 @@ export const projectApi = createApi({
       GetBurndownChartQueryArgs
     >({
       query: ({ projectId, sprintId }) => ({
-        url: GET_BURNDOWN_BY_PROJECT_SPRINT.replace(
-          '{project_id}',
-          projectId,
-        ).replace('{sprint_id}', sprintId),
+        url: GET_SPRINT_BURNDOWN.replace('{project_id}', projectId),
+        params: sprintId ? { sprint_id: sprintId } : undefined,
       }),
       providesTags: (_result, _error, { projectId, sprintId }) => [
-        { type: 'BurndownChart', id: `${projectId}_${sprintId}` },
+        { type: 'BurndownChart', id: `${projectId}_${sprintId ?? 'all'}` },
+      ],
+    }),
+
+    getTeamWorkload: build.query<
+      GetTeamWorkloadResponse,
+      GetTeamWorkloadQueryArgs
+    >({
+      query: ({ projectId, sprintId }) => ({
+        url: GET_TEAM_WORKLOAD.replace('{project_id}', projectId),
+        params: sprintId ? { sprint_id: sprintId } : undefined,
+      }),
+      providesTags: (_result, _error, { projectId, sprintId }) => [
+        { type: 'TeamWorkload', id: `${projectId}_${sprintId ?? 'all'}` },
+      ],
+    }),
+
+    getWeeklyProgress: build.query<
+      GetWeeklyProgressResponse,
+      GetWeeklyProgressQueryArgs
+    >({
+      query: ({ projectId, start_date, end_date }) => ({
+        url: GET_WEEKLY_PROGRESS.replace('{project_id}', projectId),
+        params: {
+          ...(start_date ? { start_date } : {}),
+          ...(end_date ? { end_date } : {}),
+        },
+      }),
+      providesTags: (_result, _error, { projectId }) => [
+        { type: 'WeeklyProgress', id: projectId },
       ],
     }),
 
@@ -406,11 +438,15 @@ export const {
   useGetUserStoryStatusQuery,
   useGetUserStoriesQuery,
   useGetBurndownChartQuery,
+  useGetTeamWorkloadQuery,
+  useGetWeeklyProgressQuery,
   useGetProjectMembersQuery,
   useRemoveProjectMemberMutation,
   useUpdateProjectMutation,
   useDeleteProjectMutation,
   useLazyGetProjectByIdQuery,
+  useLazyGetTeamWorkloadQuery,
+  useLazyGetWeeklyProgressQuery,
 } = projectApi;
 
 // Aliases matching thunk names

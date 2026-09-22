@@ -55,7 +55,10 @@ const AddNewIssues = () => {
   const { projects, issueTypes, priorities, assignees } =
     getCreateIssueData(colors);
   const handleCreate = () => {
-    navigation.navigate('projectDetails', { id: project });
+    navigation.navigate('projectDetails', {
+      projectId: project,
+      projectName: project,
+    });
   };
 
   const requestCameraPermission = async () => {

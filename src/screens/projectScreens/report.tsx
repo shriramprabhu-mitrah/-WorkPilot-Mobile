@@ -15,7 +15,17 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { AppText } from '../../components';
 import { useAppSelector } from '../../store';
-import { useGetBurndownChartQuery } from '../../store/api/projectApi';
+import {
+  useGetBurndownChartQuery,
+  useGetTeamWorkloadQuery,
+  useGetWeeklyProgressQuery,
+} from '../../store/api/projectApi';
+import {
+  TeamWorkloadMember,
+  WeeklyProgressDayItem,
+} from '../../types/project.type';
+import { TeamWorkloadChart } from '../../components/charts/TeamWorkloadChart';
+import { WeeklyProgressChart } from '../../components/charts/WeeklyProgressChart';
 import {
   ActiveModalType,
   CHART_DATA_BY_FILTER,
@@ -148,6 +158,14 @@ const BurndownChartSkeleton: React.FC<{ height?: number }> = ({
   );
 };
 
+const getTodayDateString = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const Report = () => {
   const { colors } = useTheme();
   const layout = useAuthLayout();
@@ -165,6 +183,13 @@ const Report = () => {
   const [activeModal, setActiveModal] = useState<ActiveModalType>(null);
   const [selectedTimeFilter, setSelectedTimeFilter] =
     useState<TimeFilterOption>('All Time');
+
+  const [weeklyStartDate, setWeeklyStartDate] = useState<string>(
+    getTodayDateString(),
+  );
+  const [weeklyEndDate, setWeeklyEndDate] = useState<string>(
+    getTodayDateString(),
+  );
 
   const [isFocusLoading, setIsFocusLoading] = useState(true);
 
@@ -185,25 +210,83 @@ const Report = () => {
     isUninitialized: burndownUninitialized,
     refetch: refetchBurndown,
   } = useGetBurndownChartQuery(
-    projectId && sprintId
+    projectId
       ? {
           projectId,
-          sprintId,
+          sprintId: sprintId || undefined,
         }
       : skipToken,
   );
 
-  const burndownData = burndownResponse?.data;
+  const rawData: any = burndownResponse?.data;
+  const sprintBurndownList: any[] = Array.isArray(rawData?.sprint_burndown)
+    ? rawData.sprint_burndown
+    : Array.isArray(rawData)
+    ? rawData
+    : [];
 
-  // Fetch Burndown Chart data when screen comes into focus
+  const activeSprintBurndown =
+    (sprintId && sprintBurndownList.find(s => s && s.sprint_id === sprintId)) ||
+    (sprintBurndownList.length > 0 ? sprintBurndownList[0] : null);
+
+  const burndownPoints: any[] = Array.isArray(activeSprintBurndown?.data)
+    ? activeSprintBurndown.data
+    : [];
+
+  const {
+    data: workloadResponse,
+    isLoading: workloadLoading,
+    isFetching: workloadFetching,
+    isUninitialized: workloadUninitialized,
+    refetch: refetchWorkload,
+  } = useGetTeamWorkloadQuery(
+    projectId
+      ? {
+          projectId,
+          sprintId: sprintId || undefined,
+        }
+      : skipToken,
+  );
+
+  const rawWorkload: any = workloadResponse?.data;
+  const workloadList: TeamWorkloadMember[] = Array.isArray(rawWorkload)
+    ? rawWorkload
+    : Array.isArray(rawWorkload?.team_workload)
+    ? rawWorkload.team_workload
+    : [];
+
+  const {
+    data: weeklyProgressResponse,
+    isLoading: weeklyProgressLoading,
+    isFetching: weeklyProgressFetching,
+    isUninitialized: weeklyProgressUninitialized,
+    refetch: refetchWeeklyProgress,
+  } = useGetWeeklyProgressQuery(
+    projectId
+      ? {
+          projectId,
+          start_date: weeklyStartDate,
+          end_date: weeklyEndDate,
+        }
+      : skipToken,
+  );
+
+  const rawWeekly: any = weeklyProgressResponse?.data;
+  const weeklyProgressList: WeeklyProgressDayItem[] = Array.isArray(rawWeekly)
+    ? rawWeekly
+    : Array.isArray(rawWeekly?.weekly_progress)
+    ? rawWeekly.weekly_progress
+    : [];
+
+  // Fetch Burndown Chart, Team Workload, and Weekly Progress data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (!projectId || !sprintId) {
+      if (!projectId) {
         setIsFocusLoading(false);
         return;
       }
 
-      const currentKey = `${projectId}_${sprintId}`;
+      const currentKey = `${projectId}_${sprintId || 'all'}`;
 
       // Show skeleton only on initial load or if Project/Sprint ID changes
       if (lastFetchedKeyRef.current !== currentKey) {
@@ -215,16 +298,46 @@ const Report = () => {
       if (!burndownUninitialized) {
         refetchBurndown();
       }
-    }, [projectId, sprintId, burndownUninitialized, refetchBurndown]),
+      if (!workloadUninitialized) {
+        refetchWorkload();
+      }
+      if (!weeklyProgressUninitialized) {
+        refetchWeeklyProgress();
+      }
+    }, [
+      projectId,
+      sprintId,
+      burndownUninitialized,
+      workloadUninitialized,
+      weeklyProgressUninitialized,
+      refetchBurndown,
+      refetchWorkload,
+      refetchWeeklyProgress,
+    ]),
   );
 
   useEffect(() => {
-    if (!burndownLoading && !burndownFetching) {
+    if (
+      !burndownLoading &&
+      !burndownFetching &&
+      !workloadLoading &&
+      !workloadFetching &&
+      !weeklyProgressLoading &&
+      !weeklyProgressFetching
+    ) {
       setIsFocusLoading(false);
     }
-  }, [burndownLoading, burndownFetching]);
+  }, [
+    burndownLoading,
+    burndownFetching,
+    workloadLoading,
+    workloadFetching,
+    weeklyProgressLoading,
+    weeklyProgressFetching,
+  ]);
 
   const showBurndownSkeleton = isFocusLoading || burndownLoading;
+  const showWorkloadSkeleton = isFocusLoading || workloadLoading;
 
   const toggleStatus = useCallback((key: StatusKey) => {
     setStatuses(prev => ({ ...prev, [key]: !prev[key] }));
@@ -237,11 +350,7 @@ const Report = () => {
 
   // Parse Burndown Chart API Data into React Native Chart Kit Format
   const getFormattedBurndownData = () => {
-    if (
-      !burndownData ||
-      !burndownData.burndown_data ||
-      burndownData.burndown_data.length === 0
-    ) {
+    if (!burndownPoints || burndownPoints.length === 0) {
       return {
         labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5'],
         datasets: [
@@ -251,24 +360,30 @@ const Report = () => {
               colors?.primary || `rgba(59, 130, 246, ${opacity})`,
             strokeWidth: 2,
           },
+          {
+            data: [0, 0, 0, 0, 0],
+            color: (opacity = 1) =>
+              colors?.textSecondary || `rgba(156, 163, 175, ${opacity})`,
+            strokeWidth: 2,
+            strokeDashArray: [5, 5],
+          },
         ],
       };
     }
 
-    // Extract labels (dates) and remaining points from API response
-    const labels = burndownData.burndown_data.map((point: any) => point.date);
-    const actualData = burndownData.burndown_data.map(
-      (point: any) => point.remaining_points ?? 0,
-    );
+    // Format labels: short date MM/DD or Day X
+    const labels = burndownPoints.map(point => {
+      if (point.date && point.date.includes('-')) {
+        const parts = point.date.split('-');
+        if (parts.length === 3) {
+          return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}`;
+        }
+      }
+      return `D${point.day}`;
+    });
 
-    // Ideal burndown line calculation
-    const totalPoints = burndownData.total_story_points || 0;
-    const idealData = burndownData.burndown_data.map(
-      (point: any, index: number) => {
-        const progress = index / (burndownData.burndown_data.length - 1 || 1);
-        return Math.round(totalPoints * (1 - progress));
-      },
-    );
+    const actualData = burndownPoints.map(point => point.actual_hours ?? 0);
+    const idealData = burndownPoints.map(point => point.ideal_hours ?? 0);
 
     const datasets = [
       {
@@ -342,14 +457,18 @@ const Report = () => {
           className='mb-1 font-bold'
           style={{ color: colors?.text }}
         >
-          Sprint Burndown Chart
+          Sprint Burndown
         </AppText>
         <AppText
           variant='body'
           className='mb-3'
           style={{ color: colors?.textSecondary }}
         >
-          Remaining work trend across sprint days
+          {activeSprintBurndown?.sprint_name
+            ? `${activeSprintBurndown.sprint_name} · Ideal vs actual hours`
+            : currentSprint?.name
+            ? `${currentSprint.name} · Ideal vs actual hours`
+            : 'No sprint selected · Ideal vs actual hours'}
         </AppText>
 
         {showBurndownSkeleton ? (
@@ -373,8 +492,8 @@ const Report = () => {
                   borderRadius: 16,
                 },
                 propsForDots: {
-                  r: '4',
-                  strokeWidth: '2',
+                  r: '3',
+                  strokeWidth: '1.5',
                   stroke: colors?.primary,
                 },
               }}
@@ -384,9 +503,61 @@ const Report = () => {
                 borderRadius: 12,
               }}
             />
+            {/* Chart Legend */}
+            <View className='mt-2 flex-row items-center justify-center'>
+              <View className='mr-4 flex-row items-center'>
+                <View
+                  style={{
+                    width: 14,
+                    height: 2,
+                    backgroundColor: colors?.textSecondary || '#9CA3AF',
+                    marginRight: 6,
+                    borderStyle: 'dashed',
+                  }}
+                />
+                <AppText
+                  variant='caption'
+                  style={{ color: colors?.textSecondary }}
+                >
+                  Ideal Burndown
+                </AppText>
+              </View>
+              <View className='flex-row items-center'>
+                <View
+                  style={{
+                    width: 14,
+                    height: 2,
+                    backgroundColor: colors?.primary || '#3B82F6',
+                    marginRight: 6,
+                  }}
+                />
+                <AppText
+                  variant='caption'
+                  style={{ color: colors?.textSecondary }}
+                >
+                  Actual
+                </AppText>
+              </View>
+            </View>
           </View>
         )}
       </View>
+
+      {/* Weekly Progress Chart */}
+      <WeeklyProgressChart
+        data={weeklyProgressList}
+        isLoading={weeklyProgressLoading}
+        startDate={weeklyStartDate}
+        endDate={weeklyEndDate}
+        onStartDateChange={setWeeklyStartDate}
+        onEndDateChange={setWeeklyEndDate}
+      />
+
+      {/* Team Workload Chart */}
+      <TeamWorkloadChart
+        data={workloadList}
+        isLoading={showWorkloadSkeleton}
+      />
 
       {/* Cumulative Flow Diagram */}
       <View
