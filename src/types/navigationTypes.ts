@@ -19,8 +19,7 @@ export type RootStackParamList = {
   resetPassword: undefined;
   BackLogs: undefined;
   projectDetails:
-    | { projectId?: string; projectName?: string; id?: string }
-    | undefined;
+    { projectId?: string; projectName?: string; id?: string } | undefined;
   issue:
     | {
         id?: string;
@@ -57,6 +56,7 @@ export type RootStackParamList = {
   OrganizationDetails: undefined;
   OrganizationMembers: undefined;
   RoleandPermission: undefined;
+  ProjectStatus: undefined;
 };
 
 export type ProjectTopTabParamList = {

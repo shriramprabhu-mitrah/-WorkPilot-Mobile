@@ -8,8 +8,6 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Alert,
-  PermissionsAndroid,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
@@ -23,10 +21,7 @@ import {
   RichToolbar,
   actions,
 } from 'react-native-pell-rich-editor';
-import ImagePicker from 'react-native-image-crop-picker';
-import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import { AttachmentFile } from '../types/attachment.type';
-import CameraPickerModal from './cameraModal';
 
 interface PopupModelProps {
   visible: boolean;
@@ -45,7 +40,6 @@ export const PopupModel: React.FC<PopupModelProps> = ({
   const { layout } = useAuthLayout();
   const [draftDescription, setDraftDescription] = useState<string>('');
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
-  const [pickerModalVisible, setPickerModalVisible] = useState(false);
   const editorRef = useRef<RichEditor>(null);
 
   useEffect(() => {
@@ -76,123 +70,6 @@ export const PopupModel: React.FC<PopupModelProps> = ({
     }`.trim();
 
     onSave(finalContent);
-  };
-
-  const requestCameraPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const addAttachmentLocally = (file: AttachmentFile) => {
-    setAttachments(prev => [...prev, file]);
-  };
-
-  const handleChoosePhotoOrVideo = async () => {
-    setPickerModalVisible(false);
-    try {
-      const media = await ImagePicker.openPicker({
-        mediaType: 'any',
-        cropping: false,
-      });
-      const isVideo = media.mime?.startsWith('video');
-      const newFile: AttachmentFile = {
-        id: `${Date.now()}`,
-        uri: media.path?.startsWith('file://')
-          ? media.path
-          : `file://${media.path}`,
-        name: media.filename || `${isVideo ? 'video' : 'photo'}_${Date.now()}`,
-        type: isVideo ? 'video' : 'image',
-        mimeType: media.mime,
-        size: media.size,
-        remoteUrl: media.path?.startsWith('file://')
-          ? media.path
-          : `file://${media.path}`,
-        isUploading: false,
-      };
-      addAttachmentLocally(newFile);
-    } catch (error: any) {
-      if (error?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('Error', error?.message || 'Failed to pick media');
-      }
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    setPickerModalVisible(false);
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera access required.');
-      return;
-    }
-    try {
-      const image = await ImagePicker.openCamera({
-        mediaType: 'photo',
-        cropping: true,
-        freeStyleCropEnabled: true,
-        compressImageQuality: 0.8,
-      });
-      const newFile: AttachmentFile = {
-        id: `${Date.now()}`,
-        uri: image.path?.startsWith('file://')
-          ? image.path
-          : `file://${image.path}`,
-        name: `photo_${Date.now()}.jpg`,
-        type: 'image',
-        mimeType: image.mime,
-        size: image.size,
-        remoteUrl: image.path?.startsWith('file://')
-          ? image.path
-          : `file://${image.path}`,
-        isUploading: false,
-      };
-      addAttachmentLocally(newFile);
-    } catch (error: any) {
-      if (error?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('Error', error?.message || 'Failed to capture photo');
-      }
-    }
-  };
-
-  const handleRecordVideo = async () => {
-    setPickerModalVisible(false);
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera access required.');
-      return;
-    }
-    try {
-      const video = await ImagePicker.openCamera({
-        mediaType: 'video',
-      });
-      const newFile: AttachmentFile = {
-        id: `${Date.now()}`,
-        uri: video.path?.startsWith('file://')
-          ? video.path
-          : `file://${video.path}`,
-        name: `video_${Date.now()}.mp4`,
-        type: 'video',
-        mimeType: video.mime,
-        size: video.size,
-        remoteUrl: video.path?.startsWith('file://')
-          ? video.path
-          : `file://${video.path}`,
-        isUploading: false,
-      };
-      addAttachmentLocally(newFile);
-    } catch (error: any) {
-      if (error?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('Error', error?.message || 'Failed to record video');
-      }
-    }
   };
 
   const handleRemoveAttachment = (id: string) => {
@@ -424,19 +301,6 @@ export const PopupModel: React.FC<PopupModelProps> = ({
                 }}
                 className='flex-row items-center justify-between'
               >
-                <TouchableOpacity
-                  onPress={() => setPickerModalVisible(true)}
-                  activeOpacity={0.7}
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 8,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <WorkItemIcon type='add' size={22} color={colors.primary} />
-                </TouchableOpacity>
-
                 <View
                   style={{
                     width: 1,
@@ -490,14 +354,6 @@ export const PopupModel: React.FC<PopupModelProps> = ({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-      <CameraPickerModal
-        visible={pickerModalVisible}
-        title='Add Attachment'
-        onClose={() => setPickerModalVisible(false)}
-        onSelectCamera={handleTakePhoto}
-        onSelectRecordVideo={handleRecordVideo}
-        onSelectGallery={handleChoosePhotoOrVideo}
-      />
     </Modal>
   );
 };

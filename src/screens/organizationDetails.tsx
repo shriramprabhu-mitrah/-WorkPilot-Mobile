@@ -11,7 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import ImagePicker from 'react-native-image-crop-picker';
 import { RootStackParamList } from '../types/navigationTypes';
@@ -48,10 +48,19 @@ const OrganizationDetailsScreen = () => {
   const { colors, strings } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
 
-  const { data: orgResponse, refetch } = useGetOrganizationDetailQuery();
-  const { data: countriesResponse } = useGetCountriesQuery();
+  const { data: orgResponse, refetch: refetchOrganization } =
+    useGetOrganizationDetailQuery();
+  const { data: countriesResponse, refetch: refetchCountries } =
+    useGetCountriesQuery();
   const [updateOrganization, { isLoading: updateLoading }] =
     useUpdateOrganizationMutation();
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchOrganization();
+      refetchCountries();
+    }, [refetchOrganization, refetchCountries]),
+  );
 
   const org: Organization | undefined = orgResponse?.data;
   const countries = useMemo(
@@ -201,7 +210,7 @@ const OrganizationDetailsScreen = () => {
     try {
       await updateOrganization(payload).unwrap();
       showSnackbar('Organization updated successfully');
-      await refetch();
+      await refetchOrganization();
     } catch (error: any) {
       showSnackbar(
         error?.data?.message ||

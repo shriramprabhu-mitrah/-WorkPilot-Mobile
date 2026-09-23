@@ -39,8 +39,6 @@ const OrganizationMembers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isFocused, setIsFocused] = useState(false);
-  const [refetchKey, setRefetchKey] = useState(0);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -51,29 +49,22 @@ const OrganizationMembers = () => {
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  useFocusEffect(
-    useCallback(() => {
-      setIsFocused(true);
-      setRefetchKey(previous => previous + 1);
-
-      return () => setIsFocused(false);
-    }, []),
-  );
-
   const {
     data: membersResponse,
     isLoading,
     isFetching,
-  } = useGetOrganizationMembersQuery(
-    isFocused
-      ? {
-          page: currentPage,
-          page_size: PAGE_SIZE,
-          include_org_admins: true,
-          full_name: debouncedSearch,
-          _refetchKey: refetchKey,
-        }
-      : skipToken,
+    refetch,
+  } = useGetOrganizationMembersQuery({
+    page: currentPage,
+    page_size: PAGE_SIZE,
+    include_org_admins: true,
+    full_name: debouncedSearch,
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
   );
 
   const members = useMemo(
