@@ -1,20 +1,22 @@
 import React, { useCallback } from 'react';
 import { View, TouchableOpacity, BackHandler } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { WorkItemIcon } from '../../components/common/getWorkItemIcon';
 import { AppText } from '../../components';
 import { UpdateProjectDetails } from './updateProjectDetails';
-// import { Features } from './features';
+import { RootStackParamList } from '../../types/navigationTypes';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-export type ViewState = 'MAIN_SETTINGS' | 'DETAILS' | 'FEATURES';
+export type ViewState = 'MAIN_SETTINGS' | 'DETAILS';
 
 interface SettingsProps {
   currentView: ViewState;
   setCurrentView: (view: ViewState) => void;
   projectNameValue?: string;
 }
+type SettingsNavigationProp = StackNavigationProp<RootStackParamList>;
 
 export const Settings: React.FC<SettingsProps> = ({
   currentView,
@@ -23,6 +25,7 @@ export const Settings: React.FC<SettingsProps> = ({
 }) => {
   const { colors } = useTheme();
   const { layout, moderateScale } = useAuthLayout();
+  const navigation = useNavigation<SettingsNavigationProp>();
 
   // Handle hardware back press for nested sub-views
   useFocusEffect(
@@ -74,25 +77,25 @@ export const Settings: React.FC<SettingsProps> = ({
           />
         </TouchableOpacity>
 
-        {/* <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => setCurrentView('FEATURES')}
-            className='flex-row items-center justify-between p-4'
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('ProjectStatus')}
+          className='flex-row items-center justify-between p-4'
+        >
+          <AppText
+            variant='body'
+            className='font-semibold'
+            color={colors.text}
+            style={{ fontSize: moderateScale(15) }}
           >
-            <AppText
-              variant='body'
-              className='font-semibold'
-              color={colors.text}
-              style={{ fontSize: moderateScale(15) }}
-            >
-              Features
-            </AppText>
-            <WorkItemIcon
-              type='chevron-right'
-              size={moderateScale(16)}
-              color={colors.textSecondary}
-            />
-          </TouchableOpacity> */}
+            Status
+          </AppText>
+          <WorkItemIcon
+            type='chevron-right'
+            size={moderateScale(16)}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -103,7 +106,6 @@ export const Settings: React.FC<SettingsProps> = ({
       {currentView === 'DETAILS' && (
         <UpdateProjectDetails initialProjectName={projectNameValue} />
       )}
-      {/* {currentView === 'FEATURES' && <Features />} */}
     </View>
   );
 };

@@ -45,8 +45,6 @@ const Members = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isFocused, setIsFocused] = useState(false);
-  const [refetchKey, setRefetchKey] = useState(0);
   const [memberToRemove, setMemberToRemove] = useState<ProjectMember | null>(
     null,
   );
@@ -66,29 +64,28 @@ const Members = () => {
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  useFocusEffect(
-    useCallback(() => {
-      setIsFocused(true);
-      setRefetchKey(previous => previous + 1);
-
-      return () => setIsFocused(false);
-    }, []),
-  );
-
   const {
     data: membersResponse,
     isLoading,
     isFetching,
+    refetch,
   } = useGetProjectMembersQuery(
-    isFocused && projectId
+    projectId
       ? {
           project_id: projectId,
           page: currentPage,
           page_size: PAGE_SIZE,
-          _refetchKey: refetchKey,
         }
       : skipToken,
   );
+  useFocusEffect(
+    useCallback(() => {
+      if (projectId) {
+        refetch();
+      }
+    }, [projectId, refetch]),
+  );
+
   const [removeProjectMember, { isLoading: isRemovingMember }] =
     useRemoveProjectMemberMutation();
 
@@ -125,11 +122,9 @@ const Members = () => {
         project_id: projectId,
         user_id: memberToRemove.user_id,
       }).unwrap();
+      await refetch();
+      showSuccessToast(response.message, 'success');
 
-      showSuccessToast(
-        response.message || 'Member removed from the project',
-        'success',
-      );
       setMemberToRemove(null);
     } catch (error: any) {
       showSuccessToast(

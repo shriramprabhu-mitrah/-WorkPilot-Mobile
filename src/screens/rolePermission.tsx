@@ -116,7 +116,13 @@ const RolePermission = () => {
   const { moderateScale } = useAuthLayout();
   const { colors } = useTheme();
 
-  const { data: rolesResponse, isLoading, refetch } = useGetRolesQuery();
+  const {
+    data: rolesResponse,
+    isLoading,
+    refetch,
+  } = useGetRolesQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
   const [createRole, { isLoading: isCreatingRole }] = useCreateRoleMutation();
   const [updateRole, { isLoading: isUpdatingRole }] = useUpdateRoleMutation();
   const [deleteRole, { isLoading: isDeletingRole }] = useDeleteRoleMutation();
@@ -249,6 +255,8 @@ const RolePermission = () => {
     );
   }, [roles, searchRole]);
 
+  const hasFilteredRoles = filteredRoles.length > 0;
+
   const validateRoleName = useCallback(
     (name: string) => {
       if (!name.trim()) return 'Role name is required';
@@ -335,50 +343,83 @@ const RolePermission = () => {
               paddingRight: 8,
             }}
           >
-            {filteredRoles.map(role => {
-              const isSelected = selectedRoleId === role.id;
-              return (
-                <TouchableOpacity
-                  key={role.id}
-                  activeOpacity={0.8}
-                  onPress={() => setSelectedRoleId(role.id)}
-                  className='relative items-center justify-center rounded-2xl border px-3 py-2.5'
+            {filteredRoles.length > 0 ? (
+              filteredRoles.map(role => {
+                const isSelected = selectedRoleId === role.id;
+                return (
+                  <TouchableOpacity
+                    key={role.id}
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedRoleId(role.id)}
+                    className='relative items-center justify-center rounded-2xl border px-3 py-2.5'
+                    style={{
+                      width: 78,
+                      height: 78,
+                      backgroundColor: isSelected
+                        ? colors.primary
+                        : colors.card,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    }}
+                  >
+                    {isSelected && (
+                      <Ionicons
+                        name='checkmark-circle'
+                        size={14}
+                        color={colors.white}
+                        style={{
+                          position: 'absolute',
+                          top: 6,
+                          right: 6,
+                        }}
+                      />
+                    )}
+                    <Ionicons
+                      name={getRoleIcon(role.name)}
+                      size={22}
+                      color={isSelected ? colors.white : colors.textSecondary}
+                      style={{ marginBottom: 4 }}
+                    />
+                    <AppText
+                      style={{
+                        fontSize: 11,
+                        textAlign: 'center',
+                        lineHeight: 13,
+                        color: isSelected ? colors.white : colors.text,
+                        fontWeight: isSelected ? '700' : '500',
+                      }}
+                      numberOfLines={2}
+                    >
+                      {formatRoleTitle(role.name)}
+                    </AppText>
+                  </TouchableOpacity>
+                );
+              })
+            ) : (
+              <View
+                className='items-center justify-center rounded-2xl border'
+                style={{
+                  width: 160,
+                  height: 78,
+                  borderColor: colors.border,
+                  backgroundColor: colors.card,
+                }}
+              >
+                <Ionicons
+                  name='search-outline'
+                  size={20}
+                  color={colors.textSecondary}
+                />
+                <AppText
                   style={{
-                    width: 78,
-                    height: 78,
-                    backgroundColor: isSelected ? colors.primary : colors.card,
-                    borderColor: isSelected ? colors.primary : colors.border,
+                    marginTop: 4,
+                    fontSize: 11,
+                    color: colors.textSecondary,
                   }}
                 >
-                  {isSelected && (
-                    <Ionicons
-                      name='checkmark-circle'
-                      size={14}
-                      color={colors.white}
-                      style={{ position: 'absolute', top: 6, right: 6 }}
-                    />
-                  )}
-                  <Ionicons
-                    name={getRoleIcon(role.name)}
-                    size={22}
-                    color={isSelected ? colors.white : colors.textSecondary}
-                    style={{ marginBottom: 4 }}
-                  />
-                  <AppText
-                    style={{
-                      fontSize: 11,
-                      textAlign: 'center',
-                      lineHeight: 13,
-                      color: isSelected ? colors.white : colors.text,
-                      fontWeight: isSelected ? '700' : '500',
-                    }}
-                    numberOfLines={2}
-                  >
-                    {formatRoleTitle(role.name)}
-                  </AppText>
-                </TouchableOpacity>
-              );
-            })}
+                  No role found
+                </AppText>
+              </View>
+            )}
           </ScrollView>
 
           <TouchableOpacity
@@ -409,219 +450,232 @@ const RolePermission = () => {
         </View>
 
         {/* Active Role Overview Card */}
-        {activeRole && (
-          <View
-            className='mb-4 flex-row items-center justify-between rounded-2xl border p-3.5'
-            style={{ backgroundColor: colors.card, borderColor: colors.border }}
-          >
-            <View className='flex-1 flex-row items-center pr-3'>
-              <View
-                className='mr-3 h-11 w-11 items-center justify-center rounded-xl'
-                style={{ backgroundColor: colors.primary }}
-              >
-                <Ionicons
-                  name={getRoleIcon(activeRole.name)}
-                  size={22}
-                  color={colors.white}
-                />
-              </View>
-              <View className='flex-1 justify-center'>
-                <AppText
-                  style={{
-                    fontSize: 16,
-                    fontWeight: '700',
-                    color: colors.text,
-                  }}
-                  numberOfLines={1}
-                >
-                  {formatRoleTitle(activeRole.name)}
-                </AppText>
-                <AppText
-                  style={{
-                    fontSize: 12,
-                    marginTop: 2,
-                    color: colors.textSecondary,
-                  }}
-                >
-                  {activeRole.is_system ? 'System Default' : 'Custom Role'}
-                </AppText>
-              </View>
-            </View>
-
-            <View className='flex-row items-center gap-2'>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleSave}
-                disabled={!isDirty || isUpdatingRole}
-                className='h-9 w-9 items-center justify-center rounded-full'
-                style={{
-                  backgroundColor: isUpdatingRole
-                    ? colors.border
-                    : colors.primary,
-                  opacity: isUpdatingRole ? 0.6 : 1,
-                }}
-              >
-                <Ionicons name='checkmark' size={20} color={colors.white} />
-              </TouchableOpacity>
-              {!activeRole.is_system && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={handleDelete}
-                  className='h-9 w-9 items-center justify-center rounded-full'
-                  style={{ backgroundColor: colors.error + '1A' }}
+        <View
+          pointerEvents={hasFilteredRoles ? 'auto' : 'none'}
+          style={{
+            opacity: hasFilteredRoles ? 1 : 0.8,
+          }}
+        >
+          {activeRole && (
+            <View
+              className='mb-4 flex-row items-center justify-between rounded-2xl border p-3.5'
+              style={{
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              }}
+            >
+              <View className='flex-1 flex-row items-center pr-3'>
+                <View
+                  className='mr-3 h-11 w-11 items-center justify-center rounded-xl'
+                  style={{ backgroundColor: colors.primary }}
                 >
                   <Ionicons
-                    name='trash-outline'
-                    size={17}
-                    color={colors.error}
+                    name={getRoleIcon(activeRole.name)}
+                    size={22}
+                    color={colors.white}
                   />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Permissions Accordion */}
-        <View className='gap-3'>
-          {PERMISSION_GROUPS.map(group => {
-            const isExpanded = Boolean(expandedSections[group.id]);
-            const rolePerms = permissionsState[activeRole?.id]?.[group.id] || {
-              view: false,
-              add: false,
-              modify: false,
-              delete: false,
-            };
-            const activeCount = Object.values(rolePerms).filter(Boolean).length;
-
-            return (
-              <View
-                key={group.id}
-                className='overflow-hidden rounded-2xl border'
-                style={{
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                }}
-              >
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => toggleSection(group.id)}
-                  className='flex-row items-center justify-between p-4'
-                >
-                  <View className='flex-row items-center gap-4'>
-                    <WorkItemIcon
-                      type={group.icon}
-                      size={20}
-                      color={colors.primary}
-                    />
-                    <AppText
-                      style={{
-                        fontSize: 15,
-                        fontWeight: '700',
-                        color: colors.text,
-                      }}
-                    >
-                      {group.title}
-                    </AppText>
-                  </View>
-
-                  <View className='flex-row items-center gap-2.5'>
-                    <View
-                      className='rounded-full px-2.5 py-0.5'
-                      style={{ backgroundColor: colors.primary + '1A' }}
-                    >
-                      <AppText
-                        style={{
-                          fontSize: 12,
-                          fontWeight: '600',
-                          color: colors.primary,
-                        }}
-                      >
-                        {`${activeCount}/${group.actions.length}`}
-                      </AppText>
-                    </View>
-                    <Ionicons
-                      name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                      size={18}
-                      color={colors.textSecondary}
-                    />
-                  </View>
-                </TouchableOpacity>
-
-                {isExpanded && (
-                  <View
-                    className='border-t px-4'
-                    style={{ borderTopColor: colors.border }}
+                </View>
+                <View className='flex-1 justify-center'>
+                  <AppText
+                    style={{
+                      fontSize: 16,
+                      fontWeight: '700',
+                      color: colors.text,
+                    }}
+                    numberOfLines={1}
                   >
-                    {group.actions.map((action, idx) => {
-                      const isEnabled = Boolean(rolePerms[action.key]);
-                      const isLast = idx === group.actions.length - 1;
+                    {formatRoleTitle(activeRole.name)}
+                  </AppText>
+                  <AppText
+                    style={{
+                      fontSize: 12,
+                      marginTop: 2,
+                      color: colors.textSecondary,
+                    }}
+                  >
+                    {activeRole.is_system ? 'System Default' : 'Custom Role'}
+                  </AppText>
+                </View>
+              </View>
 
-                      return (
-                        <View
-                          key={action.key}
-                          className='flex-row items-center justify-between py-3.5'
-                          style={
-                            !isLast
-                              ? {
-                                  borderBottomWidth: StyleSheet.hairlineWidth,
-                                  borderBottomColor: colors.border,
-                                }
-                              : undefined
-                          }
-                        >
-                          <View className='flex-1 flex-row items-center pr-3'>
-                            <Ionicons
-                              name={action.icon}
-                              size={18}
-                              color={colors.textSecondary}
-                              style={{ marginRight: 12, width: 20 }}
-                            />
-                            <View className='flex-1'>
-                              <AppText
-                                style={{
-                                  fontSize: 14,
-                                  fontWeight: '600',
-                                  color: colors.text,
-                                }}
-                              >
-                                {action.label}
-                              </AppText>
-                              <AppText
-                                style={{
-                                  fontSize: 12,
-                                  marginTop: 1,
-                                  color: colors.textSecondary,
-                                }}
-                              >
-                                Can {action.key} {group.title.toLowerCase()}
-                              </AppText>
-                            </View>
-                          </View>
-
-                          <Switch
-                            value={isEnabled}
-                            disabled={action.key === 'view'}
-                            onValueChange={() =>
-                              togglePermission(
-                                activeRole.id,
-                                group.id,
-                                action.key,
-                              )
-                            }
-                            trackColor={{
-                              false: colors.border,
-                              true: colors.primary,
-                            }}
-                            thumbColor={colors.white}
-                          />
-                        </View>
-                      );
-                    })}
-                  </View>
+              <View className='flex-row items-center gap-2'>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handleSave}
+                  disabled={!isDirty || isUpdatingRole}
+                  className='h-9 w-9 items-center justify-center rounded-full'
+                  style={{
+                    backgroundColor: isUpdatingRole
+                      ? colors.border
+                      : colors.primary,
+                    opacity: isUpdatingRole ? 0.6 : 1,
+                  }}
+                >
+                  <Ionicons name='checkmark' size={20} color={colors.white} />
+                </TouchableOpacity>
+                {!activeRole.is_system && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={handleDelete}
+                    className='h-9 w-9 items-center justify-center rounded-full'
+                    style={{ backgroundColor: colors.error + '1A' }}
+                  >
+                    <Ionicons
+                      name='trash-outline'
+                      size={17}
+                      color={colors.error}
+                    />
+                  </TouchableOpacity>
                 )}
               </View>
-            );
-          })}
+            </View>
+          )}
+
+          {/* Permissions Accordion */}
+          <View className='gap-3'>
+            {PERMISSION_GROUPS.map(group => {
+              const isExpanded = Boolean(expandedSections[group.id]);
+              const rolePerms = permissionsState[activeRole?.id]?.[
+                group.id
+              ] || {
+                view: false,
+                add: false,
+                modify: false,
+                delete: false,
+              };
+              const activeCount =
+                Object.values(rolePerms).filter(Boolean).length;
+
+              return (
+                <View
+                  key={group.id}
+                  className='overflow-hidden rounded-2xl border'
+                  style={{
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => toggleSection(group.id)}
+                    className='flex-row items-center justify-between p-4'
+                  >
+                    <View className='flex-row items-center gap-4'>
+                      <WorkItemIcon
+                        type={group.icon}
+                        size={20}
+                        color={colors.primary}
+                      />
+                      <AppText
+                        style={{
+                          fontSize: 15,
+                          fontWeight: '700',
+                          color: colors.text,
+                        }}
+                      >
+                        {group.title}
+                      </AppText>
+                    </View>
+
+                    <View className='flex-row items-center gap-2.5'>
+                      <View
+                        className='rounded-full px-2.5 py-0.5'
+                        style={{ backgroundColor: colors.primary + '1A' }}
+                      >
+                        <AppText
+                          style={{
+                            fontSize: 12,
+                            fontWeight: '600',
+                            color: colors.primary,
+                          }}
+                        >
+                          {`${activeCount}/${group.actions.length}`}
+                        </AppText>
+                      </View>
+                      <Ionicons
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color={colors.textSecondary}
+                      />
+                    </View>
+                  </TouchableOpacity>
+
+                  {isExpanded && (
+                    <View
+                      className='border-t px-4'
+                      style={{ borderTopColor: colors.border }}
+                    >
+                      {group.actions.map((action, idx) => {
+                        const isEnabled = Boolean(rolePerms[action.key]);
+                        const isLast = idx === group.actions.length - 1;
+
+                        return (
+                          <View
+                            key={action.key}
+                            className='flex-row items-center justify-between py-3.5'
+                            style={
+                              !isLast
+                                ? {
+                                    borderBottomWidth: StyleSheet.hairlineWidth,
+                                    borderBottomColor: colors.border,
+                                  }
+                                : undefined
+                            }
+                          >
+                            <View className='flex-1 flex-row items-center pr-3'>
+                              <Ionicons
+                                name={action.icon}
+                                size={18}
+                                color={colors.textSecondary}
+                                style={{ marginRight: 12, width: 20 }}
+                              />
+                              <View className='flex-1'>
+                                <AppText
+                                  style={{
+                                    fontSize: 14,
+                                    fontWeight: '600',
+                                    color: colors.text,
+                                  }}
+                                >
+                                  {action.label}
+                                </AppText>
+                                <AppText
+                                  style={{
+                                    fontSize: 12,
+                                    marginTop: 1,
+                                    color: colors.textSecondary,
+                                  }}
+                                >
+                                  Can {action.key} {group.title.toLowerCase()}
+                                </AppText>
+                              </View>
+                            </View>
+
+                            <Switch
+                              value={isEnabled}
+                              disabled={action.key === 'view'}
+                              onValueChange={() =>
+                                togglePermission(
+                                  activeRole.id,
+                                  group.id,
+                                  action.key,
+                                )
+                              }
+                              trackColor={{
+                                false: colors.border,
+                                true: colors.primary,
+                              }}
+                              thumbColor={colors.white}
+                            />
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
         </View>
       </ScrollView>
     </Screen>

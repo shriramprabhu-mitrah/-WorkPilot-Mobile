@@ -7,7 +7,13 @@ import {
   GET_SPRINT_BY_Id,
   GETPROJECTOVERVIEW,
   GET_CUSTOMSTATUS,
+  CREATE_CUSTOMSTATUS,
+  UPDATE_CUSTOMSTATUS,
+  DELETE_CUSTOMSTATUS,
   GET_USERSTORY_STATUS,
+  CREATE_US_STATUS,
+  UPDATE_US_STATUS,
+  DELETE_US_STATUS,
   GET_USERSTORY,
   GET_SPRINT_BURNDOWN,
   GET_TEAM_WORKLOAD,
@@ -50,6 +56,8 @@ import {
 import {
   GetCustomStatusResponse,
   GetUserStoryStatusResponse,
+  StatusMutationArgs,
+  StatusMutationResponse,
 } from '../../types/customstatus.type';
 
 export const projectApi = createApi({
@@ -425,6 +433,100 @@ export const projectApi = createApi({
       }),
       invalidatesTags: ['Projects'],
     }),
+
+    createCustomStatus: build.mutation<
+      StatusMutationResponse,
+      StatusMutationArgs
+    >({
+      query: ({ project_id, status_id: _status_id, ...data }) => ({
+        url: CREATE_CUSTOMSTATUS.replace('{project_id}', project_id),
+        method: 'POST',
+        data,
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'CustomStatus', id: project_id },
+      ],
+    }),
+
+    updateCustomStatus: build.mutation<
+      StatusMutationResponse,
+      StatusMutationArgs
+    >({
+      query: ({ project_id, status_id, ...data }) => ({
+        url: UPDATE_CUSTOMSTATUS.replace('{project_id}', project_id).replace(
+          '{status_id}',
+          status_id || '',
+        ),
+        method: 'PATCH',
+        data,
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'CustomStatus', id: project_id },
+      ],
+    }),
+
+    deleteCustomStatus: build.mutation<
+      StatusMutationResponse,
+      { project_id: string; status_id: string }
+    >({
+      query: ({ project_id, status_id }) => ({
+        url: DELETE_CUSTOMSTATUS.replace('{project_id}', project_id).replace(
+          '{status_id}',
+          status_id,
+        ),
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'CustomStatus', id: project_id },
+      ],
+    }),
+
+    createUserStoryStatus: build.mutation<
+      StatusMutationResponse,
+      StatusMutationArgs
+    >({
+      query: ({ project_id, status_id: _status_id, ...data }) => ({
+        url: CREATE_US_STATUS.replace('{project_id}', project_id),
+        method: 'POST',
+        data,
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'UserStoryStatus', id: project_id },
+      ],
+    }),
+
+    updateUserStoryStatus: build.mutation<
+      StatusMutationResponse,
+      StatusMutationArgs
+    >({
+      query: ({ project_id, status_id, ...data }) => ({
+        url: UPDATE_US_STATUS.replace('{project_id}', project_id).replace(
+          '{status_id}',
+          status_id || '',
+        ),
+        method: 'PATCH',
+        data,
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'UserStoryStatus', id: project_id },
+      ],
+    }),
+
+    deleteUserStoryStatus: build.mutation<
+      StatusMutationResponse,
+      { project_id: string; status_id: string }
+    >({
+      query: ({ project_id, status_id }) => ({
+        url: DELETE_US_STATUS.replace('{project_id}', project_id).replace(
+          '{status_id}',
+          status_id,
+        ),
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'UserStoryStatus', id: project_id },
+      ],
+    }),
   }),
 });
 
@@ -447,6 +549,12 @@ export const {
   useLazyGetProjectByIdQuery,
   useLazyGetTeamWorkloadQuery,
   useLazyGetWeeklyProgressQuery,
+  useCreateCustomStatusMutation,
+  useUpdateCustomStatusMutation,
+  useDeleteCustomStatusMutation,
+  useCreateUserStoryStatusMutation,
+  useUpdateUserStoryStatusMutation,
+  useDeleteUserStoryStatusMutation,
 } = projectApi;
 
 // Aliases matching thunk names

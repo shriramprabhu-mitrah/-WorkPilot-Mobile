@@ -27,7 +27,8 @@ export type HeaderVariant =
   | 'projectdetails'
   | 'taskDetails'
   | 'search'
-  | 'organizationMembers';
+  | 'organizationMembers'
+  | 'status';
 
 export interface SearchCategoryOption<T = string> {
   label: string;
@@ -232,6 +233,29 @@ export const CommonHeader: React.FC<HeaderProps> = ({
             />
           </TouchableOpacity>
         );
+
+      case 'status':
+        return onBackPress ? (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onBackPress}
+            className='items-center justify-center rounded-full'
+            style={{
+              width: moderateScale(36),
+              height: moderateScale(36),
+              backgroundColor: colors.background,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Ionicons
+              name='arrow-back'
+              size={moderateScale(20)}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        ) : null;
+
       default:
         return onBackPress ? (
           <TouchableOpacity
@@ -366,6 +390,21 @@ export const CommonHeader: React.FC<HeaderProps> = ({
           </AppText>
         );
 
+      case 'status':
+        return (
+          <AppText
+            variant='body'
+            className='font-bold'
+            style={{
+              fontSize: moderateScale(18),
+              color: colors.text,
+            }}
+            numberOfLines={1}
+          >
+            {title || 'Statuses'}
+          </AppText>
+        );
+
       default:
         return title ? (
           <AppText
@@ -428,6 +467,33 @@ export const CommonHeader: React.FC<HeaderProps> = ({
   };
 
   const renderBottomSection = () => {
+    // ── Status Variant: Shows Tab/Pill Buttons FIRST, then Search Bar BELOW ──
+    if (variant === 'status') {
+      return (
+        <View className='mt-2'>
+          {/* 1. Tag / Pill Switcher (passed as children) */}
+          {children}
+
+          {/* 2. Search Bar rendered directly underneath the tags */}
+          <View className='mt-2'>
+            <AppInput
+              autoFocus={searchAutoFocus}
+              placeholder={searchPlaceholder || 'Search statuses...'}
+              onChangeText={onChangeSearchQuery}
+              value={searchQuery}
+              leftIcon={
+                <Ionicons
+                  name='search-outline'
+                  size={moderateScale(18)}
+                  color={colors.textSecondary}
+                />
+              }
+            />
+          </View>
+        </View>
+      );
+    }
+
     if (children) return <View className='mt-3'>{children}</View>;
 
     if (variant === 'search' || variant === 'organizationMembers') {

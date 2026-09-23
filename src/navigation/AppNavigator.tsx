@@ -33,6 +33,7 @@ import Organization from '../screens/organization/organization.tsx';
 import OrganizationDetailsScreen from '../screens/organizationDetails.tsx';
 import OrganizationMembers from '../screens/organizationMembers.tsx';
 import RolePermission from '../screens/rolePermission.tsx';
+import ProjectStatus from '../screens/projectScreens/projectStatus.tsx';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -139,6 +140,7 @@ const AppNavigator = () => {
               name='OrganizationMembers'
               component={OrganizationMembers}
             />
+            <Stack.Screen name='ProjectStatus' component={ProjectStatus} />
           </Stack.Navigator>
         ) : (
           <Stack.Navigator
