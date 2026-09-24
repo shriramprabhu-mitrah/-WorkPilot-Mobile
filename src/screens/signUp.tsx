@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -18,6 +18,7 @@ import { useAuthLayout } from '../hooks/useAuthLayout';
 import { showSuccessToast } from '../utils/utils';
 import { mmkv, useAppDispatch } from '../store';
 import { signUpUser } from '../store/auth_store/action/auth.thunks';
+import { userValidateService } from '../services/auth.service';
 import { useResponsive } from '../utils/responsive';
 
 const SignUpScreen = () => {
@@ -42,6 +43,95 @@ const SignUpScreen = () => {
   const responsiveOverlap = Math.round(screenHeight * -0.035);
   const cardBorderRadius = moderateScale(24);
 
+  // Debounce API validation for username
+  useEffect(() => {
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(trimmedUsername)) {
+      return;
+    }
+
+    let isCancelled = false;
+    const timeoutId = setTimeout(async () => {
+      try {
+        const response = await userValidateService('username', trimmedUsername);
+        if (isCancelled) return;
+
+        if (response?.data?.available === false || response?.success === false) {
+          setErrors(prev => ({
+            ...prev,
+            username: response?.message || 'username is already taken.',
+          }));
+        } else {
+          setErrors(prev => ({ ...prev, username: '' }));
+        }
+      } catch (error: any) {
+        if (isCancelled) return;
+        const errorMessage =
+          error?.response?.data?.message ||
+          (error?.response?.status === 409
+            ? 'username is already taken.'
+            : '');
+        if (errorMessage) {
+          setErrors(prev => ({ ...prev, username: errorMessage }));
+        }
+      }
+    }, 500);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [username]);
+
+  // Debounce API validation for email
+  useEffect(() => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      return;
+    }
+
+    const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+    if (!emailRegex.test(trimmedEmail)) {
+      return;
+    }
+
+    let isCancelled = false;
+    const timeoutId = setTimeout(async () => {
+      try {
+        const response = await userValidateService('email', trimmedEmail);
+        if (isCancelled) return;
+
+        if (response?.data?.available === false || response?.success === false) {
+          setErrors(prev => ({
+            ...prev,
+            email: response?.message || 'email is already taken.',
+          }));
+        } else {
+          setErrors(prev => ({ ...prev, email: '' }));
+        }
+      } catch (error: any) {
+        if (isCancelled) return;
+        const errorMessage =
+          error?.response?.data?.message ||
+          (error?.response?.status === 409
+            ? 'email is already taken.'
+            : '');
+        if (errorMessage) {
+          setErrors(prev => ({ ...prev, email: errorMessage }));
+        }
+      }
+    }, 500);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [email]);
+
   const validate = () => {
     const newErrors = {
       fullName: '',
@@ -49,62 +139,64 @@ const SignUpScreen = () => {
       email: '',
       password: '',
     };
+    let isValid = true;
+
     // Full Name
     if (!fullName.trim()) {
       newErrors.fullName = 'Full name is required';
-      setErrors(newErrors);
-      return false;
-    }
-    if (fullName.trim().length < 3) {
+      isValid = false;
+    } else if (fullName.trim().length < 3) {
       newErrors.fullName = 'Full name must be at least 3 characters';
-      setErrors(newErrors);
-      return false;
+      isValid = false;
     }
+
     // Username
     if (!username.trim()) {
       newErrors.username = 'Username is required';
-      setErrors(newErrors);
-      return false;
-    }
-    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      isValid = false;
+    } else if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
       newErrors.username = '3-20 chars (letters, numbers, _)';
-      setErrors(newErrors);
-      return false;
+      isValid = false;
+    } else if (errors.username) {
+      newErrors.username = errors.username;
+      isValid = false;
     }
+
     // Email
     if (!email.trim()) {
       newErrors.email = 'Email is required';
-      setErrors(newErrors);
-      return false;
-    }
-    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      isValid = false;
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
       newErrors.email = 'Enter a valid email address';
-      setErrors(newErrors);
-      return false;
+      isValid = false;
+    } else if (errors.email) {
+      newErrors.email = errors.email;
+      isValid = false;
     }
+
     // Password
     if (!password) {
       newErrors.password = 'Password is required';
-      setErrors(newErrors);
-      return false;
-    }
-    if (password.length < 8) {
+      isValid = false;
+    } else if (password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters';
-      setErrors(newErrors);
-      return false;
+      isValid = false;
     }
-    // Clear all errors
-    setErrors({
-      fullName: '',
-      username: '',
-      email: '',
-      password: '',
-    });
-    return true;
+
+    setErrors(newErrors);
+    return isValid;
   };
 
+  const isSignUpDisabled =
+    !agreed ||
+    loading ||
+    Boolean(errors.username) ||
+    Boolean(errors.email) ||
+    Boolean(errors.fullName) ||
+    Boolean(errors.password);
+
   const handleSignUp = async () => {
-    if (!validate()) return;
+    if (isSignUpDisabled || !validate()) return;
 
     setLoading(true);
 
@@ -364,7 +456,7 @@ const SignUpScreen = () => {
         >
           <PrimaryButton
             title={strings?.signUp?.signUpButton}
-            disabled={!agreed}
+            disabled={isSignUpDisabled}
             loading={loading}
             onPress={handleSignUp}
           />
