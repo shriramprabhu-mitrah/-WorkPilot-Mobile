@@ -24,6 +24,7 @@ import {
   useGetSprintsQuery,
 } from '../../store/api/projectApi';
 import { WorkItemIcon } from './getWorkItemIcon';
+import { CreateProjectModal } from '../createProjectModel';
 
 export interface ProjectListBottomSheetProps {
   visible: boolean;
@@ -76,6 +77,8 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [refetchKey, setRefetchKey] = useState(0);
+  const [isCreateProjectModalVisible, setIsCreateProjectModalVisible] =
+    useState(false);
   const isSprint = mode === 'sprints';
 
   // Resolved active project ID from props or store fallback
@@ -169,6 +172,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   ]);
 
   const sheetTitle = title || (isSprint ? 'Select Sprint' : 'Select Project');
+  const newButtonTitle = mode === 'sprints' ? 'New Sprint' : 'New Project';
   const searchPlaceholder = isSprint
     ? 'Search sprints...'
     : strings?.projects?.searchPlaceholder || 'Search projects...';
@@ -223,16 +227,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
               className='h-1.5 w-12 rounded-full'
             />
           </View>
-
-          <View className='flex-row items-center justify-between pb-3'>
-            <AppText
-              variant='h2'
-              color={colors.text}
-              style={{ fontSize: moderateScale(20) }}
-              className='font-bold'
-            >
-              {sheetTitle}
-            </AppText>
+          {/* <View className='mb-5 flex-row justify-end'>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={onDismiss}
@@ -249,8 +244,62 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                 color={colors.textSecondary || '#6B778C'}
               />
             </TouchableOpacity>
+          </View> */}
+          <View className='flex-row items-center justify-between pb-3'>
+            <AppText
+              variant='h3'
+              color={colors.text}
+              style={{ fontSize: moderateScale(20) }}
+              className='font-bold'
+            >
+              {sheetTitle}
+            </AppText>
+            <View className='flex-row items-center gap-5'>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  if (!isSprint) {
+                    setIsCreateProjectModalVisible(true);
+                  }
+                }}
+                style={{
+                  backgroundColor: colors.primary,
+                }}
+                className='flex-row items-center gap-1 rounded-lg px-2 py-2'
+              >
+                <Ionicons
+                  name='add'
+                  size={moderateScale(14)}
+                  color={colors.white}
+                  className='font-semibold'
+                />
+                <AppText
+                  variant='button'
+                  color={colors.white}
+                  style={{ fontSize: moderateScale(12) }}
+                  className='font-semibold'
+                >
+                  {newButtonTitle}
+                </AppText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={onDismiss}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                }}
+                className='rounded-full border p-1'
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons
+                  name='close-outline'
+                  size={closeIconSize}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-
           <View className='pb-3'>
             <AppInput
               placeholder={searchPlaceholder}
@@ -435,6 +484,15 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
           )}
         </View>
       </View>
+
+      <CreateProjectModal
+        visible={isCreateProjectModalVisible}
+        onClose={() => setIsCreateProjectModalVisible(false)}
+        onSuccess={() => {
+          setPage(1);
+          setRefetchKey(prev => prev + 1);
+        }}
+      />
     </Modal>
   );
 };

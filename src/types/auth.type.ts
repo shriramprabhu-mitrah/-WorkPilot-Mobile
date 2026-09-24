@@ -169,7 +169,13 @@ export interface User {
 
 export interface GetUserResponse extends ApiResponse<User> {}
 
-export interface UserValidateResponse extends ApiResponse {}
+export interface UserValidateData {
+  type: string;
+  value: string;
+  available: boolean;
+}
+
+export interface UserValidateResponse extends ApiResponse<UserValidateData> {}
 
 // Organization Model
 

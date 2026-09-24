@@ -16,6 +16,7 @@ import {
   REFRESH_TOKEN,
   SIGNIN,
   SIGNUP,
+  USER_VALIDATE,
 } from '../../constants/apiServiceEndpoint';
 import { logout } from '../../store/auth_store/reducer/auth.reducer';
 import { API_URL } from '../../utils/utils';
@@ -44,6 +45,7 @@ apiClient.interceptors.request.use(
       SIGNUP,
       PASSWORD_RESET_REQUEST,
       PASSWORD_RESET_CONFIRM,
+      USER_VALIDATE,
     ];
 
     const isPublicRoute = publicRoutes.some(route =>
@@ -132,15 +134,21 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    const isValidateRoute = originalRequest?.url?.includes(USER_VALIDATE);
+    const shouldSkipSnackbar =
+      originalRequest?.headers?.['x-skip-snackbar'] || isValidateRoute;
+
     // Other API errors
-    showSnackbar({
-      message:
-        error.response?.data?.message ||
-        error.response?.data?.error?.message ||
-        error.message ||
-        'Something went wrong',
-      type: 'error',
-    });
+    if (!shouldSkipSnackbar) {
+      showSnackbar({
+        message:
+          error.response?.data?.message ||
+          error.response?.data?.error?.message ||
+          error.message ||
+          'Something went wrong',
+        type: 'error',
+      });
+    }
 
     return Promise.reject(error);
   },
