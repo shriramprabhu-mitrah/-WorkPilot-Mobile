@@ -453,7 +453,7 @@ const RolePermission = () => {
         <View
           pointerEvents={hasFilteredRoles ? 'auto' : 'none'}
           style={{
-            opacity: hasFilteredRoles ? 1 : 0.8,
+            opacity: hasFilteredRoles ? 1 : 0.5,
           }}
         >
           {activeRole && (

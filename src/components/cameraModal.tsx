@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   View,
   TouchableWithoutFeedback,
+  StatusBar,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
@@ -44,6 +45,11 @@ export const CameraPickerModal: React.FC<CameraPickerModalProps> = ({
       animationType='slide'
       onRequestClose={onClose}
     >
+      <StatusBar
+        backgroundColor={colors.background}
+        barStyle='dark-content'
+        translucent={false}
+      />
       <TouchableOpacity
         className='flex-1 justify-end bg-black/50'
         activeOpacity={1}

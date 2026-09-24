@@ -11,6 +11,7 @@ import {
   CHANGE_PASSWORD,
   GET_COUNTRIES,
   GET_ORG_MEMBERS,
+  REMOVE_ORG_MEMBER,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetRecentProjectResponse,
@@ -31,6 +32,7 @@ import {
   DeleteRoleResponse,
   UpdateRolePayload,
   UpdateRoleResponse,
+  RemoveOrganizationMemberResponse,
 } from '../../types/auth.type';
 import {
   GetFavoritesResponse,
@@ -140,6 +142,17 @@ export const homeApi = createApi({
         params,
       }),
       providesTags: ['Organization'],
+    }),
+
+    removeOrganizationMember: build.mutation<
+      RemoveOrganizationMemberResponse,
+      { user_id: string }
+    >({
+      query: ({ user_id }) => ({
+        url: REMOVE_ORG_MEMBER.replace('{user_id}', user_id),
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Organization'],
     }),
 
     getRoles: build.query<GetRolesResponse, void>({
@@ -296,6 +309,7 @@ export const {
   useUpdateOrganizationMutation,
   useGetCountriesQuery,
   useGetOrganizationMembersQuery,
+  useRemoveOrganizationMemberMutation,
   useGetRolesQuery,
   useCreateRoleMutation,
   useUpdateRoleMutation,

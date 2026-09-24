@@ -60,6 +60,15 @@ export interface Sprint {
   end_date: string;
 }
 
+export interface CreateSprintPayload {
+  name: string;
+  goal: string;
+  start_date: string;
+  end_date: string;
+}
+
+export interface CreateSprintResponse extends ApiResponse<{ sprint_id: string }> {}
+
 export interface GetSprintByIdParams {
   project_id: string;
   sprint_id: string;

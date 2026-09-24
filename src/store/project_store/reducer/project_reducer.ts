@@ -45,6 +45,7 @@ export interface TaskFilterState {
 // Extended Initial State
 const initialState: ProjectState & {
   projectName: string;
+  sprintsName: string;
   tasks: Task[];
   tasksMeta: TaskMeta | null;
   loadingMore: boolean;
@@ -79,6 +80,7 @@ const initialState: ProjectState & {
   isProjectFetching: boolean;
 } = {
   projectName: '',
+  sprintsName: '',
   projects: [],
   project: null,
   active_sprint: null,
@@ -148,6 +150,9 @@ const projectSlice = createSlice({
     },
     getCurrentSprintData: (state, action) => {
       state.currentSprint = action.payload;
+    },
+    setNewSprint: (state, action) => {
+      state.sprintsName = action.payload;
     },
     resetProjects: state => {
       state.projects = [];
@@ -509,6 +514,7 @@ const projectSlice = createSlice({
 
 export const {
   getProjectName,
+  setNewSprint,
   resetProjects,
   resetSprints,
   setSelectedDate,
