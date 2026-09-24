@@ -24,7 +24,7 @@ import {
   useGetSprintsQuery,
 } from '../../store/api/projectApi';
 import { WorkItemIcon } from './getWorkItemIcon';
-import { CreateProjectModal } from '../createProjectModel';
+import CreateProjectModal from '../createProjectModel';
 
 export interface ProjectListBottomSheetProps {
   visible: boolean;
@@ -72,13 +72,14 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const closeIconSize = moderateScale(20);
   const bottomPadding = Math.max(insets.bottom, 16);
 
-  const { project } = useAppSelector((state: RootState) => state.projects);
+  const { project, sprintsName } = useAppSelector(
+    (state: RootState) => state.projects,
+  );
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [refetchKey, setRefetchKey] = useState(0);
-  const [isCreateProjectModalVisible, setIsCreateProjectModalVisible] =
-    useState(false);
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const isSprint = mode === 'sprints';
 
   // Resolved active project ID from props or store fallback
@@ -109,11 +110,30 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const projectsData = projectsResponse?.data || [];
   const sprintsData = sprintsResponse?.data || [];
 
-  const listData = isSprint
-    ? sprintsData?.length
-      ? sprintsData
-      : project?.sprints || []
-    : projectsData || [];
+  const listData = useMemo(() => {
+    if (!isSprint) {
+      return projectsData || [];
+    }
+
+    const apiList =
+      sprintsData.length > 0 ? sprintsData : project?.sprints || [];
+
+    if (
+      sprintsName &&
+      !apiList.some((item: any) => item.name === sprintsName)
+    ) {
+      return [
+        {
+          id: 'temporary-created-sprint',
+          name: sprintsName,
+          isTemporary: true,
+        },
+        ...apiList,
+      ];
+    }
+
+    return apiList;
+  }, [isSprint, projectsData, sprintsData, sprintsName, project?.sprints]);
 
   // Pagination meta
   const currentMeta = isSprint ? sprintsResponse?.meta : projectsResponse?.meta;
@@ -128,7 +148,6 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const isCurrentFetching = isSprint ? isSprintsFetching : isProjectsFetching;
   const isCurrentLoading = isSprint ? isSprintsLoading : isProjectsLoading;
 
-  // Show skeleton only on the very first API call when no cached data exists
   const isFirstTime = isSprint
     ? sprintsResponse === undefined
     : projectsResponse === undefined;
@@ -138,11 +157,9 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const loading = isCurrentLoading || (isCurrentFetching && page === 1);
   const reduxIsFetchingMore = isCurrentFetching && page > 1;
 
-  // Effective state combining props and query state
   const effectiveHasMore = hasMoreProp ?? rtkHasMore;
   const effectiveIsFetchingMore = isFetchingMoreProp || reduxIsFetchingMore;
 
-  // Reset page and trigger initial fetch when modal becomes visible or mode/projectId changes
   useFocusEffect(
     useCallback(() => {
       if (visible) {
@@ -152,9 +169,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     }, [visible, mode, resolvedProjectId]),
   );
 
-  // Handle loading next page when scrolling reaches threshold
   const handleLoadMore = useCallback(() => {
-    // Avoid triggering pagination if searching locally, already fetching, or no more data
     if (search.trim() !== '') return;
     if (loading || effectiveIsFetchingMore || !effectiveHasMore) return;
 
@@ -172,7 +187,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   ]);
 
   const sheetTitle = title || (isSprint ? 'Select Sprint' : 'Select Project');
-  const newButtonTitle = mode === 'sprints' ? 'New Sprint' : 'New Project';
+  const newButtonTitle = isSprint ? 'New Sprint' : 'New Project';
   const searchPlaceholder = isSprint
     ? 'Search sprints...'
     : strings?.projects?.searchPlaceholder || 'Search projects...';
@@ -221,30 +236,15 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
           }}
           className='w-full rounded-t-3xl border px-5 pt-3 shadow-xl'
         >
+          {/* Grab handle */}
           <View className='items-center pb-2'>
             <View
               style={{ backgroundColor: colors.border || '#E2E8F0' }}
               className='h-1.5 w-12 rounded-full'
             />
           </View>
-          {/* <View className='mb-5 flex-row justify-end'>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={onDismiss}
-              style={{
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              }}
-              className='rounded-full border p-2'
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name='close-outline'
-                size={closeIconSize}
-                color={colors.textSecondary || '#6B778C'}
-              />
-            </TouchableOpacity>
-          </View> */}
+
+          {/* Sheet Header */}
           <View className='flex-row items-center justify-between pb-3'>
             <AppText
               variant='h3'
@@ -257,11 +257,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
             <View className='flex-row items-center gap-5'>
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => {
-                  if (!isSprint) {
-                    setIsCreateProjectModalVisible(true);
-                  }
-                }}
+                onPress={() => setIsCreateModalVisible(true)}
                 style={{
                   backgroundColor: colors.primary,
                 }}
@@ -300,6 +296,8 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Search Input */}
           <View className='pb-3'>
             <AppInput
               placeholder={searchPlaceholder}
@@ -315,6 +313,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
             />
           </View>
 
+          {/* Content List */}
           {showSkeleton ? (
             <View className='pt-2'>
               <ListSkeleton
@@ -373,7 +372,13 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                           >
                             {name || `Sprint ${id}`}
                           </AppText>
-                          {status ? (
+                          {item.isTemporary ? (
+                            <ActivityIndicator
+                              size='small'
+                              color={colors.primary}
+                              style={{ marginLeft: moderateScale(8) }}
+                            />
+                          ) : status ? (
                             <View
                               style={{
                                 backgroundColor: colors.surface,
@@ -486,8 +491,11 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
       </View>
 
       <CreateProjectModal
-        visible={isCreateProjectModalVisible}
-        onClose={() => setIsCreateProjectModalVisible(false)}
+        visible={isCreateModalVisible}
+        onClose={() => setIsCreateModalVisible(false)}
+        mode={isSprint ? 'sprint' : 'project'}
+        title={isSprint ? 'Create Sprint' : 'New Project'}
+        projectId={resolvedProjectId}
         onSuccess={() => {
           setPage(1);
           setRefetchKey(prev => prev + 1);

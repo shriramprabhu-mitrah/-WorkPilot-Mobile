@@ -24,6 +24,7 @@ export const GET_ROLES = `/organization/roles`;
 export const CREATE_ROLE = `/organization/roles`;
 export const DELETE_ROLE = `/organization/roles/{role_id}`;
 export const UPDATE_ROLE = `/organization/roles/{role_id}`;
+export const REMOVE_ORG_MEMBER = `/organization/remove-user/{user_id}`;
 
 //PROJECT
 export const PROJECTS = `/project`;
@@ -52,6 +53,7 @@ export const DELETE_UE_STATUS = DELETE_US_STATUS;
 export const GET_USERSTORY_STATUS = `/projects/{project_id}/user-story-statuses`;
 
 //SPRINT
+export const CREATE_NEW_SPRINT = `/projects/{project_id}/sprint`;
 export const GET_SPRINTS = `/projects/{project_id}/sprint`;
 export const GET_SPRINT_BY_Id = `projects/{project_id}/sprint/{sprint_id}`;
 export const GET_USERSTORY_BY_ID = `/projects/{project_id}/user-stories/{user_story_id}`;

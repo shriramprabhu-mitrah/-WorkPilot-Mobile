@@ -23,14 +23,31 @@ import {
   createNewProject,
 } from '../store/project_store/action/project_thunk';
 import { handleLoading } from '../store/auth_store/reducer/auth.reducer';
-import { resetProjects } from '../store/project_store/reducer/project_reducer';
-import { projectApi } from '../store/api/projectApi';
+import {
+  resetProjects,
+  setNewSprint,
+} from '../store/project_store/reducer/project_reducer';
+import {
+  projectApi,
+  useCreateSprintMutation,
+  useGetSprintsQuery,
+} from '../store/api/projectApi';
+import { showSnackbar } from './common/Snackbar';
+import DatePickerModal from './datePickerModel';
+
+export interface CreateSprintPayload {
+  name: string;
+  goal: string;
+  start_date: string;
+  end_date: string;
+}
 
 export interface CreateProjectModalProps {
   visible: boolean;
   onClose: () => void;
   title?: string;
-  mode?: 'project' | 'role';
+  mode?: 'project' | 'role' | 'sprint';
+  projectId?: string;
   onCreateRole?: (name: string) => Promise<void> | void;
   validateRoleName?: (name: string) => string | undefined;
   isCreatingRole?: boolean;
@@ -42,6 +59,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   onClose,
   title,
   mode = 'project',
+  projectId,
   onCreateRole,
   validateRoleName,
   isCreatingRole = false,
@@ -52,12 +70,33 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [roleNameError, setRoleNameError] = useState<string>();
+  const [sprintGoal, setSprintGoal] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedDateType, setSelectedDateType] = useState<
+    'start' | 'end' | null
+  >(null);
+
   const [isNameFocused, setIsNameFocused] = useState(false);
   const [isDescFocused, setIsDescFocused] = useState(false);
+  const [isGoalFocused, setIsGoalFocused] = useState(false);
 
   const dispatch = useAppDispatch();
   const loading = useAppSelector(state => state.auth?.loading);
   const isRole = mode === 'role';
+  const isSprint = mode === 'sprint';
+
+  const [createSprint, { isLoading: isCreatingSprint }] =
+    useCreateSprintMutation();
+  const { refetch: refetchSprints } = useGetSprintsQuery(
+    {
+      project_id: projectId!,
+      page: 1,
+    },
+    {
+      skip: !projectId || !isSprint,
+    },
+  );
 
   const handleProjectSuccess = () => {
     dispatch(handleLoading(false));
@@ -76,9 +115,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const handleClose = () => {
     setProjectName('');
     setProjectDescription('');
+    setSprintGoal('');
+    setStartDate('');
+    setEndDate('');
     setRoleNameError(undefined);
     setIsNameFocused(false);
     setIsDescFocused(false);
+    setIsGoalFocused(false);
     dispatch(handleLoading(false));
     onClose();
   };
@@ -86,10 +129,37 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const handleSubmit = async () => {
     const name = projectName.trim();
     if (!name) {
-      showSuccessToast?.(
-        `${isRole ? 'Role' : 'Project'} name is required`,
-        'error',
-      );
+      const entityName = isSprint ? 'Sprint' : isRole ? 'Role' : 'Project';
+      showSuccessToast?.(`${entityName} name is required`, 'error');
+      return;
+    }
+
+    if (isSprint) {
+      if (!projectId) {
+        showSnackbar?.({
+          message: 'Project ID is required to create sprint',
+          type: 'error',
+        });
+        return;
+      }
+
+      try {
+        await createSprint({
+          project_id: projectId,
+          name,
+          goal: sprintGoal.trim(),
+          start_date: startDate.trim(),
+          end_date: endDate.trim(),
+        }).unwrap();
+        dispatch(setNewSprint(name));
+        handleClose();
+        await refetchSprints();
+        onSuccess?.();
+        showSnackbar?.({
+          message: 'Sprint created successfully',
+          type: 'success',
+        });
+      } catch {}
       return;
     }
     if (isRole) {
@@ -121,7 +191,17 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     );
   };
 
-  const isSubmitDisabled = !projectName.trim() || loading || isCreatingRole;
+  const isSubmitting = loading || isCreatingRole || isCreatingSprint;
+  const isSubmitDisabled = !projectName.trim() || isSubmitting;
+
+  const modalHeaderTitle =
+    title ??
+    (isSprint ? 'Create Sprint' : isRole ? 'Create Role' : 'New Project');
+  const actionButtonText = isSprint
+    ? 'Create Sprint'
+    : isRole
+      ? 'Create Role'
+      : 'Create Project';
 
   return (
     <Modal
@@ -171,15 +251,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                       fontWeight: '700',
                     }}
                   >
-                    {title ?? (isRole ? 'Create Role' : 'New Project')}
+                    {modalHeaderTitle}
                   </AppText>
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={handleClose}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={{
-                      padding: moderateScale(4),
-                    }}
+                    style={{ padding: moderateScale(4) }}
                   >
                     <Ionicons
                       name='close'
@@ -211,7 +289,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                           fontSize: moderateScale(14),
                         }}
                       >
-                        {isRole ? 'Role name ' : 'Project name '}
+                        {isSprint
+                          ? 'Sprint name '
+                          : isRole
+                            ? 'Role name '
+                            : 'Project name '}
                       </AppText>
                       <AppText
                         style={{
@@ -254,9 +336,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                           }
                         }}
                         placeholder={
-                          isRole
-                            ? 'Enter role name...'
-                            : 'e.g. WorkPilot Mobile App'
+                          isSprint
+                            ? 'Enter sprint name...'
+                            : isRole
+                              ? 'Enter role name...'
+                              : 'e.g. WorkPilot Mobile App'
                         }
                         placeholderTextColor={
                           colors.placeholder ||
@@ -284,8 +368,148 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     ) : null}
                   </View>
 
-                  {/* Field 2: Description (Project mode only) */}
-                  {!isRole && (
+                  {/* Field 2: Description (Project mode and Sprint mode only) */}
+                  {isSprint && (
+                    <>
+                      <View style={{ gap: moderateScale(6) }}>
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          style={{
+                            fontWeight: '600',
+                            fontSize: moderateScale(14),
+                          }}
+                        >
+                          Sprint Goal
+                        </AppText>
+                        <View
+                          style={{
+                            backgroundColor: colors.surface,
+                            borderWidth: 1,
+                            borderColor: isGoalFocused
+                              ? colors.primary || '#0E6FFF'
+                              : colors.border || '#E2E8F0',
+                            borderRadius: Radius.sm || moderateScale(8),
+                            paddingHorizontal: moderateScale(12),
+                            paddingVertical:
+                              Platform.OS === 'ios'
+                                ? moderateScale(10)
+                                : moderateScale(8),
+                          }}
+                        >
+                          <TextInput
+                            value={sprintGoal}
+                            onChangeText={setSprintGoal}
+                            placeholder='Enter sprint goal...'
+                            placeholderTextColor={
+                              colors.placeholder ||
+                              colors.textSecondary ||
+                              '#94A3B8'
+                            }
+                            onFocus={() => setIsGoalFocused(true)}
+                            onBlur={() => setIsGoalFocused(false)}
+                            style={{
+                              fontSize: moderateScale(14),
+                              color: colors.text,
+                              padding: 0,
+                            }}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Dates */}
+                      <View style={{ gap: moderateScale(6) }}>
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          style={{
+                            fontWeight: '600',
+                            fontSize: moderateScale(14),
+                          }}
+                        >
+                          Start Date
+                        </AppText>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => setSelectedDateType('start')}
+                          style={{
+                            backgroundColor: colors.surface,
+                            borderWidth: 1,
+                            borderColor: colors.border || '#E2E8F0',
+                            borderRadius: Radius.sm || moderateScale(8),
+                            paddingHorizontal: moderateScale(12),
+                            paddingVertical: moderateScale(10),
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <AppText
+                            style={{
+                              fontSize: moderateScale(14),
+                              color: startDate
+                                ? colors.text
+                                : colors.placeholder || '#94A3B8',
+                            }}
+                          >
+                            {startDate || 'Select start date'}
+                          </AppText>
+                          <Ionicons
+                            name='calendar-outline'
+                            size={moderateScale(18)}
+                            color={colors.textSecondary || '#94A3B8'}
+                          />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={{ gap: moderateScale(6) }}>
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          style={{
+                            fontWeight: '600',
+                            fontSize: moderateScale(14),
+                          }}
+                        >
+                          End Date
+                        </AppText>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => setSelectedDateType('end')}
+                          style={{
+                            backgroundColor: colors.surface,
+                            borderWidth: 1,
+                            borderColor: colors.border || '#E2E8F0',
+                            borderRadius: Radius.sm || moderateScale(8),
+                            paddingHorizontal: moderateScale(12),
+                            paddingVertical: moderateScale(10),
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <AppText
+                            style={{
+                              fontSize: moderateScale(14),
+                              color: endDate
+                                ? colors.text
+                                : colors.placeholder || '#94A3B8',
+                            }}
+                          >
+                            {endDate || 'Select end date'}
+                          </AppText>
+                          <Ionicons
+                            name='calendar-outline'
+                            size={moderateScale(18)}
+                            color={colors.textSecondary || '#94A3B8'}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  )}
+
+                  {/* Project Mode Description Field */}
+                  {!isRole && !isSprint && (
                     <View style={{ gap: moderateScale(6) }}>
                       <AppText
                         variant='body'
@@ -376,7 +600,9 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     disabled={isSubmitDisabled}
                     onPress={handleSubmit}
                     style={{
-                      backgroundColor: isSubmitDisabled ? '#94A3B8' : '#475569',
+                      backgroundColor: isSubmitDisabled
+                        ? '#94A3B8'
+                        : colors.primary || '#0E6FFF',
                       borderRadius: Radius.sm || moderateScale(8),
                       paddingVertical: moderateScale(8),
                       paddingHorizontal: moderateScale(16),
@@ -385,7 +611,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                       justifyContent: 'center',
                     }}
                   >
-                    {loading || isCreatingRole ? (
+                    {isSubmitting ? (
                       <ActivityIndicator size='small' color='#FFFFFF' />
                     ) : (
                       <AppText
@@ -396,7 +622,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                           fontSize: moderateScale(14),
                         }}
                       >
-                        {isRole ? 'Create Role' : 'Create Project'}
+                        {actionButtonText}
                       </AppText>
                     )}
                   </TouchableOpacity>
@@ -406,6 +632,22 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+      <DatePickerModal
+        visible={selectedDateType !== null}
+        title={
+          selectedDateType === 'start' ? 'Select Start Date' : 'Select End Date'
+        }
+        selectedDate={selectedDateType === 'start' ? startDate : endDate}
+        minDate={selectedDateType === 'end' ? startDate : undefined}
+        onClose={() => setSelectedDateType(null)}
+        onSelectDate={date => {
+          if (selectedDateType === 'start') {
+            setStartDate(date);
+          } else if (selectedDateType === 'end') {
+            setEndDate(date);
+          }
+        }}
+      />
     </Modal>
   );
 };

@@ -3,6 +3,9 @@ import { Animated, ScrollView, View } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import Screen from '../common/ScreenWapper';
 import CommonHeader from '../common/CommonHeader';
+import { TouchableOpacity } from 'react-native';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import AppText from '../common/AppText';
 
 const ROLE_COUNT = 5;
 const PERMISSION_GROUP_COUNT = 5;
@@ -272,17 +275,30 @@ const RolePermissionSkeleton = () => {
           </ScrollView>
 
           {/* Fixed New Role space */}
-          <View
+          <TouchableOpacity
+            activeOpacity={0.8}
+            className='ml-1 items-center justify-center rounded-2xl border px-3 py-2.5'
             style={{
               width: 78,
               height: 78,
-              marginLeft: 4,
-              borderRadius: 16,
-              borderWidth: 1,
               borderStyle: 'dashed',
-              borderColor: colors.border,
+              borderColor: colors.primary,
+              backgroundColor: colors.card,
             }}
-          />
+          >
+            <Ionicons name='add' size={24} color={colors.primary} />
+            <AppText
+              style={{
+                fontSize: 11,
+                fontWeight: '600',
+                color: colors.primary,
+                marginTop: 2,
+              }}
+              numberOfLines={1}
+            >
+              New Role
+            </AppText>
+          </TouchableOpacity>
         </View>
 
         {/* Active role */}

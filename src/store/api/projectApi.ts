@@ -22,6 +22,7 @@ import {
   UPDATE_PROJECT,
   GETPROJECTMEMBERS,
   DELETEPROJECTMEMBER,
+  CREATE_NEW_SPRINT,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsResponse,
@@ -59,6 +60,10 @@ import {
   StatusMutationArgs,
   StatusMutationResponse,
 } from '../../types/customstatus.type';
+import {
+  CreateSprintPayload,
+  CreateSprintResponse,
+} from '../../types/project.type';
 
 export const projectApi = createApi({
   reducerPath: 'projectApi',
@@ -527,6 +532,19 @@ export const projectApi = createApi({
         { type: 'UserStoryStatus', id: project_id },
       ],
     }),
+    createSprint: build.mutation<
+      CreateSprintResponse,
+      CreateSprintPayload & { project_id: string }
+    >({
+      query: ({ project_id, ...data }) => ({
+        url: CREATE_NEW_SPRINT.replace('{project_id}', project_id),
+        method: 'POST',
+        data: { sprints: [data] },
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'Sprints', id: project_id },
+      ],
+    }),
   }),
 });
 
@@ -555,6 +573,7 @@ export const {
   useCreateUserStoryStatusMutation,
   useUpdateUserStoryStatusMutation,
   useDeleteUserStoryStatusMutation,
+  useCreateSprintMutation,
 } = projectApi;
 
 // Aliases matching thunk names

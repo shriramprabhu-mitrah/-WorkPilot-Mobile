@@ -248,7 +248,6 @@ const ProjectDetails: React.FC = () => {
   const getHeaderTitle = (): string => {
     if (activeTab.toLowerCase() === 'settings') {
       if (settingsView === 'DETAILS') return 'Project details';
-      if (settingsView === 'FEATURES') return 'Features';
     }
     return projectDetails?.name || projectName || 'Select Project';
   };

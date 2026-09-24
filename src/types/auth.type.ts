@@ -413,3 +413,8 @@ export interface GroupMeta {
   icon: any;
   actions: ActionMeta[];
 }
+
+export interface RemoveOrganizationMemberResponse {
+  success: boolean;
+  message: string;
+}

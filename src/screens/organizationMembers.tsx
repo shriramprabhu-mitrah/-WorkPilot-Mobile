@@ -3,13 +3,15 @@ import { FlatList, Image, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { skipToken } from '@reduxjs/toolkit/query';
 import { useFocusEffect } from '@react-navigation/native';
-import { AppInput, AppText } from '../components';
+import { AppText } from '../components';
 import { Radius } from '../constants/Radius';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { useTheme } from '../hooks/useTheme';
-import { useGetOrganizationMembersQuery } from '../store/api/homeApi';
+import {
+  useGetOrganizationMembersQuery,
+  useRemoveOrganizationMemberMutation,
+} from '../store/api/homeApi';
 import { OrganizationMember } from '../types/auth.type';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
@@ -17,6 +19,8 @@ import { getRoleLabel } from '../constants/role';
 import { CommonHeader } from '../components/common/CommonHeader';
 import { RootStackParamList } from '../types/navigationTypes';
 import Screen from '../components/common/ScreenWapper';
+import { TouchableOpacity } from 'react-native';
+import DeleteColumnModal from '../components/DeleteColumnModal';
 
 const PAGE_SIZE = 10;
 
@@ -39,6 +43,11 @@ const OrganizationMembers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [memberToRemove, setMemberToRemove] =
+    useState<OrganizationMember | null>(null);
+
+  const [removeOrganizationMember, { isLoading: isRemovingMember }] =
+    useRemoveOrganizationMemberMutation();
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -53,7 +62,7 @@ const OrganizationMembers = () => {
     data: membersResponse,
     isLoading,
     isFetching,
-    refetch,
+    refetch: refetchOrganizationMembers,
   } = useGetOrganizationMembersQuery({
     page: currentPage,
     page_size: PAGE_SIZE,
@@ -63,8 +72,8 @@ const OrganizationMembers = () => {
 
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch]),
+      refetchOrganizationMembers();
+    }, [refetchOrganizationMembers]),
   );
 
   const members = useMemo(
@@ -93,6 +102,18 @@ const OrganizationMembers = () => {
     }
   }, [isFetching, membersMeta?.has_next]);
 
+  const handleConfirmRemoveMember = async () => {
+    if (!memberToRemove?.id) return;
+    try {
+      await removeOrganizationMember({
+        user_id: memberToRemove.id,
+      }).unwrap();
+      setMemberToRemove(null);
+      refetchOrganizationMembers();
+    } catch (error) {
+      console.error('Failed to remove organization member:', error);
+    }
+  };
   const renderHeader = useCallback(() => {
     if (members.length === 0) return null;
 
@@ -291,21 +312,36 @@ const OrganizationMembers = () => {
                   </AppText>
                 </View>
 
-                <View
-                  style={{
-                    width: moderateScale(10),
-                    height: moderateScale(10),
-                    borderRadius: Radius.circle,
-                    backgroundColor: item.is_active
-                      ? colors.success
-                      : colors.textSecondary,
-                  }}
-                />
+                <TouchableOpacity
+                  accessibilityLabel={`Remove ${displayName}`}
+                  accessibilityRole='button'
+                  activeOpacity={0.7}
+                  onPress={() => setMemberToRemove(item)}
+                  className='items-center justify-center rounded-md p-2'
+                  style={{ backgroundColor: colors.surface }}
+                >
+                  <Ionicons
+                    name='trash-outline'
+                    size={moderateScale(18)}
+                    color={colors.error}
+                  />
+                </TouchableOpacity>
               </View>
             );
           }}
         />
       )}
+      <DeleteColumnModal
+        visible={Boolean(memberToRemove)}
+        title='Remove Member'
+        columnTitle={
+          memberToRemove?.name || memberToRemove?.username || 'this member'
+        }
+        colors={colors}
+        loading={isRemovingMember}
+        onClose={() => setMemberToRemove(null)}
+        onDelete={handleConfirmRemoveMember}
+      />
     </Screen>
   );
 };

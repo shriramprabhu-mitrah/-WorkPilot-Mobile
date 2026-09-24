@@ -161,7 +161,7 @@ const TableHeader: React.FC = () => {
       }}
     >
       {/* Color Column */}
-      <View style={{ width: moderateScale(42), alignItems: 'center' }}>
+      <View style={{ width: moderateScale(55), alignItems: 'center' }}>
         <AppText
           variant='caption'
           color={colors.textSecondary}
@@ -176,7 +176,7 @@ const TableHeader: React.FC = () => {
       </View>
 
       {/* Name Column */}
-      <View style={{ flex: 1, paddingLeft: moderateScale(14) }}>
+      <View style={{ flex: 1, paddingLeft: moderateScale(20) }}>
         <AppText
           variant='caption'
           color={colors.textSecondary}
@@ -252,7 +252,7 @@ const StatusRow: React.FC<StatusRowProps> = ({ item, onEdit, onDelete }) => {
       }}
     >
       {/* 1. Color Cell */}
-      <View style={{ width: moderateScale(42), alignItems: 'center' }}>
+      <View style={{ width: moderateScale(55), alignItems: 'center' }}>
         <View
           style={{
             width: swatchSize,
@@ -264,7 +264,7 @@ const StatusRow: React.FC<StatusRowProps> = ({ item, onEdit, onDelete }) => {
       </View>
 
       {/* 2. Name Cell */}
-      <View style={{ flex: 1, paddingLeft: moderateScale(14) }}>
+      <View style={{ flex: 1, paddingLeft: moderateScale(20) }}>
         <AppText
           variant='body'
           color={colors.text}
@@ -339,7 +339,7 @@ const StatusRow: React.FC<StatusRowProps> = ({ item, onEdit, onDelete }) => {
             height: btnSize,
             borderRadius: Radius.sm,
             backgroundColor: `${colors.error}15`,
-            opacity: item.is_default ? 0.6 : 1,
+            opacity: item.is_default ? 0.4 : 1,
           }}
         >
           <Ionicons
