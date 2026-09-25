@@ -121,7 +121,8 @@ export interface CreateProjectResponse {
 export interface CreateProjectThunkParams {
   payload: CreateProjectPayload;
   showSuccessToast?: (message: string, type: string) => void;
-  handleSuccess?: () => void;
+  handleSuccess?: (message?: string) => void;
+  handleError?: (message?: string) => void;
 }
 
 export interface UpdateProjectPayload {

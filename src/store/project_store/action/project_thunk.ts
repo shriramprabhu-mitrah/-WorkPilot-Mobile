@@ -69,29 +69,30 @@ export const createNewProject = createAsyncThunk<
 >(
   'project/create',
   async (
-    { payload, showSuccessToast, handleSuccess },
+    { payload, showSuccessToast, handleSuccess, handleError },
     { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await createNewProjectService(payload);
       console.log('Create Project Response:', response);
       if (response.success) {
-        showSuccessToast?.(
-          response.message || 'Project created successfully',
-          'success',
-        );
-        handleSuccess?.();
+        const msg = response.message || 'Project created successfully';
+        showSuccessToast?.(msg, 'success');
+        handleSuccess?.(msg);
         return response;
       }
-      return rejectWithValue(response.message || 'Failed to create project');
+      const errMsg = response.message || 'Failed to create project';
+      showSuccessToast?.(errMsg, 'error');
+      handleError?.(errMsg);
+      return rejectWithValue(errMsg);
     } catch (error: any) {
-      showSuccessToast?.(
+      const errMsg =
         error?.response?.data?.message ||
-          error?.message ||
-          'Failed to create project',
-        'error',
-      );
-      return rejectWithValue(error?.message || 'Failed to create project');
+        error?.message ||
+        'Failed to create project';
+      showSuccessToast?.(errMsg, 'error');
+      handleError?.(errMsg);
+      return rejectWithValue(errMsg);
     } finally {
       dispatch(handleLoading(false));
     }

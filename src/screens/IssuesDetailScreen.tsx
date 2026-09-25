@@ -1133,6 +1133,10 @@ const IssueDetailScreen = () => {
                 loading={tasksLoading}
                 loadingMore={tasksFetching}
                 userStoryId={userStoryId}
+                onTaskCreated={() => {
+                  refetchTasks();
+                  refetchUserStory();
+                }}
               />
             )}
             <IssueCommentsSection
