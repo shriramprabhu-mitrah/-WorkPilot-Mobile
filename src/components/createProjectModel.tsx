@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TextInput,
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -15,7 +14,13 @@ import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { moderateScale } from '../utils/responsive';
 import { Radius } from '../constants/Radius';
+import {
+  getPriorityLabel,
+  TASK_PRIORITY_OPTIONS,
+  getPriorityThemeColor,
+} from '../utils/enum';
 import AppText from './common/AppText';
+import AppInput from './common/Input/AppInput';
 import { useAppDispatch, useAppSelector } from '../store';
 import { showSuccessToast } from '../utils/utils';
 import {
@@ -35,6 +40,9 @@ import {
 import { showSnackbar } from './common/Snackbar';
 import CustomSnackbar, { SnackbarType } from './common/Snackbar/CustomSnackbar';
 import DatePickerModal from './datePickerModel';
+import { UserStoryStatusItem } from '../types/customstatus.type';
+import { CreateUserStoryPayload } from '../types/project.type';
+import { CustomDropdown, DropdownItem } from './CustomDropdown';
 
 export interface CreateSprintPayload {
   name: string;
@@ -47,11 +55,16 @@ export interface CreateProjectModalProps {
   visible: boolean;
   onClose: () => void;
   title?: string;
-  mode?: 'project' | 'role' | 'sprint';
+  mode?: 'project' | 'role' | 'sprint' | 'story';
   projectId?: string;
+  sprintId?: string;
   onCreateRole?: (name: string) => Promise<void> | void;
   validateRoleName?: (name: string) => string | undefined;
   isCreatingRole?: boolean;
+  onCreateStory?: (payload: CreateUserStoryPayload) => Promise<void> | void;
+  isCreatingStory?: boolean;
+  priorities?: string[];
+  statuses?: UserStoryStatusItem[];
   onSuccess?: (message?: string) => void;
 }
 
@@ -61,13 +74,18 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   title,
   mode = 'project',
   projectId,
+  sprintId,
   onCreateRole,
   validateRoleName,
   isCreatingRole = false,
+  onCreateStory,
+  isCreatingStory = false,
+  priorities = TASK_PRIORITY_OPTIONS,
+  statuses = [],
   onSuccess,
 }) => {
   const { colors } = useTheme();
-  const { isSmallHeight } = useAuthLayout();
+  const { layout, isSmallHeight } = useAuthLayout();
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [roleNameError, setRoleNameError] = useState<string>();
@@ -78,19 +96,23 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     'start' | 'end' | null
   >(null);
 
-  const [isNameFocused, setIsNameFocused] = useState(false);
-  const [isDescFocused, setIsDescFocused] = useState(false);
-  const [isGoalFocused, setIsGoalFocused] = useState(false);
+  const [selectedPriority, setSelectedPriority] = useState<string>(
+    priorities[0] || 'medium',
+  );
+  const [selectedStatusId, setSelectedStatusId] = useState<
+    string | number | undefined
+  >(statuses[0]?.id);
+  const [storyPoints, setStoryPoints] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState<
+    'status' | 'priority' | null
+  >(null);
 
   const [localSnackbarVisible, setLocalSnackbarVisible] = useState(false);
   const [localSnackbarMessage, setLocalSnackbarMessage] = useState('');
   const [localSnackbarType, setLocalSnackbarType] =
     useState<SnackbarType>('error');
 
-  const showLocalSnackbar = (
-    message: string,
-    type: SnackbarType = 'error',
-  ) => {
+  const showLocalSnackbar = (message: string, type: SnackbarType = 'error') => {
     setLocalSnackbarMessage(message);
     setLocalSnackbarType(type);
     setLocalSnackbarVisible(true);
@@ -100,6 +122,12 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const loading = useAppSelector(state => state.auth?.loading);
   const isRole = mode === 'role';
   const isSprint = mode === 'sprint';
+  const isStory = mode === 'story';
+  const statusWidth = Math.min(
+    Math.max((layout?.controlSize || 24) * 7, 160),
+    220,
+  );
+  const CONTROL_WIDTH = moderateScale(105);
 
   const [createSprint, { isLoading: isCreatingSprint }] =
     useCreateSprintMutation();
@@ -112,6 +140,20 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       skip: !projectId || !isSprint,
     },
   );
+
+  useEffect(() => {
+    if (visible && statuses && statuses.length > 0) {
+      const isCurrentValid = statuses.some(
+        s => String(s.id) === String(selectedStatusId),
+      );
+      if (!selectedStatusId || !isCurrentValid) {
+        const sorted = [...statuses].sort(
+          (a, b) => (a?.display_order ?? 0) - (b?.display_order ?? 0),
+        );
+        setSelectedStatusId(sorted[0]?.id);
+      }
+    }
+  }, [statuses, visible, selectedStatusId]);
 
   const handleProjectSuccess = (successMsg?: string) => {
     dispatch(handleLoading(false));
@@ -133,15 +175,19 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   };
 
   const handleClose = () => {
+    const sortedStatuses = [...(statuses || [])].sort(
+      (a, b) => (a?.display_order ?? 0) - (b?.display_order ?? 0),
+    );
     setProjectName('');
     setProjectDescription('');
     setSprintGoal('');
     setStartDate('');
     setEndDate('');
     setRoleNameError(undefined);
-    setIsNameFocused(false);
-    setIsDescFocused(false);
-    setIsGoalFocused(false);
+    setSelectedPriority(priorities[0] || 'medium');
+    setSelectedStatusId(sortedStatuses[0]?.id);
+    setStoryPoints('');
+    setActiveDropdown(null);
     setLocalSnackbarVisible(false);
     dispatch(handleLoading(false));
     onClose();
@@ -150,8 +196,39 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const handleSubmit = async () => {
     const name = projectName.trim();
     if (!name) {
-      const entityName = isSprint ? 'Sprint' : isRole ? 'Role' : 'Project';
+      const entityName = isSprint
+        ? 'Sprint'
+        : isRole
+          ? 'Role'
+          : isStory
+            ? 'Story'
+            : 'Project';
       showLocalSnackbar(`${entityName} name is required`, 'error');
+      return;
+    }
+
+    if (isStory) {
+      try {
+        await onCreateStory?.({
+          title: name,
+          description: projectDescription.trim(),
+          priority: selectedPriority,
+          status_id: selectedStatusId,
+          story_points: Number(storyPoints) || 0,
+          sprint_id: sprintId,
+        });
+        handleClose();
+        const msg = 'User story created successfully';
+        onSuccess?.(msg);
+        showSnackbar?.({
+          message: msg,
+          type: 'success',
+        });
+      } catch (err: any) {
+        const errorMsg =
+          err?.data?.message || err?.message || 'Failed to create user story';
+        showLocalSnackbar(errorMsg, 'error');
+      }
       return;
     }
 
@@ -179,9 +256,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         });
       } catch (err: any) {
         const errorMsg =
-          err?.data?.message ||
-          err?.message ||
-          'Failed to create sprint';
+          err?.data?.message || err?.message || 'Failed to create sprint';
         showLocalSnackbar(errorMsg, 'error');
       }
       return;
@@ -198,9 +273,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       } catch (err: any) {
         // Keep modal open on error
         const errorMsg =
-          err?.data?.message ||
-          err?.message ||
-          'Failed to create role';
+          err?.data?.message || err?.message || 'Failed to create role';
         showLocalSnackbar(errorMsg, 'error');
       }
       return;
@@ -214,6 +287,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     dispatch(
       createNewProject({
         payload,
+        showSuccessToast,
         handleSuccess: handleProjectSuccess,
         handleError: (errMsg?: string) => {
           showLocalSnackbar(errMsg || 'Failed to create project', 'error');
@@ -222,17 +296,27 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     );
   };
 
-  const isSubmitting = loading || isCreatingRole || isCreatingSprint;
+  const isSubmitting =
+    loading || isCreatingRole || isCreatingSprint || isCreatingStory;
   const isSubmitDisabled = !projectName.trim() || isSubmitting;
 
   const modalHeaderTitle =
     title ??
-    (isSprint ? 'Create Sprint' : isRole ? 'Create Role' : 'New Project');
+    (isSprint
+      ? 'Create Sprint'
+      : isRole
+        ? 'Create Role'
+        : isStory
+          ? 'Create Story'
+          : 'New Project');
+
   const actionButtonText = isSprint
     ? 'Create Sprint'
     : isRole
       ? 'Create Role'
-      : 'Create Project';
+      : isStory
+        ? 'Create Story'
+        : 'Create Project';
 
   return (
     <Modal
@@ -251,7 +335,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             className='flex-1 items-center justify-center px-4'
             style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
           >
-            <TouchableWithoutFeedback onPress={() => {}}>
+            <TouchableWithoutFeedback onPress={() => setActiveDropdown(null)}>
               <View
                 className='w-full rounded-2xl shadow-xl'
                 style={{
@@ -305,11 +389,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                   contentContainerStyle={{
                     paddingHorizontal: moderateScale(20),
                     paddingTop: moderateScale(18),
-                    paddingBottom: moderateScale(12),
+                    paddingBottom: moderateScale(24),
                     gap: isSmallHeight ? moderateScale(12) : moderateScale(16),
                   }}
                 >
-                  {/* Field 1: Name */}
+                  {/* Field 1: Title / Name */}
                   <View style={{ gap: moderateScale(6) }}>
                     <View className='flex-row items-center'>
                       <AppText
@@ -324,7 +408,9 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                           ? 'Sprint name '
                           : isRole
                             ? 'Role name '
-                            : 'Project name '}
+                            : isStory
+                              ? 'Story title '
+                              : 'Project name '}
                       </AppText>
                       <AppText
                         style={{
@@ -337,115 +423,162 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                       </AppText>
                     </View>
 
-                    <View
-                      style={{
-                        backgroundColor: colors.surface,
-                        borderWidth: 1,
-                        borderColor: roleNameError
-                          ? colors.error
-                          : isNameFocused
-                            ? colors.primary || '#0E6FFF'
-                            : colors.border || '#E2E8F0',
-                        borderRadius: Radius.sm || moderateScale(8),
-                        paddingHorizontal: moderateScale(12),
-                        paddingVertical:
-                          Platform.OS === 'ios'
-                            ? moderateScale(10)
-                            : moderateScale(8),
+                    <AppInput
+                      value={projectName}
+                      onChangeText={text => {
+                        setProjectName(text);
+                        if (isRole) {
+                          setRoleNameError(
+                            text.trim() ? validateRoleName?.(text) : undefined,
+                          );
+                        }
                       }}
-                    >
-                      <TextInput
-                        value={projectName}
-                        onChangeText={text => {
-                          setProjectName(text);
-                          if (isRole) {
-                            setRoleNameError(
-                              text.trim()
-                                ? validateRoleName?.(text)
-                                : undefined,
-                            );
-                          }
-                        }}
-                        placeholder={
-                          isSprint
-                            ? 'Enter sprint name...'
-                            : isRole
-                              ? 'Enter role name...'
+                      placeholder={
+                        isSprint
+                          ? 'Enter sprint name...'
+                          : isRole
+                            ? 'Enter role name...'
+                            : isStory
+                              ? 'Enter story title...'
                               : 'e.g. WorkPilot Mobile App'
-                        }
-                        placeholderTextColor={
-                          colors.placeholder ||
-                          colors.textSecondary ||
-                          '#94A3B8'
-                        }
-                        onFocus={() => setIsNameFocused(true)}
-                        onBlur={() => setIsNameFocused(false)}
-                        style={{
-                          fontSize: moderateScale(14),
-                          color: colors.text,
-                          padding: 0,
-                        }}
-                      />
-                    </View>
-
-                    {roleNameError ? (
-                      <AppText
-                        variant='caption'
-                        color={colors.error || '#EF4444'}
-                        style={{ fontSize: moderateScale(12) }}
-                      >
-                        {roleNameError}
-                      </AppText>
-                    ) : null}
+                      }
+                      onFocus={() => {
+                        setActiveDropdown(null);
+                      }}
+                      onBlur={() => {}}
+                      error={roleNameError}
+                    />
                   </View>
 
-                  {/* Field 2: Description (Project mode and Sprint mode only) */}
+                  {/* Field 2: Description (Project, Sprint & Story modes) */}
+                  {!isRole && !isSprint && (
+                    <View style={{ gap: moderateScale(6) }}>
+                      <AppInput
+                        label='Description'
+                        value={projectDescription}
+                        onChangeText={setProjectDescription}
+                        placeholder={
+                          isStory
+                            ? 'Enter story details...'
+                            : 'Briefly describe the project goal and scope...'
+                        }
+                        multiline
+                        numberOfLines={3}
+                        textAlignVertical='top'
+                        onFocus={() => {
+                          setActiveDropdown(null);
+                        }}
+                        onBlur={() => {}}
+                        style={{ minHeight: moderateScale(70) }}
+                      />
+                    </View>
+                  )}
+
+                  {/* Story Specific Controls: Status, Priority, Story Points */}
+                  {isStory &&
+                    (() => {
+                      const getStatusColor = (item?: any) =>
+                        item?.color ||
+                        item?.status_color ||
+                        item?.badge_color ||
+                        item?.bg_color ||
+                        colors.primary;
+
+                      const formattedStatuses: DropdownItem<string | number>[] =
+                        [...(statuses || [])]
+                          .sort(
+                            (a, b) =>
+                              (a?.display_order ?? 0) - (b?.display_order ?? 0),
+                          )
+                          .map(status => ({
+                            id: status.id,
+                            name: status.name,
+                            color: getStatusColor(status),
+                          }));
+
+                      const formattedPriorities: DropdownItem<string>[] =
+                        TASK_PRIORITY_OPTIONS.map(opt => ({
+                          id: opt,
+                          name: getPriorityLabel(opt),
+                          color:
+                            getPriorityThemeColor(opt, colors) ||
+                            colors.primary,
+                        }));
+
+                      return (
+                        <>
+                          <View
+                            className='flex-row justify-between'
+                            style={{
+                              gap: layout?.elementGap || moderateScale(8),
+                              zIndex: activeDropdown ? 50 : 1,
+                            }}
+                          >
+                            {/* Status Dropdown */}
+                            <CustomDropdown
+                              label='Status'
+                              width={statusWidth}
+                              items={formattedStatuses}
+                              selectedValue={selectedStatusId}
+                              placeholder='Select status'
+                              isOpen={activeDropdown === 'status'}
+                              onToggle={() =>
+                                setActiveDropdown(prev =>
+                                  prev === 'status' ? null : 'status',
+                                )
+                              }
+                              onSelect={item => {
+                                setSelectedStatusId(item.id);
+                                setActiveDropdown(null);
+                              }}
+                              direction='up'
+                            />
+
+                            {/* Priority Dropdown */}
+                            <CustomDropdown
+                              label='Priority'
+                              width={CONTROL_WIDTH}
+                              items={formattedPriorities}
+                              selectedValue={selectedPriority}
+                              isOpen={activeDropdown === 'priority'}
+                              onToggle={() =>
+                                setActiveDropdown(prev =>
+                                  prev === 'priority' ? null : 'priority',
+                                )
+                              }
+                              onSelect={item => {
+                                setSelectedPriority(String(item.id));
+                                setActiveDropdown(null);
+                              }}
+                              direction='up'
+                            />
+                          </View>
+
+                          {/* Story Points */}
+                          <View style={{ gap: moderateScale(6) }}>
+                            <AppInput
+                              label='Story Points'
+                              value={storyPoints}
+                              onChangeText={setStoryPoints}
+                              placeholder='0'
+                              keyboardType='numeric'
+                              onFocus={() => setActiveDropdown(null)}
+                            />
+                          </View>
+                        </>
+                      );
+                    })()}
+
+                  {/* Sprint Fields (Goal & Dates) */}
                   {isSprint && (
                     <>
                       <View style={{ gap: moderateScale(6) }}>
-                        <AppText
-                          variant='body'
-                          color={colors.text}
-                          style={{
-                            fontWeight: '600',
-                            fontSize: moderateScale(14),
-                          }}
-                        >
-                          Sprint Goal
-                        </AppText>
-                        <View
-                          style={{
-                            backgroundColor: colors.surface,
-                            borderWidth: 1,
-                            borderColor: isGoalFocused
-                              ? colors.primary || '#0E6FFF'
-                              : colors.border || '#E2E8F0',
-                            borderRadius: Radius.sm || moderateScale(8),
-                            paddingHorizontal: moderateScale(12),
-                            paddingVertical:
-                              Platform.OS === 'ios'
-                                ? moderateScale(10)
-                                : moderateScale(8),
-                          }}
-                        >
-                          <TextInput
-                            value={sprintGoal}
-                            onChangeText={setSprintGoal}
-                            placeholder='Enter sprint goal...'
-                            placeholderTextColor={
-                              colors.placeholder ||
-                              colors.textSecondary ||
-                              '#94A3B8'
-                            }
-                            onFocus={() => setIsGoalFocused(true)}
-                            onBlur={() => setIsGoalFocused(false)}
-                            style={{
-                              fontSize: moderateScale(14),
-                              color: colors.text,
-                              padding: 0,
-                            }}
-                          />
-                        </View>
+                        <AppInput
+                          label='Sprint Goal'
+                          value={sprintGoal}
+                          onChangeText={setSprintGoal}
+                          placeholder='Enter sprint goal...'
+                        />
                       </View>
 
                       {/* Dates */}
@@ -538,58 +671,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                       </View>
                     </>
                   )}
-
-                  {/* Project Mode Description Field */}
-                  {!isRole && !isSprint && (
-                    <View style={{ gap: moderateScale(6) }}>
-                      <AppText
-                        variant='body'
-                        color={colors.text}
-                        style={{
-                          fontWeight: '600',
-                          fontSize: moderateScale(14),
-                        }}
-                      >
-                        Description
-                      </AppText>
-
-                      <View
-                        style={{
-                          backgroundColor: colors.surface,
-                          borderWidth: 1,
-                          borderColor: isDescFocused
-                            ? colors.primary || '#0E6FFF'
-                            : colors.border || '#E2E8F0',
-                          borderRadius: Radius.sm || moderateScale(8),
-                          paddingHorizontal: moderateScale(12),
-                          paddingVertical: moderateScale(10),
-                          minHeight: moderateScale(100),
-                        }}
-                      >
-                        <TextInput
-                          value={projectDescription}
-                          onChangeText={setProjectDescription}
-                          placeholder='Briefly describe the project goal and scope...'
-                          placeholderTextColor={
-                            colors.placeholder ||
-                            colors.textSecondary ||
-                            '#94A3B8'
-                          }
-                          multiline
-                          numberOfLines={4}
-                          textAlignVertical='top'
-                          onFocus={() => setIsDescFocused(true)}
-                          onBlur={() => setIsDescFocused(false)}
-                          style={{
-                            fontSize: moderateScale(14),
-                            color: colors.text,
-                            padding: 0,
-                            minHeight: moderateScale(80),
-                          }}
-                        />
-                      </View>
-                    </View>
-                  )}
                 </ScrollView>
 
                 {/* Footer Buttons Section */}
@@ -600,6 +681,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     paddingVertical: moderateScale(16),
                     gap: moderateScale(12),
                     backgroundColor: colors.card || colors.surface,
+                    borderBottomRightRadius: Radius.lg || moderateScale(16),
+                    borderBottomLeftRadius: Radius.lg || moderateScale(16),
                   }}
                 >
                   <TouchableOpacity

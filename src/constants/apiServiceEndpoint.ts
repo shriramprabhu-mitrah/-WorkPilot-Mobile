@@ -44,12 +44,12 @@ export const GET_AUDIT = `/audit`;
 
 //UserStory
 export const GET_USERSTORY = `/projects/{project_id}/user-stories`;
+export const CREATE_USERSTORY = `/projects/{project_id}/user-stories`;
 
 //UserStory Status
 export const CREATE_US_STATUS = `/projects/{project_id}/user-story-statuses`;
 export const UPDATE_US_STATUS = `/projects/{project_id}/user-story-statuses/{status_id}`;
 export const DELETE_US_STATUS = `/projects/{project_id}/user-story-statuses/{status_id}`;
-export const DELETE_UE_STATUS = DELETE_US_STATUS;
 export const GET_USERSTORY_STATUS = `/projects/{project_id}/user-story-statuses`;
 
 //SPRINT

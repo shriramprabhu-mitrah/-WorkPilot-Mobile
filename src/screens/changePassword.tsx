@@ -50,8 +50,7 @@ const ChangePassword = () => {
       });
     } catch (error: any) {
       showSnackbar({
-        message:
-          error?.data?.message || error?.message || 'Failed to change password',
+        message: error?.data?.error?.message,
         type: 'error',
       });
     } finally {
@@ -98,7 +97,7 @@ const ChangePassword = () => {
 
               <View style={{ gap: layout.sectionGap }}>
                 {/* Old Password Input */}
-                <View className='z-30'>
+                <View className='z-20'>
                   <PasswordInput
                     label={
                       strings?.changePassword?.oldPasswordLabel ||
@@ -132,7 +131,7 @@ const ChangePassword = () => {
                 </View>
 
                 {/* Confirm Password Input */}
-                <View className='z-10'>
+                <View className='z-20'>
                   <PasswordInput
                     label={
                       strings?.changePassword?.confirmPasswordLabel ||
