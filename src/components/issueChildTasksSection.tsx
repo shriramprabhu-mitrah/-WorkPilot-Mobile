@@ -5,6 +5,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { getPriorityThemeColor } from '../utils/enum';
@@ -14,6 +15,7 @@ import { Task } from '../types/project.type';
 import { getTasks } from '../store/task_store/action/task.thunk';
 import { TaskMeta } from '../types/task.type';
 import { TaskRowsSkeleton } from './skeleton/issueDetailSkeleton';
+import CreateTaskBottomSheet from './createTaskBottomSheet';
 
 interface Props {
   tasks: Task[];
@@ -24,6 +26,8 @@ interface Props {
   loading?: boolean;
   loadingMore?: boolean;
   userStoryId?: string;
+  onAddTask?: () => void;
+  onTaskCreated?: () => void;
 }
 
 export const IssueChildTasksSection: React.FC<Props> = ({
@@ -35,12 +39,37 @@ export const IssueChildTasksSection: React.FC<Props> = ({
   loading = false,
   loadingMore = false,
   userStoryId,
+  onAddTask,
+  onTaskCreated,
 }) => {
   const dispatch = useAppDispatch();
   const { layout } = useAuthLayout();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const taskCount = meta?.total_items ?? tasks.length;
   const visibleTasks = isExpanded ? tasks : tasks.slice(0, 4);
+
+  const handlePressAdd = () => {
+    if (onAddTask) {
+      onAddTask();
+    } else {
+      setIsCreateTaskModalOpen(true);
+    }
+  };
+
+  const handleTaskCreated = () => {
+    if (projectId && userStoryId) {
+      dispatch(
+        getTasks({
+          projectId,
+          page: 1,
+          page_size: meta?.page_size || 8,
+          user_story_id: userStoryId,
+        }),
+      );
+    }
+    onTaskCreated?.();
+  };
 
   const renderTaskRow = ({ item }: { item: Task }) => {
     const rawPriority = (item.priority || '').toLowerCase();
@@ -201,10 +230,25 @@ export const IssueChildTasksSection: React.FC<Props> = ({
           >
             Tasks ({taskCount})
           </AppText>
+          <TouchableOpacity
+            onPress={handlePressAdd}
+            activeOpacity={0.7}
+            hitSlop={8}
+          >
+            <Ionicons name='add-outline' size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
         <AppText variant='body' color={colors.textSecondary}>
           No child tickets.
         </AppText>
+
+        <CreateTaskBottomSheet
+          visible={isCreateTaskModalOpen}
+          onClose={() => setIsCreateTaskModalOpen(false)}
+          projectId={projectId}
+          userStoryId={userStoryId}
+          onSuccess={handleTaskCreated}
+        />
       </View>
     );
   }
@@ -222,20 +266,29 @@ export const IssueChildTasksSection: React.FC<Props> = ({
         <AppText variant='bodyLarge' color={colors.text} className='font-bold'>
           Tasks ({taskCount})
         </AppText>
-        {tasks.length > 4 && (
-          <TouchableOpacity
-            onPress={() => setIsExpanded(prev => !prev)}
-            activeOpacity={0.7}
-          >
-            <AppText
-              variant='body'
-              color={colors.primary}
-              className='font-semibold'
+        <View className='flex-row items-center' style={{ gap: 12 }}>
+          {tasks.length > 4 && (
+            <TouchableOpacity
+              onPress={() => setIsExpanded(prev => !prev)}
+              activeOpacity={0.7}
             >
-              {isExpanded ? 'View less' : 'View more'}
-            </AppText>
+              <AppText
+                variant='body'
+                color={colors.primary}
+                className='font-semibold'
+              >
+                {isExpanded ? 'View less' : 'View more'}
+              </AppText>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={handlePressAdd}
+            activeOpacity={0.7}
+            hitSlop={8}
+          >
+            <Ionicons name='add-outline' size={24} color={colors.primary} />
           </TouchableOpacity>
-        )}
+        </View>
       </View>
 
       {renderHeader()}
@@ -268,6 +321,14 @@ export const IssueChildTasksSection: React.FC<Props> = ({
           scrollEnabled={false}
         />
       )}
+
+      <CreateTaskBottomSheet
+        visible={isCreateTaskModalOpen}
+        onClose={() => setIsCreateTaskModalOpen(false)}
+        projectId={projectId}
+        userStoryId={userStoryId}
+        onSuccess={handleTaskCreated}
+      />
     </View>
   );
 };

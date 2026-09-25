@@ -3,9 +3,28 @@ import {
   GetTasksResponse,
   UpdateTaskPayload,
   UpdateTaskResponse,
+  CreateTaskPayload,
+  CreateTaskResponse,
 } from '../types/task.type';
-import { GET_TASKS, UPDATE_TASKS } from '../constants/apiServiceEndpoint';
-import { get, patch } from '../components/common/httpClient';
+import {
+  GET_TASKS,
+  UPDATE_TASKS,
+  CREATE_TASK,
+} from '../constants/apiServiceEndpoint';
+import { get, patch, post } from '../components/common/httpClient';
+
+export const createTask = async (
+  projectId: string,
+  payload: CreateTaskPayload,
+): Promise<CreateTaskResponse> => {
+  try {
+    const url = CREATE_TASK.replace('{project_id}', projectId);
+    return await post<CreateTaskResponse>(url, payload);
+  } catch (error) {
+    console.error('Create task API failed:', error);
+    throw error;
+  }
+};
 
 export const updateTask = async (
   projectId: string,

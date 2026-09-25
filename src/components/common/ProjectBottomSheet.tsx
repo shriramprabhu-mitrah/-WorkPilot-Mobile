@@ -25,6 +25,8 @@ import {
 } from '../../store/api/projectApi';
 import { WorkItemIcon } from './getWorkItemIcon';
 import CreateProjectModal from '../createProjectModel';
+import { showSnackbar } from './Snackbar';
+import CustomSnackbar, { SnackbarType } from './Snackbar/CustomSnackbar';
 
 export interface ProjectListBottomSheetProps {
   visible: boolean;
@@ -81,6 +83,21 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const [refetchKey, setRefetchKey] = useState(0);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const isSprint = mode === 'sprints';
+
+  const [localSnackbarVisible, setLocalSnackbarVisible] = useState(false);
+  const [localSnackbarMessage, setLocalSnackbarMessage] = useState('');
+  const [localSnackbarType, setLocalSnackbarType] =
+    useState<SnackbarType>('success');
+
+  const showLocalSnackbar = (
+    message: string,
+    type: SnackbarType = 'success',
+  ) => {
+    setLocalSnackbarMessage(message);
+    setLocalSnackbarType(type);
+    setLocalSnackbarVisible(true);
+    showSnackbar?.({ message, type });
+  };
 
   // Resolved active project ID from props or store fallback
   const resolvedProjectId =
@@ -496,10 +513,27 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
         mode={isSprint ? 'sprint' : 'project'}
         title={isSprint ? 'Create Sprint' : 'New Project'}
         projectId={resolvedProjectId}
-        onSuccess={() => {
+        onSuccess={(msg?: string) => {
           setPage(1);
           setRefetchKey(prev => prev + 1);
+          showLocalSnackbar(
+            msg ||
+              (isSprint
+                ? 'Sprint created successfully'
+                : 'Project created successfully'),
+            'success',
+          );
         }}
+      />
+
+      {/* In-Modal Snackbar so success/error messages appear on top of ProjectListBottomSheet on Android */}
+      <CustomSnackbar
+        visible={localSnackbarVisible}
+        onDismiss={() => setLocalSnackbarVisible(false)}
+        message={localSnackbarMessage}
+        type={localSnackbarType}
+        duration={3500}
+        bottomOffset={bottomPadding + 10}
       />
     </Modal>
   );

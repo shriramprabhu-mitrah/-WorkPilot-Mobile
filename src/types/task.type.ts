@@ -15,6 +15,27 @@ export interface UpdateTaskResponse {
   data: Task;
 }
 
+export interface CreateTaskPayload {
+  title: string;
+  type?: string;
+  description?: string;
+  assignee_id?: string | null;
+  status_id?: string;
+  due_date?: string | null;
+  priority?: string;
+  estimated_hours?: number;
+  actual_hours?: number;
+  story_points?: number;
+  user_story_id?: string;
+}
+
+export interface CreateTaskResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: Task;
+}
+
 export interface TaskMeta {
   page: number;
   page_size: number;

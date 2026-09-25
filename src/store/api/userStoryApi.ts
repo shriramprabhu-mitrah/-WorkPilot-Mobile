@@ -10,6 +10,7 @@ import {
   TASK_COMMENT_ID,
   TASK_COMMENT_REPLIES,
   GET_TASKS,
+  CREATE_TASK,
   USATTACHMENT,
   DELETEUSATTACHMENT,
   TASKATTACHMENT,
@@ -71,6 +72,8 @@ import {
   GetTasksResponse,
   UpdateTaskPayload,
   UpdateTaskResponse,
+  CreateTaskPayload,
+  CreateTaskResponse,
 } from '../../types/task.type';
 import {
   uploadTaskAttachmentService,
@@ -460,6 +463,23 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       ],
     }),
 
+    createTask: build.mutation<
+      CreateTaskResponse,
+      { projectId: string; payload: CreateTaskPayload }
+    >({
+      query: ({ projectId, payload }) => ({
+        url: CREATE_TASK.replace('{project_id}', projectId),
+        method: 'POST',
+        data: payload,
+      }),
+      invalidatesTags: (_result, _error, { projectId, payload }) => [
+        { type: 'Tasks', id: `${projectId}_${payload.user_story_id ?? 'all'}` },
+        ...(payload.user_story_id
+          ? [{ type: 'UserStoryDetail' as const, id: payload.user_story_id }]
+          : []),
+      ],
+    }),
+
     uploadUserStoryCommentAttachment: build.mutation<
       UploadUserStoryCommentAttachmentResponse,
       UploadUserStoryCommentAttachmentParams
@@ -493,6 +513,7 @@ export const {
   useGetUserStoryByIdQuery,
   useUpdateUserStoryMutation,
   useUpdateTaskMutation,
+  useCreateTaskMutation,
   useGetTaskByIdQuery,
   useGetUserStoryCommentsQuery,
   useGetTaskCommentsQuery,

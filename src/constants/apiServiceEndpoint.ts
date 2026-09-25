@@ -64,6 +64,7 @@ export const GET_WEEKLY_PROGRESS = `/{project_id}/weekly-progress`;
 
 //TASK
 export const GET_TASK_BY_ID = `/projects/{project_id}/tasks/{task_id}`;
+export const CREATE_TASK = `/projects/{project_id}/tasks`;
 
 //COMMENT
 export const USERSTORIES_COMMENT = `/projects/{project_id}/user-stories/{user_story_id}/comments`; //post user story API

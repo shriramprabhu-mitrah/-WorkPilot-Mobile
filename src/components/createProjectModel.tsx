@@ -33,6 +33,7 @@ import {
   useGetSprintsQuery,
 } from '../store/api/projectApi';
 import { showSnackbar } from './common/Snackbar';
+import CustomSnackbar, { SnackbarType } from './common/Snackbar/CustomSnackbar';
 import DatePickerModal from './datePickerModel';
 
 export interface CreateSprintPayload {
@@ -51,7 +52,7 @@ export interface CreateProjectModalProps {
   onCreateRole?: (name: string) => Promise<void> | void;
   validateRoleName?: (name: string) => string | undefined;
   isCreatingRole?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: (message?: string) => void;
 }
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
@@ -81,6 +82,20 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const [isDescFocused, setIsDescFocused] = useState(false);
   const [isGoalFocused, setIsGoalFocused] = useState(false);
 
+  const [localSnackbarVisible, setLocalSnackbarVisible] = useState(false);
+  const [localSnackbarMessage, setLocalSnackbarMessage] = useState('');
+  const [localSnackbarType, setLocalSnackbarType] =
+    useState<SnackbarType>('error');
+
+  const showLocalSnackbar = (
+    message: string,
+    type: SnackbarType = 'error',
+  ) => {
+    setLocalSnackbarMessage(message);
+    setLocalSnackbarType(type);
+    setLocalSnackbarVisible(true);
+  };
+
   const dispatch = useAppDispatch();
   const loading = useAppSelector(state => state.auth?.loading);
   const isRole = mode === 'role';
@@ -98,7 +113,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     },
   );
 
-  const handleProjectSuccess = () => {
+  const handleProjectSuccess = (successMsg?: string) => {
     dispatch(handleLoading(false));
     dispatch(resetProjects());
     dispatch(
@@ -108,8 +123,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       }),
     );
     dispatch(projectApi.util.invalidateTags(['Projects']));
-    onSuccess?.();
+    const msg = successMsg || 'Project created successfully';
+    onSuccess?.(msg);
     handleClose();
+    showSnackbar?.({
+      message: msg,
+      type: 'success',
+    });
   };
 
   const handleClose = () => {
@@ -122,6 +142,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     setIsNameFocused(false);
     setIsDescFocused(false);
     setIsGoalFocused(false);
+    setLocalSnackbarVisible(false);
     dispatch(handleLoading(false));
     onClose();
   };
@@ -130,16 +151,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     const name = projectName.trim();
     if (!name) {
       const entityName = isSprint ? 'Sprint' : isRole ? 'Role' : 'Project';
-      showSuccessToast?.(`${entityName} name is required`, 'error');
+      showLocalSnackbar(`${entityName} name is required`, 'error');
       return;
     }
 
     if (isSprint) {
       if (!projectId) {
-        showSnackbar?.({
-          message: 'Project ID is required to create sprint',
-          type: 'error',
-        });
+        showLocalSnackbar('Project ID is required to create sprint', 'error');
         return;
       }
 
@@ -154,12 +172,18 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         dispatch(setNewSprint(name));
         handleClose();
         await refetchSprints();
-        onSuccess?.();
+        onSuccess?.('Sprint created successfully');
         showSnackbar?.({
           message: 'Sprint created successfully',
           type: 'success',
         });
-      } catch {}
+      } catch (err: any) {
+        const errorMsg =
+          err?.data?.message ||
+          err?.message ||
+          'Failed to create sprint';
+        showLocalSnackbar(errorMsg, 'error');
+      }
       return;
     }
     if (isRole) {
@@ -171,8 +195,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       try {
         await onCreateRole?.(name);
         handleClose();
-      } catch {
+      } catch (err: any) {
         // Keep modal open on error
+        const errorMsg =
+          err?.data?.message ||
+          err?.message ||
+          'Failed to create role';
+        showLocalSnackbar(errorMsg, 'error');
       }
       return;
     }
@@ -185,8 +214,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     dispatch(
       createNewProject({
         payload,
-        showSuccessToast,
         handleSuccess: handleProjectSuccess,
+        handleError: (errMsg?: string) => {
+          showLocalSnackbar(errMsg || 'Failed to create project', 'error');
+        },
       }),
     );
   };
@@ -647,6 +678,15 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             setEndDate(date);
           }
         }}
+      />
+      {/* In-Modal Snackbar so error/validation messages appear on top of CreateProjectModal on Android */}
+      <CustomSnackbar
+        visible={localSnackbarVisible}
+        onDismiss={() => setLocalSnackbarVisible(false)}
+        message={localSnackbarMessage}
+        type={localSnackbarType}
+        duration={3500}
+        bottomOffset={moderateScale(20)}
       />
     </Modal>
   );
