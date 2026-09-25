@@ -6,24 +6,24 @@ import React, {
   useState,
   startTransition,
 } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import AppText from '../components/common/AppText';
 import TaskCard from '../components/TaskCard';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { UserStory, UserStoryTask } from '../types/project.type';
+import {
+  CreateUserStoryPayload,
+  UserStory,
+  UserStoryTask,
+} from '../types/project.type';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import {
   useGetCustomStatusQuery,
   useGetUserStoriesQuery,
+  useGetUserStoryStatusQuery,
 } from '../store/api/projectApi';
 import {
   favouriteTaskThunk,
@@ -44,10 +44,14 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { CustomStatus } from '../types/customstatus.type';
-import { useUpdateTaskMutation } from '../store/api/userStoryApi';
+import {
+  useUpdateTaskMutation,
+  useCreateUserStoryMutation,
+} from '../store/api/userStoryApi';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useNavigation } from '@react-navigation/native';
 import { ThemeColors } from '../constants/Colors';
+import { TASK_PRIORITY_OPTIONS } from '../utils/enum';
+import CreateProjectModal from '../components/createProjectModel';
 
 type DropZone = {
   storyId: string;
@@ -62,9 +66,10 @@ type DropZone = {
 
 const USER_STORY_WIDTH = 250;
 const STATUS_COLUMN_WIDTH = 260;
-const EDGE_THRESHOLD = 60;
+const EDGE_THRESHOLD = 300;
+const PAGINATION_THRESHOLD = 500;
 const SCROLL_SPEED = 12;
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
 
 const SkeletonBox = ({
   width,
@@ -220,7 +225,9 @@ const TaskDropZone = ({
   horizontalScrollOffset,
   verticalScrollOffset,
   colors,
-}: TaskDropZoneProps & { colors: ThemeColors }) => {
+}: TaskDropZoneProps & {
+  colors: ThemeColors;
+}) => {
   const dropZoneRef = useRef<View>(null);
 
   const measureZone = useCallback(() => {
@@ -710,12 +717,50 @@ const ProjectDeatailsScreen = () => {
   const hasStartedSprintFetch = useRef(false);
 
   // RTK Query hooks — conditioned completely on screen focus
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const { data: customStatusData } = useGetCustomStatusQuery(
     isFocused && projectId
       ? { project_id: projectId, _refetchKey: refetchKey }
       : skipToken,
   );
   const customStatuses = customStatusData?.data ?? [];
+  const { data: userStoryStatusData } = useGetUserStoryStatusQuery(
+    isFocused && projectId
+      ? {
+          project_id: projectId,
+          _refetchKey: refetchKey,
+        }
+      : skipToken,
+  );
+  const userStoryStatuses = userStoryStatusData?.data ?? [];
+  const [createUserStory, { isLoading: isCreatingStory }] =
+    useCreateUserStoryMutation();
+
+  const handleCreateStory = async (payload: CreateUserStoryPayload) => {
+    if (!projectId || !currentSprintId) {
+      showSnackbar({
+        message: 'Project or Sprint not selected',
+        type: 'error',
+      });
+      return;
+    }
+    try {
+      await createUserStory({
+        projectId,
+        payload: {
+          ...payload,
+          sprint_id: currentSprintId,
+        },
+      }).unwrap();
+      await refetchUserStories();
+    } catch (error) {
+      showSnackbar({
+        message: 'Failed to create user story',
+        type: 'error',
+      });
+      throw error;
+    }
+  };
 
   const {
     currentData: userStoriesResponse,
@@ -756,7 +801,6 @@ const ProjectDeatailsScreen = () => {
     statusId: string;
   } | null>(null);
 
-  const isInitialLoad = useRef(true);
   const hasInitializedStories = useRef(false);
 
   // Helper – stories already carry is_favourite from the API, just pass through
@@ -809,12 +853,12 @@ const ProjectDeatailsScreen = () => {
     }
     previousSprintId.current = currentSprintId;
     hasInitializedStories.current = false;
-    isInitialLoad.current = true;
     setLocalUserStories([]);
     setDropZones([]);
     setActiveDropZone(null);
     setDropSuccessZone(null);
     setCurrentPage(1);
+    setIsFetchingMore(false);
     setExpandedStories({});
   }, [projectId, currentSprintId]);
 
@@ -849,15 +893,13 @@ const ProjectDeatailsScreen = () => {
       if (!storeLoading && !isStoriesFetching) {
         setLocalUserStories(prev => (prev.length > 0 ? [] : prev));
         hasInitializedStories.current = true;
-        isInitialLoad.current = false;
       }
       return;
     }
 
-    if (!hasInitializedStories.current && userStories?.length > 0) {
+    if (!hasInitializedStories.current && userStories.length > 0) {
       setLocalUserStories(mapStoriesFromApi(userStories));
       hasInitializedStories.current = true;
-      isInitialLoad.current = false;
       setIsFetchingMore(false);
     } else if (currentPage > 1) {
       setLocalUserStories(prev => {
@@ -870,6 +912,7 @@ const ProjectDeatailsScreen = () => {
       setIsFetchingMore(false);
     } else {
       setLocalUserStories(mapStoriesFromApi(userStories));
+      setIsFetchingMore(false);
     }
   }, [
     userStories,
@@ -880,11 +923,44 @@ const ProjectDeatailsScreen = () => {
   ]);
 
   const loadNextPage = useCallback(() => {
-    if (userStoryMeta?.has_next && !isStoriesFetching && !isFetchingMore) {
-      setIsFetchingMore(true);
-      setCurrentPage(prev => prev + 1);
+    if (
+      !isFocused ||
+      !projectId ||
+      !currentSprintId ||
+      !userStoryMeta?.has_next ||
+      isStoriesFetching
+    ) {
+      return;
     }
-  }, [userStoryMeta?.has_next, isStoriesFetching, isFetchingMore]);
+    if (!userStoryMeta?.has_next) return;
+    if (isStoriesFetching || isFetchingMore) return;
+    setIsFetchingMore(true);
+    setCurrentPage(prev => prev + 1);
+  }, [
+    isFocused,
+    projectId,
+    currentSprintId,
+    userStoryMeta?.has_next,
+    isStoriesFetching,
+    isFetchingMore,
+  ]);
+
+  const handleVerticalScroll = useCallback(
+    (event: any) => {
+      const { contentOffset, layoutMeasurement, contentSize } =
+        event.nativeEvent;
+      const offsetY = contentOffset?.y ?? 0;
+      const viewportHeight = layoutMeasurement?.height ?? 0;
+      const totalContentHeight = contentSize?.height ?? 0;
+      verticalScrollOffset.value = offsetY;
+      const distanceFromBottom =
+        totalContentHeight - (offsetY + viewportHeight);
+      if (distanceFromBottom <= PAGINATION_THRESHOLD) {
+        loadNextPage();
+      }
+    },
+    [loadNextPage, verticalScrollOffset],
+  );
 
   const toggleStory = useCallback((storyId: string) => {
     setExpandedStories(prev => ({ ...prev, [storyId]: !prev[storyId] }));
@@ -1166,43 +1242,48 @@ const ProjectDeatailsScreen = () => {
   );
 
   return (
-    <ScrollView
-      className='flex-1'
-      style={{ backgroundColor: colors.surface, paddingTop: moderateScale(20) }}
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.surface,
+      }}
     >
-      <View
-        style={{
-          paddingHorizontal: layout.paddingHorizontal,
-          paddingTop: layout.tightGap,
-          paddingBottom: moderateScale(12),
-        }}
-      >
-        <AppText variant='title' className='font-bold'>
-          Kanban Board
-        </AppText>
-        <AppText
-          variant='body'
-          style={{ marginTop: moderateScale(4), opacity: 0.5 }}
-        >
-          Visualize and manage your team's tasks across workflow stages
-        </AppText>
-      </View>
-
       <Animated.ScrollView
         ref={verticalScrollRef}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        onScroll={event => {
-          verticalScrollOffset.value = event.nativeEvent.contentOffset.y;
+        onScroll={handleVerticalScroll}
+        style={{
+          flex: 1,
+          backgroundColor: colors.surface,
         }}
-        style={{ flex: 1 }}
         contentContainerStyle={{
+          paddingTop: moderateScale(20),
           paddingBottom: isSmallHeight ? hp(20) : hp(12),
         }}
       >
+        <View
+          style={{
+            paddingHorizontal: layout.paddingHorizontal,
+            paddingTop: layout.tightGap,
+            paddingBottom: moderateScale(12),
+          }}
+        >
+          <AppText variant='title' className='font-bold'>
+            Kanban Board
+          </AppText>
+          <AppText
+            variant='body'
+            style={{ marginTop: moderateScale(4), opacity: 0.5 }}
+          >
+            Visualize and manage your team's tasks across workflow stages
+          </AppText>
+        </View>
+
         <Animated.ScrollView
           ref={horizontalScrollRef}
           horizontal
+          nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
           onScroll={event => {
@@ -1284,8 +1365,20 @@ const ProjectDeatailsScreen = () => {
                 />
               ))}
 
+              {isStoriesFetching &&
+                currentPage > 1 &&
+                Array.from({
+                  length: 3,
+                }).map((_, index) => (
+                  <BoardSkeletonRow
+                    key={`load-more-skeleton-${index}`}
+                    columnCount={Math.max(customStatuses.length, 3)}
+                  />
+                ))}
+
               {!storeLoading &&
                 !isStoriesFetching &&
+                !isFetchingMore &&
                 localUserStories.length === 0 && (
                   <View
                     style={{
@@ -1300,57 +1393,76 @@ const ProjectDeatailsScreen = () => {
                   </View>
                 )}
 
-              {userStoryMeta?.has_next && (
-                <View style={{ alignItems: 'flex-start', paddingVertical: 16 }}>
-                  {isFetchingMore ? (
-                    <View
-                      style={{
-                        width: USER_STORY_WIDTH + STATUS_COLUMN_WIDTH,
-                        alignItems: 'center',
-                        paddingVertical: 12,
-                      }}
-                    >
-                      <ActivityIndicator size='small' color={colors.primary} />
-                      <AppText
-                        variant='caption'
-                        color={colors.textSecondary}
-                        style={{ marginTop: 6 }}
-                      >
-                        Loading more stories…
-                      </AppText>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      onPress={loadNextPage}
-                      activeOpacity={0.7}
-                    >
-                      <View
-                        style={{
-                          paddingHorizontal: 20,
-                          paddingVertical: 10,
-                          backgroundColor: colors.card || colors.surface,
-                          borderRadius: 8,
-                          borderWidth: 1,
-                          borderColor: colors.border,
-                          marginLeft: 12,
-                        }}
-                      >
-                        <AppText variant='body' color={colors.text}>
-                          Load more stories (
-                          {(userStoryMeta?.total_items ?? 0) -
-                            localUserStories.length}{' '}
-                          remaining)
-                        </AppText>
-                      </View>
-                    </TouchableOpacity>
-                  )}
+              {isFetchingMore && (
+                <View
+                  style={{
+                    paddingVertical: 16,
+                    alignItems: 'center',
+                  }}
+                >
+                  <ActivityIndicator size='small' color={colors.primary} />
                 </View>
               )}
             </View>
           )}
         </Animated.ScrollView>
       </Animated.ScrollView>
-    </ScrollView>
+      <TouchableOpacity
+        onPress={() => setIsModalVisible(true)}
+        activeOpacity={0.8}
+        style={{
+          position: 'absolute',
+          right: 20,
+          bottom: 24,
+          width: 42,
+          height: 42,
+          borderRadius: 29,
+          backgroundColor: colors.primary,
+          alignItems: 'center',
+          justifyContent: 'center',
+          elevation: 6,
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 4,
+          },
+          shadowOpacity: 0.3,
+          shadowRadius: 5,
+          zIndex: 9999,
+        }}
+      >
+        <AppText
+          variant='h1'
+          style={{
+            color: colors.white,
+            lineHeight: 34,
+          }}
+        >
+          +
+        </AppText>
+      </TouchableOpacity>
+      <CreateProjectModal
+        visible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+        mode='story'
+        title='Create Story'
+        projectId={projectId}
+        sprintId={currentSprintId}
+        priorities={[...TASK_PRIORITY_OPTIONS]}
+        statuses={userStoryStatuses.map(status => ({
+          id: status.id,
+          name: status.name,
+          color: status.color,
+          display_order: status.display_order,
+        }))}
+        onCreateStory={handleCreateStory}
+        isCreatingStory={isCreatingStory}
+        onSuccess={() => {
+          setIsModalVisible(false);
+          refetchUserStories();
+        }}
+      />
+    </View>
   );
 };
 

@@ -16,6 +16,7 @@ import {
   TASKATTACHMENT,
   DELETETASKATTACHMENT,
   UPDATE_TASKS,
+  CREATE_USERSTORY,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetUserStoryByIdParams,
@@ -26,6 +27,8 @@ import {
   GetTaskByIdParams,
   GetTaskByIdResponse,
   TaskData,
+  CreateUserStoryResponse,
+  CreateUserStoryPayload,
 } from '../../types/project.type';
 import {
   GetUserStoryCommentsParams,
@@ -108,6 +111,20 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       transformResponse: (response: GetUserStoryByIdResponse) => response.data,
       providesTags: (_result, _error, { userStoryId }) => [
         { type: 'UserStoryDetail', id: userStoryId },
+      ],
+    }),
+
+    createUserStory: build.mutation<
+      CreateUserStoryResponse,
+      { projectId: string; payload: CreateUserStoryPayload }
+    >({
+      query: ({ projectId, payload }) => ({
+        url: CREATE_USERSTORY.replace('{project_id}', projectId),
+        method: 'POST',
+        data: payload,
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'UserStories', id: projectId },
       ],
     }),
 
@@ -511,6 +528,7 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
 
 export const {
   useGetUserStoryByIdQuery,
+  useCreateUserStoryMutation,
   useUpdateUserStoryMutation,
   useUpdateTaskMutation,
   useCreateTaskMutation,

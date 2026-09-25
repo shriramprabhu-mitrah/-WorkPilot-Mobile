@@ -133,7 +133,7 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
       const response = await deleteProjectMutation({
         project_id: projectId,
       }).unwrap();
-
+      setShowDeleteModal(false);
       showSuccessToast?.(
         response.message || 'Project moved to trash',
         'success',
@@ -319,17 +319,13 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
             opacity: isDeleting || isLoading ? 0.6 : 1,
           }}
         >
-          {isDeleting ? (
-            <ActivityIndicator size='small' color={colors.accentOrange} />
-          ) : (
-            <AppText
-              variant='body'
-              className='font-bold'
-              color={colors.accentOrange}
-            >
-              Move to trash
-            </AppText>
-          )}
+          <AppText
+            variant='body'
+            className='font-bold'
+            color={colors.accentOrange}
+          >
+            Move to trash
+          </AppText>
         </TouchableOpacity>
       </View>
 
@@ -337,7 +333,12 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
         visible={showDeleteModal}
         columnTitle={name || 'project'}
         colors={colors}
-        onClose={() => setShowDeleteModal(false)}
+        loading={isDeleting}
+        onClose={() => {
+          if (!isDeleting) {
+            setShowDeleteModal(false);
+          }
+        }}
         onDelete={handleDeleteProject}
       />
     </ScrollView>

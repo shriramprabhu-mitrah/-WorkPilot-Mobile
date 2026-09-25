@@ -67,7 +67,9 @@ export interface CreateSprintPayload {
   end_date: string;
 }
 
-export interface CreateSprintResponse extends ApiResponse<{ sprint_id: string }> {}
+export interface CreateSprintResponse extends ApiResponse<{
+  sprint_id: string;
+}> {}
 
 export interface GetSprintByIdParams {
   project_id: string;
@@ -725,4 +727,20 @@ export interface TaskItem {
   updated_at: string;
   reporter: UserProfile;
   assignee: UserProfile;
+}
+
+export interface CreateUserStoryPayload {
+  title: string;
+  description: string;
+  priority: string;
+  status_id?: string | number;
+  story_points: number;
+  sprint_id?: string;
+}
+
+export interface CreateUserStoryResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: UserStory;
 }
