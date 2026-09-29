@@ -628,6 +628,29 @@ export interface GetWeeklyProgressQueryArgs {
   _refetchKey?: number;
 }
 
+export interface UpcomingDeadline {
+  id: string;
+  task_id: string;
+  project_id: string;
+  project_name: string;
+  sprint_id: string | null;
+  sprint_name: string | null;
+  key: string;
+  task_key: string;
+  title: string;
+  priority: string;
+  due_date: string;
+  deadline_status: string;
+}
+
+export interface UpcomingDeadlinesResponse extends ApiResponse {
+  data: UpcomingDeadline[];
+}
+
+export interface UpcomingDeadlinesQueryArgs {
+  project_id: string;
+}
+
 export interface UserStoryTask {
   id: string;
   project_id: string;
@@ -735,7 +758,7 @@ export interface CreateUserStoryPayload {
   priority: string;
   status_id?: string | number;
   story_points: number;
-  sprint_id?: string;
+  sprint_id?: string | null;
 }
 
 export interface CreateUserStoryResponse {

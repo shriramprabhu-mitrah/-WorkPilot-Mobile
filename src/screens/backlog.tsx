@@ -1,10 +1,5 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
-import {
-  View,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { View, FlatList, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -16,10 +11,19 @@ import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import { useAppSelector } from '../store';
 import { useGetUserStoriesQuery } from '../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { UserStory } from '../types/project.type';
+import { UserStory, CreateUserStoryPayload } from '../types/project.type';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import { RootStackParamList } from '../types/navigationTypes';
+import CreateProjectModal, {
+  StoryAttachmentFile,
+} from '../components/createProjectModel';
+import { TASK_PRIORITY_OPTIONS } from '../utils/enum';
+import {
+  useCreateUserStoryMutation,
+  useUploadUserStoryAttachmentMutation,
+} from '../store/api/userStoryApi';
+import { showSnackbar } from '../components/common/Snackbar';
 
 export const Backlogs = () => {
   const { colors } = useTheme();
@@ -27,11 +31,13 @@ export const Backlogs = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [isFocusLoading, setIsFocusLoading] = useState(false);
+  const [refetchKey, setRefetchKey] = useState(0);
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-
-  // Track the project ID that was previously loaded to determine when to trigger skeleton
-  const prevProjectIdRef = useRef<string | number | undefined>(undefined);
+  const [isCreateStoryVisible, setIsCreateStoryVisible] = useState(false);
+  const [allStories, setAllStories] = useState<UserStory[]>([]);
 
   // Expanded state map for toggling nested tasks per user story
   const [expandedStoryIds, setExpandedStoryIds] = useState<
@@ -44,6 +50,11 @@ export const Backlogs = () => {
   // Project ID comes directly from Redux
   const projectId = project?.id;
 
+  // Mutations for story creation and attachment upload
+  const [createUserStory, { isLoading: isCreatingStory }] =
+    useCreateUserStoryMutation();
+  const [uploadUserStoryAttachment] = useUploadUserStoryAttachmentMutation();
+
   // RTK Query hook for user stories (backlog: sprint_id = null)
   const {
     data: backlogUserStories,
@@ -51,50 +62,93 @@ export const Backlogs = () => {
     isFetching: backlogUserStoryFetching,
     refetch: refetchBacklog,
   } = useGetUserStoriesQuery(
-    projectId
+    isFocusLoading && projectId
       ? {
           projectId,
           payload: {
-            page: 1,
+            page: page,
             page_size: 10,
             sprint_id: null,
           },
+          _refetchKey: refetchKey,
         }
       : skipToken,
   );
 
-  // Show skeleton ONLY on first screen focus or when project changes
-  const showFooterSpinner = backlogUserStoryFetching && isFetchingNextPage;
-
   // Fetch backlog stories on focus
   useFocusEffect(
     useCallback(() => {
-      if (!projectId) {
-        setIsInitialLoading(false);
-        return;
-      }
-
-      let isMounted = true;
-      const isProjectChangedOrFirstLoad =
-        prevProjectIdRef.current !== projectId;
-
-      // Only enable full-screen skeleton if first time loading or project changed
-      if (isProjectChangedOrFirstLoad) {
-        setIsInitialLoading(true);
-      }
-
-      setIsFetchingNextPage(false);
-      refetchBacklog();
+      setIsFocusLoading(true);
+      setRefetchKey(prev => prev + 1);
 
       return () => {
-        if (isMounted) {
-          setIsInitialLoading(false);
-          prevProjectIdRef.current = projectId;
-          isMounted = false;
-        }
+        setIsFocusLoading(false);
       };
-    }, [projectId, refetchBacklog]),
+    }, []),
   );
+
+  useEffect(() => {
+    if (!backlogUserStoryFetching && isFetchingNextPage) {
+      setIsFetchingNextPage(false);
+    }
+  }, [backlogUserStoryFetching, isFetchingNextPage]);
+
+  useEffect(() => {
+    if (!backlogUserStories?.data) return;
+    const incomingStories = backlogUserStories.data as UserStory[];
+    if (page === 1) {
+      setAllStories(incomingStories);
+    } else {
+      setAllStories(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+
+        const newStories = incomingStories.filter(
+          item => !existingIds.has(item.id),
+        );
+        return [...prev, ...newStories];
+      });
+    }
+    setIsFetchingNextPage(false);
+    setIsInitialLoading(false);
+  }, [backlogUserStories, page]);
+
+  const handleCreateStory = async (
+    payload: CreateUserStoryPayload,
+    file?: StoryAttachmentFile,
+  ) => {
+    if (!projectId) {
+      showSnackbar({
+        message: 'Project not selected',
+        type: 'error',
+      });
+      return;
+    }
+    try {
+      const response = await createUserStory({
+        projectId: String(projectId),
+        payload: {
+          ...payload,
+          sprint_id: null,
+        },
+      }).unwrap();
+
+      if (response.data?.id && file) {
+        uploadUserStoryAttachment({
+          projectId: String(projectId),
+          userStoryId: String(response.data.id),
+          file,
+        });
+      }
+
+      refetchBacklog();
+    } catch (error: any) {
+      showSnackbar({
+        message: error?.data?.message || 'Failed to create user story',
+        type: 'error',
+      });
+      throw error;
+    }
+  };
 
   const handleLoadMore = async () => {
     if (
@@ -104,7 +158,8 @@ export const Backlogs = () => {
       backlogUserStories?.meta?.has_next &&
       projectId
     ) {
-      setIsFetchingNextPage(false);
+      setIsFetchingNextPage(true);
+      setPage(prev => prev + 1);
     }
   };
 
@@ -115,11 +170,7 @@ export const Backlogs = () => {
     }));
   }, []);
 
-  const rawStories = useMemo(
-    () => (backlogUserStories?.data as UserStory[]) || [],
-    [backlogUserStories],
-  );
-
+  const rawStories = useMemo(() => allStories, [allStories]);
   const filteredStories = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return rawStories;
@@ -163,13 +214,17 @@ export const Backlogs = () => {
   );
 
   const renderFooter = useCallback(() => {
-    if (!showFooterSpinner) return null;
+    if (!isFetchingNextPage) return null;
     return (
-      <View className='items-center justify-center py-4'>
-        <ActivityIndicator size='small' color={colors.primary} />
+      <View className='px-2 py-3'>
+        <ListSkeleton
+          count={1}
+          containerStyle={{ gap: layout.elementGap - 2 }}
+          renderItem={index => <ProjectCardSkeleton key={index} />}
+        />
       </View>
     );
-  }, [showFooterSpinner, colors.primary]);
+  }, [isFetchingNextPage, layout.elementGap]);
 
   const renderEmptyState = useCallback(() => {
     if (backlogUserStoryLoading) {
@@ -497,35 +552,59 @@ export const Backlogs = () => {
 
         {!backlogUserStoryLoading && filteredStories.length > 0 ? (
           <View
-            className='mb-3 flex-row items-center'
+            className='mb-3 flex-row items-center justify-between'
             style={{ gap: layout.elementGap }}
           >
-            <AppText
-              variant='caption'
-              className='font-bold tracking-wider'
-              color={colors.textSecondary}
-            >
-              Backlog Stories
-            </AppText>
             <View
-              className='items-center justify-center'
-              style={{
-                minWidth: moderateScale(22),
-                height: moderateScale(22),
-                paddingHorizontal: 6,
-                backgroundColor: colors.primary,
-                borderRadius: Radius.circle,
-              }}
+              className='flex-row items-center'
+              style={{ gap: layout.elementGap }}
             >
               <AppText
                 variant='caption'
-                className='text-xs font-bold'
-                color={colors.white}
+                className='font-bold tracking-wider'
+                color={colors.textSecondary}
               >
-                {backlogUserStories?.meta?.total_items ||
-                  filteredStories.length}
+                Backlog Stories
               </AppText>
+              <View
+                className='items-center justify-center'
+                style={{
+                  minWidth: moderateScale(22),
+                  height: moderateScale(22),
+                  paddingHorizontal: 6,
+                  backgroundColor: colors.primary,
+                  borderRadius: Radius.circle,
+                }}
+              >
+                <AppText
+                  variant='caption'
+                  className='text-xs font-bold'
+                  color={colors.white}
+                >
+                  {backlogUserStories?.meta?.total_items ||
+                    filteredStories.length}
+                </AppText>
+              </View>
             </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setIsCreateStoryVisible(true)}
+              disabled={!projectId}
+              className='items-center justify-center'
+              style={{
+                width: moderateScale(25),
+                height: moderateScale(25),
+                backgroundColor: colors.primary,
+                borderRadius: Radius.circle,
+                opacity: projectId ? 1 : 0.5,
+              }}
+            >
+              <Ionicons
+                name='add'
+                size={moderateScale(18)}
+                color={colors.white}
+              />
+            </TouchableOpacity>
           </View>
         ) : null}
       </View>
@@ -545,6 +624,22 @@ export const Backlogs = () => {
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmptyState}
+      />
+
+      {/* Create User Story Modal */}
+      <CreateProjectModal
+        visible={isCreateStoryVisible}
+        onClose={() => setIsCreateStoryVisible(false)}
+        mode='story'
+        title='Create Story'
+        projectId={projectId ? String(projectId) : undefined}
+        priorities={[...TASK_PRIORITY_OPTIONS]}
+        onCreateStory={handleCreateStory}
+        isCreatingStory={isCreatingStory}
+        onSuccess={() => {
+          setIsCreateStoryVisible(false);
+          refetchBacklog();
+        }}
       />
     </View>
   );

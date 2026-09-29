@@ -29,6 +29,7 @@ import SearchScreen from '../screens/searchScreen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoginScreen from '../screens/login';
 import Favorites from '../screens/favorites.tsx';
+import UpcomingDeadlines from '../screens/upcomingDeadlines';
 import Organization from '../screens/organization/organization.tsx';
 import OrganizationDetailsScreen from '../screens/organizationDetails.tsx';
 import OrganizationMembers from '../screens/organizationMembers.tsx';
@@ -123,6 +124,10 @@ const AppNavigator = () => {
             <Stack.Screen name='QuickAccess' component={QuickAccessScreen} />
             <Stack.Screen name='Search' component={SearchScreen} />
             <Stack.Screen name='Favorites' component={Favorites} />
+            <Stack.Screen
+              name='UpcomingDeadlines'
+              component={UpcomingDeadlines}
+            />
             <Stack.Screen
               name='updateDetails'
               component={UpdateUserDetailsScreen}

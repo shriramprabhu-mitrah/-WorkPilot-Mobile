@@ -52,6 +52,7 @@ export type RootStackParamList = {
   Create: undefined;
   loginScreen: undefined;
   Favorites: undefined;
+  UpcomingDeadlines: undefined;
   Organization: undefined;
   OrganizationDetails: undefined;
   OrganizationMembers: undefined;

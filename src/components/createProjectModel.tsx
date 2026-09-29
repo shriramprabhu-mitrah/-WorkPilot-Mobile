@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -10,6 +10,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import {
+  RichEditor,
+  RichToolbar,
+  actions,
+} from 'react-native-pell-rich-editor';
+import { pick, types } from '@react-native-documents/picker';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { moderateScale } from '../utils/responsive';
@@ -51,6 +57,13 @@ export interface CreateSprintPayload {
   end_date: string;
 }
 
+export interface StoryAttachmentFile {
+  uri: string;
+  name: string;
+  type: string;
+  size?: number;
+}
+
 export interface CreateProjectModalProps {
   visible: boolean;
   onClose: () => void;
@@ -61,7 +74,10 @@ export interface CreateProjectModalProps {
   onCreateRole?: (name: string) => Promise<void> | void;
   validateRoleName?: (name: string) => string | undefined;
   isCreatingRole?: boolean;
-  onCreateStory?: (payload: CreateUserStoryPayload) => Promise<void> | void;
+  onCreateStory?: (
+    payload: CreateUserStoryPayload,
+    attachment?: StoryAttachmentFile,
+  ) => Promise<void> | void;
   isCreatingStory?: boolean;
   priorities?: string[];
   statuses?: UserStoryStatusItem[];
@@ -81,11 +97,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   onCreateStory,
   isCreatingStory = false,
   priorities = TASK_PRIORITY_OPTIONS,
-  statuses = [],
   onSuccess,
 }) => {
   const { colors } = useTheme();
   const { layout, isSmallHeight } = useAuthLayout();
+  const editorRef = useRef<RichEditor>(null);
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [roleNameError, setRoleNameError] = useState<string>();
@@ -97,15 +113,12 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   >(null);
 
   const [selectedPriority, setSelectedPriority] = useState<string>(
-    priorities[0] || 'medium',
+    priorities[0] || 'low',
   );
-  const [selectedStatusId, setSelectedStatusId] = useState<
-    string | number | undefined
-  >(statuses[0]?.id);
+  const [storyAttachment, setStoryAttachment] =
+    useState<StoryAttachmentFile | null>(null);
   const [storyPoints, setStoryPoints] = useState('');
-  const [activeDropdown, setActiveDropdown] = useState<
-    'status' | 'priority' | null
-  >(null);
+  const [activeDropdown, setActiveDropdown] = useState<'priority' | null>(null);
 
   const [localSnackbarVisible, setLocalSnackbarVisible] = useState(false);
   const [localSnackbarMessage, setLocalSnackbarMessage] = useState('');
@@ -123,11 +136,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const isRole = mode === 'role';
   const isSprint = mode === 'sprint';
   const isStory = mode === 'story';
-  const statusWidth = Math.min(
-    Math.max((layout?.controlSize || 24) * 7, 160),
-    220,
-  );
-  const CONTROL_WIDTH = moderateScale(105);
 
   const [createSprint, { isLoading: isCreatingSprint }] =
     useCreateSprintMutation();
@@ -141,19 +149,14 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     },
   );
 
+  // Clear rich editor HTML when modal opens
   useEffect(() => {
-    if (visible && statuses && statuses.length > 0) {
-      const isCurrentValid = statuses.some(
-        s => String(s.id) === String(selectedStatusId),
-      );
-      if (!selectedStatusId || !isCurrentValid) {
-        const sorted = [...statuses].sort(
-          (a, b) => (a?.display_order ?? 0) - (b?.display_order ?? 0),
-        );
-        setSelectedStatusId(sorted[0]?.id);
-      }
+    if (visible) {
+      setTimeout(() => {
+        editorRef.current?.setContentHTML('');
+      }, 150);
     }
-  }, [statuses, visible, selectedStatusId]);
+  }, [visible]);
 
   const handleProjectSuccess = (successMsg?: string) => {
     dispatch(handleLoading(false));
@@ -175,22 +178,49 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   };
 
   const handleClose = () => {
-    const sortedStatuses = [...(statuses || [])].sort(
-      (a, b) => (a?.display_order ?? 0) - (b?.display_order ?? 0),
-    );
     setProjectName('');
     setProjectDescription('');
+    editorRef.current?.setContentHTML('');
     setSprintGoal('');
     setStartDate('');
     setEndDate('');
     setRoleNameError(undefined);
     setSelectedPriority(priorities[0] || 'medium');
-    setSelectedStatusId(sortedStatuses[0]?.id);
+    setStoryAttachment(null);
     setStoryPoints('');
     setActiveDropdown(null);
     setLocalSnackbarVisible(false);
     dispatch(handleLoading(false));
     onClose();
+  };
+
+  const handleSelectStoryAttachment = async () => {
+    try {
+      const files = await pick({
+        type: [
+          types.images,
+          types.pdf,
+          types.docx,
+          types.xlsx,
+          types.zip,
+          types.plainText,
+        ],
+        allowMultiSelection: false,
+      });
+      const file = files[0];
+      if (file?.uri) {
+        setStoryAttachment({
+          uri: file.uri,
+          name: file.name || 'attachment',
+          type: file.type || 'application/octet-stream',
+          size: file.size ?? undefined,
+        });
+      }
+    } catch (error: any) {
+      if (error?.code !== 'DOCUMENT_PICKER_CANCELED') {
+        showLocalSnackbar('Unable to select attachment', 'error');
+      }
+    }
   };
 
   const handleSubmit = async () => {
@@ -209,14 +239,16 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
     if (isStory) {
       try {
-        await onCreateStory?.({
-          title: name,
-          description: projectDescription.trim(),
-          priority: selectedPriority,
-          status_id: selectedStatusId,
-          story_points: Number(storyPoints) || 0,
-          sprint_id: sprintId,
-        });
+        await onCreateStory?.(
+          {
+            title: name,
+            description: projectDescription.trim(),
+            priority: selectedPriority,
+            story_points: Number(storyPoints) || 0,
+            sprint_id: sprintId,
+          },
+          storyAttachment ?? undefined,
+        );
         handleClose();
         const msg = 'User story created successfully';
         onSuccess?.(msg);
@@ -296,6 +328,19 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     );
   };
 
+  const toolbarActions = [
+    actions.heading1,
+    actions.setBold,
+    actions.setItalic,
+    actions.setUnderline,
+    actions.insertBulletsList,
+    actions.insertOrderedList,
+    actions.hiliteColor,
+    actions.insertLink,
+    actions.undo,
+    actions.redo,
+  ];
+
   const isSubmitting =
     loading || isCreatingRole || isCreatingSprint || isCreatingStory;
   const isSubmitDisabled = !projectName.trim() || isSubmitting;
@@ -345,6 +390,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                   maxWidth: moderateScale(420),
                   borderRadius: Radius.lg || moderateScale(16),
                   overflow: 'hidden',
+                  maxHeight: '85%',
                 }}
               >
                 {/* Header Section */}
@@ -450,52 +496,155 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     />
                   </View>
 
-                  {/* Field 2: Description (Project, Sprint & Story modes) */}
+                  {/* Field 2: Description (Project & Story modes using RichEditor) */}
                   {!isRole && !isSprint && (
                     <View style={{ gap: moderateScale(6) }}>
-                      <AppInput
-                        label='Description'
-                        value={projectDescription}
-                        onChangeText={setProjectDescription}
-                        placeholder={
-                          isStory
-                            ? 'Enter story details...'
-                            : 'Briefly describe the project goal and scope...'
-                        }
-                        multiline
-                        numberOfLines={3}
-                        textAlignVertical='top'
-                        onFocus={() => {
-                          setActiveDropdown(null);
+                      <AppText
+                        variant='body'
+                        color={colors.text}
+                        style={{
+                          fontWeight: '600',
+                          fontSize: moderateScale(14),
                         }}
-                        onBlur={() => {}}
-                        style={{ minHeight: moderateScale(70) }}
-                      />
+                      >
+                        Description
+                      </AppText>
+                      <View
+                        style={{
+                          borderWidth: 1,
+                          borderColor: colors.border || '#E2E8F0',
+                          borderRadius: Radius.md,
+                          backgroundColor: colors.surface,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {/* Top Rich Toolbar */}
+                        <View
+                          style={{
+                            borderBottomWidth: 1,
+                            borderBottomColor: colors.border || '#E2E8F0',
+                            backgroundColor: colors.card || colors.surface,
+                          }}
+                        >
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            keyboardShouldPersistTaps='always'
+                            contentContainerStyle={{ alignItems: 'center' }}
+                          >
+                            <RichToolbar
+                              editor={editorRef}
+                              getEditor={() => editorRef.current}
+                              actions={toolbarActions}
+                              iconTint={colors.textSecondary}
+                              selectedIconTint={colors.primary}
+                              style={{
+                                backgroundColor: 'transparent',
+                                minHeight: 40,
+                              }}
+                            />
+                          </ScrollView>
+                        </View>
+
+                        {/* Rich Editor */}
+                        <RichEditor
+                          ref={editorRef}
+                          initialContentHTML=''
+                          placeholder={
+                            isStory
+                              ? 'Enter story details...'
+                              : 'Briefly describe the project goal and scope...'
+                          }
+                          onChange={html => setProjectDescription(html)}
+                          onFocus={() => setActiveDropdown(null)}
+                          useContainer={true}
+                          style={{
+                            minHeight: moderateScale(100),
+                            maxHeight: moderateScale(180),
+                          }}
+                          editorStyle={{
+                            backgroundColor: colors.surface,
+                            color: colors.text,
+                            placeholderColor:
+                              colors.placeholder || colors.textSecondary,
+                            contentCSSText: `
+                              font-size: ${layout?.bodyFontSize || 14}px;
+                              padding: 10px;
+                              outline: none;
+                              -webkit-user-select: text;
+                              user-select: text;
+                            `,
+                          }}
+                        />
+                      </View>
                     </View>
                   )}
 
-                  {/* Story Specific Controls: Status, Priority, Story Points */}
+                  {isStory && (
+                    <View style={{ gap: moderateScale(6) }}>
+                      <AppText
+                        variant='body'
+                        color={colors.text}
+                        style={{
+                          fontWeight: '600',
+                          fontSize: moderateScale(14),
+                        }}
+                      >
+                        Attachment
+                      </AppText>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={handleSelectStoryAttachment}
+                        style={{
+                          minHeight: moderateScale(42),
+                          paddingHorizontal: moderateScale(12),
+                          paddingVertical: moderateScale(10),
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: moderateScale(8),
+                          borderWidth: 1,
+                          borderColor: colors.border || '#E2E8F0',
+                          borderRadius: Radius.sm || moderateScale(8),
+                          backgroundColor: colors.surface,
+                        }}
+                      >
+                        <Ionicons
+                          name='attach-outline'
+                          size={moderateScale(18)}
+                          color={colors.primary}
+                        />
+                        <AppText
+                          variant='caption'
+                          color={
+                            storyAttachment ? colors.text : colors.textSecondary
+                          }
+                          numberOfLines={1}
+                          style={{ flex: 1 }}
+                        >
+                          {storyAttachment?.name || 'Choose a file'}
+                        </AppText>
+                        {storyAttachment && (
+                          <TouchableOpacity
+                            onPress={event => {
+                              event.stopPropagation();
+                              setStoryAttachment(null);
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons
+                              name='close-circle'
+                              size={moderateScale(18)}
+                              color={colors.textSecondary}
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Story Specific Controls: Priority and Story Points */}
                   {isStory &&
                     (() => {
-                      const getStatusColor = (item?: any) =>
-                        item?.color ||
-                        item?.status_color ||
-                        item?.badge_color ||
-                        item?.bg_color ||
-                        colors.primary;
-
-                      const formattedStatuses: DropdownItem<string | number>[] =
-                        [...(statuses || [])]
-                          .sort(
-                            (a, b) =>
-                              (a?.display_order ?? 0) - (b?.display_order ?? 0),
-                          )
-                          .map(status => ({
-                            id: status.id,
-                            name: status.name,
-                            color: getStatusColor(status),
-                          }));
-
                       const formattedPriorities: DropdownItem<string>[] =
                         TASK_PRIORITY_OPTIONS.map(opt => ({
                           id: opt,
@@ -506,38 +655,17 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                         }));
 
                       return (
-                        <>
-                          <View
-                            className='flex-row justify-between'
-                            style={{
-                              gap: layout?.elementGap || moderateScale(8),
-                              zIndex: activeDropdown ? 50 : 1,
-                            }}
-                          >
-                            {/* Status Dropdown */}
-                            <CustomDropdown
-                              label='Status'
-                              width={statusWidth}
-                              items={formattedStatuses}
-                              selectedValue={selectedStatusId}
-                              placeholder='Select status'
-                              isOpen={activeDropdown === 'status'}
-                              onToggle={() =>
-                                setActiveDropdown(prev =>
-                                  prev === 'status' ? null : 'status',
-                                )
-                              }
-                              onSelect={item => {
-                                setSelectedStatusId(item.id);
-                                setActiveDropdown(null);
-                              }}
-                              direction='up'
-                            />
-
-                            {/* Priority Dropdown */}
+                        <View
+                          className='flex-row items-end'
+                          style={{
+                            gap: layout?.elementGap || moderateScale(8),
+                            zIndex: activeDropdown ? 50 : 1,
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
                             <CustomDropdown
                               label='Priority'
-                              width={CONTROL_WIDTH}
+                              width='100%'
                               items={formattedPriorities}
                               selectedValue={selectedPriority}
                               isOpen={activeDropdown === 'priority'}
@@ -553,9 +681,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                               direction='up'
                             />
                           </View>
-
-                          {/* Story Points */}
-                          <View style={{ gap: moderateScale(6) }}>
+                          <View style={{ flex: 1 }}>
                             <AppInput
                               label='Story Points'
                               value={storyPoints}
@@ -565,7 +691,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                               onFocus={() => setActiveDropdown(null)}
                             />
                           </View>
-                        </>
+                        </View>
                       );
                     })()}
 

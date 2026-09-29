@@ -3,6 +3,8 @@ import { View, Animated, ScrollView } from 'react-native';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
 import { useTheme } from '../../theme/ThemeProvider';
+import ListSkeleton from '../../components/skeleton/ListSkeleton';
+import ProjectCardSkeleton from '../../components/skeleton/ProjectCardSkeleton';
 
 export const SummarySkeleton: React.FC = () => {
   const { colors } = useTheme();
@@ -183,6 +185,46 @@ export const SummarySkeleton: React.FC = () => {
               />
             </View>
           ))}
+        </View>
+
+        {/* Upcoming Deadlines Container Skeleton */}
+        <View
+          style={{
+            backgroundColor: colors.background,
+            borderRadius: Radius.lg,
+            paddingHorizontal: moderateScale(16),
+            paddingTop: moderateScale(14),
+            paddingBottom: moderateScale(14),
+          }}
+        >
+          {/* Header Skeleton */}
+          <View className='mb-4 flex-row items-center justify-between'>
+            <Animated.View
+              style={{
+                width: moderateScale(160),
+                height: moderateScale(18),
+                backgroundColor: skeletonBg,
+                borderRadius: Radius.xs || 4,
+                opacity: pulseAnim,
+              }}
+            />
+            <Animated.View
+              style={{
+                width: moderateScale(60),
+                height: moderateScale(14),
+                backgroundColor: skeletonBg,
+                borderRadius: Radius.xs || 4,
+                opacity: pulseAnim,
+              }}
+            />
+          </View>
+
+          {/* List Skeleton */}
+          <ListSkeleton
+            count={4}
+            containerStyle={{ gap: moderateScale(8) }}
+            renderItem={index => <ProjectCardSkeleton key={index} />}
+          />
         </View>
       </View>
     </ScrollView>

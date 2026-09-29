@@ -15,12 +15,21 @@ import { Radius } from '../../constants/Radius';
 import { AppText } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
 import SummarySkeleton from '../../components/skeleton/summarySkeleton';
-import { useGetProjectOverviewQuery } from '../../store/api/projectApi';
+import {
+  useGetProjectOverviewQuery,
+  useGetUpcomingDeadlinesQuery,
+} from '../../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native';
+import { RootStackParamList } from '../../types/navigationTypes';
+import { getPriorityLabel, getPriorityThemeColor } from '../../utils/enum';
+import { formatDate } from '../../utils/utils';
 
 export const Summary: React.FC = () => {
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   // 1. Redux Selectors
   const { project, projectLoading } = useAppSelector(
@@ -40,6 +49,15 @@ export const Summary: React.FC = () => {
   );
   const overviewData = overviewResponse?.data;
 
+  const {
+    data: deadlinesResponse,
+    isLoading: deadlinesLoading,
+    refetch: refetchDeadlines,
+  } = useGetUpcomingDeadlinesQuery(
+    projectId ? { project_id: projectId } : skipToken,
+  );
+  const deadlines = deadlinesResponse?.data ?? [];
+
   // 3. Animation values
   const drawAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -49,6 +67,7 @@ export const Summary: React.FC = () => {
     useCallback(() => {
       if (projectId) {
         refetch();
+        refetchDeadlines();
       }
 
       drawAnim.setValue(0);
@@ -69,7 +88,7 @@ export const Summary: React.FC = () => {
           useNativeDriver: true,
         }),
       ]).start();
-    }, [projectId, refetch, drawAnim, fadeAnim]),
+    }, [projectId, refetch, refetchDeadlines, drawAnim, fadeAnim]),
   );
 
   // 5. ALL useMemo hooks MUST be declared before any return statements
@@ -104,7 +123,7 @@ export const Summary: React.FC = () => {
   }, [colors.background]);
 
   // 6. Early returns are placed AFTER all hooks have executed
-  if (isLoading || projectLoading) {
+  if (isLoading || deadlinesLoading || projectLoading) {
     return <SummarySkeleton />;
   }
   if (!overviewData) {
@@ -398,6 +417,158 @@ export const Summary: React.FC = () => {
               </View>
             </TouchableOpacity>
           ))}
+        </View>
+
+        {/* Upcoming Deadlines */}
+        <View
+          style={{
+            backgroundColor: colors.background,
+            borderRadius: Radius.lg,
+            paddingHorizontal: moderateScale(16),
+            paddingTop: moderateScale(14),
+            paddingBottom: moderateScale(6),
+          }}
+        >
+          <View className='mb-2 flex-row items-center justify-between'>
+            <AppText
+              variant='bodyLarge'
+              className='font-bold'
+              color={colors.text}
+            >
+              Upcoming deadlines
+            </AppText>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('UpcomingDeadlines')}
+              className='flex-row items-center'
+              style={{ gap: moderateScale(3) }}
+            >
+              <AppText
+                variant='caption'
+                className='font-semibold'
+                style={{ color: colors.primary }}
+              >
+                View more
+              </AppText>
+              <Ionicons
+                name='chevron-forward'
+                size={moderateScale(13)}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {deadlines.length ? (
+            deadlines.slice(0, 4).map((deadline, index) => {
+              const label = getPriorityLabel(deadline.priority);
+              const priorityColor = getPriorityThemeColor(
+                deadline.priority,
+                colors,
+              );
+              const overdue =
+                deadline.deadline_status?.toLowerCase() === 'overdue';
+
+              return (
+                <View
+                  key={deadline.id}
+                  style={{
+                    borderTopWidth: index ? 1 : 0,
+                    borderTopColor: colors.border,
+                  }}
+                >
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() =>
+                      navigation.navigate('issue', {
+                        projectId: deadline.project_id,
+                        taskId: deadline.task_id,
+                        taskName: deadline.title,
+                      })
+                    }
+                    className='flex-row items-center'
+                    style={{
+                      minHeight: moderateScale(64),
+                      paddingVertical: moderateScale(10),
+                      gap: moderateScale(10),
+                    }}
+                  >
+                    {/* Priority Badge */}
+                    <View
+                      className='flex-row items-center'
+                      style={{
+                        width: moderateScale(70),
+                        paddingHorizontal: moderateScale(9),
+                        paddingVertical: moderateScale(5),
+                        borderRadius: Radius.circle,
+                        backgroundColor: `${priorityColor}12`,
+                        gap: moderateScale(4),
+                      }}
+                    >
+                      <Ionicons
+                        name='flag-outline'
+                        size={moderateScale(12)}
+                        color={priorityColor}
+                      />
+                      <AppText
+                        variant='caption'
+                        style={{
+                          color: priorityColor,
+                          fontSize: moderateScale(11),
+                        }}
+                      >
+                        {label}
+                      </AppText>
+                    </View>
+
+                    {/* Task Title & Project / Sprint Info */}
+                    <View className='flex-1' style={{ gap: moderateScale(3) }}>
+                      <AppText
+                        variant='body'
+                        color={colors.text}
+                        numberOfLines={1}
+                        className='font-medium'
+                      >
+                        {deadline.title}
+                      </AppText>
+                      <AppText
+                        variant='caption'
+                        color={colors.textSecondary}
+                        numberOfLines={1}
+                      >
+                        {deadline.task_key || (deadline as any)?.key}
+                        {deadline.sprint_name
+                          ? ` - ${deadline.sprint_name}`
+                          : ''}
+                        {!deadline.sprint_name && deadline.project_name
+                          ? ` - ${deadline.project_name}`
+                          : ''}
+                      </AppText>
+                    </View>
+
+                    {/* Due Date / Overdue Status */}
+                    <AppText
+                      variant='caption'
+                      style={{
+                        color: overdue ? colors.error : colors.textSecondary,
+                        fontSize: moderateScale(11),
+                        width: moderateScale(70),
+                      }}
+                    >
+                      {overdue ? 'Overdue' : formatDate(deadline.due_date)}
+                    </AppText>
+                  </TouchableOpacity>
+                </View>
+              );
+            })
+          ) : (
+            <AppText
+              variant='caption'
+              color={colors.textSecondary}
+              style={{ paddingVertical: moderateScale(14) }}
+            >
+              No upcoming deadlines.
+            </AppText>
+          )}
         </View>
       </View>
     </ScrollView>

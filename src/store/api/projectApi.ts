@@ -23,6 +23,7 @@ import {
   GETPROJECTMEMBERS,
   DELETEPROJECTMEMBER,
   CREATE_NEW_SPRINT,
+  UPCOMMINGDEADLINES,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsResponse,
@@ -53,6 +54,8 @@ import {
   RemoveProjectMemberArgs,
   RemoveProjectMemberResponse,
   GetBurndownResponse,
+  UpcomingDeadlinesQueryArgs,
+  UpcomingDeadlinesResponse,
 } from '../../types/project.type';
 import {
   GetCustomStatusResponse,
@@ -86,8 +89,20 @@ export const projectApi = createApi({
     'Tasks',
     'Comments',
     'Attachments',
+    'UpcomingDeadlines',
   ],
   endpoints: build => ({
+    getUpcomingDeadlines: build.query<
+      UpcomingDeadlinesResponse,
+      UpcomingDeadlinesQueryArgs
+    >({
+      query: ({ project_id }) => ({
+        url: UPCOMMINGDEADLINES.replace('{project_id}', project_id),
+      }),
+      providesTags: (_result, _error, { project_id }) => [
+        { type: 'UpcomingDeadlines', id: project_id },
+      ],
+    }),
     getProjects: build.query<GetProjectsResponse, GetProjectsQueryArgs | void>({
       query: args => {
         const { _refetchKey, ...params } = args || {};
@@ -554,6 +569,7 @@ export const {
   useGetProjectByIdQuery,
   useGetSprintByIdQuery,
   useGetProjectOverviewQuery,
+  useGetUpcomingDeadlinesQuery,
   useGetCustomStatusQuery,
   useGetUserStoryStatusQuery,
   useGetUserStoriesQuery,
