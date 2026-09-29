@@ -1,10 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import {
-  View,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { View, FlatList, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -29,7 +24,7 @@ const List = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isFocusLoading, setIsFocusLoading] = useState(false);
-  const [refetchKey, setRefetchKey] = useState(0);
+  const [allStories, setAllStories] = useState<UserStory[]>([]);
 
   // 1. Stable Primitive Selectors
   const projectId = useAppSelector(
@@ -58,16 +53,17 @@ const List = () => {
             page_size: 10,
             sprint_id: activeSprintId,
           },
-          _refetchKey: refetchKey,
         }
       : skipToken,
+    { refetchOnFocus: true },
   );
 
   // 3. Screen focus lifecycle
   useFocusEffect(
     useCallback(() => {
       setIsFocusLoading(true);
-      setRefetchKey(prev => prev + 1);
+      setCurrentPage(1);
+      setAllStories([]);
 
       return () => {
         setIsFocusLoading(false);
@@ -75,17 +71,37 @@ const List = () => {
     }, []),
   );
 
-  // 4. Stable data resolution
-  const userStories = (userStoriesResponse?.data as UserStory[]) ?? [];
+  // 4. Append paginated API data
+  useEffect(() => {
+    if (!userStoriesResponse?.data) return;
+    const incomingStories = userStoriesResponse.data as UserStory[];
+    if (currentPage === 1) {
+      setAllStories(incomingStories);
+    } else {
+      setAllStories(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newStories = incomingStories.filter(
+          item => !existingIds.has(item.id),
+        );
+        return [...prev, ...newStories];
+      });
+    }
+  }, [userStoriesResponse, currentPage]);
+
+  const userStories = allStories;
   const userStoryMeta = userStoriesResponse?.meta ?? null;
 
   // Show full skeleton only on cold initial fetch (no cached data yet)
 
   const handleLoadMore = useCallback(() => {
-    if (userStoryMeta?.has_next && !userStoriesFetching) {
+    if (
+      !userStoriesFetching &&
+      userStoryMeta?.has_next &&
+      userStories.length > 0
+    ) {
       setCurrentPage(prev => prev + 1);
     }
-  }, [userStoryMeta?.has_next, userStoriesFetching]);
+  }, [userStoriesFetching, userStoryMeta?.has_next, userStories.length]);
 
   const filteredStories = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -132,8 +148,12 @@ const List = () => {
   const renderFooter = useCallback(() => {
     if (!userStoriesFetching || currentPage === 1) return null;
     return (
-      <View className='items-center justify-center py-4'>
-        <ActivityIndicator size='small' color={colors.primary} />
+      <View className='py-3'>
+        <ListSkeleton
+          count={1}
+          containerStyle={{ gap: layout.elementGap - 2 }}
+          renderItem={index => <ProjectCardSkeleton key={index} />}
+        />
       </View>
     );
   }, [userStoriesFetching, currentPage, colors.primary]);
@@ -304,10 +324,7 @@ const List = () => {
                     backgroundColor: colors.surface,
                   }}
                 >
-                  <WorkItemIcon
-                    type='user_story'
-                    size={moderateScale(20)}
-                  />
+                  <WorkItemIcon type='user_story' size={moderateScale(20)} />
                 </View>
 
                 {/* Middle Details Section */}
