@@ -317,6 +317,13 @@ export interface OrganizationMember {
   in_progress?: number;
   completed?: number;
   completion_percentage?: number;
+  tasks?: number;
+  done?: number;
+  open?: number;
+  progress?: number;
+  total_tasks?: number;
+  completed_tasks?: number;
+  open_tasks?: number;
 }
 
 export interface OrganizationMemberMeta {
