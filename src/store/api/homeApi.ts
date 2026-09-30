@@ -33,6 +33,8 @@ import {
   UpdateRolePayload,
   UpdateRoleResponse,
   RemoveOrganizationMemberResponse,
+  InviteOrganizationPayload,
+  InviteOrganizationResponse,
 } from '../../types/auth.type';
 import {
   GetFavoritesResponse,
@@ -44,6 +46,7 @@ import {
   getRolesService,
   updateRoleService,
   updateOrganizationService,
+  inviteOrganizationService,
 } from '../../services/organization.service';
 
 export interface GetAuditQueryArgs {
@@ -289,6 +292,26 @@ export const homeApi = createApi({
       invalidatesTags: ['Organization'],
     }),
 
+    inviteOrganization: build.mutation<
+      InviteOrganizationResponse,
+      InviteOrganizationPayload
+    >({
+      queryFn: async payload => {
+        try {
+          const data = await inviteOrganizationService(payload);
+          return { data };
+        } catch (error: any) {
+          return {
+            error: {
+              status: error.response?.status ?? 'CUSTOM_ERROR',
+              data: error.response?.data ?? error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['Organization'],
+    }),
+
     getCountries: build.query<GetCountriesResponse, void>({
       query: () => ({
         url: GET_COUNTRIES,
@@ -314,4 +337,5 @@ export const {
   useCreateRoleMutation,
   useUpdateRoleMutation,
   useDeleteRoleMutation,
+  useInviteOrganizationMutation,
 } = homeApi;
