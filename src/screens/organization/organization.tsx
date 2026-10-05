@@ -31,6 +31,7 @@ import { Country } from '../../types/auth.type';
 import LinearGradient from 'react-native-linear-gradient';
 import { createOrganization } from '../../store/auth_store/action/auth.thunks';
 import { useAppDispatch } from '../../store';
+import { useResponsive } from '../../utils/responsive';
 
 type DropdownType = 'industry' | 'size' | null;
 
@@ -98,6 +99,7 @@ const Organization = () => {
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
 
+  const { scale, verticalScale, moderateScale } = useResponsive();
   // Multi-step state: 1 = Organization, 2 = Team Setup, 3 = Branding
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
@@ -312,33 +314,48 @@ const Organization = () => {
       />
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: verticalScale(40) }}
         className='px-6'
         keyboardShouldPersistTaps='handled'
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View className='items-center pt-20'>
+        <View
+          className='items-center'
+          style={{ paddingTop: verticalScale(50) }}
+        >
           <HeaderIcon />
           <Text
-            className='text-center text-[27px] font-bold'
-            style={{ color: colors.text || '#111827' }}
+            className='text-center font-bold'
+            style={{
+              color: colors.text || '#111827',
+              fontSize: moderateScale(26),
+              lineHeight: moderateScale(32),
+            }}
           >
             Welcome to WorkPilot
           </Text>
           <Text
-            className='mt-2 text-center text-sm leading-[21px]'
-            style={{ color: colors.textSecondary || '#6B7280' }}
+            className='text-center'
+            style={{
+              color: colors.textSecondary || '#6B7280',
+              fontSize: moderateScale(14),
+              lineHeight: moderateScale(21),
+              marginTop: verticalScale(8),
+            }}
           >
             You are just a few steps away from creating your team's workspace.
           </Text>
         </View>
 
         {/* Dynamic Progress Bar */}
-        <View className='mt-6'>
-          <View className='h-[7px] overflow-hidden rounded-full bg-gray-200'>
+        <View style={{ marginTop: verticalScale(24) }}>
+          <View
+            className='overflow-hidden rounded-full bg-gray-200'
+            style={{ height: verticalScale(7) }}
+          >
             <LinearGradient
-              colors={['#2563EB', '#7C3AED']} // Blue to Purple gradient
+              colors={['#2563EB', '#7C3AED']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{
@@ -354,42 +371,66 @@ const Organization = () => {
             />
           </View>
 
-          <View className='mt-3 flex-row items-start justify-between'>
+          <View
+            className='flex-row items-start justify-between'
+            style={{ marginTop: verticalScale(12) }}
+          >
             {/* Step 1 Indicator */}
-            <View className='w-[70px] items-center'>
-              <View className='h-8 w-8 items-center justify-center rounded-full bg-blue-600'>
-                <Text className='text-[13px] font-bold text-white'>1</Text>
+            <View className='items-center' style={{ width: scale(80) }}>
+              <View
+                className='items-center justify-center rounded-full bg-blue-600'
+                style={{ width: scale(32), height: scale(32) }}
+              >
+                <Text
+                  className='font-bold text-white'
+                  style={{ fontSize: moderateScale(13) }}
+                >
+                  1
+                </Text>
               </View>
-              <Text className='mt-[7px] text-center text-[11px] font-semibold text-blue-600'>
+              <Text
+                className='text-center font-semibold text-blue-600'
+                style={{
+                  fontSize: moderateScale(11),
+                  marginTop: verticalScale(6),
+                }}
+              >
                 Organization
               </Text>
             </View>
 
             <View
-              className={`mt-4 h-px flex-1 ${
+              className={`h-px flex-1 ${
                 currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'
               }`}
+              style={{ marginTop: verticalScale(16) }}
             />
 
             {/* Step 2 Indicator */}
-            <View className='w-[70px] items-center'>
+            <View className='items-center' style={{ width: scale(80) }}>
               <View
-                className={`h-8 w-8 items-center justify-center rounded-full ${
+                className={`items-center justify-center rounded-full ${
                   currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-100'
                 }`}
+                style={{ width: scale(32), height: scale(32) }}
               >
                 <Text
-                  className={`text-[13px] ${
+                  style={{ fontSize: moderateScale(13) }}
+                  className={
                     currentStep >= 2
                       ? 'font-bold text-white'
                       : 'font-semibold text-gray-400'
-                  }`}
+                  }
                 >
                   2
                 </Text>
               </View>
               <Text
-                className={`mt-[7px] text-center text-[11px] ${
+                style={{
+                  fontSize: moderateScale(11),
+                  marginTop: verticalScale(6),
+                }}
+                className={`text-center ${
                   currentStep >= 2
                     ? 'font-semibold text-blue-600'
                     : 'text-slate-400'
@@ -400,30 +441,37 @@ const Organization = () => {
             </View>
 
             <View
-              className={`mt-4 h-px flex-1 ${
+              className={`h-px flex-1 ${
                 currentStep >= 3 ? 'bg-blue-600' : 'bg-gray-200'
               }`}
+              style={{ marginTop: verticalScale(16) }}
             />
 
             {/* Step 3 Indicator */}
-            <View className='w-[70px] items-center'>
+            <View className='items-center' style={{ width: scale(80) }}>
               <View
-                className={`h-8 w-8 items-center justify-center rounded-full ${
+                className={`items-center justify-center rounded-full ${
                   currentStep >= 3 ? 'bg-blue-600' : 'bg-gray-100'
                 }`}
+                style={{ width: scale(32), height: scale(32) }}
               >
                 <Text
-                  className={`text-[13px] ${
+                  style={{ fontSize: moderateScale(13) }}
+                  className={
                     currentStep >= 3
                       ? 'font-bold text-white'
                       : 'font-semibold text-gray-400'
-                  }`}
+                  }
                 >
                   3
                 </Text>
               </View>
               <Text
-                className={`mt-[7px] text-center text-[11px] ${
+                style={{
+                  fontSize: moderateScale(11),
+                  marginTop: verticalScale(6),
+                }}
+                className={`text-center ${
                   currentStep >= 3
                     ? 'font-semibold text-blue-600'
                     : 'text-slate-400'
@@ -437,23 +485,36 @@ const Organization = () => {
 
         {/* STEP 1: ORGANIZATION SETUP */}
         {currentStep === 1 && (
-          <View className='mt-11'>
+          <View style={{ marginTop: verticalScale(32) }}>
             <Text
-              className='text-[21px] font-bold'
-              style={{ color: colors.text || '#111827' }}
+              className='font-bold'
+              style={{
+                color: colors.text || '#111827',
+                fontSize: moderateScale(20),
+              }}
             >
               Set up your organization
             </Text>
             <Text
-              className='mb-[30px] mt-[7px] text-sm'
-              style={{ color: colors.textSecondary || '#6B7280' }}
+              style={{
+                color: colors.textSecondary || '#6B7280',
+                fontSize: moderateScale(14),
+                marginTop: verticalScale(6),
+                marginBottom: verticalScale(24),
+              }}
             >
               This step is required to access your workspace.
             </Text>
 
             {/* Organization Name */}
-            <View className='mb-[22px]'>
-              <Text className='mb-2 text-sm font-medium text-gray-800'>
+            <View style={{ marginBottom: verticalScale(20) }}>
+              <Text
+                className='font-medium text-gray-800'
+                style={{
+                  fontSize: moderateScale(14),
+                  marginBottom: verticalScale(8),
+                }}
+              >
                 Organization name <Text className='text-red-500'>*</Text>
               </Text>
               <TextInput
@@ -461,33 +522,57 @@ const Organization = () => {
                 onChangeText={handleOrganizationNameChange}
                 placeholder='e.g. Acme Corp'
                 placeholderTextColor='#9CA3AF'
-                className={`h-11 rounded-lg border bg-white px-[14px] text-sm text-slate-800 ${
+                style={{
+                  height: verticalScale(46),
+                  fontSize: moderateScale(14),
+                  paddingHorizontal: scale(14),
+                }}
+                className={`rounded-lg border bg-white text-slate-800 ${
                   errors.organizationName
                     ? 'border-red-500'
                     : 'border-slate-300'
                 }`}
               />
               {!!errors.organizationName && (
-                <Text className='mt-[5px] text-[11px] text-red-500'>
+                <Text
+                  className='text-red-500'
+                  style={{
+                    fontSize: moderateScale(11),
+                    marginTop: verticalScale(4),
+                  }}
+                >
                   {errors.organizationName}
                 </Text>
               )}
             </View>
 
             {/* Domain Field */}
-            <View className='mb-[22px]'>
-              <Text className='mb-2 text-sm font-medium text-gray-800'>
+            <View style={{ marginBottom: verticalScale(20) }}>
+              <Text
+                className='font-medium text-gray-800'
+                style={{
+                  fontSize: moderateScale(14),
+                  marginBottom: verticalScale(8),
+                }}
+              >
                 Organization URL <Text className='text-red-500'>*</Text>
               </Text>
               <View
-                className={`h-11 flex-row overflow-hidden rounded-lg border bg-white ${
+                className={`flex-row overflow-hidden rounded-lg border bg-white ${
                   errors.organizationSlug
                     ? 'border-red-500'
                     : 'border-slate-300'
                 }`}
+                style={{ height: verticalScale(46) }}
               >
-                <View className='justify-center border-r border-slate-300 bg-slate-50 px-[14px]'>
-                  <Text className='text-[13px] text-slate-500'>
+                <View
+                  className='justify-center border-r border-slate-300 bg-slate-50'
+                  style={{ paddingHorizontal: scale(12) }}
+                >
+                  <Text
+                    className='text-slate-500'
+                    style={{ fontSize: moderateScale(13) }}
+                  >
                     workpilot.app/
                   </Text>
                 </View>
@@ -497,91 +582,167 @@ const Organization = () => {
                   placeholder='acme-corp'
                   placeholderTextColor='#9CA3AF'
                   autoCapitalize='none'
-                  className='flex-1 px-3 text-sm text-slate-800'
+                  style={{
+                    fontSize: moderateScale(14),
+                    paddingHorizontal: scale(12),
+                  }}
+                  className='flex-1 text-slate-800'
                 />
               </View>
               {!!errors.organizationSlug && (
-                <Text className='mt-[5px] text-[11px] text-red-500'>
+                <Text
+                  className='text-red-500'
+                  style={{
+                    fontSize: moderateScale(11),
+                    marginTop: verticalScale(4),
+                  }}
+                >
                   {errors.organizationSlug}
                 </Text>
               )}
             </View>
 
             {/* Industry + Team Size */}
-            <View className='mb-[22px] flex-row gap-5'>
+            <View
+              className='flex-row gap-4'
+              style={{ marginBottom: verticalScale(20) }}
+            >
               <View className='flex-1'>
-                <Text className='mb-2 text-sm font-medium text-gray-800'>
+                <Text
+                  className='font-medium text-gray-800'
+                  style={{
+                    fontSize: moderateScale(14),
+                    marginBottom: verticalScale(8),
+                  }}
+                >
                   Industry <Text className='text-red-500'>*</Text>
                 </Text>
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  className='h-11 flex-row items-center justify-between rounded-lg border border-slate-300 bg-white px-[13px]'
+                  className='flex-row items-center justify-between rounded-lg border border-slate-300 bg-white'
+                  style={{
+                    height: verticalScale(46),
+                    paddingHorizontal: scale(12),
+                  }}
                   onPress={() => setDropdown('industry')}
                 >
-                  <Text className='text-sm text-slate-800' numberOfLines={1}>
+                  <Text
+                    className='text-slate-800'
+                    numberOfLines={1}
+                    style={{ fontSize: moderateScale(10) }}
+                  >
                     {industry}
                   </Text>
-                  <Ionicons name='chevron-down' size={18} color='#374151' />
+                  <Ionicons
+                    name='chevron-down'
+                    size={scale(18)}
+                    color='#374151'
+                  />
                 </TouchableOpacity>
               </View>
 
               <View className='flex-1'>
-                <Text className='mb-2 text-sm font-medium text-gray-800'>
+                <Text
+                  className='font-medium text-gray-800'
+                  style={{
+                    fontSize: moderateScale(14),
+                    marginBottom: verticalScale(8),
+                  }}
+                >
                   Team size <Text className='text-red-500'>*</Text>
                 </Text>
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  className='h-11 flex-row items-center justify-between rounded-lg border border-slate-300 bg-white px-[13px]'
+                  className='flex-row items-center justify-between rounded-lg border border-slate-300 bg-white'
+                  style={{
+                    height: verticalScale(46),
+                    paddingHorizontal: scale(12),
+                  }}
                   onPress={() => setDropdown('size')}
                 >
-                  <Text className='text-sm text-slate-800'>
+                  <Text
+                    className='text-slate-800'
+                    style={{ fontSize: moderateScale(14) }}
+                  >
                     {organizationSize}
                   </Text>
-                  <Ionicons name='chevron-down' size={18} color='#374151' />
+                  <Ionicons
+                    name='chevron-down'
+                    size={scale(18)}
+                    color='#374151'
+                  />
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Country Dropdown */}
-            <View className='mb-5'>
-              <Text className='mb-2 text-sm font-medium text-gray-800'>
+            <View style={{ marginBottom: verticalScale(20) }}>
+              <Text
+                className='font-medium text-gray-800'
+                style={{
+                  fontSize: moderateScale(14),
+                  marginBottom: verticalScale(8),
+                }}
+              >
                 Country <Text className='text-red-500'>*</Text>
               </Text>
               <TouchableOpacity
                 activeOpacity={0.8}
-                className={`h-[50px] flex-row items-center justify-between rounded-lg border bg-white px-[14px] ${
+                className={`flex-row items-center justify-between rounded-lg border bg-white ${
                   errors.country ? 'border-red-500' : 'border-slate-300'
                 }`}
+                style={{
+                  height: verticalScale(46),
+                  paddingHorizontal: scale(14),
+                }}
                 onPress={() => setCountryDropdown(prev => !prev)}
               >
                 <Text
-                  className={`text-sm ${
+                  style={{ fontSize: moderateScale(14) }}
+                  className={
                     selectedCountry ? 'text-slate-800' : 'text-gray-400'
-                  }`}
+                  }
                 >
                   {selectedCountry ? selectedCountry.name : 'Select country'}
                 </Text>
                 <Ionicons
                   name={countryDropdown ? 'chevron-up' : 'chevron-down'}
-                  size={20}
+                  size={scale(18)}
                   color='#666'
                 />
               </TouchableOpacity>
 
               {!!errors.country && (
-                <Text className='mt-[5px] text-[11px] text-red-500'>
+                <Text
+                  className='text-red-500'
+                  style={{
+                    fontSize: moderateScale(11),
+                    marginTop: verticalScale(4),
+                  }}
+                >
                   {errors.country}
                 </Text>
               )}
 
               {countryDropdown && (
-                <View className='mt-[5px] max-h-[250px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm'>
+                <View
+                  className='overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm'
+                  style={{
+                    maxHeight: verticalScale(220),
+                    marginTop: verticalScale(6),
+                  }}
+                >
                   <TextInput
                     value={countrySearch}
                     onChangeText={setCountrySearch}
                     placeholder='Search country...'
                     placeholderTextColor='#9CA3AF'
-                    className='border-b border-slate-100 px-3 py-2 text-sm text-slate-800'
+                    style={{
+                      fontSize: moderateScale(14),
+                      paddingHorizontal: scale(12),
+                      paddingVertical: verticalScale(8),
+                    }}
+                    className='border-b border-slate-100 text-slate-800'
                   />
                   <ScrollView
                     nestedScrollEnabled
@@ -591,7 +752,11 @@ const Organization = () => {
                     {filteredCountries.map(item => (
                       <TouchableOpacity
                         key={item.id}
-                        className='min-h-12 flex-row items-center border-b border-gray-100 px-[14px]'
+                        className='flex-row items-center border-b border-gray-100'
+                        style={{
+                          minHeight: verticalScale(44),
+                          paddingHorizontal: scale(14),
+                        }}
                         onPress={() => {
                           setSelectedCountry(item);
                           setCountryDropdown(false);
@@ -599,10 +764,18 @@ const Organization = () => {
                           setErrors(prev => ({ ...prev, country: '' }));
                         }}
                       >
-                        <Text className='mr-3 text-[22px]'>
+                        <Text
+                          style={{
+                            fontSize: moderateScale(20),
+                            marginRight: scale(10),
+                          }}
+                        >
                           {item.flag_emoji}
                         </Text>
-                        <Text className='text-sm text-slate-800'>
+                        <Text
+                          className='text-slate-800'
+                          style={{ fontSize: moderateScale(14) }}
+                        >
                           {item.name}
                         </Text>
                       </TouchableOpacity>
@@ -613,14 +786,21 @@ const Organization = () => {
             </View>
 
             {/* Controls */}
-            <View className='mt-8 flex-row items-center justify-between'>
+            <View
+              className='flex-row items-center justify-between'
+              style={{ marginTop: verticalScale(28) }}
+            >
               <TouchableOpacity
                 activeOpacity={0.7}
-                className='flex-row items-center gap-[7px] py-3'
+                className='flex-row items-center gap-2'
+                style={{ paddingVertical: verticalScale(10) }}
                 onPress={() => navigation.goBack()}
               >
-                <Ionicons name='arrow-back' size={18} color='#64748B' />
-                <Text className='text-[13px] font-semibold text-slate-500'>
+                <Ionicons name='arrow-back' size={scale(18)} color='#64748B' />
+                <Text
+                  className='font-semibold text-slate-500'
+                  style={{ fontSize: moderateScale(13) }}
+                >
                   Back to Sign Up
                 </Text>
               </TouchableOpacity>
@@ -628,10 +808,24 @@ const Organization = () => {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={handleNextStepOne}
-                className='h-11 min-w-[76px] flex-row items-center justify-center gap-[7px] rounded-lg bg-blue-600 px-[18px]'
+                className='flex-row items-center justify-center gap-2 rounded-lg bg-blue-600'
+                style={{
+                  height: verticalScale(44),
+                  minWidth: scale(80),
+                  paddingHorizontal: scale(18),
+                }}
               >
-                <Text className='text-[13px] font-bold text-white'>Next</Text>
-                <Ionicons name='arrow-forward' size={17} color='#FFFFFF' />
+                <Text
+                  className='font-bold text-white'
+                  style={{ fontSize: moderateScale(13) }}
+                >
+                  Next
+                </Text>
+                <Ionicons
+                  name='arrow-forward'
+                  size={scale(16)}
+                  color='#FFFFFF'
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -639,23 +833,33 @@ const Organization = () => {
 
         {/* STEP 2: TEAM SETUP */}
         {currentStep === 2 && (
-          <View className='mt-11'>
-            <View className='flex-row items-center gap-2.5'>
+          <View style={{ marginTop: verticalScale(32) }}>
+            <View className='flex-row items-center gap-2'>
               <Text
-                className='text-[21px] font-bold'
-                style={{ color: colors.text || '#111827' }}
+                className='font-bold'
+                style={{
+                  color: colors.text || '#111827',
+                  fontSize: moderateScale(20),
+                }}
               >
                 Invite your team
               </Text>
               <View className='rounded-full bg-slate-100 px-2.5 py-0.5'>
-                <Text className='text-xs font-medium text-slate-500'>
+                <Text
+                  className='font-medium text-slate-500'
+                  style={{ fontSize: moderateScale(11) }}
+                >
                   Optional
                 </Text>
               </View>
             </View>
             <Text
-              className='mb-[24px] mt-[7px] text-sm'
-              style={{ color: colors.textSecondary || '#6B7280' }}
+              style={{
+                color: colors.textSecondary || '#6B7280',
+                fontSize: moderateScale(14),
+                marginTop: verticalScale(6),
+                marginBottom: verticalScale(20),
+              }}
             >
               Add teammates now or invite them later from Settings.
             </Text>
@@ -667,15 +871,31 @@ const Organization = () => {
                 return (
                   <View
                     key={member.id}
-                    className='rounded-2xl border border-slate-100 bg-slate-50/50 p-4'
+                    className='rounded-2xl border border-slate-100 bg-slate-50/50'
+                    style={{
+                      padding: scale(14),
+                      marginBottom: verticalScale(12),
+                    }}
                   >
-                    <Text className='mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400'>
+                    <Text
+                      className='font-bold uppercase tracking-wider text-slate-400'
+                      style={{
+                        fontSize: moderateScale(11),
+                        marginBottom: verticalScale(8),
+                      }}
+                    >
                       MEMBER {index + 1}
                     </Text>
 
                     <View className='flex-row items-center gap-2.5'>
                       {/* Email Input */}
-                      <View className='shadow-xs h-11 flex-1 justify-center rounded-xl border border-slate-200 bg-white px-3'>
+                      <View
+                        className='shadow-xs flex-1 justify-center rounded-xl border border-slate-200 bg-white'
+                        style={{
+                          height: verticalScale(44),
+                          paddingHorizontal: scale(12),
+                        }}
+                      >
                         <TextInput
                           value={member.email}
                           onChangeText={text =>
@@ -685,7 +905,8 @@ const Organization = () => {
                           placeholderTextColor='#9CA3AF'
                           keyboardType='email-address'
                           autoCapitalize='none'
-                          className='flex-1 text-sm text-slate-800'
+                          style={{ fontSize: moderateScale(13) }}
+                          className='flex-1 text-slate-800'
                         />
                       </View>
 
@@ -694,15 +915,19 @@ const Organization = () => {
                         disabled={!isRemovable}
                         onPress={() => isRemovable && handleRemoveMember(index)}
                         activeOpacity={0.7}
-                        className={`h-11 w-11 items-center justify-center rounded-xl border ${
+                        className={`items-center justify-center rounded-xl border ${
                           isRemovable
                             ? 'border-red-200 bg-red-50/50'
                             : 'border-slate-100 bg-slate-100/50'
                         }`}
+                        style={{
+                          width: scale(44),
+                          height: verticalScale(44),
+                        }}
                       >
                         <Ionicons
                           name='close'
-                          size={18}
+                          size={scale(18)}
                           color={isRemovable ? '#EF4444' : '#CBD5E1'}
                         />
                       </TouchableOpacity>
@@ -714,23 +939,40 @@ const Organization = () => {
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={handleAddMember}
-                className='mt-2 h-11 flex-row items-center justify-center rounded-xl border border-dashed border-blue-300 bg-white px-4'
+                className='flex-row items-center justify-center rounded-xl border border-dashed border-blue-300 bg-white'
+                style={{
+                  height: verticalScale(44),
+                  marginTop: verticalScale(8),
+                  paddingHorizontal: scale(16),
+                }}
               >
-                <Ionicons name='add' size={18} color='#2563EB' />
-                <Text className='ml-1 text-sm font-semibold text-blue-600'>
+                <Ionicons name='add' size={scale(18)} color='#2563EB' />
+                <Text
+                  className='ml-1 font-semibold text-blue-600'
+                  style={{ fontSize: moderateScale(13) }}
+                >
                   Add Another Member
                 </Text>
               </TouchableOpacity>
             </View>
 
-            <View className='mt-4 flex-row items-start rounded-2xl border border-blue-100 bg-blue-50/50 p-4'>
+            <View
+              className='flex-row items-start rounded-2xl border border-blue-100 bg-blue-50/50 p-4'
+              style={{ marginTop: verticalScale(16) }}
+            >
               <Ionicons
                 name='information-circle-outline'
-                size={20}
+                size={scale(20)}
                 color='#2563EB'
-                style={{ marginTop: 1, marginRight: 10 }}
+                style={{ marginTop: 1, marginRight: scale(8) }}
               />
-              <Text className='flex-1 text-xs leading-[18px] text-blue-900'>
+              <Text
+                className='flex-1 text-blue-900'
+                style={{
+                  fontSize: moderateScale(12),
+                  lineHeight: moderateScale(18),
+                }}
+              >
                 Invitees will receive an email to join{' '}
                 <Text className='font-bold'>
                   {organizationName.trim() || 'Workpilot'}
@@ -740,14 +982,25 @@ const Organization = () => {
               </Text>
             </View>
 
-            <View className='mt-8 flex-row items-center justify-between'>
+            <View
+              className='flex-row items-center justify-between'
+              style={{ marginTop: verticalScale(28) }}
+            >
               <TouchableOpacity
                 activeOpacity={0.7}
-                className='flex-row items-center gap-1.5 py-3'
+                className='flex-row items-center gap-1.5'
+                style={{ paddingVertical: verticalScale(10) }}
                 onPress={() => setCurrentStep(1)}
               >
-                <Ionicons name='chevron-back' size={18} color='#64748B' />
-                <Text className='text-sm font-semibold text-slate-500'>
+                <Ionicons
+                  name='chevron-back'
+                  size={scale(18)}
+                  color='#64748B'
+                />
+                <Text
+                  className='font-semibold text-slate-500'
+                  style={{ fontSize: moderateScale(13) }}
+                >
                   Back
                 </Text>
               </TouchableOpacity>
@@ -756,9 +1009,16 @@ const Organization = () => {
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => setCurrentStep(3)}
-                  className='h-11 justify-center rounded-xl border border-slate-200 bg-white px-4'
+                  className='justify-center rounded-xl border border-slate-200 bg-white'
+                  style={{
+                    height: verticalScale(44),
+                    paddingHorizontal: scale(14),
+                  }}
                 >
-                  <Text className='text-sm font-semibold text-slate-700'>
+                  <Text
+                    className='font-semibold text-slate-700'
+                    style={{ fontSize: moderateScale(13) }}
+                  >
                     Skip for now
                   </Text>
                 </TouchableOpacity>
@@ -766,9 +1026,16 @@ const Organization = () => {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={() => setCurrentStep(3)}
-                  className='h-11 justify-center rounded-xl bg-blue-600 px-5'
+                  className='justify-center rounded-xl bg-blue-600'
+                  style={{
+                    height: verticalScale(44),
+                    paddingHorizontal: scale(18),
+                  }}
                 >
-                  <Text className='text-sm font-semibold text-white'>
+                  <Text
+                    className='font-semibold text-white'
+                    style={{ fontSize: moderateScale(13) }}
+                  >
                     Continue
                   </Text>
                 </TouchableOpacity>
@@ -779,54 +1046,90 @@ const Organization = () => {
 
         {/* STEP 3: BRANDING */}
         {currentStep === 3 && (
-          <View className='mt-11'>
-            <View className='flex-row items-center gap-2.5'>
+          <View style={{ marginTop: verticalScale(32) }}>
+            <View className='flex-row items-center gap-2'>
               <Text
-                className='text-[21px] font-bold'
-                style={{ color: colors.text || '#111827' }}
+                className='font-bold'
+                style={{
+                  color: colors.text || '#111827',
+                  fontSize: moderateScale(20),
+                }}
               >
                 Brand your workspace
               </Text>
               <View className='rounded-full bg-slate-100 px-2.5 py-0.5'>
-                <Text className='text-xs font-medium text-slate-500'>
+                <Text
+                  className='font-medium text-slate-500'
+                  style={{ fontSize: moderateScale(11) }}
+                >
                   Optional
                 </Text>
               </View>
             </View>
             <Text
-              className='mb-6 mt-[7px] text-sm'
-              style={{ color: colors.textSecondary || '#6B7280' }}
+              style={{
+                color: colors.textSecondary || '#6B7280',
+                fontSize: moderateScale(14),
+                marginTop: verticalScale(6),
+                marginBottom: verticalScale(20),
+              }}
             >
               Upload your logo and choose brand colors. You can always update
               this later.
             </Text>
 
             {/* Logo Upload Section */}
-            <View className='mb-6'>
-              <Text className='mb-2 text-sm font-semibold text-slate-800'>
+            <View style={{ marginBottom: verticalScale(20) }}>
+              <Text
+                className='font-semibold text-slate-800'
+                style={{
+                  fontSize: moderateScale(14),
+                  marginBottom: verticalScale(8),
+                }}
+              >
                 Company logo
               </Text>
               <View className='flex-row items-center gap-4'>
-                <View className='h-[60px] w-[60px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-100'>
-                  <Ionicons name='image-outline' size={26} color='#9CA3AF' />
+                <View
+                  className='items-center justify-center rounded-2xl border border-slate-200 bg-slate-100'
+                  style={{ width: scale(60), height: scale(60) }}
+                >
+                  <Ionicons
+                    name='image-outline'
+                    size={scale(26)}
+                    color='#9CA3AF'
+                  />
                 </View>
 
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={handleUploadLogo}
-                  className='h-[60px] flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 px-4'
+                  className='flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/50'
+                  style={{
+                    height: scale(60),
+                    paddingHorizontal: scale(12),
+                  }}
                 >
                   <View className='flex-row items-center gap-2'>
                     <Ionicons
                       name='cloud-upload-outline'
-                      size={18}
+                      size={scale(18)}
                       color='#4B5563'
                     />
-                    <Text className='text-sm font-semibold text-slate-700'>
+                    <Text
+                      className='font-semibold text-slate-700'
+                      style={{ fontSize: moderateScale(13) }}
+                    >
                       {companyLogo ? companyLogo.name : 'Click to upload'}
                     </Text>
                   </View>
-                  <Text className='mt-0.5 text-[11px] text-slate-400'>
+                  <Text
+                    className='text-slate-400'
+                    style={{
+                      fontSize: moderateScale(11),
+                      marginTop: verticalScale(2),
+                    }}
+                  >
                     PNG, JPG — up to 2 MB
                   </Text>
                 </TouchableOpacity>
@@ -834,20 +1137,39 @@ const Organization = () => {
             </View>
 
             {/* Live Preview Card */}
-            <View className='mb-8 flex-row items-center rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4'>
+            <View
+              className='flex-row items-center rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4'
+              style={{ marginBottom: verticalScale(24) }}
+            >
               <View
-                style={{ backgroundColor: selectedColor }}
-                className='shadow-xs h-11 w-11 items-center justify-center rounded-xl'
+                style={{
+                  backgroundColor: selectedColor,
+                  width: scale(44),
+                  height: scale(44),
+                }}
+                className='shadow-xs items-center justify-center rounded-xl'
               >
-                <Text className='text-lg font-bold text-white'>
+                <Text
+                  className='font-bold text-white'
+                  style={{ fontSize: moderateScale(18) }}
+                >
                   {previewInitial}
                 </Text>
               </View>
-              <View className='ml-3 flex-1 justify-center'>
-                <Text className='text-sm font-bold text-slate-800'>
+              <View
+                className='flex-1 justify-center'
+                style={{ marginLeft: scale(12) }}
+              >
+                <Text
+                  className='font-bold text-slate-800'
+                  style={{ fontSize: moderateScale(14) }}
+                >
                   {organizationName.trim() || 'Your Organization'}
                 </Text>
-                <Text className='text-xs text-slate-400'>
+                <Text
+                  className='text-slate-400'
+                  style={{ fontSize: moderateScale(12) }}
+                >
                   {organizationSlug.trim()
                     ? `${organizationSlug.trim()}.workpilot.app`
                     : 'workpilot.app/dashboard'}
@@ -859,11 +1181,19 @@ const Organization = () => {
             <View className='flex-row items-center justify-between'>
               <TouchableOpacity
                 activeOpacity={0.7}
-                className='flex-row items-center gap-1.5 py-3'
+                className='flex-row items-center gap-1.5'
+                style={{ paddingVertical: verticalScale(10) }}
                 onPress={() => setCurrentStep(2)}
               >
-                <Ionicons name='chevron-back' size={18} color='#64748B' />
-                <Text className='text-sm font-semibold text-slate-500'>
+                <Ionicons
+                  name='chevron-back'
+                  size={scale(18)}
+                  color='#64748B'
+                />
+                <Text
+                  className='font-semibold text-slate-500'
+                  style={{ fontSize: moderateScale(13) }}
+                >
                   Back
                 </Text>
               </TouchableOpacity>
@@ -873,9 +1203,16 @@ const Organization = () => {
                   activeOpacity={0.7}
                   disabled={loading}
                   onPress={handleFinalSubmit}
-                  className='h-11 justify-center rounded-xl border border-slate-200 bg-white px-4'
+                  className='justify-center rounded-xl border border-slate-200 bg-white'
+                  style={{
+                    height: verticalScale(44),
+                    paddingHorizontal: scale(14),
+                  }}
                 >
-                  <Text className='text-sm font-semibold text-slate-700'>
+                  <Text
+                    className='font-semibold text-slate-700'
+                    style={{ fontSize: moderateScale(13) }}
+                  >
                     Skip for now
                   </Text>
                 </TouchableOpacity>
@@ -884,15 +1221,26 @@ const Organization = () => {
                   activeOpacity={0.8}
                   disabled={loading}
                   onPress={handleFinalSubmit}
-                  className={`h-11 flex-row items-center justify-center gap-1.5 rounded-xl px-5 ${
+                  className={`flex-row items-center justify-center gap-1.5 rounded-xl ${
                     loading ? 'bg-blue-400' : 'bg-blue-600'
                   }`}
+                  style={{
+                    height: verticalScale(44),
+                    paddingHorizontal: scale(18),
+                  }}
                 >
-                  <Text className='text-sm font-semibold text-white'>
+                  <Text
+                    className='font-semibold text-white'
+                    style={{ fontSize: moderateScale(13) }}
+                  >
                     {loading ? 'Submitting...' : 'Finish Setup'}
                   </Text>
                   {!loading && (
-                    <Ionicons name='arrow-forward' size={16} color='#FFFFFF' />
+                    <Ionicons
+                      name='arrow-forward'
+                      size={scale(16)}
+                      color='#FFFFFF'
+                    />
                   )}
                 </TouchableOpacity>
               </View>
@@ -913,15 +1261,28 @@ const Organization = () => {
           onPress={() => setDropdown(null)}
         >
           <Pressable
-            className='max-h-[70%] rounded-t-[20px] bg-white px-5 pb-[30px] pt-[18px]'
+            className='max-h-[70%] rounded-t-[20px] bg-white px-5'
+            style={{
+              paddingTop: verticalScale(18),
+              paddingBottom: verticalScale(30),
+            }}
             onPress={e => e.stopPropagation()}
           >
-            <View className='mb-[5px] flex-row items-center justify-between border-b border-slate-200 pb-[15px]'>
-              <Text className='text-[17px] font-bold text-slate-800'>
+            <View
+              className='flex-row items-center justify-between border-b border-slate-200'
+              style={{
+                marginBottom: verticalScale(6),
+                paddingBottom: verticalScale(12),
+              }}
+            >
+              <Text
+                className='font-bold text-slate-800'
+                style={{ fontSize: moderateScale(16) }}
+              >
                 {dropdownTitle}
               </Text>
               <TouchableOpacity onPress={() => setDropdown(null)}>
-                <Ionicons name='close' size={22} color='#374151' />
+                <Ionicons name='close' size={scale(22)} color='#374151' />
               </TouchableOpacity>
             </View>
 
@@ -935,9 +1296,10 @@ const Organization = () => {
                 return (
                   <TouchableOpacity
                     key={option}
-                    className={`min-h-12 flex-row items-center justify-between border-b border-slate-100 px-2 ${
+                    className={`flex-row items-center justify-between border-b border-slate-100 px-2 ${
                       isSelected ? 'bg-blue-50' : ''
                     }`}
+                    style={{ minHeight: verticalScale(46) }}
                     onPress={() => {
                       if (dropdown === 'industry') {
                         setIndustry(option);
@@ -948,16 +1310,21 @@ const Organization = () => {
                     }}
                   >
                     <Text
-                      className={`text-sm ${
+                      style={{ fontSize: moderateScale(14) }}
+                      className={
                         isSelected
                           ? 'font-semibold text-blue-600'
                           : 'text-slate-700'
-                      }`}
+                      }
                     >
                       {option}
                     </Text>
                     {isSelected && (
-                      <Ionicons name='checkmark' size={20} color='#2563EB' />
+                      <Ionicons
+                        name='checkmark'
+                        size={scale(20)}
+                        color='#2563EB'
+                      />
                     )}
                   </TouchableOpacity>
                 );
@@ -979,15 +1346,28 @@ const Organization = () => {
           onPress={() => setActiveRoleModalIndex(null)}
         >
           <Pressable
-            className='rounded-t-[20px] bg-white px-5 pb-[30px] pt-[18px]'
+            className='rounded-t-[20px] bg-white px-5'
+            style={{
+              paddingTop: verticalScale(18),
+              paddingBottom: verticalScale(30),
+            }}
             onPress={e => e.stopPropagation()}
           >
-            <View className='mb-[5px] flex-row items-center justify-between border-b border-slate-200 pb-[15px]'>
-              <Text className='text-[17px] font-bold text-slate-800'>
+            <View
+              className='flex-row items-center justify-between border-b border-slate-200'
+              style={{
+                marginBottom: verticalScale(6),
+                paddingBottom: verticalScale(12),
+              }}
+            >
+              <Text
+                className='font-bold text-slate-800'
+                style={{ fontSize: moderateScale(16) }}
+              >
                 Select Member Role
               </Text>
               <TouchableOpacity onPress={() => setActiveRoleModalIndex(null)}>
-                <Ionicons name='close' size={22} color='#374151' />
+                <Ionicons name='close' size={scale(22)} color='#374151' />
               </TouchableOpacity>
             </View>
 
@@ -1000,9 +1380,10 @@ const Organization = () => {
                 return (
                   <TouchableOpacity
                     key={role}
-                    className={`min-h-12 flex-row items-center justify-between border-b border-slate-100 px-2 ${
+                    className={`flex-row items-center justify-between border-b border-slate-100 px-2 ${
                       isSelected ? 'bg-blue-50' : ''
                     }`}
+                    style={{ minHeight: verticalScale(46) }}
                     onPress={() => {
                       if (activeRoleModalIndex !== null) {
                         handleRoleSelect(role, activeRoleModalIndex);
@@ -1010,16 +1391,21 @@ const Organization = () => {
                     }}
                   >
                     <Text
-                      className={`text-sm ${
+                      style={{ fontSize: moderateScale(14) }}
+                      className={
                         isSelected
                           ? 'font-semibold text-blue-600'
                           : 'text-slate-700'
-                      }`}
+                      }
                     >
                       {role}
                     </Text>
                     {isSelected && (
-                      <Ionicons name='checkmark' size={20} color='#2563EB' />
+                      <Ionicons
+                        name='checkmark'
+                        size={scale(20)}
+                        color='#2563EB'
+                      />
                     )}
                   </TouchableOpacity>
                 );

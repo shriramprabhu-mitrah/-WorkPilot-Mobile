@@ -58,6 +58,11 @@ export type RootStackParamList = {
   OrganizationMembers: undefined;
   RoleandPermission: undefined;
   ProjectStatus: undefined;
+  Calendar: undefined;
+  SprintDetails: {
+    sprintId: string;
+    sprintName?: string;
+  };
 };
 
 export type ProjectTopTabParamList = {

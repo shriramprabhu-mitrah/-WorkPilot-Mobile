@@ -318,44 +318,75 @@ const projectSlice = createSlice({
         state.error = action.payload ?? 'Failed to get recent projects';
       })
       .addCase(getUserStories.pending, (state, action) => {
-        state.loading = true;
         const isBacklog = action?.meta?.arg?.payload?.sprint_id === null;
+
+        const page = action?.meta?.arg?.payload?.page ?? 1;
+
         if (isBacklog) {
           state.backlogUserStoryLoading = true;
           state.backlogUserStoryError = null;
-        } else {
+        } else if (page === 1) {
           state.userStoryLoading = true;
           state.userStoryError = null;
+        } else {
+          state.isFetchingMore = true;
         }
       })
       .addCase(getUserStories.fulfilled, (state, action) => {
         state.loading = false;
+
         const isBacklog = action?.meta?.arg?.payload?.sprint_id === null;
+
+        const page = action?.meta?.arg?.payload?.page ?? 1;
+
+        const newStories = action.payload.response.data || [];
+        const meta = action.payload.response.meta || null;
 
         if (isBacklog) {
           state.backlogUserStoryLoading = false;
           state.backlogUserStoryError = null;
-          state.backlogUserStories = action.payload.response.data || [];
-          state.backlogUserStoryMeta = action.payload.response.meta || null;
+          state.backlogUserStories = newStories;
+          state.backlogUserStoryMeta = meta;
         } else {
           state.userStoryLoading = false;
           state.userStoryError = null;
-          state.userStories = action.payload.response.data || [];
-          state.userStoryMeta = action.payload.response.meta || null;
+          state.isFetchingMore = false;
+
+          if (page === 1) {
+            // Initial fetch: replace existing stories
+            state.userStories = newStories;
+          } else {
+            // Pagination: append new stories
+            const existingIds = new Set(
+              state.userStories.map(story => story.id),
+            );
+
+            const uniqueNewStories = newStories.filter(
+              story => !existingIds.has(story.id),
+            );
+
+            state.userStories = [...state.userStories, ...uniqueNewStories];
+          }
+
+          state.userStoryMeta = meta;
         }
       })
       .addCase(getUserStories.rejected, (state, action) => {
         state.loading = false;
+
         const isBacklog = action?.meta?.arg?.payload?.sprint_id === null;
+
+        const page = action?.meta?.arg?.payload?.page ?? 1;
 
         if (isBacklog) {
           state.backlogUserStoryLoading = false;
           state.backlogUserStoryError =
-            action.payload ?? 'Failed to fetch backlog user stories';
+            action.error.message || 'Failed to fetch backlog stories';
         } else {
           state.userStoryLoading = false;
+          state.isFetchingMore = false;
           state.userStoryError =
-            action.payload ?? 'Failed to fetch user stories';
+            action.error.message || 'Failed to fetch user stories';
         }
       })
       .addCase(getUserStoryById.pending, state => {

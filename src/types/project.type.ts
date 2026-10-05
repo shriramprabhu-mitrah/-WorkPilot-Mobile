@@ -58,6 +58,7 @@ export interface Sprint {
   status: string;
   start_date: string;
   end_date: string;
+  goal?: string;
 }
 
 export interface CreateSprintPayload {
@@ -327,6 +328,7 @@ export interface DeleteProjectPayload {
 
 export interface UserStory {
   id: string;
+  key: string;
   project_id: string;
   sprint_id: string;
   sprint_name: string;
@@ -766,4 +768,21 @@ export interface CreateUserStoryResponse {
   status_code: number;
   message: string;
   data: UserStory;
+}
+
+export type SprintStatus =
+  'planned' | 'active' | 'on_hold' | 'completed' | 'cancelled' | 'archived';
+
+export interface UpdateSprintRequest {
+  name?: string | null;
+  goal?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  status?: SprintStatus | null;
+}
+
+export interface UpdateSprintParams {
+  project_id: string;
+  sprint_id: string;
+  payload: UpdateSprintRequest;
 }

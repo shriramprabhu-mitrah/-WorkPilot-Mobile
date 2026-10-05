@@ -163,6 +163,7 @@ export interface User {
   created_at?: string;
   updated_at?: string;
   cover_img_url?: string;
+  organization_id?: string;
 }
 
 // Get User
