@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AppText from './AppText';
 import AppInput from './Input/AppInput';
 import ProjectCard from '../common/ProjectCard';
@@ -27,6 +27,8 @@ import { WorkItemIcon } from './getWorkItemIcon';
 import CreateProjectModal from '../createProjectModel';
 import { showSnackbar } from './Snackbar';
 import CustomSnackbar, { SnackbarType } from './Snackbar/CustomSnackbar';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../../types/navigationTypes';
 
 export interface ProjectListBottomSheetProps {
   visible: boolean;
@@ -73,6 +75,8 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const insets = useSafeAreaInsets();
   const closeIconSize = moderateScale(20);
   const bottomPadding = Math.max(insets.bottom, 16);
+
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   const { project, sprintsName } = useAppSelector(
     (state: RootState) => state.projects,
@@ -360,6 +364,15 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                   const endDate = item.end_date || item.endDate;
                   const status =
                     item.status || (item.is_active ? 'active' : '');
+
+                  const handleOpenSprintDetails = () => {
+                    navigation.navigate('SprintDetails', {
+                      sprintId: id,
+                      sprintName: name,
+                    });
+                    onDismiss();
+                  };
+
                   return (
                     <TouchableOpacity
                       activeOpacity={0.7}
@@ -381,11 +394,13 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                         <WorkItemIcon type='sprint' size={moderateScale(20)} />
                       </View>
                       <View className='flex-1 pr-2'>
-                        <View className='flex-row items-center justify-between pr-2'>
+                        <View className='flex-row items-center'>
+                          {' '}
                           <AppText
                             variant='title'
                             color={colors.text}
                             className='flex-1 font-semibold'
+                            numberOfLines={1}
                           >
                             {name || `Sprint ${id}`}
                           </AppText>
@@ -417,6 +432,25 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                               </AppText>
                             </View>
                           ) : null}
+                          {!item.isTemporary && (
+                            <TouchableOpacity
+                              activeOpacity={0.7}
+                              onPress={handleOpenSprintDetails}
+                              className='ml-2 items-center justify-center'
+                              hitSlop={{
+                                top: 8,
+                                bottom: 8,
+                                left: 8,
+                                right: 8,
+                              }}
+                            >
+                              <Ionicons
+                                name='chevron-forward-circle-outline'
+                                size={moderateScale(22)}
+                                color={colors.primary}
+                              />
+                            </TouchableOpacity>
+                          )}
                         </View>
                         {item.description ? (
                           <AppText
@@ -459,7 +493,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                 );
               }}
               onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.4}
+              onEndReachedThreshold={0.1}
               ListFooterComponent={
                 effectiveIsFetchingMore ? (
                   <View className='items-center justify-center py-4'>

@@ -42,6 +42,8 @@ import RecentProjectsSkeleton from '../components/skeleton/RecentProjectsSkeleto
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
+import { logoutUser } from '../store/auth_store/action/auth.thunks';
+import { OrganizationGuardModal } from '../components/OrganizationGuardModal';
 
 export const Home: React.FC = () => {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
@@ -51,6 +53,7 @@ export const Home: React.FC = () => {
   const dispatch = useAppDispatch();
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
   const { project, include_sprints } = useAppSelector(state => state.projects);
+  const { user } = useAppSelector(state => state.auth);
   const { activeTab } = useAppSelector(state => state.home);
 
   const [projectSheetVisible, setProjectSheetVisible] = useState(false);
@@ -62,6 +65,12 @@ export const Home: React.FC = () => {
 
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
+  // ── RTK Query: Auth data ──
+  const { refetch: refetchUserProfile } = useGetUserProfileQuery();
+
+  const { refetch: refetchOrganizationDetail } =
+    useGetOrganizationDetailQuery();
+
   // ── RTK Query: Recent projects ──
   const {
     data: recentProjects,
@@ -72,6 +81,7 @@ export const Home: React.FC = () => {
   // ── RTK Query: Viewed tab audit data ──
   const [auditPage, setAuditPage] = useState(1);
   const [refetchKey, setRefetchKey] = useState(0);
+  const [forOrganization, setForOrganization] = useState(false);
 
   const {
     data: auditData,
@@ -79,7 +89,7 @@ export const Home: React.FC = () => {
     isFetching: auditIsFetching,
   } = useGetAuditQuery(
     { type: 'viewed', page: auditPage, _refetchKey: refetchKey },
-    { skip: activeTab === 'favorites' },
+    { skip: activeTab === 'favorites' || !user?.organization_id },
   );
 
   const activities = useMemo(
@@ -114,26 +124,6 @@ export const Home: React.FC = () => {
   const favoritesTotalUserStories =
     favoritesData?.data?.total_user_stories ?? 0;
 
-  // ── RTK Query: Auth data ──
-  const { data: userProfileData, refetch: refetchUserProfile } =
-    useGetUserProfileQuery();
-
-  const { data: orgDetailData, refetch: refetchOrganizationDetail } =
-    useGetOrganizationDetailQuery();
-
-  // Sync auth data to Redux
-  useEffect(() => {
-    if (userProfileData?.data) {
-      dispatch(syncUserProfile(userProfileData.data));
-    }
-  }, [userProfileData?.data, dispatch]);
-
-  useEffect(() => {
-    if (orgDetailData?.data) {
-      dispatch(syncOrganizationDetail(orgDetailData.data));
-    }
-  }, [orgDetailData?.data, dispatch]);
-
   // Sync user data from RTK Query to Redux for other screens
   useEffect(() => {
     if (auditData?.data?.user) {
@@ -153,6 +143,29 @@ export const Home: React.FC = () => {
       boardFavorites.length === 0) ||
     (activeTab === 'viewed' && loading && activities.length === 0);
 
+  // Helper to fetch user profile and organization details sequentially
+  const checkOrganizationStatus = useCallback(async () => {
+    try {
+      // 1. Await User Profile API call
+      const profileResult = await refetchUserProfile().unwrap();
+      if (profileResult?.data) {
+        dispatch(syncUserProfile(profileResult.data));
+      }
+
+      // 2. Await Organization Detail API call
+      const orgResult = await refetchOrganizationDetail().unwrap();
+      if (orgResult?.data) {
+        dispatch(syncOrganizationDetail(orgResult.data));
+        setForOrganization(false);
+      } else {
+        setForOrganization(true);
+      }
+    } catch (error) {
+      // If organization call fails or returns empty/404, trigger modal
+      setForOrganization(true);
+    }
+  }, [dispatch, refetchOrganizationDetail, refetchUserProfile]);
+
   useFocusEffect(
     useCallback(() => {
       currentPageRef.current = 1;
@@ -160,15 +173,14 @@ export const Home: React.FC = () => {
       fetchingRef.current = false;
       setIsFetchingMore(false);
 
-      refetchUserProfile();
-      refetchOrganizationDetail();
+      // Execute sequential async checks
+      checkOrganizationStatus();
       refetchRecentProjects();
 
       if (currentTabRef.current === 'favorites') {
         setFavoritesPage(1);
         setRefetchFavoritesKey(prev => prev + 1);
       } else {
-        // RTK Query: reset page and trigger refetch via key change
         setAuditPage(1);
         setRefetchKey(prev => prev + 1);
       }
@@ -177,11 +189,20 @@ export const Home: React.FC = () => {
         fetchingRef.current = false;
         setIsFetchingMore(false);
       };
-    }, [dispatch]),
+    }, [checkOrganizationStatus, refetchRecentProjects]),
   );
 
   const handleOpenDrawer = () => {
     navigation.openDrawer();
+  };
+
+  const handleCreateOrganization = () => {
+    stackNavigation.replace('Organization');
+    setForOrganization(false);
+  };
+
+  const handleLogout = () => {
+    dispatch(logoutUser());
   };
 
   const handleTabChange = (tab: 'viewed' | 'favorites') => {
@@ -200,7 +221,6 @@ export const Home: React.FC = () => {
       setFavoritesPage(1);
       setRefetchFavoritesKey(prev => prev + 1);
     } else {
-      // RTK Query: reset page and trigger refetch via key change
       setAuditPage(1);
       setRefetchKey(prev => prev + 1);
     }
@@ -222,23 +242,16 @@ export const Home: React.FC = () => {
   const handleLoadMore = useCallback(() => {
     const isFav = activeTab === 'favorites';
 
-    // Guard against concurrent fetches
     if (isFav) {
-      if (favoritesIsFetching) {
-        return;
-      }
+      if (favoritesIsFetching) return;
     } else {
-      if (auditIsFetching) {
-        return;
-      }
+      if (auditIsFetching) return;
     }
 
     const currentList = isFav ? boardFavorites : activities;
     const currentMeta = isFav ? favoritesMeta : meta;
 
-    if (currentList.length === 0) {
-      return;
-    }
+    if (currentList.length === 0) return;
 
     const currentPage = isFav ? favoritesPage : auditPage;
 
@@ -249,14 +262,10 @@ export const Home: React.FC = () => {
           ? currentPage < currentMeta.total_pages
           : false;
 
-    if (!hasNextPage) {
-      return;
-    }
+    if (!hasNextPage) return;
 
     const nextPage = currentPage + 1;
-    if (lastRequestedPageRef.current === nextPage) {
-      return;
-    }
+    if (lastRequestedPageRef.current === nextPage) return;
 
     lastRequestedPageRef.current = nextPage;
 
@@ -264,7 +273,6 @@ export const Home: React.FC = () => {
       setFavoritesPage(nextPage);
       currentPageRef.current = nextPage;
     } else {
-      // RTK Query: update page — the hook handles the fetch and merge
       setAuditPage(nextPage);
       currentPageRef.current = nextPage;
     }
@@ -278,7 +286,6 @@ export const Home: React.FC = () => {
     favoritesIsFetching,
     favoritesPage,
     favoritesMeta,
-    dispatch,
   ]);
 
   const handleViewAll = () => {
@@ -305,7 +312,7 @@ export const Home: React.FC = () => {
         projectId: targetProjectId,
         userStoryId: userStoryId,
         story: item,
-        storyName: item?.title || item?.user_story_name, // <-- Pass as 'story' to match RootStackParamList definition
+        storyName: item?.title || item?.user_story_name,
       });
     } else if (resourceType === 'task') {
       const taskId = item?.resource_id || item?.task_id || item?.id;
@@ -318,6 +325,10 @@ export const Home: React.FC = () => {
         taskName: item?.title || item?.task_name,
       });
     }
+  };
+
+  const handleSelectSearch = () => {
+    stackNavigation.navigate('Search');
   };
 
   const renderRecentProjectsHeader = () => (
@@ -726,9 +737,6 @@ export const Home: React.FC = () => {
     }
     return renderItemCard({ item });
   };
-  const handleSelectSearch = () => {
-    stackNavigation.navigate('Search');
-  };
 
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
@@ -787,6 +795,11 @@ export const Home: React.FC = () => {
         visible={projectSheetVisible}
         onDismiss={() => setProjectSheetVisible(false)}
         onSelectProject={(id, name) => handleOnSelectProject(id, name)}
+      />
+      <OrganizationGuardModal
+        visible={forOrganization}
+        onCreateOrganization={handleCreateOrganization}
+        onLogout={handleLogout}
       />
     </Screen>
   );

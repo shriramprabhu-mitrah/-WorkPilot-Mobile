@@ -77,18 +77,24 @@ export const CustomDrawerContent: React.FC<
     },
     {
       id: 4,
+      name: 'Calendar',
+      icon: 'calendar-outline',
+      route: 'Calendar',
+    },
+    {
+      id: 5,
       name: 'Change Password',
       icon: 'lock-closed-outline',
       route: 'ChangePassword',
     },
     {
-      id: 5,
+      id: 6,
       name: 'Settings',
       icon: 'settings-outline',
       route: 'Settings',
     },
     {
-      id: 6,
+      id: 7,
       name: 'Logout',
       icon: 'log-out-outline',
       route: 'Logout',
@@ -281,10 +287,11 @@ export const CustomDrawerContent: React.FC<
           style={{
             paddingHorizontal: layout.paddingHorizontal || 20,
             paddingVertical: 16,
-            paddingBottom: moderateScale(60),
+            paddingBottom: moderateScale(30),
             borderTopWidth: 1,
             borderTopColor: colors.border || '#F1F5F9',
             backgroundColor: colors.surface,
+            alignItems: 'center', // Align items to horizontal center
           }}
         >
           <AppText
@@ -292,6 +299,7 @@ export const CustomDrawerContent: React.FC<
             style={{
               color: colors.textSecondary || '#94A3B8',
               letterSpacing: 0.3,
+              textAlign: 'center', // Center text alignment
             }}
           >
             App Version {appVersion}

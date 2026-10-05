@@ -1,3 +1,5 @@
+import { View, type DimensionValue } from 'react-native';
+
 export interface PasswordValidationResult {
   hasUpper: boolean;
   hasNumber: boolean;
@@ -28,3 +30,24 @@ export const validatePasswordReset = (
     valid,
   };
 };
+
+export const SkeletonBlock = ({
+  width,
+  height,
+  borderRadius = 8,
+  backgroundColor,
+}: {
+  width: DimensionValue;
+  height: DimensionValue;
+  borderRadius?: number;
+  backgroundColor: string;
+}) => (
+  <View
+    style={{
+      width,
+      height,
+      borderRadius,
+      backgroundColor,
+    }}
+  />
+);
