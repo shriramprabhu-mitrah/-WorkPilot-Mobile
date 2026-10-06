@@ -29,6 +29,7 @@ import { showSnackbar } from './Snackbar';
 import CustomSnackbar, { SnackbarType } from './Snackbar/CustomSnackbar';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../types/navigationTypes';
+import { renderParsedHtml } from '../../utils/htmlParser';
 
 export interface ProjectListBottomSheetProps {
   visible: boolean;
@@ -570,7 +571,10 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                             numberOfLines={1}
                             className='mt-1'
                           >
-                            {item.description}
+                            {renderParsedHtml(item.description, {
+                              color: colors.textSecondary,
+                              fontSize: moderateScale(13),
+                            })}
                           </AppText>
                         ) : null}
                         {(startDate || endDate) && (
@@ -607,9 +611,11 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
               onEndReachedThreshold={2.5}
               ListFooterComponent={
                 effectiveIsFetchingMore ? (
-                  <View className='items-center justify-center py-4'>
-                    <ActivityIndicator size='small' color={colors.primary} />
-                  </View>
+                  <ListSkeleton
+                    count={1}
+                    containerStyle={{ gap: moderateScale(8) }}
+                    renderItem={index => <ProjectCardSkeleton key={index} />}
+                  />
                 ) : null
               }
               ListEmptyComponent={

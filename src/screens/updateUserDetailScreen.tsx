@@ -225,7 +225,7 @@ const UpdateUserDetailsScreen = () => {
       dispatch(getUserProfileInfo());
       showSnackbar('Profile updated successfully');
     } catch (error: any) {
-      showSnackbar(error?.message || 'Failed to update profile');
+      showSnackbar(error || 'Failed to update profile');
     } finally {
       setLoading(false);
     }

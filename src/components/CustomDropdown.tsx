@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View,
   TouchableOpacity,
+  ScrollView,
   StyleProp,
   ViewStyle,
   DimensionValue,
@@ -23,6 +24,7 @@ interface CustomDropdownProps<T = string | number> {
   label?: string;
   items: DropdownItem<T>[];
   selectedValue?: T;
+  selectedValues?: T[];
   onSelect: (item: DropdownItem<T>) => void;
   isOpen: boolean;
   onToggle: () => void;
@@ -31,12 +33,14 @@ interface CustomDropdownProps<T = string | number> {
   containerStyle?: StyleProp<ViewStyle>;
   direction?: 'up' | 'down';
   showIndicatorDot?: boolean;
+  renderSearchBar?: () => React.ReactNode;
 }
 
 export const CustomDropdown = <T extends string | number>({
   label,
   items,
   selectedValue,
+  selectedValues,
   onSelect,
   isOpen,
   onToggle,
@@ -44,7 +48,8 @@ export const CustomDropdown = <T extends string | number>({
   width = '100%',
   containerStyle,
   direction = 'up',
-  showIndicatorDot = true,
+  showIndicatorDot = false,
+  renderSearchBar,
 }: CustomDropdownProps<T>) => {
   const { colors } = useTheme();
   const { layout } = useAuthLayout();
@@ -59,6 +64,15 @@ export const CustomDropdown = <T extends string | number>({
     direction === 'up'
       ? { bottom: '100%', marginBottom: moderateScale(6) }
       : { top: '100%', marginTop: moderateScale(6) };
+
+  const isItemSelected = (itemId: T) => {
+    if (selectedValues && Array.isArray(selectedValues)) {
+      return selectedValues.some(val => String(val) === String(itemId));
+    }
+    return (
+      selectedValue !== undefined && String(selectedValue) === String(itemId)
+    );
+  };
 
   return (
     <View style={[{ width, gap: moderateScale(6) }, containerStyle]}>
@@ -79,14 +93,14 @@ export const CustomDropdown = <T extends string | number>({
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={onToggle}
-          className='flex-row items-center rounded-md border'
+          className='flex-row items-center rounded-lg border'
           style={{
-            minHeight: layout.controlSize * 1.4,
-            backgroundColor: selectedItem ? `${activeColor}1A` : colors.surface,
+            minHeight: layout.controlSize * 1.35,
+            backgroundColor: colors.surface || '#FFFFFF',
             borderColor: colors.border || '#E2E8F0',
-            paddingHorizontal: layout.paddingHorizontal || moderateScale(10),
-            paddingVertical: layout.elementGap || moderateScale(6),
-            gap: layout.elementGap || moderateScale(6),
+            paddingHorizontal: moderateScale(12),
+            paddingVertical: moderateScale(8),
+            gap: moderateScale(8),
           }}
         >
           {showIndicatorDot && (
@@ -103,81 +117,100 @@ export const CustomDropdown = <T extends string | number>({
           <View className='min-w-0 flex-1'>
             <AppText
               variant='body'
-              color={selectedItem ? activeColor : colors.textSecondary}
+              color={selectedItem ? colors.text : colors.textSecondary}
               numberOfLines={1}
               ellipsizeMode='tail'
-              className={selectedItem ? 'font-semibold' : 'font-normal'}
               style={{ fontSize: moderateScale(13) }}
             >
-              {selectedItem?.name || placeholder}
+              {selectedItem
+                ? selectedItem.name.charAt(0).toUpperCase() +
+                  selectedItem.name.slice(1)
+                : placeholder}
             </AppText>
           </View>
 
           <Ionicons
             name={isOpen ? 'chevron-up' : 'chevron-down'}
-            size={moderateScale(14)}
-            color={selectedItem ? activeColor : colors.textSecondary}
+            size={moderateScale(15)}
+            color={colors.textSecondary || '#64748B'}
           />
         </TouchableOpacity>
 
         {isOpen && (
           <View
-            className='absolute left-0 z-50 border shadow-lg'
+            className='absolute left-0 z-50 overflow-hidden border shadow-lg'
             style={[
               dropdownPositionStyle,
               {
                 width: '100%',
-                borderRadius: Radius.sm || moderateScale(8),
-                backgroundColor: colors.card || colors.surface,
+                borderRadius: Radius.md || moderateScale(10),
+                backgroundColor: colors.card || '#FFFFFF',
                 borderColor: colors.border || '#E2E8F0',
-                paddingHorizontal: layout.paddingHorizontal || moderateScale(8),
-                paddingVertical: layout.elementGap || moderateScale(6),
-                gap: layout.tightGap || moderateScale(4),
+                paddingVertical: moderateScale(2),
+                elevation: 20,
+                zIndex: 99999,
               },
             ]}
           >
-            {items.map(item => {
-              const isSelected =
-                selectedValue !== undefined &&
-                String(item.id) === String(selectedValue);
-              const itemColor = item.color || colors.text;
+            {renderSearchBar && (
+              <View className='px-3 pt-2'>{renderSearchBar()}</View>
+            )}
+            <ScrollView
+              nestedScrollEnabled
+              keyboardShouldPersistTaps='handled'
+              showsVerticalScrollIndicator
+              style={{
+                maxHeight: moderateScale(240),
+              }}
+              contentContainerStyle={{
+                flexGrow: 0,
+              }}
+            >
+              {items.map((item, _index) => {
+                const selected = isItemSelected(item.id);
 
-              return (
-                <TouchableOpacity
-                  key={String(item.id)}
-                  activeOpacity={0.8}
-                  onPress={() => onSelect(item)}
-                  className='flex-row items-center rounded-md'
-                  style={{
-                    minHeight: layout.controlSize * 1.2,
-                    paddingVertical: layout.tightGap || moderateScale(4),
-                    paddingHorizontal: moderateScale(4),
-                    gap: layout.elementGap || moderateScale(6),
-                  }}
-                >
-                  {showIndicatorDot && (
-                    <View
+                return (
+                  <View key={String(item.id)}>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => onSelect(item)}
+                      className='flex-row items-center justify-between'
                       style={{
-                        width: moderateScale(8),
-                        height: moderateScale(8),
-                        borderRadius: moderateScale(4),
-                        backgroundColor: item.color || colors.textSecondary,
+                        paddingVertical: moderateScale(10),
+                        paddingHorizontal: moderateScale(14),
+                        backgroundColor: selected
+                          ? 'rgba(37, 99, 235, 0.08)'
+                          : 'transparent',
                       }}
-                    />
-                  )}
+                    >
+                      <AppText
+                        variant='body'
+                        numberOfLines={1}
+                        style={{
+                          fontSize: moderateScale(13.5),
+                          color: selected
+                            ? colors.primary || '#2563EB'
+                            : colors.text || '#1E293B',
+                          fontWeight: selected ? '500' : '400',
+                          flex: 1,
+                        }}
+                      >
+                        {item.name}
+                      </AppText>
 
-                  <AppText
-                    variant='body'
-                    color={isSelected ? itemColor : colors.text}
-                    className={isSelected ? 'font-bold' : 'font-normal'}
-                    numberOfLines={1}
-                    style={{ fontSize: moderateScale(13) }}
-                  >
-                    {item.name}
-                  </AppText>
-                </TouchableOpacity>
-              );
-            })}
+                      {selected && (
+                        <Ionicons
+                          name='checkmark-sharp'
+                          size={moderateScale(15)}
+                          color={colors.primary || '#2563EB'}
+                          style={{ marginLeft: moderateScale(8) }}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
       </View>

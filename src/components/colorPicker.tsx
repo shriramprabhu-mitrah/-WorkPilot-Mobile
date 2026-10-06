@@ -17,9 +17,9 @@ export function hsvToHex(h: number, s: number, v: number): string {
   const p = v * (1 - s);
   const q = v * (1 - f * s);
   const t = v * (1 - (1 - f) * s);
-  let r = 0,
-    g = 0,
-    b = 0;
+  let r = 0;
+  let g = 0;
+  let b = 0;
   switch (hi) {
     case 0:
       r = v;
@@ -72,9 +72,9 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
 /** "#RRGGBB" → { h: 0–360, s: 0–1, v: 0–1 } */
 export function hexToHsv(hex: string): { h: number; s: number; v: number } {
   const { r, g, b } = hexToRgb(hex);
-  const rn = r / 255,
-    gn = g / 255,
-    bn = b / 255;
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
   const max = Math.max(rn, gn, bn);
   const min = Math.min(rn, gn, bn);
   const d = max - min;
@@ -121,16 +121,35 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
   const [sat, setSat] = useState(init.s);
   const [bri, setBri] = useState(init.v);
 
-  // Sync state if external value prop updates
+  // Keep latest HSV values without causing renders.
+  const hueRef = useRef(init.h);
+  const satRef = useRef(init.s);
+  const briRef = useRef(init.v);
+
+  // Keep latest onChange callback.
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+  // Used to reduce the number of parent updates during fast dragging.
+  const lastUpdateRef = useRef(0);
+
   useEffect(() => {
     const next = hexToHsv(value || '#2563EB');
+    const current = hsvToHex(hueRef.current, satRef.current, briRef.current);
+    if (current.toUpperCase() === value.toUpperCase()) {
+      return;
+    }
+    hueRef.current = next.h;
+    satRef.current = next.s;
+    briRef.current = next.v;
     setHue(next.h);
     setSat(next.s);
     setBri(next.v);
   }, [value]);
 
   const hex = hsvToHex(hue, sat, bri);
-  const rgb = hexToRgb(hex);
 
   const svLayout = useRef({ width: pickerWidth, height: SV_HEIGHT });
   const hueLayout = useRef({ width: pickerWidth, height: HUE_HEIGHT });
@@ -149,15 +168,19 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
       const h = svLayout.current.height || SV_HEIGHT;
       const newS = Math.max(0, Math.min(1, lx / w));
       const newV = Math.max(0, Math.min(1, 1 - ly / h));
+      satRef.current = newS;
+      briRef.current = newV;
       setSat(newS);
       setBri(newV);
-      setHue(prevH => {
-        onChange(hsvToHex(prevH, newS, newV));
-        return prevH;
-      });
     },
-    [onChange, pickerWidth],
+    [pickerWidth],
   );
+
+  const updateSVRef = useRef(updateSV);
+
+  useEffect(() => {
+    updateSVRef.current = updateSV;
+  }, [updateSV]);
 
   const svPan = useRef(
     PanResponder.create({
@@ -167,6 +190,14 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
         updateSV(e.nativeEvent.locationX, e.nativeEvent.locationY),
       onPanResponderMove: e =>
         updateSV(e.nativeEvent.locationX, e.nativeEvent.locationY),
+      onPanResponderRelease: () =>
+        onChangeRef.current(
+          hsvToHex(hueRef.current, satRef.current, briRef.current),
+        ),
+      onPanResponderTerminate: () =>
+        onChangeRef.current(
+          hsvToHex(hueRef.current, satRef.current, briRef.current),
+        ),
     }),
   ).current;
 
@@ -175,17 +206,16 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
     (lx: number) => {
       const w = hueLayout.current.width || pickerWidth;
       const newH = Math.max(0, Math.min(360, (lx / w) * 360));
+      hueRef.current = newH;
       setHue(newH);
-      setSat(prevS => {
-        setBri(prevV => {
-          onChange(hsvToHex(newH, prevS, prevV));
-          return prevV;
-        });
-        return prevS;
-      });
     },
-    [onChange, pickerWidth],
+    [pickerWidth],
   );
+
+  const updateHueRef = useRef(updateHue);
+  useEffect(() => {
+    updateHueRef.current = updateHue;
+  }, [updateHue]);
 
   const huePan = useRef(
     PanResponder.create({
@@ -193,6 +223,14 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: e => updateHue(e.nativeEvent.locationX),
       onPanResponderMove: e => updateHue(e.nativeEvent.locationX),
+      onPanResponderRelease: () =>
+        onChangeRef.current(
+          hsvToHex(hueRef.current, satRef.current, briRef.current),
+        ),
+      onPanResponderTerminate: () =>
+        onChangeRef.current(
+          hsvToHex(hueRef.current, satRef.current, briRef.current),
+        ),
     }),
   ).current;
 

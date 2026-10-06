@@ -6,12 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, TouchableOpacity, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { AppText } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
@@ -30,6 +25,10 @@ import UpdateSprintModal from '../components/UpdateSprintModal';
 import { showSuccessToast } from '../utils/utils';
 import SprintDetailsSkeleton from '../components/skeleton/SprintDetailsSkeleton';
 import UserStoriesPaginationSkeleton from '../components/skeleton/UserStoriesPaginationSkeleton';
+import { RootStackParamList } from '../types/navigationTypes';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native';
+import { renderParsedHtml } from '../utils/htmlParser';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -47,7 +46,6 @@ interface SprintDetailsScreenProps {
       sprintName?: string;
     };
   };
-  navigation: any;
 }
 
 // Fixed semantic accents (priority / status / stat tiles)
@@ -76,10 +74,9 @@ const parseDate = (value?: string) => {
   return Number.isNaN(t) ? null : new Date(t);
 };
 
-const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
-  route,
-  navigation,
-}) => {
+const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+
   const dispatch = useAppDispatch();
   const { sprintId, sprintName } = route.params;
 
@@ -316,7 +313,12 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
       return (
         <TouchableOpacity
           activeOpacity={0.75}
-          onPress={() => toggleStory(item.id)}
+          onPress={() =>
+            navigation.navigate('issue', {
+              projectId,
+              userStoryId: item.id,
+            })
+          }
           className='mb-3 flex-row overflow-hidden rounded-2xl border'
           style={{
             backgroundColor: isSelected
@@ -331,7 +333,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
           <View className='flex-1' style={{ padding: moderateScale(14) }}>
             {/* Row 1: checkbox, id chip, title */}
             <View className='flex-row items-center'>
-              <View
+              {/* <View
                 className='mr-3 items-center justify-center rounded-md border'
                 style={{
                   width: moderateScale(20),
@@ -349,7 +351,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
                     color='#fff'
                   />
                 )}
-              </View>
+              </View> */}
 
               <View
                 className='mr-2 rounded-md'
@@ -389,7 +391,10 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
                 className='mt-1'
                 numberOfLines={2}
               >
-                {item.description}
+                {renderParsedHtml(item.description, {
+                  color: colors.textSecondary,
+                  fontSize: moderateScale(13),
+                })}
               </AppText>
             ) : null}
 
@@ -751,7 +756,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
             </View>
           </View>
 
-          {storiesData.length > 0 && (
+          {/* {storiesData.length > 0 && (
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={toggleSelectAll}
@@ -780,7 +785,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
                 Select all
               </AppText>
             </TouchableOpacity>
-          )}
+          )} */}
         </View>
 
         {/* Selection bar */}

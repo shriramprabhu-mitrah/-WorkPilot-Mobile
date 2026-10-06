@@ -9,6 +9,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
 import { WorkItemIcon } from './getWorkItemIcon';
+import { renderParsedHtml } from '../../utils/htmlParser';
 
 export interface ProjectCardItem {
   id: string;
@@ -79,13 +80,18 @@ const ProjectCard = ({ item, onPress, onToggleStar }: Props) => {
         >
           {item.name}
         </AppText>
-        <AppText
-          variant='caption'
-          color={colors.textSecondary}
-          numberOfLines={1}
-        >
-          {item.description ?? 'No Description'}
-        </AppText>
+        {item.description ? (
+          <AppText
+            variant='caption'
+            color={colors.textSecondary}
+            numberOfLines={1}
+          >
+            {renderParsedHtml(item.description, {
+              color: colors.textSecondary,
+              fontSize: moderateScale(13),
+            }) ?? 'No Description'}
+          </AppText>
+        ) : null}
         <View className='flex-row' style={{ gap: layout.elementGap }}>
           <AppText
             variant='caption'

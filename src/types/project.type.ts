@@ -192,6 +192,26 @@ export interface GetProjectMembersQueryArgs {
 
 export interface RemoveProjectMemberResponse extends ApiResponse {}
 
+export interface AddProjectMemberPayload {
+  project_id: string;
+  members: Array<{
+    user_id: string;
+    role_id: string;
+  }>;
+}
+
+export interface AddProjectMemberResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+}
+
+export interface UpdateProjectMemberRolePayload {
+  role_id: string;
+}
+
+export interface UpdateProjectMemberRoleResponse extends ApiResponse {}
+
 export interface RemoveProjectMemberArgs {
   project_id: string;
   user_id: string;

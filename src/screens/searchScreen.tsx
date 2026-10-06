@@ -13,6 +13,7 @@ import CommonHeader from '../components/common/CommonHeader';
 import { RootStackParamList } from '../types/navigationTypes';
 import Screen from '../components/common/ScreenWapper';
 import { showSnackbar } from '../components/common/Snackbar';
+import { renderParsedHtml } from '../utils/htmlParser';
 
 type SearchCategory =
   'all' | 'task' | 'user_story' | 'project' | 'member' | 'sprint';
@@ -226,7 +227,10 @@ const SearchScreen = () => {
               numberOfLines={1}
               style={{ fontSize: moderateScale(11) }}
             >
-              {subtitle}
+              {renderParsedHtml(subtitle, {
+                color: colors.textSecondary,
+                fontSize: moderateScale(11),
+              }) ?? 'No Subtitle'}
             </AppText>
           </View>
           <Ionicons
