@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Modal,
   TouchableOpacity,
@@ -41,9 +41,11 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const lastRequestedPageRef = useRef(1);
 
   useEffect(() => {
     const handler = setTimeout(() => {
+      lastRequestedPageRef.current = 1;
       setDebouncedSearch(search);
     }, 300);
     return () => clearTimeout(handler);
@@ -64,13 +66,17 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
 
   useEffect(() => {
     if (visible) {
+      lastRequestedPageRef.current = 1;
       fetchProjects(1, debouncedSearch);
     }
   }, [visible, fetchProjects, debouncedSearch]);
 
   const handleLoadMore = () => {
-    if (!loading && !isFetchingMore && hasMore) {
-      fetchProjects(page + 1, debouncedSearch);
+    if (!loading && !isFetchingMore && hasMore && projects.length > 0) {
+      const nextPage = page + 1;
+      if (lastRequestedPageRef.current === nextPage) return;
+      lastRequestedPageRef.current = nextPage;
+      fetchProjects(nextPage, debouncedSearch);
     }
   };
 
@@ -173,7 +179,7 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
                   </TouchableOpacity>
                 )}
                 onEndReached={handleLoadMore}
-                onEndReachedThreshold={0.2}
+                onEndReachedThreshold={2.5}
                 ListFooterComponent={
                   isFetchingMore ? (
                     <View className="py-3 items-center">

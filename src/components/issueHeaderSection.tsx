@@ -20,6 +20,7 @@ interface Props {
   onSelectStatus: (status: string) => void;
   onSelectId: (status: string) => void;
   statuses: CustomStatus[] | UserStoryStatusItem[] | [];
+  isLoading?: boolean;
 }
 
 export const IssueHeaderSection: React.FC<Props> = ({
@@ -31,6 +32,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
   onSelectStatus,
   onSelectId,
   statuses,
+  isLoading = false,
 }) => {
   const { layout } = useAuthLayout();
   const { colors } = useTheme();
@@ -46,13 +48,15 @@ export const IssueHeaderSection: React.FC<Props> = ({
 
   return (
     <View
-      className='z-10 border-b'
+      className='border-b'
       style={{
         backgroundColor: colors.card,
         borderColor: colors.border,
         paddingHorizontal: layout.paddingHorizontal,
         paddingVertical: layout.largeSectionGap,
         gap: layout.elementGap,
+        zIndex: showStatusPicker ? 100 : 1,
+        elevation: showStatusPicker ? 10 : 0,
       }}
     >
       {/* Issue title */}
@@ -65,64 +69,95 @@ export const IssueHeaderSection: React.FC<Props> = ({
       </AppText>
 
       <View
-        className='relative z-50'
+        className='relative'
         style={{
           width: statusWidth,
+          zIndex: showStatusPicker ? 100 : 1,
         }}
       >
-        {/* Status button */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={onToggleStatusPicker}
-          className='flex-row items-center rounded-lg border'
-          style={{
-            width: statusWidth,
-            minHeight: layout.controlSize * 1.5,
-
-            backgroundColor: `${activeStatusColor}1A`,
-            borderColor: colors.border,
-
-            paddingHorizontal: layout.paddingHorizontal,
-            paddingVertical: layout.elementGap,
-
-            gap: layout.elementGap,
-          }}
-        >
-          {/* Status dot */}
+        {/* Status button / Skeleton */}
+        {isLoading ? (
           <View
-            className='rounded-full'
+            className='flex-row items-center rounded-lg border'
             style={{
-              width: Math.max(layout.controlSize * 0.3, 7),
-              height: Math.max(layout.controlSize * 0.3, 7),
-              backgroundColor: activeStatusColor,
-            }}
-          />
-
-          {/* Status text */}
-          <View
-            style={{
-              flex: 1,
-              minWidth: 0,
+              width: statusWidth,
+              minHeight: layout.controlSize * 1.5,
+              backgroundColor: colors.surface || colors.card,
+              borderColor: colors.border,
+              paddingHorizontal: layout.paddingHorizontal,
+              paddingVertical: layout.elementGap,
+              gap: layout.elementGap,
             }}
           >
-            <AppText
-              variant='body'
-              color={activeStatusColor}
-              className='font-semibold'
-              numberOfLines={2}
-              ellipsizeMode='tail'
-            >
-              {getStatusLabel(currentStatus)}
-            </AppText>
+            <View
+              className='animate-pulse rounded-full bg-gray-200 dark:bg-gray-700'
+              style={{
+                width: Math.max(layout.controlSize * 0.3, 7),
+                height: Math.max(layout.controlSize * 0.3, 7),
+              }}
+            />
+            <View
+              className='animate-pulse rounded bg-gray-200 dark:bg-gray-700'
+              style={{
+                width: '60%',
+                height: 14,
+              }}
+            />
           </View>
+        ) : (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onToggleStatusPicker}
+            className='flex-row items-center rounded-lg border'
+            style={{
+              width: statusWidth,
+              minHeight: layout.controlSize * 1.5,
 
-          {/* Arrow */}
-          <Ionicons
-            name={showStatusPicker ? 'chevron-up' : 'chevron-down'}
-            size={layout.controlSize * 0.8}
-            color={activeStatusColor}
-          />
-        </TouchableOpacity>
+              backgroundColor: `${activeStatusColor}1A`,
+              borderColor: colors.border,
+
+              paddingHorizontal: layout.paddingHorizontal,
+              paddingVertical: layout.elementGap,
+
+              gap: layout.elementGap,
+            }}
+          >
+            {/* Status dot */}
+            <View
+              className='rounded-full'
+              style={{
+                width: Math.max(layout.controlSize * 0.3, 7),
+                height: Math.max(layout.controlSize * 0.3, 7),
+                backgroundColor: activeStatusColor,
+              }}
+            />
+
+            {/* Status text */}
+            <View
+              style={{
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              <AppText
+                variant='body'
+                color={activeStatusColor}
+                className='font-semibold'
+                numberOfLines={2}
+                ellipsizeMode='tail'
+              >
+                {getStatusLabel(currentStatus)}
+              </AppText>
+            </View>
+
+            {/* Arrow */}
+            <Ionicons
+              name={showStatusPicker ? 'chevron-up' : 'chevron-down'}
+              size={layout.controlSize * 0.8}
+              color={activeStatusColor}
+            />
+          </TouchableOpacity>
+        )}
 
         {/* Dropdown */}
         {showStatusPicker && (
@@ -132,43 +167,34 @@ export const IssueHeaderSection: React.FC<Props> = ({
               <View
                 className='absolute z-40'
                 style={{
-                  width: 1000,
-                  height: 1000,
-                  left: -500,
-                  top: -500,
+                  width: 3000,
+                  height: 3000,
+                  left: -1500,
+                  top: -1500,
                 }}
               />
             </TouchableWithoutFeedback>
 
             {/* Status dropdown */}
             <View
-              className='absolute left-0 z-50 border'
+              className='absolute left-0 z-50 border shadow-lg'
               style={{
                 top: '100%',
-                marginTop: 4,
-
-                width: statusWidth,
-
-                borderRadius: Radius.sm,
-
-                backgroundColor: colors.card,
+                marginTop: 6,
+                minWidth: Math.max(statusWidth, 180),
+                borderRadius: Radius.md,
+                backgroundColor: colors.card || colors.surface,
                 borderColor: colors.border,
-
-                paddingHorizontal: layout.paddingHorizontal,
-
-                paddingVertical: layout.elementGap,
-
-                gap: layout.tightGap,
-
+                padding: 6,
+                gap: 2,
                 shadowColor: colors.black,
                 shadowOffset: {
                   width: 0,
-                  height: 3,
+                  height: 4,
                 },
-                shadowOpacity: 0.15,
-                shadowRadius: 6,
-
-                elevation: 5,
+                shadowOpacity: 0.18,
+                shadowRadius: 8,
+                elevation: 12,
               }}
             >
               {statuses
@@ -181,23 +207,25 @@ export const IssueHeaderSection: React.FC<Props> = ({
                   const statusId = statusItem?.id ?? '';
 
                   const isSelected =
-                    currentStatus.toLowerCase() === statusName.toLowerCase();
+                    currentStatus.toLowerCase() === statusName.toLowerCase() ||
+                    currentStatus.toLowerCase() === statusId.toLowerCase();
 
                   return (
                     <TouchableOpacity
-                      key={statusItem?.id}
-                      activeOpacity={0.8}
+                      key={statusItem?.id || statusName}
+                      activeOpacity={0.7}
                       onPress={() => {
                         onSelectStatus(statusName);
                         onSelectId(statusId);
                       }}
-                      className='flex-row items-start rounded-md'
+                      className='flex-row items-center rounded-md'
                       style={{
-                        minHeight: layout.controlSize * 1.4,
-
-                        paddingVertical: layout.tightGap,
-
-                        gap: layout.elementGap,
+                        paddingVertical: 9,
+                        paddingHorizontal: 10,
+                        gap: 10,
+                        backgroundColor: isSelected
+                          ? `${statusItem?.color}18`
+                          : 'transparent',
                       }}
                     >
                       {/* Status dot */}
@@ -206,7 +234,6 @@ export const IssueHeaderSection: React.FC<Props> = ({
                         style={{
                           width: 8,
                           height: 8,
-                          marginTop: 6,
                           backgroundColor: statusItem?.color,
                         }}
                       />
@@ -221,11 +248,24 @@ export const IssueHeaderSection: React.FC<Props> = ({
                         <AppText
                           variant='body'
                           color={isSelected ? statusItem?.color : colors.text}
-                          className={isSelected ? 'font-bold' : 'font-normal'}
+                          className={
+                            isSelected
+                              ? 'text-sm font-bold'
+                              : 'text-sm font-medium'
+                          }
+                          numberOfLines={1}
                         >
                           {statusName}
                         </AppText>
                       </View>
+
+                      {isSelected && (
+                        <Ionicons
+                          name='checkmark'
+                          size={15}
+                          color={statusItem?.color}
+                        />
+                      )}
                     </TouchableOpacity>
                   );
                 })}

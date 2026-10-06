@@ -111,44 +111,6 @@ export const projectApi = createApi({
           params,
         };
       },
-
-      // Cache key based on endpointName and non-pagination params
-      serializeQueryArgs: ({ endpointName, queryArgs }) => {
-        const { page, _refetchKey, ...rest } = queryArgs || {};
-        return `${endpointName}_${JSON.stringify(rest)}`;
-      },
-
-      // Merge paginated responses into the shared cache entry
-      merge(currentCache, newItems, { arg }) {
-        if (
-          (arg?.page || 1) === 1 ||
-          !currentCache?.data ||
-          !Array.isArray(currentCache.data)
-        ) {
-          return newItems;
-        }
-
-        const existingIds = new Set(
-          currentCache.data.map(
-            (p: any) => p.id?.toString() || p._id?.toString(),
-          ),
-        );
-        const incoming = Array.isArray(newItems?.data) ? newItems.data : [];
-        const uniqueNew = incoming.filter(
-          (p: any) => !existingIds.has(p.id?.toString() || p._id?.toString()),
-        );
-        currentCache.data.push(...uniqueNew);
-        currentCache.meta = newItems.meta;
-      },
-
-      // Force refetch whenever page or _refetchKey changes
-      forceRefetch({ currentArg, previousArg }) {
-        return (
-          currentArg?.page !== previousArg?.page ||
-          currentArg?._refetchKey !== previousArg?._refetchKey
-        );
-      },
-
       providesTags: ['Projects'],
     }),
 
@@ -157,44 +119,6 @@ export const projectApi = createApi({
         url: GET_SPRINTS.replace('{project_id}', project_id),
         params,
       }),
-
-      // Cache key based on endpointName, project_id, and other filter params
-      serializeQueryArgs: ({ endpointName, queryArgs }) => {
-        const { page, _refetchKey, ...rest } = queryArgs;
-        return `${endpointName}_${JSON.stringify(rest)}`;
-      },
-
-      // Merge paginated responses for the same project
-      merge(currentCache, newItems, { arg }) {
-        if (
-          (arg?.page || 1) === 1 ||
-          !currentCache?.data ||
-          !Array.isArray(currentCache.data)
-        ) {
-          return newItems;
-        }
-
-        const existingIds = new Set(
-          currentCache.data.map(
-            (s: any) => s.id?.toString() || s._id?.toString(),
-          ),
-        );
-        const incoming = Array.isArray(newItems?.data) ? newItems.data : [];
-        const uniqueNew = incoming.filter(
-          (s: any) => !existingIds.has(s.id?.toString() || s._id?.toString()),
-        );
-        currentCache.data.push(...uniqueNew);
-        currentCache.meta = newItems.meta;
-      },
-
-      // Force refetch whenever page or _refetchKey changes
-      forceRefetch({ currentArg, previousArg }) {
-        return (
-          currentArg?.page !== previousArg?.page ||
-          currentArg?._refetchKey !== previousArg?._refetchKey
-        );
-      },
-
       providesTags: ['Sprints'],
     }),
 

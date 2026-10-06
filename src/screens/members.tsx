@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   FlatList,
   Image,
@@ -22,7 +28,7 @@ import { ProjectMember } from '../types/project.type';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import DeleteColumnModal from '../components/DeleteColumnModal';
-import { showSuccessToast } from '../utils/utils';
+import { showSnackbar } from '../components/common/Snackbar';
 import { getRoleLabel } from '../constants/role';
 
 const PAGE_SIZE = 10;
@@ -54,9 +60,11 @@ const Members = () => {
       state.projects.project?.id?.toString() ||
       (state.projects.project as any)?._id?.toString(),
   );
+  const lastRequestedPageRef = useRef(1);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
+      lastRequestedPageRef.current = 1;
       setCurrentPage(1);
       setDebouncedSearch(searchQuery.trim());
     }, 300);
@@ -81,6 +89,7 @@ const Members = () => {
   useFocusEffect(
     useCallback(() => {
       if (projectId) {
+        lastRequestedPageRef.current = 1;
         refetch();
       }
     }, [projectId, refetch]),
@@ -109,10 +118,20 @@ const Members = () => {
   const membersMeta = membersResponse?.meta;
 
   const handleLoadMore = useCallback(() => {
-    if (membersMeta?.has_next && !isFetching) {
-      setCurrentPage(previous => previous + 1);
+    const hasNext =
+      membersMeta?.has_next !== undefined
+        ? membersMeta.has_next
+        : membersMeta?.total_pages !== undefined
+          ? currentPage < membersMeta.total_pages
+          : members.length >= PAGE_SIZE;
+
+    if (hasNext && !isFetching && members.length > 0) {
+      const nextPage = currentPage + 1;
+      if (lastRequestedPageRef.current === nextPage) return;
+      lastRequestedPageRef.current = nextPage;
+      setCurrentPage(nextPage);
     }
-  }, [isFetching, membersMeta?.has_next]);
+  }, [isFetching, membersMeta, members.length, currentPage]);
 
   const handleConfirmRemoveMember = useCallback(async () => {
     if (!projectId || !memberToRemove) return;
@@ -123,14 +142,18 @@ const Members = () => {
         user_id: memberToRemove.user_id,
       }).unwrap();
       await refetch();
-      showSuccessToast(response.message, 'success');
+      showSnackbar({
+        message: response.message || 'Member removed successfully',
+        type: 'success',
+      });
 
       setMemberToRemove(null);
     } catch (error: any) {
-      showSuccessToast(
-        error?.data?.message || error?.message || 'Failed to remove member',
-        'error',
-      );
+      showSnackbar({
+        message:
+          error?.data?.message || error?.message || 'Failed to remove member',
+        type: 'error',
+      });
     }
   }, [memberToRemove, projectId, removeProjectMember]);
 
@@ -257,7 +280,7 @@ const Members = () => {
           ListEmptyComponent={renderEmptyState}
           ListFooterComponent={renderFooter}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={2.5}
           renderItem={({ item }) => {
             const displayName = item.full_name || item.username || '';
             const initials = displayName

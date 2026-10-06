@@ -35,7 +35,6 @@ import { createOrganizationService } from '../../../services/organization.servic
 
 interface SignInThunkPayload {
   payload: SignInPayload;
-  showSuccessToast?: (message: string, type: string) => void;
 }
 
 export const signUpUser = createAsyncThunk(

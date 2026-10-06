@@ -191,7 +191,7 @@ const Report = () => {
     getTodayDateString(),
   );
 
-  const [isFocusLoading, setIsFocusLoading] = useState(true);
+  const [isFocusLoading, setIsFocusLoading] = useState(false);
 
   // Ref to track previous context (Project ID & Sprint ID)
   const lastFetchedKeyRef = useRef<string | null>(null);
@@ -336,8 +336,9 @@ const Report = () => {
     weeklyProgressFetching,
   ]);
 
-  const showBurndownSkeleton = isFocusLoading || burndownLoading;
-  const showWorkloadSkeleton = isFocusLoading || workloadLoading;
+  const showBurndownSkeleton = !burndownResponse && (isFocusLoading || burndownLoading);
+  const showWorkloadSkeleton = !workloadResponse && (isFocusLoading || workloadLoading);
+  const showWeeklySkeleton = !weeklyProgressResponse && (isFocusLoading || weeklyProgressLoading);
 
   const toggleStatus = useCallback((key: StatusKey) => {
     setStatuses(prev => ({ ...prev, [key]: !prev[key] }));

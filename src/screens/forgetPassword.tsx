@@ -18,7 +18,7 @@ import {
   passwordResetRequest,
   resendEmailVerification,
 } from '../store/auth_store/action/auth.thunks';
-import { showSuccessToast } from '../utils/utils';
+import { showSnackbar } from '../components/common/Snackbar';
 import { AuthFooter, PasswordInput } from '../components';
 import { useResponsive } from '../utils/responsive';
 
@@ -64,7 +64,7 @@ const ForgotPassword = () => {
 
   const handleSubmit = async () => {
     if (!email.trim()) {
-      showSuccessToast('Please enter your email', 'error');
+      showSnackbar({ message: 'Please enter your email', type: 'error' });
       return;
     }
 
@@ -90,12 +90,12 @@ const ForgotPassword = () => {
 
   const handleResetPassword = async () => {
     if (otp.length !== 6) {
-      showSuccessToast('Please enter a valid OTP', 'error');
+      showSnackbar({ message: 'Please enter a valid OTP', type: 'error' });
       return;
     }
 
     if (!newPassword.trim()) {
-      showSuccessToast('Please enter a new password', 'error');
+      showSnackbar({ message: 'Please enter a new password', type: 'error' });
       return;
     }
 

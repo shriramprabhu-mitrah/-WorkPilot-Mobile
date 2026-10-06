@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { View, TouchableOpacity, FlatList, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -20,6 +20,7 @@ const Favorites = () => {
   const { layout, hp, moderateScale } = useAuthLayout();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [page, setPage] = useState(1);
+  const lastRequestedPageRef = useRef(1);
 
   const {
     data: favoritesData,
@@ -37,16 +38,20 @@ const Favorites = () => {
   const meta = useMemo(() => favoritesData?.meta ?? null, [favoritesData]);
 
   const handleLoadMore = useCallback(() => {
-    if (isFetching) return;
-    if (items.length === 0) return;
+    if (isFetching || items.length === 0) return;
     const hasNext =
       meta?.has_next !== undefined
         ? meta.has_next
         : meta?.total_pages !== undefined
           ? page < meta.total_pages
-          : false;
+          : items.length >= 10;
+
     if (!hasNext) return;
-    setPage(prev => prev + 1);
+
+    const nextPage = page + 1;
+    if (lastRequestedPageRef.current === nextPage) return;
+    lastRequestedPageRef.current = nextPage;
+    setPage(nextPage);
   }, [isFetching, items.length, meta, page]);
 
   const handleItemPress = useCallback(
@@ -173,7 +178,7 @@ const Favorites = () => {
             flexGrow: items.length === 0 ? 1 : undefined,
           }}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.2}
+          onEndReachedThreshold={2.5}
           ListFooterComponent={
             isFetching && items.length > 0 ? (
               <View className='py-2'>

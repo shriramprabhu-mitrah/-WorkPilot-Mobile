@@ -144,6 +144,33 @@ export const homeApi = createApi({
         url: GET_ORG_MEMBERS,
         params,
       }),
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        const { page, _refetchKey, ...rest } = queryArgs as any;
+        return `${endpointName}_${JSON.stringify(rest)}`;
+      },
+      merge(currentCache, newItems, { arg }) {
+        if (
+          (arg?.page || 1) === 1 ||
+          !currentCache?.data ||
+          !Array.isArray(currentCache.data)
+        ) {
+          return newItems;
+        }
+        const existingIds = new Set(
+          currentCache.data.map((m: any) => m.id?.toString()),
+        );
+        const uniqueNew = (newItems.data || []).filter(
+          (m: any) => !existingIds.has(m.id?.toString()),
+        );
+        currentCache.data.push(...uniqueNew);
+        currentCache.meta = newItems.meta;
+      },
+      forceRefetch({ currentArg, previousArg }) {
+        return (
+          currentArg?.page !== previousArg?.page ||
+          currentArg?._refetchKey !== previousArg?._refetchKey
+        );
+      },
       providesTags: ['Organization'],
     }),
 

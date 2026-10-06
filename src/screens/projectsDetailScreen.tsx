@@ -12,6 +12,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import AppText from '../components/common/AppText';
 import TaskCard from '../components/TaskCard';
 import { RootStackParamList } from '../types/navigationTypes';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
@@ -82,6 +83,7 @@ const SkeletonBox = ({
   borderRadius?: number;
   style?: object;
 }) => {
+  const { colors } = useTheme();
   const opacity = useSharedValue(0.4);
   useAnimatedReaction(
     () => opacity.value,
@@ -113,7 +115,7 @@ const SkeletonBox = ({
           width: width as any,
           height,
           borderRadius,
-          backgroundColor: '#E5E7EB',
+          backgroundColor: colors.border,
         },
         animStyle,
         style,
@@ -122,87 +124,93 @@ const SkeletonBox = ({
   );
 };
 
-const BoardSkeletonRow = ({ columnCount }: { columnCount: number }) => (
-  <View
-    style={{
-      flexDirection: 'row',
-      borderBottomWidth: 1,
-      borderBottomColor: '#E5E7EB',
-      minHeight: 100,
-    }}
-  >
-    <View
-      style={{
-        width: USER_STORY_WIDTH,
-        padding: 12,
-        backgroundColor: '#F9FAFB',
-        gap: 8,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <SkeletonBox width={12} height={12} borderRadius={6} />
-        <SkeletonBox width={140} height={14} />
-      </View>
-      <SkeletonBox width={80} height={10} />
-    </View>
-
-    {Array.from({ length: columnCount }).map((_, i) => (
-      <View
-        key={i}
-        style={{
-          width: STATUS_COLUMN_WIDTH,
-          minHeight: 100,
-          padding: 8,
-          borderLeftWidth: 1,
-          borderLeftColor: '#E5E7EB',
-          gap: 8,
-        }}
-      >
-        {i === 0 && (
-          <>
-            <SkeletonBox width='100%' height={56} borderRadius={8} />
-            <SkeletonBox width='100%' height={56} borderRadius={8} />
-          </>
-        )}
-      </View>
-    ))}
-  </View>
-);
-
-const BoardSkeleton = ({ columnCount }: { columnCount: number }) => (
-  <View>
+const BoardSkeletonRow = ({ columnCount }: { columnCount: number }) => {
+  const { colors } = useTheme();
+  return (
     <View
       style={{
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#D1D5DB',
+        borderBottomColor: colors.border,
+        minHeight: 100,
       }}
     >
-      <View style={{ width: USER_STORY_WIDTH, padding: 12 }}>
-        <SkeletonBox width={100} height={14} />
+      <View
+        style={{
+          width: USER_STORY_WIDTH,
+          padding: 12,
+          backgroundColor: colors.card || colors.surface,
+          gap: 8,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <SkeletonBox width={12} height={12} borderRadius={6} />
+          <SkeletonBox width={140} height={14} />
+        </View>
+        <SkeletonBox width={80} height={10} />
       </View>
+
       {Array.from({ length: columnCount }).map((_, i) => (
         <View
           key={i}
           style={{
             width: STATUS_COLUMN_WIDTH,
-            padding: 12,
+            minHeight: 100,
+            padding: 8,
             borderLeftWidth: 1,
-            borderLeftColor: '#E5E7EB',
+            borderLeftColor: colors.border,
+            gap: 8,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <SkeletonBox width={10} height={10} borderRadius={5} />
-            <SkeletonBox width={80} height={14} />
-          </View>
+          {i === 0 && (
+            <>
+              <SkeletonBox width='100%' height={56} borderRadius={8} />
+              <SkeletonBox width='100%' height={56} borderRadius={8} />
+            </>
+          )}
         </View>
       ))}
     </View>
-    {Array.from({ length: 5 }).map((_, i) => (
-      <BoardSkeletonRow key={i} columnCount={columnCount} />
-    ))}
-  </View>
-);
+  );
+};
+
+const BoardSkeleton = ({ columnCount }: { columnCount: number }) => {
+  const { colors } = useTheme();
+  return (
+    <View>
+      <View
+        style={{
+          flexDirection: 'row',
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        }}
+      >
+        <View style={{ width: USER_STORY_WIDTH, padding: 12 }}>
+          <SkeletonBox width={100} height={14} />
+        </View>
+        {Array.from({ length: columnCount }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              width: STATUS_COLUMN_WIDTH,
+              padding: 12,
+              borderLeftWidth: 1,
+              borderLeftColor: colors.border,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <SkeletonBox width={10} height={10} borderRadius={5} />
+              <SkeletonBox width={80} height={14} />
+            </View>
+          </View>
+        ))}
+      </View>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <BoardSkeletonRow key={i} columnCount={columnCount} />
+      ))}
+    </View>
+  );
+};
 
 type TaskDropZoneProps = {
   storyId: string;
@@ -686,6 +694,7 @@ const UserStoryBoardRow = ({
 const ProjectDeatailsScreen = () => {
   const dispatch = useAppDispatch();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
   const verticalScrollRef = useAnimatedRef<Animated.ScrollView>();
   const horizontalScrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -706,7 +715,6 @@ const ProjectDeatailsScreen = () => {
     currentSprint?.id?.toString() || (currentSprint as any)?._id?.toString();
 
   // Screen Focus & Refetch Token State
-  const [isFocused, setIsFocused] = useState(false);
   const [refetchKey, setRefetchKey] = useState(0);
 
   // Pagination State
@@ -716,22 +724,20 @@ const ProjectDeatailsScreen = () => {
   const previousSprintId = useRef<string | undefined>(undefined);
   const hasStartedSprintFetch = useRef(false);
 
-  // RTK Query hooks — conditioned completely on screen focus
+  // RTK Query hooks — reads from cache immediately if preloaded
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const { data: customStatusData } = useGetCustomStatusQuery(
-    isFocused && projectId
-      ? { project_id: projectId, _refetchKey: refetchKey }
-      : skipToken,
-  );
+  const { data: customStatusData, refetch: refetchCustomStatus } =
+    useGetCustomStatusQuery(
+      projectId ? { project_id: projectId } : skipToken,
+      { refetchOnFocus: true },
+    );
   const customStatuses = customStatusData?.data ?? [];
-  const { data: userStoryStatusData } = useGetUserStoryStatusQuery(
-    isFocused && projectId
-      ? {
-          project_id: projectId,
-          _refetchKey: refetchKey,
-        }
-      : skipToken,
-  );
+
+  const { data: userStoryStatusData, refetch: refetchUserStoryStatus } =
+    useGetUserStoryStatusQuery(
+      projectId ? { project_id: projectId } : skipToken,
+      { refetchOnFocus: true },
+    );
   const userStoryStatuses = userStoryStatusData?.data ?? [];
   const [createUserStory, { isLoading: isCreatingStory }] =
     useCreateUserStoryMutation();
@@ -763,13 +769,13 @@ const ProjectDeatailsScreen = () => {
   };
 
   const {
-    currentData: userStoriesResponse,
+    data: userStoriesResponse,
     isFetching: isStoriesFetching,
     isLoading: isStoriesLoading,
     isError: isStoriesError,
-    refetch: refetchUserStories, // <-- Destructure refetch here
+    refetch: refetchUserStories,
   } = useGetUserStoriesQuery(
-    isFocused && projectId && currentSprintId
+    projectId && currentSprintId
       ? {
           projectId,
           payload: {
@@ -777,9 +783,9 @@ const ProjectDeatailsScreen = () => {
             page_size: PAGE_SIZE,
             sprint_id: currentSprintId,
           },
-          _refetchKey: refetchKey,
         }
       : skipToken,
+    { refetchOnFocus: true },
   );
 
   const userStories = (userStoriesResponse?.data as UserStory[]) ?? [];
@@ -830,16 +836,23 @@ const ProjectDeatailsScreen = () => {
     }));
   });
 
-  // Updated useFocusEffect to dispatch getCustomStatusData and getUserStories on focus
+  // Updated useFocusEffect to refresh without wiping preloaded cache
   useFocusEffect(
     useCallback(() => {
-      setIsFocused(true);
-      setRefetchKey(prev => prev + 1);
-
-      return () => {
-        setIsFocused(false);
-      };
-    }, []),
+      if (projectId) {
+        refetchCustomStatus();
+        refetchUserStoryStatus();
+        if (currentSprintId) {
+          refetchUserStories();
+        }
+      }
+    }, [
+      projectId,
+      currentSprintId,
+      refetchCustomStatus,
+      refetchUserStoryStatus,
+      refetchUserStories,
+    ]),
   );
 
   // Reset pagination and local list on project or sprint changes
@@ -924,25 +937,33 @@ const ProjectDeatailsScreen = () => {
 
   const loadNextPage = useCallback(() => {
     if (
-      !isFocused ||
       !projectId ||
       !currentSprintId ||
-      !userStoryMeta?.has_next ||
-      isStoriesFetching
+      isStoriesFetching ||
+      isFetchingMore
     ) {
       return;
     }
-    if (!userStoryMeta?.has_next) return;
-    if (isStoriesFetching || isFetchingMore) return;
+
+    const hasNext =
+      userStoryMeta?.has_next !== undefined
+        ? userStoryMeta.has_next
+        : userStoryMeta?.total_pages !== undefined
+          ? currentPage < userStoryMeta.total_pages
+          : localUserStories.length >= PAGE_SIZE;
+
+    if (!hasNext) return;
+
     setIsFetchingMore(true);
     setCurrentPage(prev => prev + 1);
   }, [
-    isFocused,
     projectId,
     currentSprintId,
-    userStoryMeta?.has_next,
+    userStoryMeta,
     isStoriesFetching,
     isFetchingMore,
+    currentPage,
+    localUserStories.length,
   ]);
 
   const handleVerticalScroll = useCallback(
@@ -1413,7 +1434,7 @@ const ProjectDeatailsScreen = () => {
         style={{
           position: 'absolute',
           right: 20,
-          bottom: 24,
+          bottom: (insets.bottom > 0 ? insets.bottom + 16 : 24),
           width: 42,
           height: 42,
           borderRadius: 29,

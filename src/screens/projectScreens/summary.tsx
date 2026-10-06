@@ -123,11 +123,11 @@ export const Summary: React.FC = () => {
   }, [colors.background]);
 
   // 6. Early returns are placed AFTER all hooks have executed
-  if (isLoading || deadlinesLoading || projectLoading) {
+  if (!overviewData && (isLoading || deadlinesLoading || projectLoading)) {
     return <SummarySkeleton />;
   }
   if (!overviewData) {
-    return null;
+    return <SummarySkeleton />;
   }
 
   const totalTasks = overviewData?.total_tasks;

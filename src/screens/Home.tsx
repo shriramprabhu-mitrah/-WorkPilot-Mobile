@@ -260,7 +260,7 @@ export const Home: React.FC = () => {
         ? currentMeta.has_next
         : currentMeta?.total_pages !== undefined
           ? currentPage < currentMeta.total_pages
-          : false;
+          : currentList.length >= 10;
 
     if (!hasNextPage) return;
 
@@ -781,7 +781,7 @@ export const Home: React.FC = () => {
           }}
           renderItem={renderListItem}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.2}
+          onEndReachedThreshold={2.5}
           ListFooterComponent={
             showPaginationLoader ? (
               <View className='py-2'>

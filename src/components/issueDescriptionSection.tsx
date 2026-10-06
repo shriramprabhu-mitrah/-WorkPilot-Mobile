@@ -10,12 +10,14 @@ interface Props {
   description: string;
   colors: ThemeColors;
   onEdit: () => void;
+  isLoading?: boolean;
 }
 
 export const IssueDescriptionSection: React.FC<Props> = ({
   description,
   colors,
   onEdit,
+  isLoading = false,
 }) => {
   const { layout } = useAuthLayout();
 
@@ -33,23 +35,38 @@ export const IssueDescriptionSection: React.FC<Props> = ({
         <AppText variant='bodyLarge' color={colors.text} className='font-bold'>
           Description
         </AppText>
-        <TouchableOpacity
-          onPress={onEdit}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name='pencil-sharp'
-            size={layout.iconSize * 0.8}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
+        {!isLoading && (
+          <TouchableOpacity
+            onPress={onEdit}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name='pencil-sharp'
+              size={layout.iconSize * 0.8}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
       </View>
-      <AppText variant='body' color={colors.text} className='leading-6'>
-        {renderParsedHtml(description, {
-          color: colors.text,
-          lineHeight: 22,
-        }) || 'No description provided.'}
-      </AppText>
+      {isLoading ? (
+        <View style={{ gap: 8, paddingVertical: 4 }}>
+          <View
+            className='animate-pulse rounded bg-gray-200 dark:bg-gray-700'
+            style={{ width: '90%', height: 14 }}
+          />
+          <View
+            className='animate-pulse rounded bg-gray-200 dark:bg-gray-700'
+            style={{ width: '65%', height: 14 }}
+          />
+        </View>
+      ) : (
+        <AppText variant='body' color={colors.text} className='leading-6'>
+          {renderParsedHtml(description, {
+            color: colors.text,
+            lineHeight: 22,
+          }) || 'No description provided.'}
+        </AppText>
+      )}
     </View>
   );
 };

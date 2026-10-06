@@ -92,7 +92,13 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
           swipeEnabled: false,
         }}
       />
-      <TopTab.Screen name='List' component={List} />
+      <TopTab.Screen
+        name='List'
+        component={List}
+        options={{
+          swipeEnabled: false,
+        }}
+      />
       <TopTab.Screen name='Report' component={Report} />
       <TopTab.Screen name='Backlogs' component={Backlogs} />
       <TopTab.Screen name='Members' component={Members} />

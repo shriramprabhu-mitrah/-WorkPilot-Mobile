@@ -17,7 +17,7 @@ import {
   emailVerification,
   resendEmailVerification,
 } from '../store/auth_store/action/auth.thunks';
-import { showSuccessToast } from '../utils/utils';
+import { showSnackbar } from '../components/common/Snackbar';
 
 const VerifyEmailScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -67,7 +67,10 @@ const VerifyEmailScreen = () => {
     }
 
     if (!email) {
-      showSuccessToast('Email not found. Please register again.', 'error');
+      showSnackbar({
+        message: 'Email not found. Please register again.',
+        type: 'error',
+      });
       return;
     }
 

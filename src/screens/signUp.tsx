@@ -15,7 +15,7 @@ import PasswordRules from '../components/passwordRules';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { showSuccessToast } from '../utils/utils';
+import { showSnackbar } from '../components/common/Snackbar';
 import { mmkv, useAppDispatch } from '../store';
 import { signUpUser } from '../store/auth_store/action/auth.thunks';
 import { userValidateService } from '../services/auth.service';
@@ -214,7 +214,10 @@ const SignUpScreen = () => {
       const result = await dispatch(signUpUser(formData)).unwrap();
 
       mmkv.set('verificationEmail', email);
-      showSuccessToast(result.message, 'success');
+      showSnackbar({
+        message: result.message || 'Verification email sent',
+        type: 'success',
+      });
       navigation.navigate('verifyEmail');
     } catch (error: any) {
       console.error(error);

@@ -123,7 +123,6 @@ export interface CreateProjectResponse {
 
 export interface CreateProjectThunkParams {
   payload: CreateProjectPayload;
-  showSuccessToast?: (message: string, type: string) => void;
   handleSuccess?: (message?: string) => void;
   handleError?: (message?: string) => void;
 }
@@ -531,7 +530,8 @@ export type UserStoryStatus =
   'todo' | 'in_progress' | 'in_review' | 'testing' | 'completed' | 'blocked';
 
 export interface UpdateUserStoryPayload {
-  assignee_id?: string;
+  assignee_id?: string | null;
+  reporter_id?: string | null;
   description?: string;
   priority?: UserStoryPriority;
   sprint_id?: string;

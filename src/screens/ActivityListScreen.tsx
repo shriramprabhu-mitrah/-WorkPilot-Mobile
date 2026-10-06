@@ -291,7 +291,7 @@ const ActivityListScreen = () => {
             }}
             renderItem={renderActivityItem}
             onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.2}
+            onEndReachedThreshold={2.5}
             ListEmptyComponent={
               !loading ? (
                 <View className='py-10'>

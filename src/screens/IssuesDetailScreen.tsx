@@ -60,6 +60,7 @@ import {
   CreateUserStoryCommentResponse,
 } from '../types/comments.type';
 import {
+  ProjectMember,
   UpdateUserStoryPayload,
   UserStoryPriority,
 } from '../types/project.type';
@@ -67,6 +68,7 @@ import { UpdateTaskPayload } from '../types/task.type';
 import Screen from '../components/common/ScreenWapper';
 import CommonHeader from '../components/common/CommonHeader';
 import AppText from '../components/common/AppText';
+import { showSnackbar } from '../components/common/Snackbar';
 import PopupModel from '../components/Model';
 import { IssueHeaderSection } from '../components/issueHeaderSection';
 import { IssueMetaDetails } from '../components/issueMetaDetails';
@@ -81,6 +83,7 @@ import {
 import {
   useGetCustomStatusQuery,
   useGetUserStoryStatusQuery,
+  useGetProjectMembersQuery,
 } from '../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
 import {
@@ -188,6 +191,14 @@ const IssueDetailScreen = () => {
   const [storyPoints, setStoryPoints] = useState<number>(0);
   const [localDescription, setLocalDescription] = useState<string>('');
   const [storyPointsText, setStoryPointsText] = useState<string>('');
+  const [assignee, setAssignee] = useState<{
+    id: string | null;
+    name: string;
+  } | null>(null);
+  const [reporter, setReporter] = useState<{
+    id: string | null;
+    name: string;
+  } | null>(null);
   const currentItemIdRef = useRef<string | null>(null);
   const [comment, setComment] = useState<string>('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -219,6 +230,17 @@ const IssueDetailScreen = () => {
     ? taskCommentsLoading
     : userStoryCommentsLoading;
 
+  const { data: membersResponse, isLoading: membersLoading } =
+    useGetProjectMembersQuery(
+      projectId
+        ? { project_id: projectId, page: 1, page_size: 50 }
+        : skipToken,
+    );
+
+  const members: ProjectMember[] = useMemo(() => {
+    return (membersResponse?.data as ProjectMember[]) ?? [];
+  }, [membersResponse?.data]);
+
   const tasks = tasksResponse?.data ?? [];
   const tasksMeta = tasksResponse?.meta ?? null;
 
@@ -247,10 +269,33 @@ const IssueDetailScreen = () => {
       const p = currentItem.priority || 'medium';
       const sp = currentItem.story_points || 0;
       const desc = currentItem.description || '';
+      const assName =
+        ('assignee_name' in currentItem && currentItem.assignee_name) ||
+        currentItem.assignee?.name ||
+        currentItem.assignee?.full_name ||
+        'Unassigned';
+      const assId =
+        currentItem.assignee_id ||
+        currentItem.assignee?.id ||
+        currentItem.assignee?.user_id ||
+        null;
+      const repName =
+        ('reporter_name' in currentItem && currentItem.reporter_name) ||
+        currentItem.reporter?.name ||
+        currentItem.reporter?.full_name ||
+        'N/A';
+      const repId =
+        currentItem.reporter_id ||
+        currentItem.reporter?.id ||
+        currentItem.reporter?.user_id ||
+        null;
+
       setPriority(p);
       setStoryPoints(sp);
       setLocalDescription(desc);
       setStoryPointsText(sp.toString());
+      setAssignee({ id: assId, name: assName });
+      setReporter({ id: repId, name: repName });
     }
   }, [currentItem]);
 
@@ -297,31 +342,11 @@ const IssueDetailScreen = () => {
     : (userStoryStatusData?.data ?? []);
 
   useEffect(() => {
-    if (!projectId) {
-      return;
-    }
-    if (projectId && taskId && statusId) {
-      updateTask({
-        projectId,
-        taskId,
-        payload: {
-          status_id: statusId,
-        },
-      });
-    } else if (projectId && userStoryId && statusId) {
-      updateUserStory({
-        projectId,
-        userStoryId,
-        payload: {
-          status_id: statusId,
-        },
-      });
-    }
-  }, [projectId, taskId, userStoryId, statusId, updateTask, updateUserStory]);
-
-  useEffect(() => {
     if (currentItem?.status) {
       setStatus(currentItem.status);
+    }
+    if (currentItem?.status_id) {
+      setStatusId(currentItem.status_id);
     }
   }, [currentItem]);
 
@@ -365,10 +390,12 @@ const IssueDetailScreen = () => {
   const details = useMemo(() => {
     if (!currentItem) return [];
     const assigneeName =
+      assignee?.name ||
       ('assignee_name' in currentItem && currentItem.assignee_name) ||
       currentItem.reporter?.name ||
       'Unassigned';
     const reporterName =
+      reporter?.name ||
       ('reporter_name' in currentItem && currentItem.reporter_name) ||
       currentItem.reporter?.name ||
       'N/A';
@@ -395,7 +422,7 @@ const IssueDetailScreen = () => {
         label: 'Reporter',
         value: reporterName,
         initials:
-          reporterName !== 'N/A'
+          reporterName !== 'N/A' && reporterName !== 'Unassigned'
             ? reporterName
                 .split(' ')
                 .map((n: string) => n[0])
@@ -421,6 +448,8 @@ const IssueDetailScreen = () => {
   }, [
     currentItem,
     colors,
+    assignee,
+    reporter,
     priority,
     storyPoints,
     isDetailsLoading,
@@ -444,6 +473,7 @@ const IssueDetailScreen = () => {
       }
 
       const trimmedDescription = newDescription.trim();
+      const prevDescription = localDescription;
       setLocalDescription(trimmedDescription);
       dispatch(
         setDescription({ issueId: targetId, description: trimmedDescription }),
@@ -455,64 +485,222 @@ const IssueDetailScreen = () => {
           const taskPayload: UpdateTaskPayload = {
             description: trimmedDescription,
           };
-          updateTask({
+          await updateTask({
             projectId,
             taskId,
             payload: taskPayload,
-          });
+          }).unwrap();
+          refetchTask();
         } else if (userStoryId) {
           const userStoryPayload: UpdateUserStoryPayload = {
             description: trimmedDescription,
           };
-          updateUserStory({
+          await updateUserStory({
             projectId,
             userStoryId,
             payload: userStoryPayload,
-          });
+          }).unwrap();
+          refetchUserStory();
         }
-      } catch (error) {
+      } catch (error: any) {
+        setLocalDescription(prevDescription);
+        dispatch(
+          setDescription({ issueId: targetId, description: prevDescription }),
+        );
+        const errorMessage =
+          error?.data?.message ||
+          error?.message ||
+          'Failed to update description';
+        showSnackbar({
+          message: errorMessage,
+          type: 'error',
+        });
         console.error('Failed to update description:', error);
       }
     },
-    [taskId, userStoryId, projectId, updateTask, updateUserStory],
+    [
+      taskId,
+      userStoryId,
+      projectId,
+      localDescription,
+      dispatch,
+      updateTask,
+      updateUserStory,
+      refetchTask,
+      refetchUserStory,
+    ],
   );
 
   const handlePrioritySelect = useCallback(
-    (selectedPriority: string) => {
+    async (selectedPriority: string) => {
+      const prevPriority = priority;
       setPriority(selectedPriority);
       if (!projectId) {
         return;
       }
-      if (taskId) {
-        const taskPayload: UpdateTaskPayload = {
-          priority: selectedPriority,
-        };
-        updateTask({
-          projectId,
-          taskId,
-          payload: taskPayload,
-        });
-      } else if (userStoryId) {
-        const userStoryPayload: UpdateUserStoryPayload = {
-          priority: selectedPriority as UserStoryPriority,
-        };
-        updateUserStory({
-          projectId,
-          userStoryId,
-          payload: userStoryPayload,
+      try {
+        if (taskId) {
+          const taskPayload: UpdateTaskPayload = {
+            priority: selectedPriority,
+          };
+          await updateTask({
+            projectId,
+            taskId,
+            payload: taskPayload,
+          }).unwrap();
+          refetchTask();
+        } else if (userStoryId) {
+          const userStoryPayload: UpdateUserStoryPayload = {
+            priority: selectedPriority as UserStoryPriority,
+          };
+          await updateUserStory({
+            projectId,
+            userStoryId,
+            payload: userStoryPayload,
+          }).unwrap();
+          refetchUserStory();
+        }
+      } catch (error: any) {
+        setPriority(prevPriority);
+        const errorMessage =
+          error?.data?.message ||
+          error?.message ||
+          'Failed to update priority';
+        showSnackbar({
+          message: errorMessage,
+          type: 'error',
         });
       }
     },
-    [taskId, userStoryId, projectId, updateTask, updateUserStory],
+    [
+      taskId,
+      userStoryId,
+      projectId,
+      priority,
+      updateTask,
+      updateUserStory,
+      refetchTask,
+      refetchUserStory,
+    ],
+  );
+
+  const handleAssigneeSelect = useCallback(
+    async (member: ProjectMember | null) => {
+      if (!projectId) return;
+      const prevAssignee = assignee;
+      const targetUserId = member?.user_id ?? null;
+      const newName =
+        member?.full_name || member?.username || 'Unassigned';
+
+      setAssignee({ id: targetUserId, name: newName });
+
+      try {
+        if (taskId) {
+          await updateTask({
+            projectId,
+            taskId,
+            payload: {
+              assignee_id: targetUserId,
+            },
+          }).unwrap();
+          refetchTask();
+        } else if (userStoryId) {
+          await updateUserStory({
+            projectId,
+            userStoryId,
+            payload: {
+              assignee_id: targetUserId,
+            },
+          }).unwrap();
+          refetchUserStory();
+        }
+      } catch (error: any) {
+        setAssignee(prevAssignee);
+        const errorMessage =
+          error?.data?.message ||
+          error?.message ||
+          'Failed to update assignee';
+        showSnackbar({
+          message: errorMessage,
+          type: 'error',
+        });
+      }
+    },
+    [
+      taskId,
+      userStoryId,
+      projectId,
+      assignee,
+      updateTask,
+      updateUserStory,
+      refetchTask,
+      refetchUserStory,
+    ],
+  );
+
+  const handleReporterSelect = useCallback(
+    async (member: ProjectMember | null) => {
+      if (!projectId) return;
+      const prevReporter = reporter;
+      const targetUserId = member?.user_id ?? null;
+      const newName =
+        member?.full_name || member?.username || 'N/A';
+
+      setReporter({ id: targetUserId, name: newName });
+
+      try {
+        if (taskId) {
+          await updateTask({
+            projectId,
+            taskId,
+            payload: {
+              reporter_id: targetUserId,
+            },
+          }).unwrap();
+          refetchTask();
+        } else if (userStoryId) {
+          await updateUserStory({
+            projectId,
+            userStoryId,
+            payload: {
+              reporter_id: targetUserId,
+            },
+          }).unwrap();
+          refetchUserStory();
+        }
+      } catch (error: any) {
+        setReporter(prevReporter);
+        const errorMessage =
+          error?.data?.message ||
+          error?.message ||
+          'Failed to update reporter';
+        showSnackbar({
+          message: errorMessage,
+          type: 'error',
+        });
+      }
+    },
+    [
+      taskId,
+      userStoryId,
+      projectId,
+      reporter,
+      updateTask,
+      updateUserStory,
+      refetchTask,
+      refetchUserStory,
+    ],
   );
 
   const handleStoryPointsBlur = useCallback(
-    (value: string) => {
+    async (value: string) => {
       const parsed = parseInt(value.trim(), 10);
       const sanitized = Number.isNaN(parsed)
         ? 0
         : Math.max(0, Math.min(100, parsed));
       const currentPoints = currentItem?.story_points ?? 0;
+      const prevStoryPoints = storyPoints;
+      const prevStoryPointsText = storyPointsText;
       setStoryPoints(sanitized);
       setStoryPointsText(sanitized.toString());
       if (!projectId) {
@@ -521,34 +709,52 @@ const IssueDetailScreen = () => {
       if (sanitized === currentPoints) {
         return;
       }
-      if (taskId) {
-        const taskPayload: UpdateTaskPayload = {
-          story_points: sanitized,
-        };
-        updateTask({
-          projectId,
-          taskId,
-          payload: taskPayload,
-        });
-      } else if (userStoryId) {
-        const userStoryPayload: UpdateUserStoryPayload = {
-          story_points: sanitized,
-        };
-        updateUserStory({
-          projectId,
-          userStoryId,
-          payload: userStoryPayload,
+      try {
+        if (taskId) {
+          const taskPayload: UpdateTaskPayload = {
+            story_points: sanitized,
+          };
+          await updateTask({
+            projectId,
+            taskId,
+            payload: taskPayload,
+          }).unwrap();
+          refetchTask();
+        } else if (userStoryId) {
+          const userStoryPayload: UpdateUserStoryPayload = {
+            story_points: sanitized,
+          };
+          await updateUserStory({
+            projectId,
+            userStoryId,
+            payload: userStoryPayload,
+          }).unwrap();
+          refetchUserStory();
+        }
+      } catch (error: any) {
+        setStoryPoints(prevStoryPoints);
+        setStoryPointsText(prevStoryPointsText);
+        const errorMessage =
+          error?.data?.message ||
+          error?.message ||
+          'Failed to update story points';
+        showSnackbar({
+          message: errorMessage,
+          type: 'error',
         });
       }
     },
     [
-      dispatch,
       taskId,
       userStoryId,
       projectId,
       currentItem,
+      storyPoints,
+      storyPointsText,
       updateTask,
       updateUserStory,
+      refetchTask,
+      refetchUserStory,
     ],
   );
 
@@ -1040,8 +1246,55 @@ const IssueDetailScreen = () => {
     setStatus(selected);
     setShowStatusPicker(false);
   };
-  const selectStatusId = (selected: string) => {
+  const selectStatusId = async (selected: string) => {
+    if (
+      !selected ||
+      selected === statusId ||
+      (!taskId && !userStoryId) ||
+      !projectId
+    ) {
+      return;
+    }
+    const prevStatus = status;
+    const prevStatusId = statusId;
+    const matched = statuses.find(s => s.id === selected);
+    if (matched?.name) {
+      setStatus(matched.name);
+    }
     setStatusId(selected);
+
+    try {
+      if (taskId) {
+        await updateTask({
+          projectId,
+          taskId,
+          payload: {
+            status_id: selected,
+          },
+        }).unwrap();
+        refetchTask();
+      } else if (userStoryId) {
+        await updateUserStory({
+          projectId,
+          userStoryId,
+          payload: {
+            status_id: selected,
+          },
+        }).unwrap();
+        refetchUserStory();
+      }
+    } catch (error: any) {
+      setStatus(prevStatus);
+      setStatusId(prevStatusId);
+      const errorMessage =
+        error?.data?.message ||
+        error?.message ||
+        'Failed to update status';
+      showSnackbar({
+        message: errorMessage,
+        type: 'error',
+      });
+    }
   };
 
   return (
@@ -1096,6 +1349,7 @@ const IssueDetailScreen = () => {
               onToggleStatusPicker={toggleStatusPicker}
               onSelectStatus={selectStatus}
               onSelectId={selectStatusId}
+              isLoading={isDetailsLoading}
             />
             <IssueMetaDetails
               details={details}
@@ -1103,8 +1357,14 @@ const IssueDetailScreen = () => {
               editableFields={{
                 priority: true,
                 storyPoints: true,
+                assignee: true,
+                reporter: true,
               }}
               onPrioritySelect={handlePrioritySelect}
+              onAssigneeSelect={handleAssigneeSelect}
+              onReporterSelect={handleReporterSelect}
+              members={members}
+              membersLoading={membersLoading}
               storyPointsInputProps={{
                 value: storyPointsText,
                 onChangeText: setStoryPointsText,
@@ -1116,6 +1376,7 @@ const IssueDetailScreen = () => {
               description={currentDescription}
               colors={colors}
               onEdit={handleOpenEditModal}
+              isLoading={isDetailsLoading}
             />
             <IssueAttachments
               colors={colors}
