@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -96,6 +97,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
   const [hasMoreStories, setHasMoreStories] = useState(true);
+  const lastRequestedPageRef = useRef(1);
 
   // Store Selectors
   const {
@@ -113,6 +115,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
     if (!sprintId || !projectId) return;
 
     setCurrentPage(1);
+    lastRequestedPageRef.current = 1;
     setHasMoreStories(true);
 
     dispatch(
@@ -221,12 +224,17 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
       !sprintId ||
       loading ||
       isFetchingMore ||
-      !hasMoreStories
+      !hasMoreStories ||
+      storiesData.length === 0
     ) {
       return;
     }
 
     const nextPage = currentPage + 1;
+    if (lastRequestedPageRef.current === nextPage) {
+      return;
+    }
+    lastRequestedPageRef.current = nextPage;
 
     dispatch(
       getUserStories({
@@ -243,14 +251,20 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
       .unwrap()
       .then(response => {
         const newStories = response?.response?.data ?? [];
+        const meta = response?.response?.meta;
 
         setCurrentPage(nextPage);
 
-        if (newStories.length < PAGE_SIZE) {
+        if (meta?.has_next !== undefined) {
+          if (!meta.has_next) setHasMoreStories(false);
+        } else if (meta?.total_pages !== undefined) {
+          if (nextPage >= meta.total_pages) setHasMoreStories(false);
+        } else if (newStories.length === 0) {
           setHasMoreStories(false);
         }
       })
       .catch(error => {
+        lastRequestedPageRef.current = currentPage;
         console.error('Failed to fetch more user stories:', error);
       });
   }, [
@@ -259,6 +273,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
     loading,
     isFetchingMore,
     hasMoreStories,
+    storiesData.length,
     currentPage,
     dispatch,
   ]);
@@ -880,7 +895,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({
           }}
           ListHeaderComponent={ListHeaderComponent}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={2.5}
           ListEmptyComponent={
             !loading && !isFetchingMore ? (
               <View

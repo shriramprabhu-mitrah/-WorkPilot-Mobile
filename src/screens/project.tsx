@@ -45,7 +45,7 @@ const ProjectScreen = () => {
   const [createProjectModalVisible, setCreateProjectModalVisible] =
     useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const isMomentumScroll = useRef(false);
+  const lastRequestedPageRef = useRef(1);
 
   const dispatch = useAppDispatch();
   const { projects, loading, isFetchingMore, page, hasMore } = useAppSelector(
@@ -55,6 +55,7 @@ const ProjectScreen = () => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
+      lastRequestedPageRef.current = 1;
       setDebouncedSearch(search);
     }, 300);
 
@@ -75,11 +76,13 @@ const ProjectScreen = () => {
   );
 
   useEffect(() => {
+    lastRequestedPageRef.current = 1;
     fetchProjects(1, debouncedSearch);
   }, [fetchProjects, debouncedSearch]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    lastRequestedPageRef.current = 1;
     await dispatch(
       getAllProjectInfo({
         page: 1,
@@ -91,9 +94,11 @@ const ProjectScreen = () => {
   };
 
   const handleLoadMore = () => {
-    if (isMomentumScroll.current && !loading && !isFetchingMore && hasMore) {
-      fetchProjects(page + 1, debouncedSearch);
-      isMomentumScroll.current = false;
+    if (!loading && !isFetchingMore && hasMore && projects.length > 0) {
+      const nextPage = page + 1;
+      if (lastRequestedPageRef.current === nextPage) return;
+      lastRequestedPageRef.current = nextPage;
+      fetchProjects(nextPage, debouncedSearch);
     }
   };
 
@@ -265,11 +270,8 @@ const ProjectScreen = () => {
               onToggleStar={() => toggleStar(item.id)}
             />
           )}
-          onMomentumScrollBegin={() => {
-            isMomentumScroll.current = true;
-          }}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.2}
+          onEndReachedThreshold={2.5}
           ListFooterComponent={renderFooter}
           refreshing={refreshing}
           onRefresh={handleRefresh}

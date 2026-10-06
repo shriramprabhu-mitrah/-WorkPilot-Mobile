@@ -69,7 +69,7 @@ export const createNewProject = createAsyncThunk<
 >(
   'project/create',
   async (
-    { payload, showSuccessToast, handleSuccess, handleError },
+    { payload, handleSuccess, handleError },
     { dispatch, rejectWithValue },
   ) => {
     try {
@@ -77,12 +77,10 @@ export const createNewProject = createAsyncThunk<
       console.log('Create Project Response:', response);
       if (response.success) {
         const msg = response.message || 'Project created successfully';
-        showSuccessToast?.(msg, 'success');
         handleSuccess?.(msg);
         return response;
       }
       const errMsg = response.message || 'Failed to create project';
-      showSuccessToast?.(errMsg, 'error');
       handleError?.(errMsg);
       return rejectWithValue(errMsg);
     } catch (error: any) {
@@ -90,7 +88,6 @@ export const createNewProject = createAsyncThunk<
         error?.response?.data?.message ||
         error?.message ||
         'Failed to create project';
-      showSuccessToast?.(errMsg, 'error');
       handleError?.(errMsg);
       return rejectWithValue(errMsg);
     } finally {

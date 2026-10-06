@@ -217,7 +217,13 @@ const projectSlice = createSlice({
 
         const fetchedProjects = action.payload.response.data || [];
         const currentPage = action.payload.page;
-        const totalPages = action.payload.response?.meta?.total_pages ?? 1;
+        const meta = action.payload.response?.meta;
+        const hasNext =
+          meta?.has_next !== undefined
+            ? meta.has_next
+            : meta?.total_pages !== undefined
+              ? currentPage < meta.total_pages
+              : fetchedProjects.length >= ((action.payload as any)?.page_size || 10);
 
         if (currentPage === 1) {
           state.projects = fetchedProjects;
@@ -230,7 +236,7 @@ const projectSlice = createSlice({
         }
 
         state.page = currentPage;
-        state.hasMore = currentPage < totalPages;
+        state.hasMore = Boolean(hasNext);
       })
 
       .addCase(getAllProjectInfo.rejected, (state, action) => {

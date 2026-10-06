@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -46,6 +46,7 @@ export const IssueChildTasksSection: React.FC<Props> = ({
   const { layout } = useAuthLayout();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+  const lastRequestedPageRef = useRef(1);
   const taskCount = meta?.total_items ?? tasks.length;
   const visibleTasks = isExpanded ? tasks : tasks.slice(0, 4);
 
@@ -58,6 +59,7 @@ export const IssueChildTasksSection: React.FC<Props> = ({
   };
 
   const handleTaskCreated = () => {
+    lastRequestedPageRef.current = 1;
     if (projectId && userStoryId) {
       dispatch(
         getTasks({
@@ -194,18 +196,30 @@ export const IssueChildTasksSection: React.FC<Props> = ({
   };
 
   const handleEndReached = () => {
+    const hasNext =
+      meta?.has_next !== undefined
+        ? meta.has_next
+        : meta?.total_pages !== undefined
+          ? (meta.page || 1) < meta.total_pages
+          : tasks.length >= (meta?.page_size || 8);
+
     if (
       !loadingMore &&
       !loading &&
-      meta?.has_next &&
+      hasNext &&
       projectId &&
-      userStoryId
+      userStoryId &&
+      tasks.length > 0
     ) {
+      const nextPage = (meta?.page || 1) + 1;
+      if (lastRequestedPageRef.current === nextPage) return;
+      lastRequestedPageRef.current = nextPage;
+
       dispatch(
         getTasks({
           projectId,
-          page: meta.page + 1,
-          page_size: meta.page_size || 8,
+          page: nextPage,
+          page_size: meta?.page_size || 8,
           user_story_id: userStoryId,
         }),
       );
@@ -309,7 +323,7 @@ export const IssueChildTasksSection: React.FC<Props> = ({
             showsVerticalScrollIndicator={true}
             persistentScrollbar={true}
             onEndReached={handleEndReached}
-            onEndReachedThreshold={0.5}
+            onEndReachedThreshold={2.5}
             ListFooterComponent={renderFooter}
           />
         </View>

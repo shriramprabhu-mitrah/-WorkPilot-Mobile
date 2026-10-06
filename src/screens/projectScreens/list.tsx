@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, FlatList, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -8,8 +8,13 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
 import { WorkItemIcon } from '../../components/common/getWorkItemIcon';
-import { RootState, useAppSelector } from '../../store';
+import { RootState, useAppDispatch, useAppSelector } from '../../store';
 import { useGetUserStoriesQuery } from '../../store/api/projectApi';
+import {
+  favouriteUserStoryThunk,
+  unfavouriteUserStoryThunk,
+} from '../../store/project_store/action/projectBoard.thunk';
+import { showSnackbar } from '../../components/common/Snackbar';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { UserStory } from '../../types/project.type';
 import ListSkeleton from '../../components/skeleton/ListSkeleton';
@@ -20,11 +25,13 @@ const List = () => {
   const { colors } = useTheme();
   const { moderateScale, layout } = useAuthLayout();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const dispatch = useAppDispatch();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isFocusLoading, setIsFocusLoading] = useState(false);
   const [allStories, setAllStories] = useState<UserStory[]>([]);
+  const [hasNoMore, setHasNoMore] = useState(false);
+  const lastRequestedPageRef = useRef(1);
 
   // 1. Stable Primitive Selectors
   const projectId = useAppSelector(
@@ -39,13 +46,14 @@ const List = () => {
       (state.projects.currentSprint as any)?._id?.toString(),
   );
 
-  // 2. Query runs only when the screen is focused
+  // 2. Query reads from cache immediately if preloaded by parent
   const {
     data: userStoriesResponse,
     isLoading: userStoriesLoading,
     isFetching: userStoriesFetching,
+    refetch: refetchUserStories,
   } = useGetUserStoriesQuery(
-    isFocusLoading && projectId && activeSprintId
+    projectId && activeSprintId
       ? {
           projectId,
           payload: {
@@ -58,23 +66,32 @@ const List = () => {
     { refetchOnFocus: true },
   );
 
-  // 3. Screen focus lifecycle
+  // 3. Screen focus lifecycle - refresh without wiping preloaded cache
   useFocusEffect(
     useCallback(() => {
-      setIsFocusLoading(true);
-      setCurrentPage(1);
-      setAllStories([]);
-
-      return () => {
-        setIsFocusLoading(false);
-      };
-    }, []),
+      if (projectId && activeSprintId) {
+        refetchUserStories();
+      }
+    }, [projectId, activeSprintId, refetchUserStories]),
   );
 
   // 4. Append paginated API data
   useEffect(() => {
     if (!userStoriesResponse?.data) return;
-    const incomingStories = userStoriesResponse.data as UserStory[];
+    const incomingStories = (userStoriesResponse.data as UserStory[]) || [];
+    if (incomingStories.length === 0 && currentPage > 1) {
+      setHasNoMore(true);
+      return;
+    }
+    if (userStoriesResponse.meta?.has_next === false) {
+      setHasNoMore(true);
+    } else if (
+      userStoriesResponse.meta?.total_pages &&
+      currentPage >= userStoriesResponse.meta.total_pages
+    ) {
+      setHasNoMore(true);
+    }
+
     if (currentPage === 1) {
       setAllStories(incomingStories);
     } else {
@@ -88,20 +105,27 @@ const List = () => {
     }
   }, [userStoriesResponse, currentPage]);
 
-  const userStories = allStories;
+  const rawStories = (userStoriesResponse?.data as UserStory[] | undefined) ?? [];
+  const userStories = allStories.length > 0 ? allStories : rawStories;
   const userStoryMeta = userStoriesResponse?.meta ?? null;
 
   // Show full skeleton only on cold initial fetch (no cached data yet)
 
   const handleLoadMore = useCallback(() => {
-    if (
-      !userStoriesFetching &&
-      userStoryMeta?.has_next &&
-      userStories.length > 0
-    ) {
-      setCurrentPage(prev => prev + 1);
+    const hasNext =
+      userStoryMeta?.has_next !== undefined
+        ? userStoryMeta.has_next
+        : userStoryMeta?.total_pages !== undefined
+          ? currentPage < userStoryMeta.total_pages
+          : !hasNoMore;
+
+    if (!userStoriesFetching && hasNext && userStories.length > 0) {
+      const nextPage = currentPage + 1;
+      if (lastRequestedPageRef.current === nextPage) return;
+      lastRequestedPageRef.current = nextPage;
+      setCurrentPage(nextPage);
     }
-  }, [userStoriesFetching, userStoryMeta?.has_next, userStories.length]);
+  }, [userStoriesFetching, userStoryMeta, hasNoMore, userStories.length, currentPage]);
 
   const filteredStories = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -121,6 +145,50 @@ const List = () => {
       );
     });
   }, [userStories, searchQuery]);
+
+  const handleToggleStoryFavorite = useCallback(
+    async (storyId: string) => {
+      if (!projectId) return;
+      const story = userStories.find(s => s.id === storyId);
+      const currentFav = story?.is_favourite ?? false;
+      const nextFav = !currentFav;
+
+      // Optimistic update
+      setAllStories(prev => {
+        const baseList = prev.length > 0 ? prev : rawStories;
+        return baseList.map(s =>
+          s.id === storyId ? { ...s, is_favourite: nextFav } : s,
+        );
+      });
+
+      try {
+        if (currentFav) {
+          await dispatch(
+            unfavouriteUserStoryThunk({ projectId, userStoryId: storyId }),
+          ).unwrap();
+        } else {
+          await dispatch(
+            favouriteUserStoryThunk({ projectId, userStoryId: storyId }),
+          ).unwrap();
+        }
+
+        refetchUserStories();
+      } catch {
+        // Rollback on failure
+        setAllStories(prev => {
+          const baseList = prev.length > 0 ? prev : rawStories;
+          return baseList.map(s =>
+            s.id === storyId ? { ...s, is_favourite: currentFav } : s,
+          );
+        });
+        showSnackbar({
+          message: 'Failed to update favourite',
+          type: 'error',
+        });
+      }
+    },
+    [dispatch, projectId, userStories, rawStories, refetchUserStories],
+  );
 
   const getPriorityConfig = useCallback(
     (priority?: string) => {
@@ -290,7 +358,7 @@ const List = () => {
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
           ItemSeparatorComponent={() => <View className='h-3' />}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={2.5}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmptyState}
           ListFooterComponent={renderFooter}
@@ -380,6 +448,31 @@ const List = () => {
                       {item.status}
                     </AppText>
                   </View>
+
+                  {/* Favorite Star Button */}
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={e => {
+                      e.stopPropagation();
+                      handleToggleStoryFavorite(item.id);
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={{
+                      padding: 4,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name={item.is_favourite ? 'star' : 'star-outline'}
+                      size={moderateScale(18)}
+                      color={
+                        item.is_favourite
+                          ? colors.warning
+                          : colors.textSecondary
+                      }
+                    />
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             );

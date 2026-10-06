@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Modal,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import AppText from './AppText';
 import AppInput from './Input/AppInput';
 import ProjectCard from '../common/ProjectCard';
@@ -86,6 +86,10 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const [page, setPage] = useState(1);
   const [refetchKey, setRefetchKey] = useState(0);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [allSprints, setAllSprints] = useState<any[]>([]);
+  const [hasNoMore, setHasNoMore] = useState(false);
+  const lastRequestedPageRef = useRef(1);
   const isSprint = mode === 'sprints';
 
   const [localSnackbarVisible, setLocalSnackbarVisible] = useState(false);
@@ -113,7 +117,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     isLoading: isProjectsLoading,
     isFetching: isProjectsFetching,
   } = useGetProjectsQuery(
-    { page, _refetchKey: refetchKey },
+    { page, page_size: 10, _refetchKey: refetchKey },
     { skip: !visible || isSprint },
   );
 
@@ -123,25 +127,100 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     isLoading: isSprintsLoading,
     isFetching: isSprintsFetching,
   } = useGetSprintsQuery(
-    { project_id: resolvedProjectId!, page, _refetchKey: refetchKey },
+    {
+      project_id: resolvedProjectId!,
+      page,
+      page_size: 10,
+      _refetchKey: refetchKey,
+    },
     { skip: !visible || !isSprint || !resolvedProjectId },
   );
 
-  // Extract list data
+  // Extract raw response data
   const projectsData = projectsResponse?.data || [];
   const sprintsData = sprintsResponse?.data || [];
 
+  // Append paginated projects data
+  useEffect(() => {
+    if (!projectsResponse?.data) return;
+    const incoming = Array.isArray(projectsResponse.data)
+      ? projectsResponse.data
+      : [];
+    if (incoming.length === 0 && page > 1) {
+      setHasNoMore(true);
+      return;
+    }
+    if (projectsResponse.meta?.has_next === false) {
+      setHasNoMore(true);
+    } else if (
+      projectsResponse.meta?.total_pages &&
+      page >= projectsResponse.meta.total_pages
+    ) {
+      setHasNoMore(true);
+    }
+    if (page === 1) {
+      setAllProjects(incoming);
+    } else {
+      setAllProjects(prev => {
+        const existingIds = new Set(
+          prev.map((p: any) => p.id?.toString() || p._id?.toString()),
+        );
+        const unique = incoming.filter(
+          (p: any) => !existingIds.has(p.id?.toString() || p._id?.toString()),
+        );
+        return [...prev, ...unique];
+      });
+    }
+  }, [projectsResponse, page]);
+
+  // Append paginated sprints data
+  useEffect(() => {
+    if (!sprintsResponse?.data) return;
+    const incoming = Array.isArray(sprintsResponse.data)
+      ? sprintsResponse.data
+      : [];
+    if (incoming.length === 0 && page > 1) {
+      setHasNoMore(true);
+      return;
+    }
+    if (sprintsResponse.meta?.has_next === false) {
+      setHasNoMore(true);
+    } else if (
+      sprintsResponse.meta?.total_pages &&
+      page >= sprintsResponse.meta.total_pages
+    ) {
+      setHasNoMore(true);
+    }
+    if (page === 1) {
+      setAllSprints(incoming);
+    } else {
+      setAllSprints(prev => {
+        const existingIds = new Set(
+          prev.map((s: any) => s.id?.toString() || s._id?.toString()),
+        );
+        const unique = incoming.filter(
+          (s: any) => !existingIds.has(s.id?.toString() || s._id?.toString()),
+        );
+        return [...prev, ...unique];
+      });
+    }
+  }, [sprintsResponse, page]);
+
   const listData = useMemo(() => {
     if (!isSprint) {
-      return projectsData || [];
+      return allProjects.length > 0 ? allProjects : projectsData;
     }
 
-    const apiList =
-      sprintsData.length > 0 ? sprintsData : project?.sprints || [];
+    const currentSprints =
+      allSprints.length > 0
+        ? allSprints
+        : sprintsData.length > 0
+          ? sprintsData
+          : project?.sprints || [];
 
     if (
       sprintsName &&
-      !apiList.some((item: any) => item.name === sprintsName)
+      !currentSprints.some((item: any) => item.name === sprintsName)
     ) {
       return [
         {
@@ -149,29 +228,49 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
           name: sprintsName,
           isTemporary: true,
         },
-        ...apiList,
+        ...currentSprints,
       ];
     }
 
-    return apiList;
-  }, [isSprint, projectsData, sprintsData, sprintsName, project?.sprints]);
+    return currentSprints;
+  }, [
+    isSprint,
+    allProjects,
+    projectsData,
+    allSprints,
+    sprintsData,
+    sprintsName,
+    project?.sprints,
+  ]);
 
   // Pagination meta
-  const currentMeta = isSprint ? sprintsResponse?.meta : projectsResponse?.meta;
+  const currentMeta = isSprint
+    ? sprintsResponse?.meta ??
+      (sprintsResponse as any)?.pagination ??
+      (sprintsResponse as any)?.data?.meta ??
+      (sprintsResponse as any)?.data?.pagination
+    : projectsResponse?.meta ??
+      (projectsResponse as any)?.pagination ??
+      (projectsResponse as any)?.data?.meta ??
+      (projectsResponse as any)?.data?.pagination;
+
+  const totalLoaded = isSprint ? allSprints.length : allProjects.length;
 
   const rtkHasMore =
     currentMeta?.has_next !== undefined
-      ? currentMeta.has_next
+      ? Boolean(currentMeta.has_next)
       : currentMeta?.total_pages !== undefined
         ? page < currentMeta.total_pages
-        : false;
+        : currentMeta?.total_items !== undefined
+          ? totalLoaded < currentMeta.total_items
+          : !hasNoMore;
 
   const isCurrentFetching = isSprint ? isSprintsFetching : isProjectsFetching;
   const isCurrentLoading = isSprint ? isSprintsLoading : isProjectsLoading;
 
   const isFirstTime = isSprint
-    ? sprintsResponse === undefined
-    : projectsResponse === undefined;
+    ? allSprints.length === 0 && sprintsResponse === undefined
+    : allProjects.length === 0 && projectsResponse === undefined;
   const showSkeleton =
     isFirstTime && (isCurrentLoading || isCurrentFetching) && page === 1;
 
@@ -181,28 +280,40 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const effectiveHasMore = hasMoreProp ?? rtkHasMore;
   const effectiveIsFetchingMore = isFetchingMoreProp || reduxIsFetchingMore;
 
-  useFocusEffect(
-    useCallback(() => {
-      if (visible) {
-        setPage(1);
-        setRefetchKey(prev => prev + 1);
-      }
-    }, [visible, mode, resolvedProjectId]),
-  );
+  useEffect(() => {
+    if (visible) {
+      setPage(1);
+      lastRequestedPageRef.current = 1;
+      setHasNoMore(false);
+      setAllProjects([]);
+      setAllSprints([]);
+      setRefetchKey(prev => prev + 1);
+    }
+  }, [visible, mode, resolvedProjectId]);
 
   const handleLoadMore = useCallback(() => {
     if (search.trim() !== '') return;
-    if (loading || effectiveIsFetchingMore || !effectiveHasMore) return;
+    if (
+      isCurrentFetching ||
+      isCurrentLoading ||
+      !effectiveHasMore ||
+      listData.length === 0
+    ) {
+      return;
+    }
 
     const nextPage = page + 1;
-    setPage(nextPage);
+    if (lastRequestedPageRef.current === nextPage) return;
+    lastRequestedPageRef.current = nextPage;
 
+    setPage(nextPage);
     onEndReachedProp?.();
   }, [
     search,
-    loading,
-    effectiveIsFetchingMore,
+    isCurrentFetching,
+    isCurrentLoading,
     effectiveHasMore,
+    listData.length,
     page,
     onEndReachedProp,
   ]);
@@ -493,7 +604,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                 );
               }}
               onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.1}
+              onEndReachedThreshold={2.5}
               ListFooterComponent={
                 effectiveIsFetchingMore ? (
                   <View className='items-center justify-center py-4'>

@@ -18,6 +18,7 @@ import {
 import { pick, types } from '@react-native-documents/picker';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { moderateScale } from '../utils/responsive';
 import { Radius } from '../constants/Radius';
 import {
@@ -28,7 +29,6 @@ import {
 import AppText from './common/AppText';
 import AppInput from './common/Input/AppInput';
 import { useAppDispatch, useAppSelector } from '../store';
-import { showSuccessToast } from '../utils/utils';
 import {
   getAllProjectInfo,
   createNewProject,
@@ -101,6 +101,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 }) => {
   const { colors } = useTheme();
   const { layout, isSmallHeight } = useAuthLayout();
+  const insets = useSafeAreaInsets();
   const editorRef = useRef<RichEditor>(null);
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
@@ -319,7 +320,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     dispatch(
       createNewProject({
         payload,
-        showSuccessToast,
         handleSuccess: handleProjectSuccess,
         handleError: (errMsg?: string) => {
           showLocalSnackbar(errMsg || 'Failed to create project', 'error');
@@ -378,7 +378,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         <TouchableWithoutFeedback onPress={handleClose}>
           <View
             className='flex-1 items-center justify-center px-4'
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              paddingTop: Math.max(insets.top, moderateScale(24)),
+              paddingBottom: Math.max(insets.bottom, moderateScale(24)),
+            }}
           >
             <TouchableWithoutFeedback onPress={() => setActiveDropdown(null)}>
               <View
@@ -390,7 +394,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                   maxWidth: moderateScale(420),
                   borderRadius: Radius.lg || moderateScale(16),
                   overflow: 'hidden',
-                  maxHeight: '85%',
+                  maxHeight: '100%',
                 }}
               >
                 {/* Header Section */}
@@ -895,7 +899,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         message={localSnackbarMessage}
         type={localSnackbarType}
         duration={3500}
-        bottomOffset={moderateScale(20)}
+        bottomOffset={Math.max(insets.bottom, moderateScale(20))}
       />
     </Modal>
   );

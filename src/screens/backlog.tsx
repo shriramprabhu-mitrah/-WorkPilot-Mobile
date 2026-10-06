@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, FlatList, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -38,6 +38,8 @@ export const Backlogs = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isCreateStoryVisible, setIsCreateStoryVisible] = useState(false);
   const [allStories, setAllStories] = useState<UserStory[]>([]);
+  const [hasNoMore, setHasNoMore] = useState(false);
+  const lastRequestedPageRef = useRef(1);
 
   // Expanded state map for toggling nested tasks per user story
   const [expandedStoryIds, setExpandedStoryIds] = useState<
@@ -62,7 +64,7 @@ export const Backlogs = () => {
     isFetching: backlogUserStoryFetching,
     refetch: refetchBacklog,
   } = useGetUserStoriesQuery(
-    isFocusLoading && projectId
+    projectId
       ? {
           projectId,
           payload: {
@@ -70,21 +72,18 @@ export const Backlogs = () => {
             page_size: 10,
             sprint_id: null,
           },
-          _refetchKey: refetchKey,
         }
       : skipToken,
+    { refetchOnFocus: true },
   );
 
   // Fetch backlog stories on focus
   useFocusEffect(
     useCallback(() => {
-      setIsFocusLoading(true);
-      setRefetchKey(prev => prev + 1);
-
-      return () => {
-        setIsFocusLoading(false);
-      };
-    }, []),
+      if (projectId) {
+        refetchBacklog();
+      }
+    }, [projectId, refetchBacklog]),
   );
 
   useEffect(() => {
@@ -95,7 +94,20 @@ export const Backlogs = () => {
 
   useEffect(() => {
     if (!backlogUserStories?.data) return;
-    const incomingStories = backlogUserStories.data as UserStory[];
+    const incomingStories = (backlogUserStories.data as UserStory[]) || [];
+    if (incomingStories.length === 0 && page > 1) {
+      setHasNoMore(true);
+      return;
+    }
+    if (backlogUserStories.meta?.has_next === false) {
+      setHasNoMore(true);
+    } else if (
+      backlogUserStories.meta?.total_pages &&
+      page >= backlogUserStories.meta.total_pages
+    ) {
+      setHasNoMore(true);
+    }
+
     if (page === 1) {
       setAllStories(incomingStories);
     } else {
@@ -151,15 +163,27 @@ export const Backlogs = () => {
   };
 
   const handleLoadMore = async () => {
+    const hasNext =
+      backlogUserStories?.meta?.has_next !== undefined
+        ? Boolean(backlogUserStories.meta.has_next)
+        : backlogUserStories?.meta?.total_pages !== undefined
+          ? page < backlogUserStories.meta.total_pages
+          : !hasNoMore;
+
     if (
       !backlogUserStoryLoading &&
       !isFetchingNextPage &&
       !isInitialLoading &&
-      backlogUserStories?.meta?.has_next &&
-      projectId
+      hasNext &&
+      projectId &&
+      allStories.length > 0
     ) {
+      const nextPage = page + 1;
+      if (lastRequestedPageRef.current === nextPage) return;
+      lastRequestedPageRef.current = nextPage;
+
       setIsFetchingNextPage(true);
-      setPage(prev => prev + 1);
+      setPage(nextPage);
     }
   };
 
@@ -170,7 +194,10 @@ export const Backlogs = () => {
     }));
   }, []);
 
-  const rawStories = useMemo(() => allStories, [allStories]);
+  const rawStories = useMemo(
+    () => (allStories.length > 0 ? allStories : ((backlogUserStories?.data as UserStory[]) || [])),
+    [allStories, backlogUserStories?.data],
+  );
   const filteredStories = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return rawStories;
@@ -318,21 +345,16 @@ export const Backlogs = () => {
                 }
                 style={{ gap: layout.elementGap }}
               >
-                {/* Left Icon Box */}
+                {/* Left Avatar Icon Box */}
                 <View
-                  className='items-center justify-center'
+                  className='items-center justify-center rounded-lg'
                   style={{
-                    width: moderateScale(38),
-                    height: moderateScale(38),
-                    backgroundColor: colors.primary,
-                    borderRadius: Radius.sm,
+                    width: moderateScale(30),
+                    height: moderateScale(30),
+                    backgroundColor: colors.surface,
                   }}
                 >
-                  <WorkItemIcon
-                    type='userStory'
-                    size={18}
-                    color={colors.white}
-                  />
+                  <WorkItemIcon type='user_story' size={moderateScale(20)} />
                 </View>
 
                 {/* Middle Story Details */}
@@ -621,7 +643,7 @@ export const Backlogs = () => {
           paddingBottom: hp(20),
         }}
         onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
+        onEndReachedThreshold={2.5}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmptyState}
       />

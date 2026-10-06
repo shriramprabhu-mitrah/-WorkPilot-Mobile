@@ -23,8 +23,17 @@ import { RootState, useAppDispatch, useAppSelector } from '../store';
 import {
   useGetProjectByIdQuery,
   useGetSprintByIdQuery,
+  useGetSprintsQuery,
+  useGetProjectOverviewQuery,
+  useGetUpcomingDeadlinesQuery,
+  useGetCustomStatusQuery,
+  useGetUserStoryStatusQuery,
+  useGetUserStoriesQuery,
+  useGetBurndownChartQuery,
+  useGetTeamWorkloadQuery,
+  useGetWeeklyProgressQuery,
+  useGetProjectMembersQuery,
 } from '../store/api/projectApi';
-import { useGetSprintsQuery } from '../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { ViewState } from '../screens/projectScreens/setting';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
@@ -86,6 +95,114 @@ const ProjectDetails: React.FC = () => {
   } = useGetSprintByIdQuery(
     currentSprintIdState && routeProjectId
       ? { project_id: routeProjectId, sprint_id: currentSprintIdState }
+      : skipToken,
+  );
+
+  // ---------------------------------------------------------------------------
+  // Preload GET API queries for all tabs (Summary, Board, List, Report, Backlogs, Members)
+  // so content is immediately available when the user switches tabs smoothly.
+  // ---------------------------------------------------------------------------
+  const todayStr = useMemo(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const effectiveProjectId = routeProjectId || projectDetails?.id?.toString() || (projectDetails as any)?._id?.toString();
+
+  // 1. Summary Tab Preload
+  useGetProjectOverviewQuery(
+    effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
+  );
+  useGetUpcomingDeadlinesQuery(
+    effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
+  );
+
+  // 2. Board Tab Preload
+  useGetCustomStatusQuery(
+    effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
+  );
+  useGetUserStoryStatusQuery(
+    effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
+  );
+  useGetUserStoriesQuery(
+    effectiveProjectId && currentSprintIdState
+      ? {
+          projectId: effectiveProjectId,
+          payload: {
+            page: 1,
+            page_size: 5,
+            sprint_id: currentSprintIdState,
+          },
+        }
+      : skipToken,
+  );
+
+  // 3. List Tab Preload
+  useGetUserStoriesQuery(
+    effectiveProjectId && currentSprintIdState
+      ? {
+          projectId: effectiveProjectId,
+          payload: {
+            page: 1,
+            page_size: 10,
+            sprint_id: currentSprintIdState,
+          },
+        }
+      : skipToken,
+  );
+
+  // 4. Report Tab Preload
+  useGetBurndownChartQuery(
+    effectiveProjectId
+      ? {
+          projectId: effectiveProjectId,
+          sprintId: currentSprintIdState || undefined,
+        }
+      : skipToken,
+  );
+  useGetTeamWorkloadQuery(
+    effectiveProjectId
+      ? {
+          projectId: effectiveProjectId,
+          sprintId: currentSprintIdState || undefined,
+        }
+      : skipToken,
+  );
+  useGetWeeklyProgressQuery(
+    effectiveProjectId
+      ? {
+          projectId: effectiveProjectId,
+          start_date: todayStr,
+          end_date: todayStr,
+        }
+      : skipToken,
+  );
+
+  // 5. Backlogs Tab Preload
+  useGetUserStoriesQuery(
+    effectiveProjectId
+      ? {
+          projectId: effectiveProjectId,
+          payload: {
+            page: 1,
+            page_size: 10,
+            sprint_id: null,
+          },
+        }
+      : skipToken,
+  );
+
+  // 6. Members Tab Preload
+  useGetProjectMembersQuery(
+    effectiveProjectId
+      ? {
+          project_id: effectiveProjectId,
+          page: 1,
+          page_size: 10,
+        }
       : skipToken,
   );
 

@@ -6,6 +6,9 @@ export interface UpdateTaskPayload {
   priority?: string;
   story_points?: number;
   description?: string;
+  assignee_id?: string | null;
+  reporter_id?: string | null;
+  title?: string;
 }
 
 export interface UpdateTaskResponse {

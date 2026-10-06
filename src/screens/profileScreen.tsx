@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -87,6 +87,7 @@ const ProfileScreen = () => {
   const [isActivityFullScreen, setIsActivityFullScreen] = useState(false);
   const [isProjectSheetVisible, setIsProjectSheetVisible] = useState(false);
   const [activityPage, setActivityPage] = useState(1);
+  const lastRequestedPageRef = useRef(1);
   const profileIcons = strings.profile?.icons;
 
   const { user } = useAppSelector(state => state.auth);
@@ -133,6 +134,7 @@ const ProfileScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
+      lastRequestedPageRef.current = 1;
       setActivityPage(1);
     }, []),
   );
@@ -158,13 +160,17 @@ const ProfileScreen = () => {
       meta?.has_next ??
       (meta?.total_pages !== undefined
         ? activityPage < meta.total_pages
-        : true);
+        : activities.length >= 10);
 
     if (!hasNextPage) {
       return;
     }
 
-    setActivityPage(previousPage => previousPage + 1);
+    const nextPage = activityPage + 1;
+    if (lastRequestedPageRef.current === nextPage) return;
+    lastRequestedPageRef.current = nextPage;
+
+    setActivityPage(nextPage);
   }, [activities.length, auditFetching, auditLoading, activityPage, meta]);
 
   const handleActivityNavigation = (item: Activity) => {
@@ -369,7 +375,7 @@ const ProfileScreen = () => {
               }}
               renderItem={renderActivityItem}
               onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.2}
+              onEndReachedThreshold={2.5}
               ListEmptyComponent={
                 !auditLoading ? (
                   <View className='py-10'>

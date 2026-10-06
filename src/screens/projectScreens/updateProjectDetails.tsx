@@ -18,7 +18,7 @@ import {
   useDeleteProjectMutation,
   useLazyGetProjectByIdQuery,
 } from '../../store/api/projectApi';
-import { showSuccessToast } from '../../utils/utils';
+import { showSnackbar } from '../../components/common/Snackbar';
 import { getValidStatus, ProjectStatus, STATUS_LABELS } from '../../utils/enum';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -92,12 +92,12 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
     const projectId = project?.id;
 
     if (!name.trim()) {
-      showSuccessToast?.('Project name is required', 'error');
+      showSnackbar({ message: 'Project name is required', type: 'error' });
       return;
     }
 
     if (!projectId) {
-      showSuccessToast?.('Project ID not found', 'error');
+      showSnackbar({ message: 'Project ID not found', type: 'error' });
       return;
     }
 
@@ -111,21 +111,24 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
         },
       }).unwrap();
 
-      showSuccessToast(
-        response.message || 'Project updated successfully',
-        'success',
-      );
+      showSnackbar({
+        message: response.message || 'Project updated successfully',
+        type: 'success',
+      });
 
       await getProjectByIdQuery({ project_id: projectId });
     } catch (error: any) {
-      showSuccessToast?.(error?.message || 'Failed to update project', 'error');
+      showSnackbar({
+        message: error?.message || 'Failed to update project',
+        type: 'error',
+      });
     }
   };
 
   const handleDeleteProject = async () => {
     const projectId = project?.id;
     if (!projectId) {
-      showSuccessToast?.('Project ID not found', 'error');
+      showSnackbar({ message: 'Project ID not found', type: 'error' });
       return;
     }
     setIsDeleting(true);
@@ -134,13 +137,16 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
         project_id: projectId,
       }).unwrap();
       setShowDeleteModal(false);
-      showSuccessToast?.(
-        response.message || 'Project moved to trash',
-        'success',
-      );
+      showSnackbar({
+        message: response.message || 'Project moved to trash',
+        type: 'success',
+      });
       navigation.navigate('HomeTabs');
     } catch (error: any) {
-      showSuccessToast?.(error?.message || 'Failed to delete project', 'error');
+      showSnackbar({
+        message: error?.message || 'Failed to delete project',
+        type: 'error',
+      });
     } finally {
       setIsDeleting(false);
     }

@@ -77,14 +77,22 @@ const OrganizationMembers = () => {
   const [removeOrganizationMember, { isLoading: isRemovingMember }] =
     useRemoveOrganizationMemberMutation();
 
+  const lastRequestedPageRef = useRef(1);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
+      lastRequestedPageRef.current = 1;
       setCurrentPage(1);
       setDebouncedSearch(searchQuery.trim());
     }, 300);
 
     return () => clearTimeout(timeout);
   }, [searchQuery]);
+
+  useEffect(() => {
+    lastRequestedPageRef.current = 1;
+    setCurrentPage(1);
+  }, [selectedStatus]);
 
   const {
     data: membersResponse,
@@ -101,6 +109,7 @@ const OrganizationMembers = () => {
 
   useFocusEffect(
     useCallback(() => {
+      lastRequestedPageRef.current = 1;
       refetchOrganizationMembers();
     }, [refetchOrganizationMembers]),
   );
@@ -126,10 +135,20 @@ const OrganizationMembers = () => {
   const membersMeta = membersResponse?.meta;
 
   const handleLoadMore = useCallback(() => {
-    if (membersMeta?.has_next && !isFetching) {
-      setCurrentPage(previous => previous + 1);
+    const hasNext =
+      membersMeta?.has_next !== undefined
+        ? membersMeta.has_next
+        : membersMeta?.total_pages !== undefined
+          ? currentPage < membersMeta.total_pages
+          : members.length >= PAGE_SIZE;
+
+    if (hasNext && !isFetching && members.length > 0) {
+      const nextPage = currentPage + 1;
+      if (lastRequestedPageRef.current === nextPage) return;
+      lastRequestedPageRef.current = nextPage;
+      setCurrentPage(nextPage);
     }
-  }, [isFetching, membersMeta?.has_next]);
+  }, [isFetching, membersMeta, members.length, currentPage]);
 
   const handleConfirmRemoveMember = async () => {
     if (!memberToRemove?.id) return;
@@ -373,7 +392,7 @@ const OrganizationMembers = () => {
           ListEmptyComponent={renderEmptyState}
           ListFooterComponent={renderFooter}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={2.5}
           renderItem={({ item }) => {
             const displayName = item.name || item.username || '';
             const initials = displayName

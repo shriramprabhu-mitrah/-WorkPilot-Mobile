@@ -12,7 +12,7 @@ import { SearchItem } from '../types/home.type';
 import CommonHeader from '../components/common/CommonHeader';
 import { RootStackParamList } from '../types/navigationTypes';
 import Screen from '../components/common/ScreenWapper';
-import { showSuccessToast } from '../utils/utils';
+import { showSnackbar } from '../components/common/Snackbar';
 
 type SearchCategory =
   'all' | 'task' | 'user_story' | 'project' | 'member' | 'sprint';
@@ -148,15 +148,18 @@ const SearchScreen = () => {
               projectName: item.project_name || 'Project Details',
             });
           } else {
-            showSuccessToast('No project linked to this sprint', 'error');
+            showSnackbar({
+              message: 'No project linked to this sprint',
+              type: 'error',
+            });
           }
           break;
 
         default:
-          showSuccessToast(
-            'No access or detail view available for this item',
-            'error',
-          );
+          showSnackbar({
+            message: 'No access or detail view available for this item',
+            type: 'error',
+          });
           break;
       }
     },

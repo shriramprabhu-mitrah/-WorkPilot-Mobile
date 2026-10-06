@@ -23,7 +23,6 @@ import { ProjectListBottomSheet } from './common/ProjectBottomSheet';
 // } from '../store/project_store/action/project_thunk';
 import CustomBottomSheet from '../components/common/CustomBottomDialog';
 import { logoutUser } from '../store/auth_store/action/auth.thunks';
-// import { showSuccessToast } from '../utils/utils';
 import { getProjectName } from '../store/project_store/reducer/project_reducer';
 // import { Sprint } from '../types/project.type';
 import { RootStackParamList } from '../types/navigationTypes';
