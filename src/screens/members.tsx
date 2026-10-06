@@ -23,13 +23,21 @@ import { RootState, useAppSelector } from '../store';
 import {
   useGetProjectMembersQuery,
   useRemoveProjectMemberMutation,
+  useUpdateProjectMemberRoleMutation,
+  useAddProjectMembersMutation,
 } from '../store/api/projectApi';
+import {
+  useGetOrganizationMembersQuery,
+  useGetRolesQuery,
+} from '../store/api/homeApi';
 import { ProjectMember } from '../types/project.type';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import DeleteColumnModal from '../components/DeleteColumnModal';
 import { showSnackbar } from '../components/common/Snackbar';
-import { getRoleLabel } from '../constants/role';
+import { RoleApiItem } from '../types/auth.type';
+import CustomDropdown from '../components/CustomDropdown';
+import AddProjectMemberModal from '../components/projectMemberIniviteModel';
 
 const PAGE_SIZE = 10;
 
@@ -54,6 +62,12 @@ const Members = () => {
   const [memberToRemove, setMemberToRemove] = useState<ProjectMember | null>(
     null,
   );
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [debouncedModalSearch, setDebouncedModalSearch] = useState('');
+  const [activeRoleDropdown, setActiveRoleDropdown] = useState<string | null>(
+    null,
+  );
+  const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
 
   const projectId = useAppSelector(
     (state: RootState) =>
@@ -72,6 +86,28 @@ const Members = () => {
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedModalSearch(modalSearchQuery.trim());
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [modalSearchQuery]);
+
+  const { data: rolesData, refetch: refetchRoles } = useGetRolesQuery();
+  const { data: orgMembersData, refetch: refetchOrgMembers } =
+    useGetOrganizationMembersQuery({
+      page: 1,
+      page_size: 10,
+      full_name: debouncedModalSearch || undefined,
+    });
+
+  const rolesList = useMemo(() => rolesData?.data || [], [rolesData]);
+  const orgMembersList = useMemo(
+    () => orgMembersData?.data || [],
+    [orgMembersData],
+  );
+
   const {
     data: membersResponse,
     isLoading,
@@ -83,6 +119,7 @@ const Members = () => {
           project_id: projectId,
           page: currentPage,
           page_size: PAGE_SIZE,
+          name: debouncedSearch || undefined,
         }
       : skipToken,
   );
@@ -91,6 +128,8 @@ const Members = () => {
       if (projectId) {
         lastRequestedPageRef.current = 1;
         refetch();
+        refetchRoles();
+        refetchOrgMembers();
       }
     }, [projectId, refetch]),
   );
@@ -98,23 +137,11 @@ const Members = () => {
   const [removeProjectMember, { isLoading: isRemovingMember }] =
     useRemoveProjectMemberMutation();
 
-  const members = useMemo(
-    () => (membersResponse?.data as ProjectMember[]) ?? [],
-    [membersResponse?.data],
-  );
+  const [updateProjectMemberRole] = useUpdateProjectMemberRoleMutation();
+  const [addProjectMembers, { isLoading: isSubmittingMembers }] =
+    useAddProjectMembersMutation();
 
-  const filteredMembers = useMemo(() => {
-    const search = debouncedSearch.toLowerCase();
-
-    if (!search) return members;
-
-    return members.filter(
-      member =>
-        member.full_name?.toLowerCase().includes(search) ||
-        member.username?.toLowerCase().includes(search),
-    );
-  }, [members, debouncedSearch]);
-
+  const projectMembers = membersResponse?.data ?? [];
   const membersMeta = membersResponse?.meta;
 
   const handleLoadMore = useCallback(() => {
@@ -123,15 +150,15 @@ const Members = () => {
         ? membersMeta.has_next
         : membersMeta?.total_pages !== undefined
           ? currentPage < membersMeta.total_pages
-          : members.length >= PAGE_SIZE;
+          : projectMembers.length >= PAGE_SIZE;
 
-    if (hasNext && !isFetching && members.length > 0) {
+    if (hasNext && !isFetching && projectMembers.length > 0) {
       const nextPage = currentPage + 1;
       if (lastRequestedPageRef.current === nextPage) return;
       lastRequestedPageRef.current = nextPage;
       setCurrentPage(nextPage);
     }
-  }, [isFetching, membersMeta, members.length, currentPage]);
+  }, [isFetching, membersMeta, projectMembers.length, currentPage]);
 
   const handleConfirmRemoveMember = useCallback(async () => {
     if (!projectId || !memberToRemove) return;
@@ -155,43 +182,119 @@ const Members = () => {
         type: 'error',
       });
     }
-  }, [memberToRemove, projectId, removeProjectMember]);
+  }, [memberToRemove, projectId, removeProjectMember, refetch]);
+
+  const handleAddMembersSubmit = async (
+    members: { user_id: string; role_id: string }[],
+  ) => {
+    if (!projectId) {
+      showSnackbar({
+        message: 'Project ID is missing.',
+        type: 'error',
+      });
+      return;
+    }
+
+    try {
+      const response = await addProjectMembers({
+        project_id: projectId,
+        members,
+      }).unwrap();
+
+      showSnackbar({
+        message:
+          response?.message || 'Members added successfully to the project!',
+        type: 'success',
+      });
+
+      setIsAddMemberModalVisible(false);
+      setModalSearchQuery('');
+      await refetch();
+    } catch (error: any) {
+      const errorMsg =
+        error?.data?.message ||
+        error?.message ||
+        'Failed to add members to project. Please try again.';
+      showSnackbar({
+        message: errorMsg,
+        type: 'error',
+      });
+    }
+  };
+
+  const handleRoleSelect = async (userId: string, roleName: string) => {
+    if (!projectId) return;
+    setActiveRoleDropdown(null);
+    const selectedRole = rolesList.find((role: any) => role.name === roleName);
+    if (!selectedRole) return;
+    try {
+      await updateProjectMemberRole({
+        project_id: projectId,
+        user_id: userId,
+        payload: {
+          role_id: selectedRole.id,
+        },
+      }).unwrap();
+      showSnackbar({ message: 'Role updated successfully', type: 'success' });
+    } catch (error: any) {
+      showSnackbar({
+        message: error?.data?.message || 'Failed to update role',
+        type: 'error',
+      });
+    }
+  };
 
   const renderHeader = useCallback(() => {
-    if (members.length === 0) return null;
+    if (projectMembers.length === 0) return null;
 
     return (
-      <View
-        className='mb-3 flex-row items-center pt-2'
-        style={{ gap: layout.elementGap }}
-      >
-        <AppText
-          variant='caption'
-          className='font-bold tracking-wider'
-          color={colors.textSecondary}
-        >
-          Project Members
-        </AppText>
+      <View className='mb-3 flex-row items-center justify-between pt-2'>
         <View
-          className='items-center justify-center'
-          style={[
-            styles.countBadge,
-            {
-              minWidth: moderateScale(22),
-              height: moderateScale(22),
-              backgroundColor: colors.primary,
-              borderRadius: Radius.circle,
-            },
-          ]}
+          className='flex-row items-center'
+          style={{ gap: layout.elementGap }}
         >
           <AppText
             variant='caption'
-            className='text-xs font-bold'
-            color={colors.white}
+            className='font-bold tracking-wider'
+            color={colors.textSecondary}
           >
-            {membersMeta?.total_items ?? members.length}
+            Project Members
           </AppText>
+          <View
+            className='items-center justify-center'
+            style={[
+              styles.countBadge,
+              {
+                minWidth: moderateScale(22),
+                height: moderateScale(22),
+                backgroundColor: colors.primary,
+                borderRadius: Radius.circle,
+              },
+            ]}
+          >
+            <AppText
+              variant='caption'
+              className='text-xs font-bold'
+              color={colors.white}
+            >
+              {membersMeta?.total_items ?? projectMembers.length}
+            </AppText>
+          </View>
         </View>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setIsAddMemberModalVisible(true)}
+          className='flex-row items-center rounded-md px-3 py-2'
+          style={{
+            backgroundColor: colors.primary,
+            gap: moderateScale(5),
+          }}
+        >
+          <Ionicons name='add' size={moderateScale(16)} color={colors.white} />
+          <AppText variant='caption' className='font-bold' color={colors.white}>
+            Add Members
+          </AppText>
+        </TouchableOpacity>
       </View>
     );
   }, [
@@ -199,7 +302,7 @@ const Members = () => {
     colors.textSecondary,
     colors.white,
     layout.elementGap,
-    members.length,
+    projectMembers.length,
     membersMeta?.total_items,
     moderateScale,
   ]);
@@ -271,7 +374,7 @@ const Members = () => {
         </View>
       ) : (
         <FlatList
-          data={filteredMembers}
+          data={projectMembers}
           keyExtractor={item => item.user_id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -290,10 +393,11 @@ const Members = () => {
               .join('')
               .slice(0, 2)
               .toUpperCase();
+            const isRoleOpen = activeRoleDropdown === item.user_id;
 
             return (
               <View
-                className='flex-row items-center border p-3.5'
+                className='flex-row items-center border p-3.5 px-2'
                 style={{
                   backgroundColor: colors.card,
                   borderColor: colors.border,
@@ -303,33 +407,55 @@ const Members = () => {
               >
                 {/* Member Avatar */}
                 <View
-                  className='items-center justify-center overflow-hidden'
                   style={{
+                    position: 'relative',
                     width: moderateScale(44),
                     height: moderateScale(44),
-                    backgroundColor: item?.color || colors.primary,
-                    borderRadius: Radius.circle,
                   }}
                 >
-                  {item.avatar_url ? (
-                    <Image
-                      source={{ uri: item.avatar_url }}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                      }}
-                      resizeMode='cover'
-                    />
-                  ) : (
-                    <AppText
-                      variant='body'
-                      className='font-bold'
-                      color={colors.white}
-                    >
-                      {initials || '?'}
-                    </AppText>
-                  )}
+                  <View
+                    className='items-center justify-center overflow-hidden'
+                    style={{
+                      width: moderateScale(44),
+                      height: moderateScale(44),
+                      backgroundColor: item?.color || colors.primary,
+                      borderRadius: Radius.circle,
+                    }}
+                  >
+                    {item.avatar_url ? (
+                      <Image
+                        source={{ uri: item.avatar_url }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                        }}
+                        resizeMode='cover'
+                      />
+                    ) : (
+                      <AppText
+                        variant='body'
+                        className='font-bold'
+                        color={colors.white}
+                      >
+                        {initials || '?'}
+                      </AppText>
+                    )}
+                  </View>
+                  <View
+                    style={{
+                      position: 'absolute',
+                      right: -1,
+                      bottom: -1,
+                      width: moderateScale(12),
+                      height: moderateScale(12),
+                      borderRadius: Radius.circle,
+                      backgroundColor: '#4CAF50',
+                      borderWidth: 2,
+                      borderColor: colors.card,
+                    }}
+                  />
                 </View>
+
                 {/* Member Details */}
                 <View className='flex-1' style={{ gap: layout.tightGap }}>
                   <AppText
@@ -350,18 +476,43 @@ const Members = () => {
                   </AppText>
                 </View>
                 {/* Member Role */}
-                <View
-                  className='rounded-md px-3 py-1'
-                  style={{ backgroundColor: colors.surface }}
-                >
-                  <AppText
-                    variant='caption'
-                    className='font-semibold capitalize'
-                    color={colors.primary}
+                {item?.role !== 'org_admin' ? (
+                  <CustomDropdown
+                    items={rolesList.map((role: RoleApiItem) => ({
+                      id: role.id,
+                      name: role.name,
+                    }))}
+                    selectedValue={
+                      rolesList.find(
+                        (role: RoleApiItem) => role.name === item.role,
+                      )?.id
+                    }
+                    onSelect={role => {
+                      handleRoleSelect(item.user_id, role.name);
+                    }}
+                    isOpen={isRoleOpen}
+                    onToggle={() =>
+                      setActiveRoleDropdown(isRoleOpen ? null : item.user_id)
+                    }
+                    direction='down'
+                    width={moderateScale(130)}
+                    showIndicatorDot={false}
+                  />
+                ) : (
+                  <View
+                    className='rounded-md px-3 py-1'
+                    style={{ backgroundColor: colors.surface }}
                   >
-                    {item.role}
-                  </AppText>
-                </View>
+                    <AppText
+                      variant='caption'
+                      className='font-semibold capitalize'
+                      color={colors.primary}
+                    >
+                      {item.role}
+                    </AppText>
+                  </View>
+                )}
+
                 {/* Remove Member */}
                 <TouchableOpacity
                   accessibilityLabel={`Remove ${displayName}`}
@@ -382,6 +533,23 @@ const Members = () => {
           }}
         />
       )}
+
+      {/* Add Member Modal */}
+      <AddProjectMemberModal
+        visible={isAddMemberModalVisible}
+        roles={rolesList}
+        members={orgMembersList}
+        searchQuery={modalSearchQuery}
+        onSearchChange={setModalSearchQuery}
+        isSubmitting={isSubmittingMembers}
+        onSubmit={handleAddMembersSubmit}
+        onClose={() => {
+          setIsAddMemberModalVisible(false);
+          setModalSearchQuery('');
+        }}
+      />
+
+      {/* Delete Confirmation Modal */}
       <DeleteColumnModal
         visible={Boolean(memberToRemove)}
         title='Remove Member'

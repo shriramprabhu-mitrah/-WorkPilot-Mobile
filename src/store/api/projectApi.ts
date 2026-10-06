@@ -24,6 +24,8 @@ import {
   DELETEPROJECTMEMBER,
   CREATE_NEW_SPRINT,
   UPCOMMINGDEADLINES,
+  ADDPROJECTMEMBER,
+  UPDATEPROJECTMEMBERROLE,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsResponse,
@@ -53,9 +55,13 @@ import {
   GetProjectMembersResponse,
   RemoveProjectMemberArgs,
   RemoveProjectMemberResponse,
+  UpdateProjectMemberRolePayload,
+  UpdateProjectMemberRoleResponse,
   GetBurndownResponse,
   UpcomingDeadlinesQueryArgs,
   UpcomingDeadlinesResponse,
+  AddProjectMemberResponse,
+  AddProjectMemberPayload,
 } from '../../types/project.type';
 import {
   GetCustomStatusResponse,
@@ -352,6 +358,41 @@ export const projectApi = createApi({
       ],
     }),
 
+    addProjectMembers: build.mutation<
+      AddProjectMemberResponse,
+      AddProjectMemberPayload
+    >({
+      query: payload => ({
+        url: ADDPROJECTMEMBER,
+        method: 'POST',
+        data: payload,
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'ProjectMembers', id: project_id },
+      ],
+    }),
+
+    updateProjectMemberRole: build.mutation<
+      UpdateProjectMemberRoleResponse,
+      {
+        project_id: string;
+        user_id: string;
+        payload: UpdateProjectMemberRolePayload;
+      }
+    >({
+      query: ({ project_id, user_id, payload }) => ({
+        url: UPDATEPROJECTMEMBERROLE.replace(
+          '{project_id}',
+          project_id,
+        ).replace('{user_id}', user_id),
+        method: 'PATCH',
+        data: payload,
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'ProjectMembers', id: project_id },
+      ],
+    }),
+
     updateProject: build.mutation<
       UpdateProjectResponse,
       { project_id: string; payload: UpdateProjectPayload }
@@ -502,6 +543,8 @@ export const {
   useGetWeeklyProgressQuery,
   useGetProjectMembersQuery,
   useRemoveProjectMemberMutation,
+  useAddProjectMembersMutation,
+  useUpdateProjectMemberRoleMutation,
   useUpdateProjectMutation,
   useDeleteProjectMutation,
   useLazyGetProjectByIdQuery,

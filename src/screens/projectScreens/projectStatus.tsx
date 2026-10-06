@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { AppText } from '../../components';
 import CommonHeader from '../../components/common/CommonHeader';
 import { Radius } from '../../constants/Radius';
@@ -327,29 +327,38 @@ const StatusRow: React.FC<StatusRowProps> = ({ item, onEdit, onDelete }) => {
             color={colors.primary}
           />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => onDelete(item.id)}
-          disabled={item.is_default}
-          hitSlop={8}
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: btnSize,
-            height: btnSize,
-            borderRadius: Radius.sm,
-            backgroundColor: `${colors.error}15`,
-            opacity: item.is_default ? 0.4 : 1,
-          }}
-        >
-          <Ionicons
-            name='trash-outline'
-            size={moderateScale(15)}
-            color={colors.error}
-          />
-        </TouchableOpacity>
       </View>
     </View>
+  );
+};
+
+const SwipeDeleteAction = ({
+  onPress,
+  isDefault,
+}: {
+  onPress: () => void;
+  isDefault: boolean;
+}) => {
+  const { colors } = useTheme();
+  const { moderateScale } = useAuthLayout();
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      disabled={isDefault}
+      style={{
+        width: moderateScale(60),
+        marginLeft: moderateScale(8),
+        borderRadius: Radius.lg,
+        backgroundColor: colors.error,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: isDefault ? 0.35 : 1,
+      }}
+    >
+      <Ionicons name='trash-outline' size={moderateScale(22)} color='#FFFFFF' />
+    </TouchableOpacity>
   );
 };
 
@@ -376,6 +385,7 @@ const ProjectStatus = () => {
   const {
     data: userStoryStatusResponse,
     isLoading: isUserStoryLoading,
+    isFetching: isUserStoryFetching,
     refetch: refetchUserStoryStatus,
   } = useGetUserStoryStatusQuery(
     projectId ? { project_id: projectId } : skipToken,
@@ -384,6 +394,7 @@ const ProjectStatus = () => {
   const {
     data: customStatusResponse,
     isLoading: isTaskListLoading,
+    isFetching: isTaskListFetching,
     refetch: refetchCustomStatus,
   } = useGetCustomStatusQuery(
     projectId ? { project_id: projectId } : skipToken,
@@ -517,11 +528,11 @@ const ProjectStatus = () => {
   const isSaving =
     activeTab === 'userStory'
       ? editItem
-        ? updateUserStoryState.isLoading
-        : createUserStoryState.isLoading
+        ? updateUserStoryState.isLoading || isUserStoryFetching
+        : createUserStoryState.isLoading || isUserStoryFetching
       : editItem
-        ? updateCustomState.isLoading
-        : createCustomState.isLoading;
+        ? updateCustomState.isLoading || isTaskListFetching
+        : createCustomState.isLoading || isTaskListFetching;
 
   return (
     <Screen scroll={false} backgroundColor={colors.background}>
@@ -609,7 +620,21 @@ const ProjectStatus = () => {
           data={filtered}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <StatusRow item={item} onEdit={openEdit} onDelete={handleDelete} />
+            <Swipeable
+              renderRightActions={() => (
+                <SwipeDeleteAction
+                  onPress={() => handleDelete(item.id)}
+                  isDefault={item.is_default}
+                />
+              )}
+              overshootRight={false}
+            >
+              <StatusRow
+                item={item}
+                onEdit={openEdit}
+                onDelete={handleDelete}
+              />
+            </Swipeable>
           )}
           ItemSeparatorComponent={() => (
             <View style={{ height: moderateScale(10) }} />

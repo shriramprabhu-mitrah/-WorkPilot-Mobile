@@ -36,7 +36,9 @@ export const DELETE_PROJECT = `/project/{project_id}`;
 export const GET_RECENT_PROJECTS = `/project/recent`;
 export const UPDATE_USER_STORY = `/projects/{project_id}/user-stories/{user_story_id}`;
 export const GETPROJECTOVERVIEW = `/{project_id}/overview`;
+export const ADDPROJECTMEMBER = `project/add-members`;
 export const GETPROJECTMEMBERS = `/project/members/{project_id}`;
+export const UPDATEPROJECTMEMBERROLE = `/project/{project_id}/member/{user_id}`;
 export const DELETEPROJECTMEMBER = `/project/{project_id}/member/{user_id}`;
 export const UPCOMMINGDEADLINES = `/{project_id}/upcoming-deadlines`;
 
