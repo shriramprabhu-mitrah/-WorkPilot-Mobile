@@ -806,3 +806,165 @@ export interface UpdateSprintParams {
   sprint_id: string;
   payload: UpdateSprintRequest;
 }
+
+export interface BoardTaskAssignee {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url: string | null;
+  color: string;
+  role: string;
+}
+
+export interface BoardTaskReporter {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url: string | null;
+  color: string;
+  role: string;
+}
+
+export interface BoardTask {
+  id: string;
+  project_id: string;
+  project_name: string;
+  sprint_id: string | null;
+  sprint_name: string;
+  user_story_id: string;
+  user_story_title: string;
+  key: string;
+  serial_number: number;
+  formatted_serial_number: string;
+  title: string;
+  description?: string;
+  type: string;
+  priority: string;
+  status_id: string;
+  status: string;
+  status_color: string;
+  is_final: boolean;
+  is_favourite: boolean;
+  reporter_id: string;
+  reporter_name: string;
+  assignee_id?: string;
+  assignee_name?: string;
+  story_points: number;
+  due_date: string;
+  estimated_hours?: number;
+  actual_hours?: number;
+  created_at: string;
+  updated_at: string;
+  reporter: BoardTaskReporter;
+  assignee?: BoardTaskAssignee | null;
+}
+
+export interface BoardStatusMeta {
+  page: number;
+  page_size: number;
+  total?: number;
+  total_items?: number;
+  total_pages?: number;
+  has_next: boolean;
+  has_previous?: boolean;
+}
+
+export interface BoardStatusColumn {
+  status_id: string;
+  status_name: string;
+  color: string;
+  display_order: number;
+  task_count: number;
+  tasks: BoardTask[];
+  meta: BoardStatusMeta;
+}
+
+export interface BoardStory {
+  id: string;
+  project_id: string;
+  title: string;
+  key: string;
+  serial_number: number;
+  description: string;
+  priority: string;
+  is_favourite: boolean;
+  story_points: number;
+  total_tasks: number;
+  completed_tasks: number;
+  progress: number;
+  assignee: BoardTaskAssignee | null;
+  reporter: BoardTaskReporter;
+  due_date: string;
+  status_id: string;
+  status: string;
+  status_color: string;
+  created_at: string;
+  updated_at: string;
+  statuses: BoardStatusColumn[];
+}
+
+export interface GetBoardStoriesParams {
+  project_id: string;
+  page?: number;
+  page_size?: number;
+  tasks_per_status?: number;
+  sprint_id?: string | null;
+  task_assignee_id?: string | null;
+  task_status_id?: string | null;
+  priority?: string | null;
+  work_type?: string | null;
+  _refetchKey?: number;
+}
+
+export interface GetBoardStoryDetailsParams {
+  project_id: string;
+  user_story_id: string;
+  tasks_per_status?: number;
+  status_id?: string;
+  storyless?: boolean;
+  sprint_id?: string | null;
+  story_assignee_id?: string | null;
+  task_assignee_id?: string | null;
+  task_status_id?: string | null;
+  priority?: string | null;
+  work_type?: string | null;
+  _refetchKey?: number;
+}
+
+export interface GetBoardStatusTasksParams {
+  project_id: string;
+  user_story_id: string;
+  status_id: string;
+  page?: number;
+  page_size?: number;
+  _refetchKey?: number;
+}
+
+export interface GetBoardStoriesResponse extends ApiResponse<BoardStory[]> {
+  meta?: BoardStatusMeta;
+}
+export interface GetBoardStoryDetailsResponse extends ApiResponse<BoardStory> {
+  meta?: BoardStatusMeta;
+}
+export interface GetBoardStatusTasksResponse extends ApiResponse<BoardStory> {
+  meta?: BoardStatusMeta;
+}
+
+export type DropZone = {
+  storyId: string;
+  statusId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scrollXAtMeasure: number;
+  scrollYAtMeasure: number;
+};
+
+export type ColumnTaskState = {
+  tasks: BoardTask[];
+  page: number;
+  isLoading: boolean;
+  hasNext: boolean;
+  totalCount: number;
+};

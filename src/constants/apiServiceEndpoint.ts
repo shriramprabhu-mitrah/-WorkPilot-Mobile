@@ -114,3 +114,6 @@ export const POST_TASK_COMMENT_ATTACHMENT = `/task/{task_id}/comments/attachment
 
 //public
 export const GET_COUNTRIES = `/countries`;
+
+//Board
+export const GET_PROJECT_BOARD = '/projects/{project_id}/board';

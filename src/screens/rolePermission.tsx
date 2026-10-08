@@ -33,6 +33,7 @@ import {
   RolePermissionsMap,
 } from '../types/auth.type';
 import RolePermissionSkeleton from '../components/skeleton/rolePermissionSkeleton';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 const ACTION_METAS: ActionMeta[] = [
   {
@@ -110,6 +111,36 @@ const createDefaultPermissions = (): RolePermissionsMap => ({
   tasks: { add: false, delete: false, modify: false, view: true },
   user_stories: { add: false, delete: false, modify: false, view: true },
 });
+
+const SwipeDeleteAction = ({
+  onPress,
+  disabled,
+}: {
+  onPress: () => void;
+  disabled?: boolean;
+}) => {
+  const { colors } = useTheme();
+  const { moderateScale } = useAuthLayout();
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      disabled={disabled}
+      style={{
+        width: moderateScale(60),
+        height: '100%',
+        borderRadius: 16,
+        backgroundColor: colors.error,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: disabled ? 0.35 : 1,
+      }}
+    >
+      <Ionicons name='trash-outline' size={moderateScale(22)} color='#FFFFFF' />
+    </TouchableOpacity>
+  );
+};
 
 const RolePermission = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -457,48 +488,59 @@ const RolePermission = () => {
           }}
         >
           {activeRole && (
-            <View
-              className='mb-4 flex-row items-center justify-between rounded-2xl border p-3.5'
-              style={{
-                backgroundColor: colors.card,
-                borderColor: colors.border,
+            <Swipeable
+              renderRightActions={() => (
+                <SwipeDeleteAction
+                  onPress={handleDelete}
+                  disabled={activeRole.is_system}
+                />
+              )}
+              overshootRight={false}
+              containerStyle={{
+                marginBottom: moderateScale(16),
               }}
             >
-              <View className='flex-1 flex-row items-center pr-3'>
-                <View
-                  className='mr-3 h-11 w-11 items-center justify-center rounded-xl'
-                  style={{ backgroundColor: colors.primary }}
-                >
-                  <Ionicons
-                    name={getRoleIcon(activeRole.name)}
-                    size={22}
-                    color={colors.white}
-                  />
-                </View>
-                <View className='flex-1 justify-center'>
-                  <AppText
-                    style={{
-                      fontSize: 16,
-                      fontWeight: '700',
-                      color: colors.text,
-                    }}
-                    numberOfLines={1}
+              <View
+                className='flex-row items-center justify-between rounded-2xl border p-3.5'
+                style={{
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                }}
+              >
+                <View className='flex-1 flex-row items-center pr-3'>
+                  <View
+                    className='mr-3 h-11 w-11 items-center justify-center rounded-xl'
+                    style={{ backgroundColor: colors.primary }}
                   >
-                    {formatRoleTitle(activeRole.name)}
-                  </AppText>
-                  <AppText
-                    style={{
-                      fontSize: 12,
-                      marginTop: 2,
-                      color: colors.textSecondary,
-                    }}
-                  >
-                    {activeRole.is_system ? 'System Default' : 'Custom Role'}
-                  </AppText>
+                    <Ionicons
+                      name={getRoleIcon(activeRole.name)}
+                      size={22}
+                      color={colors.white}
+                    />
+                  </View>
+                  <View className='flex-1 justify-center'>
+                    <AppText
+                      style={{
+                        fontSize: 16,
+                        fontWeight: '700',
+                        color: colors.text,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {formatRoleTitle(activeRole.name)}
+                    </AppText>
+                    <AppText
+                      style={{
+                        fontSize: 12,
+                        marginTop: 2,
+                        color: colors.textSecondary,
+                      }}
+                    >
+                      {activeRole.is_system ? 'System Default' : 'Custom Role'}
+                    </AppText>
+                  </View>
                 </View>
-              </View>
 
-              <View className='flex-row items-center gap-2'>
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={handleSave}
@@ -513,22 +555,8 @@ const RolePermission = () => {
                 >
                   <Ionicons name='checkmark' size={20} color={colors.white} />
                 </TouchableOpacity>
-                {!activeRole.is_system && (
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={handleDelete}
-                    className='h-9 w-9 items-center justify-center rounded-full'
-                    style={{ backgroundColor: colors.error + '1A' }}
-                  >
-                    <Ionicons
-                      name='trash-outline'
-                      size={17}
-                      color={colors.error}
-                    />
-                  </TouchableOpacity>
-                )}
               </View>
-            </View>
+            </Swipeable>
           )}
 
           {/* Permissions Accordion */}

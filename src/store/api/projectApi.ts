@@ -26,6 +26,7 @@ import {
   UPCOMMINGDEADLINES,
   ADDPROJECTMEMBER,
   UPDATEPROJECTMEMBERROLE,
+  GET_PROJECT_BOARD,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsResponse,
@@ -62,6 +63,10 @@ import {
   UpcomingDeadlinesResponse,
   AddProjectMemberResponse,
   AddProjectMemberPayload,
+  GetBoardStoriesResponse,
+  GetBoardStoriesParams,
+  GetBoardStatusTasksParams,
+  GetBoardStatusTasksResponse,
 } from '../../types/project.type';
 import {
   GetCustomStatusResponse,
@@ -96,6 +101,7 @@ export const projectApi = createApi({
     'Comments',
     'Attachments',
     'UpcomingDeadlines',
+    'Board',
   ],
   endpoints: build => ({
     getUpcomingDeadlines: build.query<
@@ -525,6 +531,83 @@ export const projectApi = createApi({
         { type: 'Sprints', id: project_id },
       ],
     }),
+
+    getBoardStories: build.query<
+      GetBoardStoriesResponse,
+      GetBoardStoriesParams
+    >({
+      query: ({ project_id, _refetchKey, ...params }) => ({
+        url: GET_PROJECT_BOARD.replace('{project_id}', project_id),
+        method: 'GET',
+        params,
+      }),
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        const { page, _refetchKey, ...rest } = queryArgs;
+        return `${endpointName}_${JSON.stringify(rest)}`;
+      },
+      merge(currentCache, newItems, { arg }) {
+        if (
+          (arg?.page || 1) === 1 ||
+          !currentCache?.data ||
+          !Array.isArray(currentCache.data)
+        ) {
+          return newItems;
+        }
+        const existingIds = new Set(currentCache.data.map(story => story.id));
+        const incoming = Array.isArray(newItems?.data) ? newItems.data : [];
+        const uniqueNew = incoming.filter(story => !existingIds.has(story.id));
+        currentCache.data.push(...uniqueNew);
+        currentCache.meta = newItems.meta;
+      },
+      forceRefetch({ currentArg, previousArg }) {
+        return (
+          currentArg?.page !== previousArg?.page ||
+          currentArg?._refetchKey !== previousArg?._refetchKey
+        );
+      },
+      providesTags: (result, _error, { project_id }) =>
+        result?.data
+          ? [
+              ...result.data.map(story => ({
+                type: 'Board' as const,
+                id: story.id,
+              })),
+              {
+                type: 'Board',
+                id: `${project_id}_STORIES`,
+              },
+            ]
+          : [
+              {
+                type: 'Board',
+                id: `${project_id}_STORIES`,
+              },
+            ],
+    }),
+
+    getBoardStatusTasks: build.query<
+      GetBoardStatusTasksResponse,
+      GetBoardStatusTasksParams
+    >({
+      query: ({
+        project_id,
+        user_story_id,
+        status_id,
+        page = 1,
+        page_size = 5,
+      }) => ({
+        url: GET_PROJECT_BOARD.replace('{project_id}', project_id),
+        params: {
+          story_id: user_story_id,
+          status_id,
+          page,
+          page_size,
+        },
+      }),
+      providesTags: (_result, _error, { user_story_id, status_id }) => [
+        { type: 'Board', id: `STORY_${user_story_id}_STATUS_${status_id}` },
+      ],
+    }),
   }),
 });
 
@@ -557,6 +640,8 @@ export const {
   useUpdateUserStoryStatusMutation,
   useDeleteUserStoryStatusMutation,
   useCreateSprintMutation,
+  useGetBoardStoriesQuery,
+  useLazyGetBoardStatusTasksQuery,
 } = projectApi;
 
 // Aliases matching thunk names

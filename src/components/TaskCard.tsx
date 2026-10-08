@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -8,8 +8,26 @@ import { useTheme } from '../theme/ThemeProvider';
 import AppText from './common/AppText';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { Radius } from '../constants/Radius';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { formatDate } from '../utils/utils';
 
-const TaskCard = ({ item, projectId }: any) => {
+interface TaskCardProps {
+  item: {
+    id: string;
+    title: string;
+    priority?: string;
+    points?: string;
+    avatar?: string;
+    avatarUrl?: string | null;
+    avatarColor?: string;
+    is_favourite?: boolean;
+    [key: string]: any;
+  };
+  projectId?: string;
+  onToggleFavorite?: () => void;
+}
+
+const TaskCard = ({ item, projectId, onToggleFavorite }: TaskCardProps) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
@@ -18,7 +36,7 @@ const TaskCard = ({ item, projectId }: any) => {
     navigation.navigate('issue', {
       projectId: projectId,
       taskId: item?.id,
-      task: item,
+      task: item as any,
     });
     const rootNavigation = navigation.getParent()?.getParent()?.getParent();
 
@@ -48,9 +66,11 @@ const TaskCard = ({ item, projectId }: any) => {
 
   return (
     <TouchableOpacity
+      activeOpacity={0.8}
       onPress={openIssue}
       className='border shadow'
       style={{
+        position: 'relative',
         gap: layout.elementGap,
         paddingHorizontal: layout.paddingHorizontal,
         paddingVertical: isSmallHeight
@@ -61,13 +81,80 @@ const TaskCard = ({ item, projectId }: any) => {
         borderRadius: Radius.sm,
       }}
     >
-      <AppText
-        variant='body'
-        className='font-semibold leading-6'
-        style={{ color: colors.text }}
-      >
-        {item.title}
-      </AppText>
+      {onToggleFavorite && (
+        <TouchableOpacity
+          onPress={e => {
+            e.stopPropagation();
+            onToggleFavorite();
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{
+            position: 'absolute',
+            top: 4,
+            right: 8,
+            zIndex: 10,
+            padding: 2,
+          }}
+        >
+          <AppText
+            style={{
+              color: item.is_favourite ? colors.warning : colors.textSecondary,
+              fontSize: 18,
+              lineHeight: 20,
+            }}
+          >
+            {item.is_favourite ? '★' : '☆'}
+          </AppText>
+        </TouchableOpacity>
+      )}
+
+      <View className='flex-row'>
+        <AppText
+          variant='body'
+          className='font-semibold leading-6'
+          style={{
+            color: colors.text,
+            paddingRight: onToggleFavorite ? moderateScale(22) : 0,
+          }}
+          numberOfLines={2}
+        >
+          {item.title}
+        </AppText>
+
+        <View
+          className='flex-row items-center'
+          style={{ gap: moderateScale(4) }}
+        >
+          <Ionicons
+            name='git-branch-outline'
+            size={moderateScale(12)}
+            color='#3B82F6'
+          />
+          <AppText
+            variant='caption'
+            className='font-semibold'
+            style={{ color: '#3B82F6' }}
+          >
+            {item.key || item.task_key}
+          </AppText>
+        </View>
+      </View>
+
+      {(item.due_date || item.dueDate) && (
+        <View
+          className='flex-row items-center'
+          style={{ gap: moderateScale(4) }}
+        >
+          <Ionicons
+            name='calendar-outline'
+            size={moderateScale(12)}
+            color={colors.textSecondary}
+          />
+          <AppText variant='caption' color={colors.textSecondary}>
+            {formatDate(item.due_date || item.dueDate)}
+          </AppText>
+        </View>
+      )}
 
       <View className='flex-row items-center justify-between'>
         <View
@@ -76,19 +163,39 @@ const TaskCard = ({ item, projectId }: any) => {
         >
           <View
             style={{
-              backgroundColor: item.avatarColor,
-              width: moderateScale(20),
-              height: moderateScale(20),
+              backgroundColor: item.avatarUrl
+                ? ''
+                : item.avatarColor || colors.primary,
+              width: moderateScale(22),
+              height: moderateScale(22),
+              borderRadius: Radius.circle,
             }}
             className='items-center justify-center rounded'
           >
-            <AppText
-              variant='caption'
-              className='font-bold'
-              color={colors.white}
-            >
-              {item.avatar}
-            </AppText>
+            {item.avatarUrl ? (
+              <Image
+                source={{ uri: item.avatarUrl }}
+                style={{
+                  width: moderateScale(22),
+                  height: moderateScale(22),
+                  borderRadius: Radius.circle,
+                }}
+              />
+            ) : item.avatar ? (
+              <AppText
+                variant='caption'
+                className='font-bold'
+                color={colors.white}
+              >
+                {item.avatar}
+              </AppText>
+            ) : (
+              <Ionicons
+                name='person'
+                size={moderateScale(14)}
+                color={colors.white}
+              />
+            )}
           </View>
 
           <AppText
@@ -108,18 +215,9 @@ const TaskCard = ({ item, projectId }: any) => {
         >
           <View
             style={{
-              backgroundColor: item.priority,
-              width: moderateScale(7),
-              height: moderateScale(7),
-            }}
-            className='rounded-full'
-          />
-
-          <View
-            style={{
               backgroundColor: colors.surface,
               paddingHorizontal: layout.paddingHorizontal * 0.25,
-              borderRadius: Radius.circle,
+              borderRadius: Radius.sm,
               paddingTop: layout.paddingTop * 0.25,
               paddingBottom: layout.paddingBottom * 0.25,
             }}
@@ -129,7 +227,7 @@ const TaskCard = ({ item, projectId }: any) => {
               className='font-semibold'
               color={colors.textSecondary}
             >
-              {item.points}
+              {item.story_points ?? 0} pts
             </AppText>
           </View>
         </View>

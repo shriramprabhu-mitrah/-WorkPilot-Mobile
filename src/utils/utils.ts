@@ -74,12 +74,14 @@ export const formatDate = (isoString?: string): string => {
   }
   try {
     const date = new Date(isoString);
-    const day = date.getDate();
-    const month = date.toLocaleString('en-US', {
+    return date.toLocaleString('en-US', {
+      day: 'numeric',
       month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
     });
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
   } catch {
     return 'Recently';
   }
