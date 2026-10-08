@@ -19,6 +19,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { AppText } from '../components';
 import { Radius } from '../constants/Radius';
 import { useAuthLayout } from '../hooks/useAuthLayout';
@@ -60,6 +61,28 @@ const styles = StyleSheet.create({
   },
 });
 
+const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
+  const { colors } = useTheme();
+  const { moderateScale } = useAuthLayout();
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={{
+        width: moderateScale(60),
+        marginLeft: moderateScale(8),
+        borderRadius: Radius.md,
+        backgroundColor: colors.error,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Ionicons name='trash-outline' size={moderateScale(22)} color='#FFFFFF' />
+    </TouchableOpacity>
+  );
+};
+
 const OrganizationMembers = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
@@ -73,6 +96,16 @@ const OrganizationMembers = () => {
   const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>('active');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [expandedMembers, setExpandedMembers] = useState<
+    Record<string, boolean>
+  >({});
+
+  const toggleMemberExpanded = useCallback((memberId: string) => {
+    setExpandedMembers(prev => ({
+      ...prev,
+      [memberId]: !prev[memberId],
+    }));
+  }, []);
 
   const [removeOrganizationMember, { isLoading: isRemovingMember }] =
     useRemoveOrganizationMemberMutation();
@@ -214,31 +247,28 @@ const OrganizationMembers = () => {
               </AppText>
             </View>
           </View>
-          <View>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setIsInviteModalVisible(true)}
-              style={{
-                backgroundColor: colors.primary,
-              }}
-              className='flex-row items-center gap-1 rounded-lg px-2 py-2'
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setIsInviteModalVisible(true)}
+            style={{
+              backgroundColor: colors.primary,
+            }}
+            className='flex-row items-center gap-1 rounded-lg px-2 py-2'
+          >
+            <Ionicons
+              name='add'
+              size={moderateScale(14)}
+              color={colors.white}
+            />
+            <AppText
+              variant='button'
+              color={colors.white}
+              style={{ fontSize: moderateScale(12) }}
+              className='font-semibold'
             >
-              <Ionicons
-                name='add'
-                size={moderateScale(14)}
-                color={colors.white}
-                className='font-semibold'
-              />
-              <AppText
-                variant='button'
-                color={colors.white}
-                style={{ fontSize: moderateScale(12) }}
-                className='font-semibold'
-              >
-                Add Member
-              </AppText>
-            </TouchableOpacity>
-          </View>
+              Add Member
+            </AppText>
+          </TouchableOpacity>
         </View>
 
         {/* Row 2: Status Dropdown Filter Button below the title */}
@@ -423,6 +453,7 @@ const OrganizationMembers = () => {
               item.completion_percentage ??
               (totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0);
 
+            const isExpanded = Boolean(expandedMembers[item.id]);
             const normalizedStatus = (item.status || '').toUpperCase();
             const isPending =
               normalizedStatus === 'PENDING' || normalizedStatus === 'INVITED';
@@ -451,73 +482,76 @@ const OrganizationMembers = () => {
                   };
 
             return (
-              <View
-                className='border p-3.5'
-                style={{
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  borderRadius: Radius.md,
-                }}
+              <Swipeable
+                enabled={!isExpanded}
+                renderRightActions={() => (
+                  <SwipeDeleteAction onPress={() => setMemberToRemove(item)} />
+                )}
+                overshootRight={false}
               >
-                {/* Top Row: Avatar, Member Info, Status & Remove */}
                 <View
-                  className='flex-row items-center'
-                  style={{ gap: layout.elementGap }}
+                  className='border p-3.5'
+                  style={{
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    borderRadius: Radius.md,
+                  }}
                 >
-                  {item.avatar_url ? (
-                    <Image
-                      source={{ uri: item.avatar_url }}
-                      style={{
-                        width: moderateScale(44),
-                        height: moderateScale(44),
-                        borderRadius: moderateScale(12),
-                      }}
-                      resizeMode='cover'
-                    />
-                  ) : (
-                    <View
-                      className='items-center justify-center overflow-hidden'
-                      style={{
-                        width: moderateScale(44),
-                        height: moderateScale(44),
-                        backgroundColor: item?.color || colors.primary,
-                        borderRadius: moderateScale(12),
-                      }}
-                    >
-                      <AppText
-                        variant='body'
-                        className='font-bold'
-                        color={colors.white}
-                      >
-                        {initials || '?'}
-                      </AppText>
-                    </View>
-                  )}
-
-                  <View className='flex-1' style={{ gap: 2 }}>
-                    <AppText
-                      variant='bodyLarge'
-                      className='font-bold'
-                      color={colors.text}
-                      numberOfLines={1}
-                    >
-                      {displayName}
-                    </AppText>
-
-                    <AppText
-                      variant='caption'
-                      color={colors.textSecondary}
-                      numberOfLines={1}
-                      className='capitalize'
-                    >
-                      {item.role || 'Member'}
-                    </AppText>
-                  </View>
-
+                  {/* Top Row: Avatar, Member Info, Status & Remove */}
                   <View
                     className='flex-row items-center'
-                    style={{ gap: moderateScale(8) }}
+                    style={{ gap: layout.elementGap }}
                   >
+                    {item.avatar_url ? (
+                      <Image
+                        source={{ uri: item.avatar_url }}
+                        style={{
+                          width: moderateScale(44),
+                          height: moderateScale(44),
+                          borderRadius: moderateScale(12),
+                        }}
+                        resizeMode='cover'
+                      />
+                    ) : (
+                      <View
+                        className='items-center justify-center overflow-hidden'
+                        style={{
+                          width: moderateScale(44),
+                          height: moderateScale(44),
+                          backgroundColor: item?.color || colors.primary,
+                          borderRadius: moderateScale(12),
+                        }}
+                      >
+                        <AppText
+                          variant='body'
+                          className='font-bold'
+                          color={colors.white}
+                        >
+                          {initials || '?'}
+                        </AppText>
+                      </View>
+                    )}
+
+                    <View className='flex-1' style={{ gap: 2 }}>
+                      <AppText
+                        variant='bodyLarge'
+                        className='font-bold'
+                        color={colors.text}
+                        numberOfLines={1}
+                      >
+                        {displayName}
+                      </AppText>
+
+                      <AppText
+                        variant='caption'
+                        color={colors.textSecondary}
+                        numberOfLines={1}
+                        className='capitalize'
+                      >
+                        {item.role || 'Member'}
+                      </AppText>
+                    </View>
+
                     <View
                       className='rounded-full border px-2.5 py-0.5'
                       style={{
@@ -535,87 +569,141 @@ const OrganizationMembers = () => {
                     </View>
 
                     <TouchableOpacity
-                      accessibilityLabel={`Remove ${displayName}`}
-                      accessibilityRole='button'
                       activeOpacity={0.7}
-                      onPress={() => setMemberToRemove(item)}
-                      className='items-center justify-center rounded-md p-1.5'
-                      style={{ backgroundColor: colors.surface }}
+                      onPress={() => toggleMemberExpanded(item.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      className='items-center justify-center'
                     >
                       <Ionicons
-                        name='trash-outline'
-                        size={moderateScale(16)}
-                        color={colors.error}
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={moderateScale(20)}
+                        color={colors.textSecondary}
                       />
                     </TouchableOpacity>
                   </View>
-                </View>
 
-                {/* Bottom Row: Progress bar & 3 Counts (tasks, done, open) */}
-                <View className='mt-3 flex-row items-center justify-between pt-1'>
-                  {/* Progress section on left */}
-                  <View className='flex-1 pr-6'>
-                    <View className='mb-1 flex-row items-center justify-between'>
-                      <AppText
-                        variant='caption'
-                        className='text-xs'
-                        color={colors.textSecondary}
-                      >
-                        Progress
-                      </AppText>
-                      <AppText
-                        variant='caption'
-                        className='text-xs font-semibold'
-                        color={colors.primary}
-                      >
-                        {progress}%
-                      </AppText>
-                    </View>
-
-                    {/* Progress Track */}
+                  {/* Bottom Row: Progress bar & 3 Counts (tasks, done, open) */}
+                  {isExpanded && (
                     <View
-                      className='h-1.5 w-full overflow-hidden rounded-full'
-                      style={{ backgroundColor: colors.border }}
+                      className='mt-3 border-t px-3 pt-3'
+                      style={{ borderColor: colors.border }}
                     >
-                      <View
-                        className='h-full rounded-full'
-                        style={{
-                          width: `${Math.min(Math.max(progress, 0), 100)}%`,
-                          backgroundColor: colors.primary,
-                        }}
-                      />
-                    </View>
-                  </View>
+                      {/* Progress */}
+                      <View className='flex-row items-center'>
+                        <View className='flex-1'>
+                          <View className='mb-1 flex-row items-center justify-between'>
+                            <AppText
+                              variant='caption'
+                              className='text-xs'
+                              color={colors.textSecondary}
+                            >
+                              Progress
+                            </AppText>
+                            <AppText
+                              variant='caption'
+                              className='text-xs font-semibold'
+                              color={colors.primary}
+                            >
+                              {progress}%
+                            </AppText>
+                          </View>
 
-                  {/* Three counts on right (tasks, done, open) */}
-                  <View
-                    className='flex-row items-center'
-                    style={{ gap: moderateScale(22) }}
-                  >
-                    <AppText
-                      variant='body'
-                      className='text-sm font-semibold'
-                      color={colors.text}
-                    >
-                      {totalTasks}
-                    </AppText>
-                    <AppText
-                      variant='body'
-                      className='text-sm font-semibold'
-                      style={{ color: '#16A34A' }}
-                    >
-                      {doneTasks}
-                    </AppText>
-                    <AppText
-                      variant='body'
-                      className='text-sm font-semibold'
-                      color={colors.text}
-                    >
-                      {openTasks}
-                    </AppText>
-                  </View>
+                          {/* Progress Track */}
+                          <View
+                            className='h-1.5 w-full overflow-hidden rounded-full'
+                            style={{ backgroundColor: colors.border }}
+                          >
+                            <View
+                              className='h-full rounded-full'
+                              style={{
+                                width: `${Math.min(Math.max(progress, 0), 100)}%`,
+                                backgroundColor: colors.primary,
+                              }}
+                            />
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Three counts on right (tasks, done, open) + Delete */}
+                      <View className='mt-3 flex-row items-center justify-between'>
+                        <View
+                          className='flex-row items-center'
+                          style={{ gap: moderateScale(8) }}
+                        >
+                          <AppText
+                            variant='caption'
+                            className='text-[11px]'
+                            color={colors.textSecondary}
+                          >
+                            Total Tasks
+                          </AppText>
+                          <AppText
+                            variant='body'
+                            className='text-sm font-bold'
+                            color={colors.text}
+                          >
+                            {totalTasks}
+                          </AppText>
+                        </View>
+                        <View
+                          className='flex-row items-center'
+                          style={{ gap: moderateScale(8) }}
+                        >
+                          <AppText
+                            variant='caption'
+                            className='text-[11px]'
+                            color={colors.textSecondary}
+                          >
+                            Done
+                          </AppText>
+                          <AppText
+                            variant='body'
+                            className='text-sm font-bold'
+                            style={{ color: '#16A34A' }}
+                          >
+                            {doneTasks}
+                          </AppText>
+                        </View>
+                        <View
+                          className='flex-row items-center'
+                          style={{ gap: moderateScale(8) }}
+                        >
+                          <AppText
+                            variant='caption'
+                            className='text-[11px]'
+                            color={colors.textSecondary}
+                          >
+                            Open
+                          </AppText>
+                          <AppText
+                            variant='body'
+                            className='text-sm font-bold'
+                            color={colors.text}
+                          >
+                            {openTasks}
+                          </AppText>
+                        </View>
+                        <TouchableOpacity
+                          accessibilityLabel={`Remove ${displayName}`}
+                          accessibilityRole='button'
+                          activeOpacity={0.7}
+                          onPress={() => setMemberToRemove(item)}
+                          className='items-center justify-center rounded-sm p-2'
+                          style={{
+                            backgroundColor: colors.error + '15',
+                          }}
+                        >
+                          <Ionicons
+                            name='trash-outline'
+                            size={moderateScale(17)}
+                            color={colors.error}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
                 </View>
-              </View>
+              </Swipeable>
             );
           }}
         />

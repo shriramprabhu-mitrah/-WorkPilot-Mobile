@@ -1,30 +1,29 @@
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useOptimistic,
   useRef,
   useState,
   startTransition,
 } from 'react';
 import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useFocusEffect } from '@react-navigation/native';
 import AppText from '../components/common/AppText';
-import TaskCard from '../components/TaskCard';
-import { RootStackParamList } from '../types/navigationTypes';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import {
   CreateUserStoryPayload,
+  BoardStory,
+  BoardTask,
+  BoardStatusColumn,
   UserStory,
-  UserStoryTask,
 } from '../types/project.type';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import {
-  useGetCustomStatusQuery,
-  useGetUserStoriesQuery,
-  useGetUserStoryStatusQuery,
+  useGetProjectMembersQuery,
+  useGetBoardStoriesQuery,
+  useLazyGetBoardStatusTasksQuery,
 } from '../store/api/projectApi';
 import {
   favouriteTaskThunk,
@@ -35,671 +34,104 @@ import {
 import { showSnackbar } from '../components/common/Snackbar';
 import Animated, {
   useSharedValue,
-  useAnimatedStyle,
-  useAnimatedReaction,
   useAnimatedRef,
-  scrollTo,
-  AnimatedRef,
-  SharedValue,
+  useAnimatedStyle,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import { SharedValue } from 'react-native-reanimated';
+import { DropZone, ColumnTaskState } from '../types/project.type';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { CustomStatus } from '../types/customstatus.type';
 import {
   useUpdateTaskMutation,
   useCreateUserStoryMutation,
+  useUploadUserStoryAttachmentMutation,
 } from '../store/api/userStoryApi';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { ThemeColors } from '../constants/Colors';
 import { TASK_PRIORITY_OPTIONS } from '../utils/enum';
-import CreateProjectModal from '../components/createProjectModel';
+import CreateProjectModal, {
+  StoryAttachmentFile,
+} from '../components/createProjectModel';
+import BoardFilterModal, { SelectedFilters } from '../components/filterModal';
+import { Radius } from '../constants/Radius';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import {
+  BoardSkeleton,
+  BoardSkeletonRow,
+} from '../components/skeleton/boardSkeleton';
+import { UserStoryBoardRow } from '../components/userStoryBoardRow';
+import TaskCard from '../components/TaskCard';
 
-type DropZone = {
-  storyId: string;
-  statusId: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  scrollXAtMeasure: number;
-  scrollYAtMeasure: number;
-};
-
-const USER_STORY_WIDTH = 250;
-const STATUS_COLUMN_WIDTH = 260;
-const EDGE_THRESHOLD = 300;
-const PAGINATION_THRESHOLD = 500;
-const SCROLL_SPEED = 12;
-const PAGE_SIZE = 5;
-
-const SkeletonBox = ({
+const DragPreviewOverlay = ({
+  task,
+  projectId,
+  colors,
+  dragX,
+  dragY,
+  originX,
+  originY,
   width,
-  height,
-  borderRadius = 4,
-  style,
+  offsetX,
+  offsetY,
 }: {
-  width: number | string;
-  height: number;
-  borderRadius?: number;
-  style?: object;
+  task: BoardTask;
+  projectId?: string;
+  colors: ReturnType<typeof useTheme>['colors'];
+  dragX: SharedValue<number>;
+  dragY: SharedValue<number>;
+  originX: number;
+  originY: number;
+  width: number;
+  offsetX: number;
+  offsetY: number;
 }) => {
-  const { colors } = useTheme();
-  const opacity = useSharedValue(0.4);
-  useAnimatedReaction(
-    () => opacity.value,
-    () => {},
-  );
-
-  const animStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
+  const animatedStyle = useAnimatedStyle(() => ({
+    left: Math.max(0, dragX.value - originX - offsetX),
+    top: Math.max(0, dragY.value - originY - offsetY),
   }));
-
-  useEffect(() => {
-    let ascending = true;
-    const interval = setInterval(() => {
-      if (ascending) {
-        opacity.value = opacity.value < 0.85 ? opacity.value + 0.07 : 0.85;
-        if (opacity.value >= 0.85) ascending = false;
-      } else {
-        opacity.value = opacity.value > 0.3 ? opacity.value - 0.07 : 0.3;
-        if (opacity.value <= 0.3) ascending = true;
-      }
-    }, 60);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <Animated.View
+      pointerEvents='none'
       style={[
-        {
-          width: width as any,
-          height,
-          borderRadius,
-          backgroundColor: colors.border,
-        },
-        animStyle,
-        style,
+        { position: 'absolute', width, zIndex: 10000, elevation: 30 },
+        animatedStyle,
       ]}
-    />
-  );
-};
-
-const BoardSkeletonRow = ({ columnCount }: { columnCount: number }) => {
-  const { colors } = useTheme();
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-        minHeight: 100,
-      }}
     >
-      <View
-        style={{
-          width: USER_STORY_WIDTH,
-          padding: 12,
-          backgroundColor: colors.card || colors.surface,
-          gap: 8,
+      <TaskCard
+        item={{
+          id: task.id,
+          title: task.title,
+          priority: task.priority,
+          story_points: `${task.story_points ?? 0}p`,
+          key: task.key || (task as any).task_key,
+          due_date: task.due_date,
+          avatarUrl: task.assignee?.avatar_url,
+          avatar:
+            task.assignee?.name?.charAt(0)?.toUpperCase() ||
+            task.assignee_name?.charAt(0)?.toUpperCase() ||
+            '',
+          avatarColor: task.assignee?.color || colors.primary,
+          is_favourite: task.is_favourite,
         }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <SkeletonBox width={12} height={12} borderRadius={6} />
-          <SkeletonBox width={140} height={14} />
-        </View>
-        <SkeletonBox width={80} height={10} />
-      </View>
-
-      {Array.from({ length: columnCount }).map((_, i) => (
-        <View
-          key={i}
-          style={{
-            width: STATUS_COLUMN_WIDTH,
-            minHeight: 100,
-            padding: 8,
-            borderLeftWidth: 1,
-            borderLeftColor: colors.border,
-            gap: 8,
-          }}
-        >
-          {i === 0 && (
-            <>
-              <SkeletonBox width='100%' height={56} borderRadius={8} />
-              <SkeletonBox width='100%' height={56} borderRadius={8} />
-            </>
-          )}
-        </View>
-      ))}
-    </View>
+        projectId={projectId}
+      />
+    </Animated.View>
   );
 };
-
-const BoardSkeleton = ({ columnCount }: { columnCount: number }) => {
-  const { colors } = useTheme();
-  return (
-    <View>
-      <View
-        style={{
-          flexDirection: 'row',
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        }}
-      >
-        <View style={{ width: USER_STORY_WIDTH, padding: 12 }}>
-          <SkeletonBox width={100} height={14} />
-        </View>
-        {Array.from({ length: columnCount }).map((_, i) => (
-          <View
-            key={i}
-            style={{
-              width: STATUS_COLUMN_WIDTH,
-              padding: 12,
-              borderLeftWidth: 1,
-              borderLeftColor: colors.border,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <SkeletonBox width={10} height={10} borderRadius={5} />
-              <SkeletonBox width={80} height={14} />
-            </View>
-          </View>
-        ))}
-      </View>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <BoardSkeletonRow key={i} columnCount={columnCount} />
-      ))}
-    </View>
-  );
-};
-
-type TaskDropZoneProps = {
-  storyId: string;
-  statusId: string;
-  onRegister: (zone: DropZone) => void;
-  isActive?: boolean;
-  isSuccess?: boolean;
-  children?: React.ReactNode;
-  horizontalScrollOffset: SharedValue<number>;
-  verticalScrollOffset: SharedValue<number>;
-};
-
-const TaskDropZone = ({
-  storyId,
-  statusId,
-  onRegister,
-  isActive,
-  isSuccess,
-  children,
-  horizontalScrollOffset,
-  verticalScrollOffset,
-  colors,
-}: TaskDropZoneProps & {
-  colors: ThemeColors;
-}) => {
-  const dropZoneRef = useRef<View>(null);
-
-  const measureZone = useCallback(() => {
-    if (!dropZoneRef.current) return;
-    dropZoneRef.current.measureInWindow((x, y, width, height) => {
-      if (width === 0 && height === 0) return;
-      onRegister({
-        storyId,
-        statusId,
-        x,
-        y,
-        width,
-        height,
-        scrollXAtMeasure: horizontalScrollOffset?.value ?? 0,
-        scrollYAtMeasure: verticalScrollOffset?.value ?? 0,
-      });
-    });
-  }, [
-    storyId,
-    statusId,
-    onRegister,
-    horizontalScrollOffset,
-    verticalScrollOffset,
-  ]);
-
-  return (
-    <View
-      ref={dropZoneRef}
-      onLayout={measureZone}
-      style={{
-        width: STATUS_COLUMN_WIDTH,
-        minHeight: 100,
-        padding: 8,
-        borderLeftWidth: 1,
-        borderLeftColor: colors.border,
-        backgroundColor: isSuccess
-          ? `${colors.success}30`
-          : isActive
-            ? colors.textOnPrimarySubtle
-            : 'transparent',
-      }}
-    >
-      {children}
-    </View>
-  );
-};
-
-// ─── DraggableTask ────────────────────────────────────────────────────────────
-
-type DraggableTaskProps = {
-  task: UserStoryTask;
-  sourceStoryId: string;
-  sourceStatusId: string;
-  projectId: string;
-  onDrop: (
-    task: UserStoryTask,
-    sourceStoryId: string,
-    sourceStatusId: string,
-    absoluteX: number,
-    absoluteY: number,
-  ) => void;
-  onHoverDropZone: (absoluteX: number, absoluteY: number) => void;
-  onToggleTaskFavorite?: (storyId: string, taskId: string) => void;
-  horizontalScrollRef: AnimatedRef<Animated.ScrollView>;
-  verticalScrollRef: AnimatedRef<Animated.ScrollView>;
-  horizontalScrollOffset: SharedValue<number>;
-  verticalScrollOffset: SharedValue<number>;
-};
-
-const DraggableTask = ({
-  task,
-  sourceStoryId,
-  sourceStatusId,
-  projectId,
-  onDrop,
-  onHoverDropZone,
-  onToggleTaskFavorite,
-  horizontalScrollRef,
-  verticalScrollRef,
-  horizontalScrollOffset,
-  verticalScrollOffset,
-  colors,
-}: DraggableTaskProps & { colors: ThemeColors }) => {
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const isDragging = useSharedValue(false);
-  const dragX = useSharedValue(0);
-  const dragY = useSharedValue(0);
-  const startScrollX = useSharedValue(0);
-  const startScrollY = useSharedValue(0);
-
-  useAnimatedReaction(
-    () => ({ x: dragX.value, y: dragY.value, dragging: isDragging.value }),
-    current => {
-      if (!current.dragging) return;
-
-      const curX = horizontalScrollOffset?.value ?? 0;
-      const curY = verticalScrollOffset?.value ?? 0;
-
-      if (current.x > 350) {
-        const next = curX + SCROLL_SPEED;
-        horizontalScrollOffset.value = next;
-        scrollTo(horizontalScrollRef, next, 0, false);
-      } else if (current.x < EDGE_THRESHOLD) {
-        const next = Math.max(0, curX - SCROLL_SPEED);
-        horizontalScrollOffset.value = next;
-        scrollTo(horizontalScrollRef, next, 0, false);
-      }
-
-      if (current.y > 700) {
-        const next = curY + SCROLL_SPEED;
-        verticalScrollOffset.value = next;
-        scrollTo(verticalScrollRef, 0, next, false);
-      } else if (current.y < EDGE_THRESHOLD) {
-        const next = Math.max(0, curY - SCROLL_SPEED);
-        verticalScrollOffset.value = next;
-        scrollTo(verticalScrollRef, 0, next, false);
-      }
-    },
-  );
-
-  const panGesture = Gesture.Pan()
-    .activateAfterLongPress(200)
-    .onStart(event => {
-      isDragging.value = true;
-      startScrollX.value = horizontalScrollOffset.value;
-      startScrollY.value = verticalScrollOffset.value;
-      dragX.value = event.absoluteX;
-      dragY.value = event.absoluteY;
-      scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
-    })
-    .onUpdate(event => {
-      const scrollDiffX = horizontalScrollOffset.value - startScrollX.value;
-      const scrollDiffY = verticalScrollOffset.value - startScrollY.value;
-      translateX.value = event.translationX + scrollDiffX;
-      translateY.value = event.translationY + scrollDiffY;
-      dragX.value = event.absoluteX;
-      dragY.value = event.absoluteY;
-      scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
-    })
-    .onEnd(event => {
-      scheduleOnRN(
-        onDrop,
-        task,
-        sourceStoryId,
-        sourceStatusId,
-        event.absoluteX,
-        event.absoluteY,
-      );
-      translateX.value = 0;
-      translateY.value = 0;
-      isDragging.value = false;
-      dragX.value = 0;
-      dragY.value = 0;
-    })
-    .onFinalize(() => {
-      scheduleOnRN(onHoverDropZone, -1, -1);
-      translateX.value = 0;
-      translateY.value = 0;
-      isDragging.value = false;
-      dragX.value = 0;
-      dragY.value = 0;
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { scale: isDragging.value ? 1.04 : 1 },
-    ],
-    zIndex: isDragging.value ? 9999 : 1,
-    elevation: isDragging.value ? 10 : 0,
-    shadowColor: isDragging.value ? colors.black : 'transparent',
-    shadowOffset: { width: 0, height: isDragging.value ? 4 : 0 },
-    shadowOpacity: isDragging.value ? 0.2 : 0,
-    shadowRadius: isDragging.value ? 8 : 0,
-  }));
-
-  return (
-    <View style={{ position: 'relative' }}>
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={animatedStyle}>
-          <TaskCard
-            item={{
-              id: task.id,
-              title: task.title,
-              priority: task.priority,
-              points: `${task.story_points ?? 0}p`,
-              avatar: task.assignee_name?.charAt(0)?.toUpperCase() || '?',
-              avatarColor: colors.primary,
-            }}
-            projectId={projectId}
-          />
-        </Animated.View>
-      </GestureDetector>
-      <TouchableOpacity
-        onPress={() => onToggleTaskFavorite?.(sourceStoryId, task.id)}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        style={{
-          position: 'absolute',
-          top: 6,
-          right: 6,
-          zIndex: 10000,
-          padding: 2,
-        }}
-      >
-        <AppText
-          style={{
-            color: task.is_favourite ? colors.warning : colors.textSecondary,
-            fontSize: 20,
-          }}
-        >
-          {task.is_favourite ? '★' : '☆'}
-        </AppText>
-      </TouchableOpacity>
-    </View>
-  );
-};
-
-// ─── UserStoryBoardRow ────────────────────────────────────────────────────────
-
-type UserStoryBoardRowProps = {
-  story: UserStory;
-  projectId: string;
-  customStatuses: CustomStatus[];
-  expanded: boolean;
-  onToggle: () => void;
-  onRegisterDropZone: (zone: DropZone) => void;
-  onTaskDrop: (
-    task: UserStoryTask,
-    sourceStoryId: string,
-    sourceStatusId: string,
-    absoluteX: number,
-    absoluteY: number,
-  ) => void;
-  onHoverDropZone: (absoluteX: number, absoluteY: number) => void;
-  onToggleStoryFavorite?: (storyId: string) => void;
-  onToggleTaskFavorite?: (storyId: string, taskId: string) => void;
-  activeDropZone: { storyId: string; statusId: string } | null;
-  dropSuccessZone: { storyId: string; statusId: string } | null;
-  horizontalScrollRef: AnimatedRef<Animated.ScrollView>;
-  verticalScrollRef: AnimatedRef<Animated.ScrollView>;
-  horizontalScrollOffset: SharedValue<number>;
-  verticalScrollOffset: SharedValue<number>;
-};
-
-const UserStoryBoardRow = ({
-  story,
-  projectId,
-  customStatuses,
-  expanded,
-  onToggle,
-  onRegisterDropZone,
-  onTaskDrop,
-  onHoverDropZone,
-  onToggleStoryFavorite,
-  onToggleTaskFavorite,
-  activeDropZone,
-  dropSuccessZone,
-  horizontalScrollRef,
-  verticalScrollRef,
-  horizontalScrollOffset,
-  verticalScrollOffset,
-  colors,
-}: UserStoryBoardRowProps & { colors: ThemeColors }) => {
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-        minHeight: expanded ? 250 : 100,
-      }}
-    >
-      <TouchableOpacity
-        onPress={() =>
-          navigation.navigate('issue', {
-            projectId,
-            userStoryId: story?.id,
-            story: story,
-          })
-        }
-        activeOpacity={0.7}
-        style={{
-          width: USER_STORY_WIDTH,
-          minHeight: 90,
-          paddingHorizontal: 12,
-          paddingVertical: 12,
-          backgroundColor: colors.card || colors.surface,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            width: '100%',
-          }}
-        >
-          <TouchableOpacity
-            onPress={e => {
-              e.stopPropagation();
-              onToggle();
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={{
-              width: 22,
-              height: 22,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <AppText
-              style={{
-                fontSize: 15,
-                lineHeight: 14,
-                color: colors.text,
-              }}
-            >
-              {expanded ? '▼' : '▶'}
-            </AppText>
-          </TouchableOpacity>
-
-          <View
-            style={{
-              width: 18,
-              height: 22,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <View
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 6,
-                backgroundColor: story.status_color || colors.textSecondary,
-              }}
-            />
-          </View>
-
-          <View
-            style={{
-              flex: 1,
-              minWidth: 0,
-              paddingLeft: 4,
-              paddingRight: 8,
-            }}
-          >
-            <AppText
-              variant='body'
-              className='font-semibold'
-              numberOfLines={1}
-              ellipsizeMode='tail'
-              style={{
-                lineHeight: 20,
-                color: colors.text,
-              }}
-            >
-              {story.title}
-            </AppText>
-
-            <AppText
-              variant='caption'
-              color={colors.textSecondary}
-              style={{
-                marginTop: 2,
-                lineHeight: 17,
-              }}
-            >
-              {story.tasks?.length ?? 0} tasks · {story.story_points ?? 0} pts
-            </AppText>
-          </View>
-
-          <TouchableOpacity
-            onPress={e => {
-              e.stopPropagation();
-              onToggleStoryFavorite?.(story.id);
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={{
-              width: 28,
-              height: 22,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <AppText
-              style={{
-                color: story.is_favourite
-                  ? colors.warning
-                  : colors.textSecondary,
-                fontSize: 20,
-                lineHeight: 22,
-              }}
-            >
-              {story.is_favourite ? '★' : '☆'}
-            </AppText>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-
-      {customStatuses?.map(status => {
-        const tasks =
-          story.tasks?.filter(task => task.status_id === status.id) ?? [];
-
-        const isActive =
-          activeDropZone?.storyId === story.id &&
-          activeDropZone?.statusId === status.id;
-
-        const isSuccess =
-          dropSuccessZone?.storyId === story.id &&
-          dropSuccessZone?.statusId === status.id;
-
-        return (
-          <TaskDropZone
-            key={`${story.id}-${status.id}`}
-            storyId={story.id}
-            statusId={status.id}
-            onRegister={onRegisterDropZone}
-            isActive={isActive}
-            isSuccess={isSuccess}
-            horizontalScrollOffset={horizontalScrollOffset}
-            verticalScrollOffset={verticalScrollOffset}
-            colors={colors}
-          >
-            {expanded &&
-              tasks.map(task => (
-                <DraggableTask
-                  key={task.id}
-                  task={task}
-                  sourceStoryId={story.id}
-                  sourceStatusId={status.id}
-                  projectId={projectId}
-                  onDrop={onTaskDrop}
-                  onHoverDropZone={onHoverDropZone}
-                  onToggleTaskFavorite={onToggleTaskFavorite}
-                  horizontalScrollRef={horizontalScrollRef}
-                  verticalScrollRef={verticalScrollRef}
-                  horizontalScrollOffset={horizontalScrollOffset}
-                  verticalScrollOffset={verticalScrollOffset}
-                  colors={colors}
-                />
-              ))}
-          </TaskDropZone>
-        );
-      })}
-    </View>
-  );
-};
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 const ProjectDeatailsScreen = () => {
   const dispatch = useAppDispatch();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
   const verticalScrollRef = useAnimatedRef<Animated.ScrollView>();
   const horizontalScrollRef = useAnimatedRef<Animated.ScrollView>();
   const horizontalScrollOffset = useSharedValue(0);
   const verticalScrollOffset = useSharedValue(0);
+  const [dragPreviewTask, setDragPreviewTask] = useState<BoardTask | null>(
+    null,
+  );
+  const dragPreviewX = useSharedValue(0);
+  const dragPreviewY = useSharedValue(0);
+  const [rootOrigin, setRootOrigin] = useState({ x: 0, y: 0 });
+  const rootViewRef = useRef<View>(null);
 
   // Redux Selectors
   const {
@@ -715,85 +147,100 @@ const ProjectDeatailsScreen = () => {
     currentSprint?.id?.toString() || (currentSprint as any)?._id?.toString();
 
   // Screen Focus & Refetch Token State
+  const [isFocused, setIsFocused] = useState(false);
   const [refetchKey, setRefetchKey] = useState(0);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [isSprintSwitchLoading, setIsSprintSwitchLoading] = useState(false);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [assigneePage, setAssigneePage] = useState(1);
+  const [isFilterApplying, setIsFilterApplying] = useState(false);
+  const filterFetchStarted = useRef(false);
+  const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({
+    assignee: [],
+    status: [],
+    priority: [],
+    work_type: [],
+  });
+
+  const [taskPagination, setTaskPagination] = useState<
+    Record<string, Record<string, ColumnTaskState>>
+  >({});
+  const taskPaginationRef = useRef(taskPagination);
+  taskPaginationRef.current = taskPagination;
+
   const previousSprintId = useRef<string | undefined>(undefined);
   const hasStartedSprintFetch = useRef(false);
 
   // RTK Query hooks — reads from cache immediately if preloaded
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const { data: customStatusData, refetch: refetchCustomStatus } =
-    useGetCustomStatusQuery(
-      projectId ? { project_id: projectId } : skipToken,
-      { refetchOnFocus: true },
-    );
-  const customStatuses = customStatusData?.data ?? [];
-
-  const { data: userStoryStatusData, refetch: refetchUserStoryStatus } =
-    useGetUserStoryStatusQuery(
-      projectId ? { project_id: projectId } : skipToken,
-      { refetchOnFocus: true },
-    );
-  const userStoryStatuses = userStoryStatusData?.data ?? [];
+  const [uploadUserStoryAttachment] = useUploadUserStoryAttachmentMutation();
   const [createUserStory, { isLoading: isCreatingStory }] =
     useCreateUserStoryMutation();
 
-  const handleCreateStory = async (payload: CreateUserStoryPayload) => {
-    if (!projectId || !currentSprintId) {
-      showSnackbar({
-        message: 'Project or Sprint not selected',
-        type: 'error',
-      });
-      return;
-    }
-    try {
-      await createUserStory({
-        projectId,
-        payload: {
-          ...payload,
-          sprint_id: currentSprintId,
-        },
-      }).unwrap();
-      await refetchUserStories();
-    } catch (error) {
-      showSnackbar({
-        message: 'Failed to create user story',
-        type: 'error',
-      });
-      throw error;
-    }
-  };
-
   const {
-    data: userStoriesResponse,
-    isFetching: isStoriesFetching,
-    isLoading: isStoriesLoading,
-    isError: isStoriesError,
-    refetch: refetchUserStories,
-  } = useGetUserStoriesQuery(
-    projectId && currentSprintId
+    currentData: boardStoriesResponse,
+    isFetching: isBoardStoriesFetching,
+    isLoading: isBoardStoriesLoading,
+    isError: isBoardStoriesError,
+    refetch: refetchBoardStories,
+  } = useGetBoardStoriesQuery(
+    isFocused && projectId
       ? {
-          projectId,
-          payload: {
-            page: currentPage,
-            page_size: PAGE_SIZE,
-            sprint_id: currentSprintId,
-          },
+          project_id: projectId,
+          page: currentPage,
+          page_size: 5,
+          sprint_id: currentSprintId,
+          tasks_per_status: 1,
+          task_assignee_id:
+            selectedFilters.assignee.length > 0
+              ? selectedFilters.assignee.join(',')
+              : undefined,
+          task_status_id:
+            selectedFilters.status.length > 0
+              ? selectedFilters.status.join(',')
+              : undefined,
+          priority:
+            selectedFilters.priority.length > 0
+              ? selectedFilters.priority.join(',')
+              : undefined,
+          work_type:
+            selectedFilters.work_type.length > 0
+              ? selectedFilters.work_type.join(',')
+              : undefined,
+          _refetchKey: refetchKey,
         }
       : skipToken,
-    { refetchOnFocus: true },
   );
 
-  const userStories = (userStoriesResponse?.data as UserStory[]) ?? [];
-  const userStoryMeta = userStoriesResponse?.meta ?? null;
+  const boardStories = useMemo(
+    () => boardStoriesResponse?.data ?? [],
+    [boardStoriesResponse?.data],
+  );
+  const boardMeta = boardStoriesResponse?.meta ?? null;
+  const boardColumns = useMemo<BoardStatusColumn[]>(() => {
+    if (boardStories.length === 0) return [];
+    return [...(boardStories[0].statuses || [])].sort(
+      (a, b) => a.display_order - b.display_order,
+    );
+  }, [boardStories]);
+  const { data: membersData, isFetching: isAssigneesFetching } = useGetProjectMembersQuery(
+    isFocused && projectId
+      ? {
+          project_id: projectId,
+          page: assigneePage,
+          page_size: 10,
+          _refetchKey: refetchKey,
+        }
+      : skipToken,
+  );
+  const projectMembers = membersData?.data ?? [];
   const [updateTask] = useUpdateTaskMutation();
-
+  const [triggerGetStatusTasks] = useLazyGetBoardStatusTasksQuery();
   // Local State
-  const [localUserStories, setLocalUserStories] = useState<UserStory[]>([]);
+  const [localUserStories, setLocalUserStories] = useState<BoardStory[]>([]);
   const [expandedStories, setExpandedStories] = useState<
     Record<string, boolean>
   >({});
@@ -809,18 +256,12 @@ const ProjectDeatailsScreen = () => {
 
   const hasInitializedStories = useRef(false);
 
-  // Helper – stories already carry is_favourite from the API, just pass through
-  const mapStoriesFromApi = useCallback(
-    (stories: UserStory[]) => stories.map(s => ({ ...s })),
-    [],
-  );
-
   type OptimisticAction =
     | { kind: 'story'; storyId: string; isFav: boolean }
     | { kind: 'task'; taskId: string; isFav: boolean };
 
   const [optimisticStories, addOptimisticUpdate] = useOptimistic<
-    UserStory[],
+    BoardStory[],
     OptimisticAction
   >(localUserStories, (current, action) => {
     if (action.kind === 'story') {
@@ -830,29 +271,84 @@ const ProjectDeatailsScreen = () => {
     }
     return current.map(s => ({
       ...s,
-      tasks: s.tasks?.map(t =>
-        t.id === action.taskId ? { ...t, is_favourite: action.isFav } : t,
-      ),
+      statuses: s.statuses?.map(col => ({
+        ...col,
+        tasks: col.tasks?.map(t =>
+          t.id === action.taskId ? { ...t, is_favourite: action.isFav } : t,
+        ),
+      })),
     }));
   });
+
+  const appliedFiltersCount = useMemo(() => {
+    return (
+      selectedFilters.assignee.length +
+      selectedFilters.status.length +
+      selectedFilters.priority.length +
+      selectedFilters.work_type.length
+    );
+    setTaskPagination({});
+  }, [selectedFilters]);
+
+  useEffect(() => {
+    if (!isFilterApplying) return;
+    if (isBoardStoriesFetching) filterFetchStarted.current = true;
+    if (
+      filterFetchStarted.current &&
+      !isBoardStoriesFetching &&
+      (boardStoriesResponse !== undefined || isBoardStoriesError)
+    ) {
+      setIsFilterApplying(false);
+      filterFetchStarted.current = false;
+    }
+  }, [isFilterApplying, isBoardStoriesFetching, boardStoriesResponse, isBoardStoriesError]);
+  const displayStories = useMemo(() => {
+    const hasAssignee = selectedFilters.assignee.length > 0;
+    const hasStatus = selectedFilters.status.length > 0;
+    const hasPriority = selectedFilters.priority.length > 0;
+    if (!hasAssignee && !hasStatus && !hasPriority) {
+      return optimisticStories;
+    }
+    return optimisticStories
+      .map(story => {
+        const filteredStatuses = (story.statuses ?? []).map(col => {
+          const matchingTasks = (col.tasks ?? []).filter(task => {
+            const assigneeId = task.assignee?.id || task.assignee_id;
+            const matchAssignee =
+              !hasAssignee ||
+              (assigneeId && selectedFilters.assignee.includes(assigneeId));
+            const matchStatus =
+              !hasStatus || selectedFilters.status.includes(task.status_id);
+            const matchPriority =
+              !hasPriority || selectedFilters.priority.includes(task.priority);
+
+            return matchAssignee && matchStatus && matchPriority;
+          });
+          return {
+            ...col,
+            tasks: matchingTasks,
+          };
+        });
+        const totalRemainingTasks = filteredStatuses.reduce(
+          (sum, col) => sum + (col.tasks?.length ?? 0),
+          0,
+        );
+        return {
+          ...story,
+          statuses: filteredStatuses,
+          total_tasks: totalRemainingTasks,
+        };
+      })
+      .filter(story => (story.total_tasks ?? 0) > 0);
+  }, [optimisticStories, selectedFilters]);
 
   // Updated useFocusEffect to refresh without wiping preloaded cache
   useFocusEffect(
     useCallback(() => {
-      if (projectId) {
-        refetchCustomStatus();
-        refetchUserStoryStatus();
-        if (currentSprintId) {
-          refetchUserStories();
-        }
-      }
-    }, [
-      projectId,
-      currentSprintId,
-      refetchCustomStatus,
-      refetchUserStoryStatus,
-      refetchUserStories,
-    ]),
+      setIsFocused(true);
+      setRefetchKey(prev => prev + 1);
+      return () => setIsFocused(false);
+    }, []),
   );
 
   // Reset pagination and local list on project or sprint changes
@@ -871,22 +367,31 @@ const ProjectDeatailsScreen = () => {
     setActiveDropZone(null);
     setDropSuccessZone(null);
     setCurrentPage(1);
+    setAssigneePage(1);
     setIsFetchingMore(false);
     setExpandedStories({});
+    setTaskPagination({});
   }, [projectId, currentSprintId]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setIsFetchingMore(false);
+    hasInitializedStories.current = false;
+    setLocalUserStories([]);
+  }, [selectedFilters]);
 
   useEffect(() => {
     if (!isSprintSwitchLoading) {
       hasStartedSprintFetch.current = false;
       return;
     }
-    if (isStoriesFetching) {
+    if (isBoardStoriesFetching) {
       hasStartedSprintFetch.current = true;
       return;
     }
     if (
       hasStartedSprintFetch.current &&
-      (userStoriesResponse !== undefined || isStoriesError) &&
+      (boardStoriesResponse !== undefined || isBoardStoriesError) &&
       currentPage === 1
     ) {
       setIsSprintSwitchLoading(false);
@@ -894,76 +399,197 @@ const ProjectDeatailsScreen = () => {
     }
   }, [
     isSprintSwitchLoading,
-    isStoriesFetching,
-    userStoriesResponse,
-    isStoriesError,
+    isBoardStoriesFetching,
+    boardStoriesResponse,
+    isBoardStoriesError,
     currentPage,
   ]);
 
   // Seed / append from Redux into local list – is_favourite comes from the API
   useEffect(() => {
-    if (!userStories?.length && currentPage === 1) {
-      if (!storeLoading && !isStoriesFetching) {
+    if (!boardStories?.length && currentPage === 1) {
+      if (!storeLoading && !isBoardStoriesFetching) {
         setLocalUserStories(prev => (prev.length > 0 ? [] : prev));
         hasInitializedStories.current = true;
       }
       return;
     }
 
-    if (!hasInitializedStories.current && userStories.length > 0) {
-      setLocalUserStories(mapStoriesFromApi(userStories));
+    const currentPag = taskPaginationRef.current;
+    const nextPagination: Record<string, Record<string, ColumnTaskState>> = {
+      ...currentPag,
+    };
+    boardStories.forEach(story => {
+      if (!nextPagination[story.id]) {
+        nextPagination[story.id] = {};
+      }
+      (story.statuses || []).forEach(statusCol => {
+        const existing = nextPagination[story.id][statusCol.status_id];
+        const initialTasks = statusCol.tasks ?? [];
+        const colTotal =
+          statusCol.task_count ??
+          (statusCol as any)?.total ??
+          initialTasks.length;
+
+        if (!existing) {
+          nextPagination[story.id][statusCol.status_id] = {
+            tasks: initialTasks,
+            page: initialTasks.length > 0 ? 1 : 0,
+            isLoading: false,
+            hasNext: colTotal > initialTasks.length,
+            totalCount: colTotal,
+          };
+        }
+      });
+    });
+    setTaskPagination(nextPagination);
+    const mergedStories = boardStories.map(story => ({
+      ...story,
+      statuses: (story.statuses || []).map(statusCol => ({
+        ...statusCol,
+        tasks:
+          nextPagination[story.id]?.[statusCol.status_id]?.tasks ??
+          statusCol.tasks ??
+          [],
+      })),
+    }));
+
+    if (!hasInitializedStories.current && boardStories.length > 0) {
+      setLocalUserStories(mergedStories);
       hasInitializedStories.current = true;
       setIsFetchingMore(false);
     } else if (currentPage > 1) {
       setLocalUserStories(prev => {
         const existingIds = new Set(prev.map(s => s.id));
-        const fresh = userStories.filter(
-          (s: UserStory) => !existingIds.has(s.id),
-        );
-        return fresh.length > 0 ? [...prev, ...mapStoriesFromApi(fresh)] : prev;
+        const fresh = mergedStories.filter(s => !existingIds.has(s.id));
+        return fresh.length > 0 ? [...prev, ...fresh] : prev;
       });
       setIsFetchingMore(false);
     } else {
-      setLocalUserStories(mapStoriesFromApi(userStories));
+      setLocalUserStories(mergedStories);
       setIsFetchingMore(false);
     }
-  }, [
-    userStories,
-    currentPage,
-    storeLoading,
-    isStoriesFetching,
-    mapStoriesFromApi,
-  ]);
+  }, [boardStories, currentPage, storeLoading, isBoardStoriesFetching]);
+
+  const handleLoadMoreTasks = useCallback(
+    async (storyId: string, statusId: string) => {
+      if (!projectId) return;
+      const columnState = taskPaginationRef.current[storyId]?.[statusId];
+      if (columnState?.isLoading) return;
+      if (columnState && columnState.page >= 1 && !columnState.hasNext) return;
+      const nextPage = (columnState?.page ?? 1) + 1;
+      setTaskPagination(prev => ({
+        ...prev,
+        [storyId]: {
+          ...(prev[storyId] || {}),
+          [statusId]: {
+            ...(prev[storyId]?.[statusId] ?? {
+              tasks: [],
+              page: 1,
+              totalCount: 0,
+              hasNext: true,
+            }),
+            isLoading: true,
+          },
+        },
+      }));
+      try {
+        const response = await triggerGetStatusTasks({
+          project_id: projectId,
+          user_story_id: storyId,
+          status_id: statusId,
+          page: nextPage,
+          page_size: 3,
+        }).unwrap();
+        const storyData: BoardStory | undefined = response?.data;
+        const fetchedTasks: BoardTask[] =
+          storyData?.statuses
+            ?.find(s => s.status_id === statusId)
+            ?.tasks?.filter(t => t.status_id === statusId) ?? [];
+        const total = response?.meta?.total ?? 0;
+        const hasNextMeta = Boolean(response?.meta?.has_next);
+        setTaskPagination(prev => {
+          const currentTasks = prev[storyId]?.[statusId]?.tasks ?? [];
+          const existingIds = new Set(currentTasks.map(t => t.id));
+          const newTasks = fetchedTasks.filter(t => !existingIds.has(t.id));
+          const updatedTasks = [...currentTasks, ...newTasks];
+          const hasNext =
+            hasNextMeta && (total === 0 || updatedTasks.length < total);
+          return {
+            ...prev,
+            [storyId]: {
+              ...(prev[storyId] || {}),
+              [statusId]: {
+                tasks: updatedTasks,
+                page: nextPage,
+                isLoading: false,
+                hasNext,
+                totalCount: total > 0 ? total : updatedTasks.length,
+              },
+            },
+          };
+        });
+        setLocalUserStories(prev =>
+          prev.map(story => {
+            if (story.id !== storyId) return story;
+            return {
+              ...story,
+              statuses: (story.statuses || []).map(col => {
+                if (col.status_id !== statusId) return col;
+                const existingIds = new Set((col.tasks || []).map(t => t.id));
+                const fresh = fetchedTasks.filter(t => !existingIds.has(t.id));
+                return {
+                  ...col,
+                  task_count: total,
+                  tasks: [...(col.tasks || []), ...fresh],
+                };
+              }),
+            };
+          }),
+        );
+      } catch {
+        setTaskPagination(prev => ({
+          ...prev,
+          [storyId]: {
+            ...(prev[storyId] || {}),
+            [statusId]: {
+              ...(prev[storyId]?.[statusId] ?? {
+                tasks: [],
+                page: 1,
+                hasNext: false,
+                totalCount: 0,
+              }),
+              isLoading: false,
+            },
+          },
+        }));
+        showSnackbar({
+          message: 'Failed to load column tasks',
+          type: 'error',
+        });
+      }
+    },
+    [projectId, triggerGetStatusTasks],
+  );
 
   const loadNextPage = useCallback(() => {
     if (
+      !isFocused ||
       !projectId ||
-      !currentSprintId ||
-      isStoriesFetching ||
+      !boardMeta?.has_next ||
+      isBoardStoriesFetching ||
       isFetchingMore
     ) {
       return;
     }
-
-    const hasNext =
-      userStoryMeta?.has_next !== undefined
-        ? userStoryMeta.has_next
-        : userStoryMeta?.total_pages !== undefined
-          ? currentPage < userStoryMeta.total_pages
-          : localUserStories.length >= PAGE_SIZE;
-
-    if (!hasNext) return;
-
     setIsFetchingMore(true);
     setCurrentPage(prev => prev + 1);
   }, [
     projectId,
-    currentSprintId,
-    userStoryMeta,
-    isStoriesFetching,
+    boardMeta?.has_next,
+    isFocused,
+    isBoardStoriesFetching,
     isFetchingMore,
-    currentPage,
-    localUserStories.length,
   ]);
 
   const handleVerticalScroll = useCallback(
@@ -976,7 +602,7 @@ const ProjectDeatailsScreen = () => {
       verticalScrollOffset.value = offsetY;
       const distanceFromBottom =
         totalContentHeight - (offsetY + viewportHeight);
-      if (distanceFromBottom <= PAGINATION_THRESHOLD) {
+      if (distanceFromBottom <= 500) {
         loadNextPage();
       }
     },
@@ -986,6 +612,42 @@ const ProjectDeatailsScreen = () => {
   const toggleStory = useCallback((storyId: string) => {
     setExpandedStories(prev => ({ ...prev, [storyId]: !prev[storyId] }));
   }, []);
+  const handleCreateStory = async (
+    payload: CreateUserStoryPayload,
+    file?: StoryAttachmentFile,
+  ) => {
+    if (!projectId || !currentSprintId) {
+      showSnackbar({
+        message: 'Project or Sprint not selected',
+        type: 'error',
+      });
+      return;
+    }
+    try {
+      const response = await createUserStory({
+        projectId,
+        payload: {
+          ...payload,
+          sprint_id: currentSprintId,
+        },
+      }).unwrap();
+      const userStoryId = response.data?.id;
+      if (userStoryId && file) {
+        await uploadUserStoryAttachment({
+          projectId: String(projectId),
+          userStoryId: String(userStoryId),
+          file,
+        });
+      }
+      refetchBoardStories();
+    } catch (error) {
+      showSnackbar({
+        message: 'Failed to create user story',
+        type: 'error',
+      });
+      throw error;
+    }
+  };
 
   const handleToggleStoryFavorite = useCallback(
     (storyId: string) => {
@@ -1013,7 +675,7 @@ const ProjectDeatailsScreen = () => {
             ),
           );
 
-          await refetchUserStories(); // Optional short delay if backend eventual-consistency lags
+          await refetchBoardStories(); // Optional short delay if backend eventual-consistency lags
         } catch {
           addOptimisticUpdate({ kind: 'story', storyId, isFav: currentFav });
           showSnackbar({
@@ -1029,10 +691,21 @@ const ProjectDeatailsScreen = () => {
   const handleToggleTaskFavorite = useCallback(
     (_storyId: string, taskId: string) => {
       if (!projectId) return;
-      const task = optimisticStories
-        .flatMap(s => s.tasks ?? [])
-        .find(t => t.id === taskId);
-      const currentFav = task?.is_favourite ?? false;
+      let targetStoryId: string | undefined;
+      let targetStatusId: string | undefined;
+      let currentFav = false;
+      for (const s of optimisticStories) {
+        for (const col of s.statuses ?? []) {
+          const found = (col.tasks ?? []).find(t => t?.id === taskId);
+          if (found) {
+            targetStoryId = s.id;
+            targetStatusId = col.status_id;
+            currentFav = !!found.is_favourite;
+            break;
+          }
+        }
+        if (targetStoryId) break;
+      }
 
       startTransition(async () => {
         addOptimisticUpdate({ kind: 'task', taskId, isFav: !currentFav });
@@ -1047,15 +720,43 @@ const ProjectDeatailsScreen = () => {
           }
 
           setLocalUserStories(prev =>
-            prev.map(s => ({
-              ...s,
-              tasks: s.tasks?.map(t =>
-                t.id === taskId ? { ...t, is_favourite: !currentFav } : t,
-              ),
-            })),
+            prev.map(s => {
+              if (targetStoryId && s.id !== targetStoryId) return s;
+              return {
+                ...s,
+                statuses: (s.statuses || []).map(col => ({
+                  ...col,
+                  tasks: (col.tasks || []).map(t =>
+                    t?.id === taskId ? { ...t, is_favourite: !currentFav } : t,
+                  ),
+                })),
+              };
+            }),
           );
+          if (targetStoryId && targetStatusId) {
+            setTaskPagination(prev => {
+              const storyCols = prev?.[targetStoryId!];
+              const colState = storyCols?.[targetStatusId!];
+              if (!colState || !Array.isArray(colState.tasks)) return prev;
 
-          await refetchUserStories(); // Optional short delay if backend eventual-consistency lags
+              return {
+                ...prev,
+                [targetStoryId!]: {
+                  ...storyCols,
+                  [targetStatusId!]: {
+                    ...colState,
+                    tasks: colState.tasks.map(t =>
+                      t?.id === taskId
+                        ? { ...t, is_favourite: !currentFav }
+                        : t,
+                    ),
+                  },
+                },
+              };
+            });
+          }
+
+          await refetchBoardStories();
         } catch {
           addOptimisticUpdate({ kind: 'task', taskId, isFav: currentFav });
           showSnackbar({
@@ -1105,61 +806,126 @@ const ProjectDeatailsScreen = () => {
   const handleHoverDropZone = useCallback(
     (absoluteX: number, absoluteY: number) => {
       if (absoluteX < 0 || absoluteY < 0) {
-        setActiveDropZone(null);
+        setActiveDropZone(current => (current ? null : current));
         return;
       }
       const zone = findDropZone(absoluteX, absoluteY);
-      setActiveDropZone(
-        zone ? { storyId: zone.storyId, statusId: zone.statusId } : null,
-      );
+      setActiveDropZone(current => {
+        if (
+          current?.storyId === zone?.storyId &&
+          current?.statusId === zone?.statusId
+        ) {
+          return current;
+        }
+        return zone ? { storyId: zone.storyId, statusId: zone.statusId } : null;
+      });
     },
     [findDropZone],
   );
+  const handleDragPreview = useCallback((task: BoardTask | null) => {
+    setDragPreviewTask(current =>
+      task ? (current?.id === task.id ? current : task) : null,
+    );
+  }, []);
 
   const applyLocalMove = useCallback(
     (
       taskId: string,
       sourceStoryId: string,
+      sourceStatusId: string,
       targetStoryId: string,
       targetStatusId: string,
     ) => {
       setLocalUserStories(prev => {
-        const sourceStory = prev.find(s => s.id === sourceStoryId);
-        const movedTask = sourceStory?.tasks?.find(t => t.id === taskId);
-        if (!movedTask) return prev;
-
-        if (sourceStoryId === targetStoryId) {
-          return prev.map(s =>
-            s.id !== sourceStoryId
-              ? s
-              : {
-                  ...s,
-                  tasks: s.tasks.map(t =>
-                    t.id === taskId ? { ...t, status_id: targetStatusId } : t,
-                  ),
-                },
-          );
+        let movedTask: BoardTask | null = null;
+        for (const story of prev) {
+          if (story.id === sourceStoryId) {
+            for (const col of story.statuses || []) {
+              if (col.status_id === sourceStatusId) {
+                const found = col.tasks?.find(t => t.id === taskId);
+                if (found) {
+                  movedTask = { ...found, status_id: targetStatusId };
+                  break;
+                }
+              }
+            }
+          }
         }
 
-        return prev.map(s => {
-          if (s.id === sourceStoryId) {
-            return {
-              ...s,
-              tasks: s.tasks.filter(t => t.id !== taskId),
-              total_tasks: Math.max(0, (s.total_tasks ?? 0) - 1),
-            };
+        if (!movedTask) return prev;
+
+        setTaskPagination(prevPag => {
+          const sourceCol = prevPag[sourceStoryId]?.[sourceStatusId];
+          const targetCol = prevPag[targetStoryId]?.[targetStatusId];
+          return {
+            ...prevPag,
+            [sourceStoryId]: {
+              ...prevPag[sourceStoryId],
+              ...(sourceCol
+                ? {
+                    [sourceStatusId]: {
+                      ...sourceCol,
+                      totalCount: Math.max(0, sourceCol.totalCount - 1),
+                      tasks: (sourceCol.tasks ?? []).filter(
+                        t => t.id !== taskId,
+                      ),
+                    },
+                  }
+                : {}),
+            },
+            [targetStoryId]: {
+              ...prevPag[targetStoryId],
+              ...(targetCol
+                ? {
+                    [targetStatusId]: {
+                      ...targetCol,
+                      totalCount: targetCol.totalCount + 1,
+                      tasks: [...(targetCol.tasks ?? []), movedTask!],
+                    },
+                  }
+                : {}),
+            },
+          };
+        });
+
+        return prev.map(story => {
+          let updatedStatuses = story.statuses || [];
+          let updatedTotalTasks = story.total_tasks;
+          if (story.id === sourceStoryId) {
+            updatedStatuses = updatedStatuses.map(col => {
+              if (col.status_id === sourceStatusId) {
+                return {
+                  ...col,
+                  task_count: Math.max(0, col.task_count - 1),
+                  tasks: col.tasks.filter(t => t.id !== taskId),
+                };
+              }
+              return col;
+            });
+            if (sourceStoryId !== targetStoryId) {
+              updatedTotalTasks = Math.max(0, (story.total_tasks ?? 0) - 1);
+            }
           }
-          if (s.id === targetStoryId) {
-            return {
-              ...s,
-              tasks: [
-                ...(s.tasks ?? []),
-                { ...movedTask, status_id: targetStatusId },
-              ],
-              total_tasks: (s.total_tasks ?? 0) + 1,
-            };
+          if (story.id === targetStoryId) {
+            updatedStatuses = updatedStatuses.map(col => {
+              if (col.status_id === targetStatusId) {
+                return {
+                  ...col,
+                  task_count: col.task_count + 1,
+                  tasks: [...col.tasks, movedTask!],
+                };
+              }
+              return col;
+            });
+            if (sourceStoryId !== targetStoryId) {
+              updatedTotalTasks = (story.total_tasks ?? 0) + 1;
+            }
           }
-          return s;
+          return {
+            ...story,
+            total_tasks: updatedTotalTasks,
+            statuses: updatedStatuses,
+          };
         });
       });
     },
@@ -1168,33 +934,86 @@ const ProjectDeatailsScreen = () => {
 
   const rollbackLocalMove = useCallback(
     (
-      sourceTask: UserStoryTask,
+      sourceTask: BoardTask,
       sourceStoryId: string,
       targetStoryId: string,
+      sourceStatusId: string,
+      targetStatusId: string,
     ) => {
       setLocalUserStories(prev => {
-        return prev.map(s => {
-          if (s.id === targetStoryId && sourceStoryId !== targetStoryId) {
-            return {
-              ...s,
-              tasks: s.tasks.filter(t => t.id !== sourceTask.id),
-              total_tasks: Math.max(0, (s.total_tasks ?? 0) - 1),
-            };
+        setTaskPagination(prevPag => {
+          const sourceCol = prevPag[sourceStoryId]?.[sourceStatusId];
+          const targetCol = prevPag[targetStoryId]?.[targetStatusId];
+
+          return {
+            ...prevPag,
+            [targetStoryId]: {
+              ...prevPag[targetStoryId],
+              ...(targetCol
+                ? {
+                    [targetStatusId]: {
+                      ...targetCol,
+                      totalCount: Math.max(0, targetCol.totalCount - 1),
+                      tasks: (targetCol.tasks ?? []).filter(
+                        t => t.id !== sourceTask.id,
+                      ),
+                    },
+                  }
+                : {}),
+            },
+            [sourceStoryId]: {
+              ...prevPag[sourceStoryId],
+              ...(sourceCol
+                ? {
+                    [sourceStatusId]: {
+                      ...sourceCol,
+                      totalCount: sourceCol.totalCount + 1,
+                      tasks: [...(sourceCol.tasks ?? []), sourceTask],
+                    },
+                  }
+                : {}),
+            },
+          };
+        });
+
+        return prev.map(story => {
+          let updatedStatuses = story.statuses || [];
+          let updatedTotalTasks = story.total_tasks;
+          if (story.id === targetStoryId) {
+            updatedStatuses = updatedStatuses.map(col => {
+              if (col.status_id === targetStatusId) {
+                return {
+                  ...col,
+                  task_count: Math.max(0, col.task_count - 1),
+                  tasks: col.tasks.filter(t => t.id !== sourceTask.id),
+                };
+              }
+              return col;
+            });
+            if (sourceStoryId !== targetStoryId) {
+              updatedTotalTasks = Math.max(0, (story.total_tasks ?? 0) - 1);
+            }
           }
-          if (s.id === sourceStoryId) {
-            const already = s.tasks.some(t => t.id === sourceTask.id);
-            return {
-              ...s,
-              tasks: already
-                ? s.tasks.map(t => (t.id === sourceTask.id ? sourceTask : t))
-                : [...s.tasks, sourceTask],
-              total_tasks:
-                sourceStoryId !== targetStoryId
-                  ? (s.total_tasks ?? 0) + 1
-                  : s.total_tasks,
-            };
+          if (story.id === sourceStoryId) {
+            updatedStatuses = updatedStatuses.map(col => {
+              if (col.status_id === sourceStatusId) {
+                return {
+                  ...col,
+                  task_count: col.task_count + 1,
+                  tasks: [...col.tasks, sourceTask],
+                };
+              }
+              return col;
+            });
+            if (sourceStoryId !== targetStoryId) {
+              updatedTotalTasks = (story.total_tasks ?? 0) + 1;
+            }
           }
-          return s;
+          return {
+            ...story,
+            total_tasks: updatedTotalTasks,
+            statuses: updatedStatuses,
+          };
         });
       });
     },
@@ -1203,7 +1022,7 @@ const ProjectDeatailsScreen = () => {
 
   const handleTaskDrop = useCallback(
     (
-      task: UserStoryTask,
+      task: BoardTask,
       sourceStoryId: string,
       sourceStatusId: string,
       absoluteX: number,
@@ -1220,11 +1039,20 @@ const ProjectDeatailsScreen = () => {
         return;
 
       const sourceStory = localUserStories.find(s => s.id === sourceStoryId);
-      const sourceTask = sourceStory?.tasks?.find(t => t.id === task.id);
+      const sourceCol = sourceStory?.statuses?.find(
+        c => c.status_id === sourceStatusId,
+      );
+      const sourceTask = sourceCol?.tasks?.find(t => t.id === task.id);
       if (!sourceTask) return;
 
       setDropSuccessZone({ storyId: targetStoryId, statusId: targetStatusId });
-      applyLocalMove(task.id, sourceStoryId, targetStoryId, targetStatusId);
+      applyLocalMove(
+        task.id,
+        sourceStoryId,
+        sourceStatusId,
+        targetStoryId,
+        targetStatusId,
+      );
 
       if (!projectId) {
         setDropSuccessZone(null);
@@ -1245,7 +1073,13 @@ const ProjectDeatailsScreen = () => {
         })
         .catch(() => {
           setDropSuccessZone(null);
-          rollbackLocalMove(sourceTask, sourceStoryId, targetStoryId);
+          rollbackLocalMove(
+            sourceTask,
+            sourceStoryId,
+            targetStoryId,
+            sourceStatusId,
+            targetStatusId,
+          );
           showSnackbar({
             message: 'Failed to move task',
             type: 'error',
@@ -1264,6 +1098,10 @@ const ProjectDeatailsScreen = () => {
 
   return (
     <View
+      ref={rootViewRef}
+      onLayout={() =>
+        rootViewRef.current?.measureInWindow((x, y) => setRootOrigin({ x, y }))
+      }
       style={{
         flex: 1,
         backgroundColor: colors.surface,
@@ -1290,15 +1128,44 @@ const ProjectDeatailsScreen = () => {
             paddingBottom: moderateScale(12),
           }}
         >
-          <AppText variant='title' className='font-bold'>
-            Kanban Board
-          </AppText>
-          <AppText
-            variant='body'
-            style={{ marginTop: moderateScale(4), opacity: 0.5 }}
-          >
-            Visualize and manage your team's tasks across workflow stages
-          </AppText>
+          <View className='flex-row items-start justify-between'>
+            <View className='flex-1'>
+              <AppText variant='title' className='font-bold'>
+                Kanban Board
+              </AppText>
+              <AppText
+                variant='body'
+                style={{ marginTop: moderateScale(4), opacity: 0.5 }}
+              >
+                Visualize and manage your team's tasks across workflow stages
+              </AppText>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setIsFilterVisible(true)}
+              className='ml-2 flex-row items-center'
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: Radius.md,
+                paddingHorizontal: moderateScale(10),
+                paddingVertical: moderateScale(7),
+              }}
+            >
+              <Ionicons
+                name='filter-outline'
+                size={moderateScale(16)}
+                color={colors.white}
+              />
+              <AppText
+                variant='caption'
+                className='ml-1 font-bold'
+                color={colors.white}
+              >
+                Filter{' '}
+                {appliedFiltersCount > 0 ? `(${appliedFiltersCount})` : ''}
+              </AppText>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Animated.ScrollView
@@ -1315,9 +1182,9 @@ const ProjectDeatailsScreen = () => {
             paddingTop: layout.tightGap,
           }}
         >
-          {isStoriesLoading || isSprintSwitchLoading ? (
+          {isBoardStoriesLoading || isSprintSwitchLoading || isFilterApplying ? (
             <BoardSkeleton
-              columnCount={Math.max(customStatuses?.length ?? 0, 3)}
+              columnCount={Math.max(boardColumns.length ?? 0, 3)}
             />
           ) : (
             <View>
@@ -1328,16 +1195,64 @@ const ProjectDeatailsScreen = () => {
                   borderBottomColor: colors.border,
                 }}
               >
-                <View style={{ width: USER_STORY_WIDTH, padding: 12 }}>
-                  <AppText variant='body' className='font-bold'>
-                    User Stories
-                  </AppText>
-                </View>
-                {customStatuses?.map(status => (
+                <View
+                  style={{ width: moderateScale(250), padding: 12 }}
+                  className='flex-row items-center justify-between'
+                >
                   <View
-                    key={status.id}
+                    className='flex-row items-center'
+                    style={{ gap: layout.elementGap }}
+                  >
+                    <AppText
+                      variant='caption'
+                      className='font-bold tracking-wider'
+                      color={colors.textSecondary}
+                    >
+                      User Stories
+                    </AppText>
+                    <View
+                      className='items-center justify-center'
+                      style={{
+                        minWidth: moderateScale(22),
+                        height: moderateScale(22),
+                        paddingHorizontal: 6,
+                        backgroundColor: colors.primary,
+                        borderRadius: Radius.circle,
+                      }}
+                    >
+                      <AppText
+                        variant='caption'
+                        className='text-xs font-bold'
+                        color={colors.white}
+                      >
+                        {boardMeta?.total ?? displayStories.length}
+                      </AppText>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setIsModalVisible(true)}
+                    activeOpacity={0.8}
+                    className='items-center justify-center'
                     style={{
-                      width: STATUS_COLUMN_WIDTH,
+                      width: moderateScale(22),
+                      height: moderateScale(22),
+                      borderRadius: Radius.circle,
+                      backgroundColor: colors.primary,
+                      elevation: 4,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 3,
+                    }}
+                  >
+                    <Ionicons name='add' size={15} color={colors.white} />
+                  </TouchableOpacity>
+                </View>
+                {boardColumns.map(status => (
+                  <View
+                    key={status.status_id}
+                    style={{
+                      width: moderateScale(260),
                       padding: 12,
                       borderLeftWidth: 1,
                       borderLeftColor: colors.border,
@@ -1356,24 +1271,26 @@ const ProjectDeatailsScreen = () => {
                         }}
                       />
                       <AppText variant='body' className='font-bold'>
-                        {status.name}
+                        {status.status_name}
                       </AppText>
                     </View>
                   </View>
                 ))}
               </View>
 
-              {optimisticStories.map(story => (
+              {displayStories.map(story => (
                 <UserStoryBoardRow
                   key={story.id}
                   story={story}
                   projectId={projectId ?? ''}
-                  customStatuses={customStatuses}
+                  columns={boardColumns}
                   expanded={!!expandedStories[story.id]}
                   onToggle={() => toggleStory(story.id)}
                   onRegisterDropZone={registerTaskDropZone}
                   onTaskDrop={handleTaskDrop}
                   onHoverDropZone={handleHoverDropZone}
+                  onDragPreview={handleDragPreview}
+                  dragPreviewTaskId={dragPreviewTask?.id ?? null}
                   onToggleStoryFavorite={handleToggleStoryFavorite}
                   onToggleTaskFavorite={handleToggleTaskFavorite}
                   activeDropZone={activeDropZone}
@@ -1382,25 +1299,24 @@ const ProjectDeatailsScreen = () => {
                   verticalScrollRef={verticalScrollRef}
                   horizontalScrollOffset={horizontalScrollOffset}
                   verticalScrollOffset={verticalScrollOffset}
+                  dragPreviewX={dragPreviewX}
+                  dragPreviewY={dragPreviewY}
+                  taskPagination={taskPagination}
+                  onLoadMoreTasks={handleLoadMoreTasks}
                   colors={colors}
                 />
               ))}
 
-              {isStoriesFetching &&
-                currentPage > 1 &&
-                Array.from({
-                  length: 3,
-                }).map((_, index) => (
-                  <BoardSkeletonRow
-                    key={`load-more-skeleton-${index}`}
-                    columnCount={Math.max(customStatuses.length, 3)}
-                  />
-                ))}
+              {isBoardStoriesFetching && currentPage > 1 && (
+                <BoardSkeletonRow
+                  columnCount={Math.max(boardColumns.length, 3)}
+                />
+              )}
 
               {!storeLoading &&
-                !isStoriesFetching &&
+                !isBoardStoriesFetching &&
                 !isFetchingMore &&
-                localUserStories.length === 0 && (
+                displayStories.length === 0 && (
                   <View
                     style={{
                       paddingVertical: 48,
@@ -1409,7 +1325,9 @@ const ProjectDeatailsScreen = () => {
                     }}
                   >
                     <AppText variant='body' color={colors.textSecondary}>
-                      No user stories found for this sprint.
+                      {appliedFiltersCount > 0
+                        ? 'No user stories match the selected filter criteria.'
+                        : 'No user stories found for this sprint.'}
                     </AppText>
                   </View>
                 )}
@@ -1428,40 +1346,54 @@ const ProjectDeatailsScreen = () => {
           )}
         </Animated.ScrollView>
       </Animated.ScrollView>
-      <TouchableOpacity
-        onPress={() => setIsModalVisible(true)}
-        activeOpacity={0.8}
-        style={{
-          position: 'absolute',
-          right: 20,
-          bottom: (insets.bottom > 0 ? insets.bottom + 16 : 24),
-          width: 42,
-          height: 42,
-          borderRadius: 29,
-          backgroundColor: colors.primary,
-          alignItems: 'center',
-          justifyContent: 'center',
-          elevation: 6,
-          shadowColor: '#000',
-          shadowOffset: {
-            width: 0,
-            height: 4,
-          },
-          shadowOpacity: 0.3,
-          shadowRadius: 5,
-          zIndex: 9999,
+      {dragPreviewTask && (
+        <DragPreviewOverlay
+          task={dragPreviewTask}
+          projectId={projectId}
+          colors={colors}
+          dragX={dragPreviewX}
+          dragY={dragPreviewY}
+          originX={rootOrigin.x}
+          originY={rootOrigin.y}
+          width={moderateScale(244)}
+          offsetX={moderateScale(130)}
+          offsetY={moderateScale(34)}
+        />
+      )}
+      <BoardFilterModal
+        visible={isFilterVisible}
+        onClose={() => setIsFilterVisible(false)}
+        members={projectMembers}
+        statuses={
+          boardColumns.map(c => ({
+            id: c.status_id,
+            name: c.status_name,
+            color: c.color,
+            display_order: c.display_order,
+          })) as any
+        }
+        selectedFilters={selectedFilters}
+        onLoadMoreAssignees={() => {
+          if (membersData?.meta?.has_next && !isAssigneesFetching) {
+            setAssigneePage(page => page + 1);
+          }
         }}
-      >
-        <AppText
-          variant='h1'
-          style={{
-            color: colors.white,
-            lineHeight: 34,
-          }}
-        >
-          +
-        </AppText>
-      </TouchableOpacity>
+        hasMoreAssignees={Boolean(membersData?.meta?.has_next)}
+        isLoadingAssignees={isAssigneesFetching}
+        onApplyFilters={filters => {
+          const filtersChanged =
+            JSON.stringify(filters) !== JSON.stringify(selectedFilters);
+          if (filtersChanged && isFocused && projectId) {
+            setIsFilterApplying(true);
+            filterFetchStarted.current = false;
+          }
+          setCurrentPage(1);
+          setIsFetchingMore(false);
+          hasInitializedStories.current = false;
+          setLocalUserStories([]);
+          setSelectedFilters(filters);
+        }}
+      />
       <CreateProjectModal
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
@@ -1470,17 +1402,11 @@ const ProjectDeatailsScreen = () => {
         projectId={projectId}
         sprintId={currentSprintId}
         priorities={[...TASK_PRIORITY_OPTIONS]}
-        statuses={userStoryStatuses.map(status => ({
-          id: status.id,
-          name: status.name,
-          color: status.color,
-          display_order: status.display_order,
-        }))}
         onCreateStory={handleCreateStory}
         isCreatingStory={isCreatingStory}
         onSuccess={() => {
           setIsModalVisible(false);
-          refetchUserStories();
+          refetchBoardStories();
         }}
       />
     </View>
