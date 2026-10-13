@@ -33,6 +33,7 @@ import {
   useGetTeamWorkloadQuery,
   useGetWeeklyProgressQuery,
   useGetProjectMembersQuery,
+  useGetBoardStoriesQuery,
 } from '../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { ViewState } from '../screens/projectScreens/setting';
@@ -110,7 +111,10 @@ const ProjectDetails: React.FC = () => {
     return `${year}-${month}-${day}`;
   }, []);
 
-  const effectiveProjectId = routeProjectId || projectDetails?.id?.toString() || (projectDetails as any)?._id?.toString();
+  const effectiveProjectId =
+    routeProjectId ||
+    projectDetails?.id?.toString() ||
+    (projectDetails as any)?._id?.toString();
 
   // 1. Summary Tab Preload
   useGetProjectOverviewQuery(
@@ -121,23 +125,28 @@ const ProjectDetails: React.FC = () => {
   );
 
   // 2. Board Tab Preload
+
+  useGetBoardStoriesQuery(
+    effectiveProjectId && currentSprintIdState
+      ? {
+          project_id: effectiveProjectId,
+          page: 1,
+          page_size: 5,
+          sprint_id: currentSprintIdState,
+          tasks_per_status: 5,
+        }
+      : skipToken,
+  );
+
   useGetCustomStatusQuery(
     effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
   );
   useGetUserStoryStatusQuery(
     effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
   );
-  useGetUserStoriesQuery(
-    effectiveProjectId && currentSprintIdState
-      ? {
-          projectId: effectiveProjectId,
-          payload: {
-            page: 1,
-            page_size: 5,
-            sprint_id: currentSprintIdState,
-          },
-        }
-      : skipToken,
+
+  useGetProjectMembersQuery(
+    effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
   );
 
   // 3. List Tab Preload

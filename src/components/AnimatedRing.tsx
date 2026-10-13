@@ -1,5 +1,11 @@
 import React, { useEffect } from 'react';
-import Animated, {useAnimatedStyle,useSharedValue,withDelay,withTiming,Easing} from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
 interface Props {
   size: number;
@@ -16,7 +22,6 @@ const AnimatedRing = ({
   borderColor,
   backgroundColor = 'transparent',
 }: Props) => {
-  
   const { colors } = useTheme();
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.75);
@@ -53,8 +58,7 @@ const AnimatedRing = ({
           height: size,
           borderRadius: size / 2,
           borderWidth,
-          borderColor:
-            borderColor ?? colors.border,
+          borderColor: borderColor ?? colors.border,
           backgroundColor,
         },
         animatedStyle,

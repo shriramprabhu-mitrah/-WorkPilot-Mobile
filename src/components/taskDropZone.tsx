@@ -74,12 +74,16 @@ export const TaskDropZone = ({
   );
   const nextTriggerIndexRef = useRef<number | null>(null);
   const previousTaskCountRef = useRef(0);
+  const previousPageRef = useRef(columnState?.page ?? 0);
+  const hasUserScrolledRef = useRef(false);
 
   useEffect(() => {
     const currentTaskCount = taskItems.length;
+    const currentPage = columnState?.page ?? 0;
     if (currentTaskCount === 0) {
       nextTriggerIndexRef.current = null;
       previousTaskCountRef.current = 0;
+      previousPageRef.current = currentPage;
       return;
     }
     if (
@@ -88,28 +92,47 @@ export const TaskDropZone = ({
     ) {
       nextTriggerIndexRef.current = Math.ceil(currentTaskCount * 0.5);
     }
-    if (currentTaskCount > previousTaskCountRef.current) {
+    if (currentTaskCount < previousTaskCountRef.current) {
+      // A drag removed a task; keep the next-page threshold reachable.
+      nextTriggerIndexRef.current = Math.ceil(currentTaskCount * 0.5);
+    } else if (currentPage > previousPageRef.current) {
+      // Only a page advance means appended tasks came from pagination.
       nextTriggerIndexRef.current =
         previousTaskCountRef.current +
         Math.ceil((currentTaskCount - previousTaskCountRef.current) * 0.5);
     }
     previousTaskCountRef.current = currentTaskCount;
-  }, [taskItems.length]);
+    previousPageRef.current = currentPage;
+  }, [taskItems.length, columnState?.page]);
 
   const handleViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: any[] }) => {
-      const lastVisibleIndex =
-        viewableItems[viewableItems.length - 1]?.index ?? -1;
+      const lastVisibleIndex = Math.max(
+        -1,
+        ...viewableItems.map(item => item.index ?? -1),
+      );
       const nextTriggerIndex = nextTriggerIndexRef.current;
-      if (nextTriggerIndex === null || !canLoadMore || columnState?.isLoading) {
+      if (
+        !expanded ||
+        !hasUserScrolledRef.current ||
+        nextTriggerIndex === null ||
+        !canLoadMore ||
+        columnState?.isLoading
+      ) {
         return;
       }
-      const currentVisibleTask = lastVisibleIndex + 1;
-      if (currentVisibleTask >= nextTriggerIndex) {
+      if (lastVisibleIndex + 1 >= nextTriggerIndex) {
         onLoadMoreTasks?.(storyId, statusId);
       }
     },
-    [canLoadMore, columnState?.isLoading, onLoadMoreTasks, storyId, statusId],
+    [
+      expanded,
+      canLoadMore,
+      columnState?.isLoading,
+      onLoadMoreTasks,
+      storyId,
+      statusId,
+    ],
   );
 
   const viewabilityConfig = useRef({
@@ -144,22 +167,20 @@ export const TaskDropZone = ({
           renderItem={({ item }) => item}
           nestedScrollEnabled
           showsVerticalScrollIndicator
+          onScrollBeginDrag={() => {
+            hasUserScrolledRef.current = true;
+          }}
           onViewableItemsChanged={handleViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
+          onEndReachedThreshold={0.5}
           style={{ flex: 1 }}
           contentContainerStyle={{
             gap: 8,
             paddingBottom: 4,
           }}
           ListFooterComponent={
-            canLoadMore && columnState?.isLoading ? (
-              <View
-                style={{
-                  width: '100%',
-                  paddingVertical: 10,
-                  gap: 8,
-                }}
-              >
+            columnState?.isLoading ? (
+              <View style={{ paddingVertical: 10, gap: 8 }}>
                 <SkeletonBox width='100%' height={56} borderRadius={8} />
               </View>
             ) : null

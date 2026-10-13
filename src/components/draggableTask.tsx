@@ -72,21 +72,21 @@ export const DraggableTask = ({
       const curY = verticalScrollOffset?.value ?? 0;
 
       if (current.x > viewportWidth - 40) {
-        const next = curX + 100;
+        const next = curX + 50;
         horizontalScrollOffset.value = next;
         scrollTo(horizontalScrollRef, next, 0, false);
       } else if (current.x < 40) {
-        const next = Math.max(0, curX - 100);
+        const next = Math.max(0, curX - 50);
         horizontalScrollOffset.value = next;
         scrollTo(horizontalScrollRef, next, 0, false);
       }
 
       if (current.y > viewportHeight - 80) {
-        const next = curY + 100;
+        const next = curY + 50;
         verticalScrollOffset.value = next;
         scrollTo(verticalScrollRef, 0, next, false);
       } else if (current.y < 300) {
-        const next = Math.max(0, curY - 100);
+        const next = Math.max(0, curY - 50);
         verticalScrollOffset.value = next;
         scrollTo(verticalScrollRef, 0, next, false);
       }

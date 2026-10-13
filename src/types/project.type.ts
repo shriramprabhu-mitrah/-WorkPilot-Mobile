@@ -914,6 +914,7 @@ export interface GetBoardStoriesParams {
   priority?: string | null;
   work_type?: string | null;
   _refetchKey?: number;
+  status_id?: string | null;
 }
 
 export interface GetBoardStoryDetailsParams {
