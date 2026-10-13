@@ -46,7 +46,7 @@ interface BoardFilterModalProps {
   members?: ProjectMember[];
   statuses?: CustomStatus[];
   selectedFilters: SelectedFilters;
-  onApplyFilters: (filters: SelectedFilters) => void;
+  onApplyFilters: (filters: SelectedFilters, forceRefresh?: boolean) => void;
   onLoadMoreAssignees?: () => void;
   hasMoreAssignees?: boolean;
   isLoadingAssignees?: boolean;
@@ -287,7 +287,8 @@ export const BoardFilterModal: React.FC<BoardFilterModalProps> = ({
       work_type: [],
     };
     setLocalFilters(cleared);
-    onApplyFilters(cleared);
+    onApplyFilters(cleared, true);
+    onClose();
   };
 
   const handleApply = () => {

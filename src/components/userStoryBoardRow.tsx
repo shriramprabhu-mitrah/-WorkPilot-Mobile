@@ -218,8 +218,6 @@ export const UserStoryBoardRow = ({
         const columnData = story.statuses?.find(
           s => s.status_id === statusCol.status_id,
         );
-        const tasks = columnData?.tasks ?? [];
-
         const isActive =
           activeDropZone?.storyId === story.id &&
           activeDropZone?.statusId === statusCol.status_id;
@@ -229,6 +227,15 @@ export const UserStoryBoardRow = ({
           dropSuccessZone?.statusId === statusCol.status_id;
         const columnPaginationState =
           taskPagination[story.id]?.[statusCol.status_id];
+        const tasks = (
+          columnPaginationState?.tasks ??
+          columnData?.tasks ??
+          []
+        ).filter(
+          task =>
+            task.status_id === statusCol.status_id &&
+            task.user_story_id === story.id,
+        );
 
         return (
           <TaskDropZone

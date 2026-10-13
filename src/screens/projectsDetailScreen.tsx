@@ -123,6 +123,8 @@ const ProjectDeatailsScreen = () => {
   const { layout, moderateScale, isSmallHeight, hp } = useAuthLayout();
   const verticalScrollRef = useAnimatedRef<Animated.ScrollView>();
   const horizontalScrollRef = useAnimatedRef<Animated.ScrollView>();
+  const outerViewportHeightRef = useRef(0);
+  const outerContentHeightRef = useRef(0);
   const horizontalScrollOffset = useSharedValue(0);
   const verticalScrollOffset = useSharedValue(0);
   const [dragPreviewTask, setDragPreviewTask] = useState<BoardTask | null>(
@@ -149,6 +151,8 @@ const ProjectDeatailsScreen = () => {
   // Screen Focus & Refetch Token State
   const [isFocused, setIsFocused] = useState(false);
   const [refetchKey, setRefetchKey] = useState(0);
+  const [boardRefetchKey, setBoardRefetchKey] = useState(0);
+  const handledBoardRefetchKeyRef = useRef(boardRefetchKey);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -170,6 +174,11 @@ const ProjectDeatailsScreen = () => {
   >({});
   const taskPaginationRef = useRef(taskPagination);
   taskPaginationRef.current = taskPagination;
+  const loadingTaskColumnsRef = useRef<Set<string>>(new Set());
+  const taskLocationOverridesRef = useRef<
+    Map<string, { storyId: string; statusId: string }>
+  >(new Map());
+  const taskMoveVersionRef = useRef(0);
 
   const previousSprintId = useRef<string | undefined>(undefined);
   const hasStartedSprintFetch = useRef(false);
@@ -193,7 +202,7 @@ const ProjectDeatailsScreen = () => {
           page: currentPage,
           page_size: 5,
           sprint_id: currentSprintId,
-          tasks_per_status: 1,
+          tasks_per_status: 5,
           task_assignee_id:
             selectedFilters.assignee.length > 0
               ? selectedFilters.assignee.join(',')
@@ -210,7 +219,6 @@ const ProjectDeatailsScreen = () => {
             selectedFilters.work_type.length > 0
               ? selectedFilters.work_type.join(',')
               : undefined,
-          _refetchKey: refetchKey,
         }
       : skipToken,
   );
@@ -219,6 +227,7 @@ const ProjectDeatailsScreen = () => {
     () => boardStoriesResponse?.data ?? [],
     [boardStoriesResponse?.data],
   );
+  const filterResponseAtStartRef = useRef(boardStoriesResponse);
   const boardMeta = boardStoriesResponse?.meta ?? null;
   const boardColumns = useMemo<BoardStatusColumn[]>(() => {
     if (boardStories.length === 0) return [];
@@ -226,16 +235,15 @@ const ProjectDeatailsScreen = () => {
       (a, b) => a.display_order - b.display_order,
     );
   }, [boardStories]);
-  const { data: membersData, isFetching: isAssigneesFetching } = useGetProjectMembersQuery(
-    isFocused && projectId
-      ? {
-          project_id: projectId,
-          page: assigneePage,
-          page_size: 10,
-          _refetchKey: refetchKey,
-        }
-      : skipToken,
-  );
+  const { data: membersData, isFetching: isAssigneesFetching } =
+    useGetProjectMembersQuery(
+      isFocused && projectId
+        ? {
+            project_id: projectId,
+            _refetchKey: refetchKey,
+          }
+        : skipToken,
+    );
   const projectMembers = membersData?.data ?? [];
   const [updateTask] = useUpdateTaskMutation();
   const [triggerGetStatusTasks] = useLazyGetBoardStatusTasksQuery();
@@ -244,6 +252,7 @@ const ProjectDeatailsScreen = () => {
   const [expandedStories, setExpandedStories] = useState<
     Record<string, boolean>
   >({});
+  const loadedStoriesRef = useRef<Set<string>>(new Set());
   const [dropZones, setDropZones] = useState<DropZone[]>([]);
   const [activeDropZone, setActiveDropZone] = useState<{
     storyId: string;
@@ -255,6 +264,64 @@ const ProjectDeatailsScreen = () => {
   } | null>(null);
 
   const hasInitializedStories = useRef(false);
+
+  useEffect(() => {
+    if (handledBoardRefetchKeyRef.current === boardRefetchKey) return;
+    handledBoardRefetchKeyRef.current = boardRefetchKey;
+    if (!isFocused || !projectId) return;
+
+    refetchBoardStories()
+      .unwrap()
+      .then(response => {
+        const stories = response?.data ?? [];
+        const refreshedPagination: Record<
+          string,
+          Record<string, ColumnTaskState>
+        > = {};
+
+        stories.forEach(story => {
+          refreshedPagination[story.id] = {};
+          (story.statuses ?? []).forEach(status => {
+            const tasks = status.tasks ?? [];
+            const totalCount =
+              status.meta?.total ?? status.task_count ?? tasks.length;
+            refreshedPagination[story.id][status.status_id] = {
+              tasks,
+              page: status.meta?.page ?? (tasks.length > 0 ? 1 : 0),
+              isLoading: false,
+              hasNext: status.meta?.has_next ?? totalCount > tasks.length,
+              totalCount,
+            };
+          });
+        });
+
+        setTaskPagination(refreshedPagination);
+        setLocalUserStories(
+          stories.map(story => ({
+            ...story,
+            statuses: (story.statuses ?? []).map(status => ({
+              ...status,
+              tasks:
+                refreshedPagination[story.id]?.[status.status_id]?.tasks ??
+                status.tasks ??
+                [],
+            })),
+          })),
+        );
+        hasInitializedStories.current = true;
+        setIsFetchingMore(false);
+      })
+      .catch(() => {
+        showSnackbar({
+          message: 'Failed to refresh board',
+          type: 'error',
+        });
+      })
+      .finally(() => {
+        setIsFilterApplying(false);
+        filterFetchStarted.current = false;
+      });
+  }, [boardRefetchKey, isFocused, projectId, refetchBoardStories]);
 
   type OptimisticAction =
     | { kind: 'story'; storyId: string; isFav: boolean }
@@ -287,60 +354,30 @@ const ProjectDeatailsScreen = () => {
       selectedFilters.priority.length +
       selectedFilters.work_type.length
     );
-    setTaskPagination({});
   }, [selectedFilters]);
 
   useEffect(() => {
     if (!isFilterApplying) return;
     if (isBoardStoriesFetching) filterFetchStarted.current = true;
     if (
-      filterFetchStarted.current &&
       !isBoardStoriesFetching &&
-      (boardStoriesResponse !== undefined || isBoardStoriesError)
+      (isBoardStoriesError ||
+        filterFetchStarted.current ||
+        (boardStoriesResponse !== undefined &&
+          boardStoriesResponse !== filterResponseAtStartRef.current))
     ) {
       setIsFilterApplying(false);
       filterFetchStarted.current = false;
     }
-  }, [isFilterApplying, isBoardStoriesFetching, boardStoriesResponse, isBoardStoriesError]);
+  }, [
+    isFilterApplying,
+    isBoardStoriesFetching,
+    boardStoriesResponse,
+    isBoardStoriesError,
+  ]);
   const displayStories = useMemo(() => {
-    const hasAssignee = selectedFilters.assignee.length > 0;
-    const hasStatus = selectedFilters.status.length > 0;
-    const hasPriority = selectedFilters.priority.length > 0;
-    if (!hasAssignee && !hasStatus && !hasPriority) {
-      return optimisticStories;
-    }
-    return optimisticStories
-      .map(story => {
-        const filteredStatuses = (story.statuses ?? []).map(col => {
-          const matchingTasks = (col.tasks ?? []).filter(task => {
-            const assigneeId = task.assignee?.id || task.assignee_id;
-            const matchAssignee =
-              !hasAssignee ||
-              (assigneeId && selectedFilters.assignee.includes(assigneeId));
-            const matchStatus =
-              !hasStatus || selectedFilters.status.includes(task.status_id);
-            const matchPriority =
-              !hasPriority || selectedFilters.priority.includes(task.priority);
-
-            return matchAssignee && matchStatus && matchPriority;
-          });
-          return {
-            ...col,
-            tasks: matchingTasks,
-          };
-        });
-        const totalRemainingTasks = filteredStatuses.reduce(
-          (sum, col) => sum + (col.tasks?.length ?? 0),
-          0,
-        );
-        return {
-          ...story,
-          statuses: filteredStatuses,
-          total_tasks: totalRemainingTasks,
-        };
-      })
-      .filter(story => (story.total_tasks ?? 0) > 0);
-  }, [optimisticStories, selectedFilters]);
+    return optimisticStories;
+  }, [optimisticStories]);
 
   // Updated useFocusEffect to refresh without wiping preloaded cache
   useFocusEffect(
@@ -371,13 +408,16 @@ const ProjectDeatailsScreen = () => {
     setIsFetchingMore(false);
     setExpandedStories({});
     setTaskPagination({});
+    taskLocationOverridesRef.current.clear();
+    taskMoveVersionRef.current += 1;
   }, [projectId, currentSprintId]);
 
   useEffect(() => {
+    loadedStoriesRef.current.clear();
     setCurrentPage(1);
     setIsFetchingMore(false);
     hasInitializedStories.current = false;
-    setLocalUserStories([]);
+    setTaskPagination({});
   }, [selectedFilters]);
 
   useEffect(() => {
@@ -474,10 +514,14 @@ const ProjectDeatailsScreen = () => {
   const handleLoadMoreTasks = useCallback(
     async (storyId: string, statusId: string) => {
       if (!projectId) return;
+      const columnKey = `${storyId}:${statusId}`;
+      if (loadingTaskColumnsRef.current.has(columnKey)) return;
       const columnState = taskPaginationRef.current[storyId]?.[statusId];
       if (columnState?.isLoading) return;
       if (columnState && columnState.page >= 1 && !columnState.hasNext) return;
-      const nextPage = (columnState?.page ?? 1) + 1;
+      const nextPage = columnState ? Math.max(1, columnState.page + 1) : 1;
+      const moveVersionAtRequest = taskMoveVersionRef.current;
+      loadingTaskColumnsRef.current.add(columnKey);
       setTaskPagination(prev => ({
         ...prev,
         [storyId]: {
@@ -499,22 +543,48 @@ const ProjectDeatailsScreen = () => {
           user_story_id: storyId,
           status_id: statusId,
           page: nextPage,
-          page_size: 3,
+          page_size: 5,
         }).unwrap();
         const storyData: BoardStory | undefined = response?.data;
         const fetchedTasks: BoardTask[] =
           storyData?.statuses
             ?.find(s => s.status_id === statusId)
-            ?.tasks?.filter(t => t.status_id === statusId) ?? [];
+            ?.tasks?.filter(task => {
+              if (
+                task.status_id !== statusId ||
+                task.user_story_id !== storyId
+              ) {
+                return false;
+              }
+              const override = taskLocationOverridesRef.current.get(task.id);
+              return (
+                !override ||
+                (override.storyId === storyId && override.statusId === statusId)
+              );
+            }) ?? [];
         const total = response?.meta?.total ?? 0;
         const hasNextMeta = Boolean(response?.meta?.has_next);
+        const moveOccurredDuringRequest =
+          moveVersionAtRequest !== taskMoveVersionRef.current;
         setTaskPagination(prev => {
-          const currentTasks = prev[storyId]?.[statusId]?.tasks ?? [];
+          const currentState = prev[storyId]?.[statusId];
+          const currentTasks = currentState?.tasks ?? [];
           const existingIds = new Set(currentTasks.map(t => t.id));
           const newTasks = fetchedTasks.filter(t => !existingIds.has(t.id));
           const updatedTasks = [...currentTasks, ...newTasks];
-          const hasNext =
-            hasNextMeta && (total === 0 || updatedTasks.length < total);
+          const totalCount = moveOccurredDuringRequest
+            ? (currentState?.totalCount ?? total)
+            : total > 0
+              ? total
+              : hasNextMeta
+                ? Math.max(
+                    currentState?.totalCount ?? 0,
+                    updatedTasks.length + 1,
+                  )
+                : updatedTasks.length;
+          const hasNext = moveOccurredDuringRequest
+            ? (currentState?.hasNext ?? hasNextMeta)
+            : hasNextMeta && (total === 0 || updatedTasks.length < total);
           return {
             ...prev,
             [storyId]: {
@@ -524,7 +594,7 @@ const ProjectDeatailsScreen = () => {
                 page: nextPage,
                 isLoading: false,
                 hasNext,
-                totalCount: total > 0 ? total : updatedTasks.length,
+                totalCount,
               },
             },
           };
@@ -540,7 +610,10 @@ const ProjectDeatailsScreen = () => {
                 const fresh = fetchedTasks.filter(t => !existingIds.has(t.id));
                 return {
                   ...col,
-                  task_count: total,
+                  task_count:
+                    moveOccurredDuringRequest || total <= 0
+                      ? col.task_count
+                      : total,
                   tasks: [...(col.tasks || []), ...fresh],
                 };
               }),
@@ -556,7 +629,7 @@ const ProjectDeatailsScreen = () => {
               ...(prev[storyId]?.[statusId] ?? {
                 tasks: [],
                 page: 1,
-                hasNext: false,
+                hasNext: true,
                 totalCount: 0,
               }),
               isLoading: false,
@@ -567,6 +640,8 @@ const ProjectDeatailsScreen = () => {
           message: 'Failed to load column tasks',
           type: 'error',
         });
+      } finally {
+        loadingTaskColumnsRef.current.delete(columnKey);
       }
     },
     [projectId, triggerGetStatusTasks],
@@ -608,6 +683,15 @@ const ProjectDeatailsScreen = () => {
     },
     [loadNextPage, verticalScrollOffset],
   );
+
+  const loadStoriesWhenBoardDoesNotScroll = useCallback(() => {
+    if (
+      outerViewportHeightRef.current > 0 &&
+      outerContentHeightRef.current <= outerViewportHeightRef.current
+    ) {
+      loadNextPage();
+    }
+  }, [loadNextPage]);
 
   const toggleStory = useCallback((storyId: string) => {
     setExpandedStories(prev => ({ ...prev, [storyId]: !prev[storyId] }));
@@ -830,106 +914,179 @@ const ProjectDeatailsScreen = () => {
 
   const applyLocalMove = useCallback(
     (
-      taskId: string,
+      sourceTask: BoardTask,
       sourceStoryId: string,
       sourceStatusId: string,
       targetStoryId: string,
       targetStatusId: string,
     ) => {
-      setLocalUserStories(prev => {
-        let movedTask: BoardTask | null = null;
-        for (const story of prev) {
-          if (story.id === sourceStoryId) {
-            for (const col of story.statuses || []) {
-              if (col.status_id === sourceStatusId) {
-                const found = col.tasks?.find(t => t.id === taskId);
-                if (found) {
-                  movedTask = { ...found, status_id: targetStatusId };
-                  break;
-                }
-              }
-            }
-          }
-        }
+      const movedTask: BoardTask = {
+        ...sourceTask,
+        user_story_id: targetStoryId,
+        status_id: targetStatusId,
+      };
+      taskLocationOverridesRef.current.set(sourceTask.id, {
+        storyId: targetStoryId,
+        statusId: targetStatusId,
+      });
+      taskMoveVersionRef.current += 1;
 
-        if (!movedTask) return prev;
+      setTaskPagination(prev => {
+        const next = Object.fromEntries(
+          Object.entries(prev).map(([storyId, columns]) => [
+            storyId,
+            Object.fromEntries(
+              Object.entries(columns).map(([statusId, state]) => [
+                statusId,
+                {
+                  ...state,
+                  tasks: state.tasks.filter(task => task.id !== sourceTask.id),
+                  ...(storyId === targetStoryId && statusId === targetStatusId
+                    ? {
+                        totalCount: Math.max(0, state.totalCount - 1),
+                        hasNext:
+                          state.hasNext &&
+                          Math.max(0, state.totalCount - 1) >
+                            state.tasks.filter(
+                              task => task.id !== sourceTask.id,
+                            ).length,
+                      }
+                    : {}),
+                },
+              ]),
+            ),
+          ]),
+        ) as Record<string, Record<string, ColumnTaskState>>;
+        const sourceState = next[sourceStoryId]?.[sourceStatusId];
+        const sourceFallback = localUserStories
+          .find(story => story.id === sourceStoryId)
+          ?.statuses?.find(column => column.status_id === sourceStatusId);
+        const sourceTasks = sourceState?.tasks ?? sourceFallback?.tasks ?? [];
+        const currentSource = sourceState ?? {
+          page: sourceFallback?.meta?.page ?? (sourceTasks.length ? 1 : 0),
+          isLoading: false,
+          hasNext:
+            sourceFallback?.meta?.has_next ??
+            (sourceFallback?.meta?.total ??
+              sourceFallback?.task_count ??
+              sourceTasks.length) > sourceTasks.length,
+          totalCount:
+            sourceFallback?.meta?.total ??
+            sourceFallback?.task_count ??
+            sourceTasks.length,
+          tasks: sourceTasks,
+        };
+        next[sourceStoryId] = {
+          ...next[sourceStoryId],
+          [sourceStatusId]: {
+            ...currentSource,
+            totalCount: Math.max(
+              0,
+              currentSource.totalCount -
+                (sourceStoryId === targetStoryId &&
+                sourceStatusId === targetStatusId
+                  ? 0
+                  : 1),
+            ),
+            tasks: currentSource.tasks.filter(
+              task => task.id !== sourceTask.id,
+            ),
+            hasNext:
+              currentSource.hasNext &&
+              currentSource.totalCount -
+                (sourceStoryId === targetStoryId &&
+                sourceStatusId === targetStatusId
+                  ? 0
+                  : 1) >
+                currentSource.tasks.filter(task => task.id !== sourceTask.id)
+                  .length,
+          },
+        };
+        const targetState = next[targetStoryId]?.[targetStatusId];
+        const targetFallback = localUserStories
+          .find(story => story.id === targetStoryId)
+          ?.statuses?.find(column => column.status_id === targetStatusId);
+        const targetTasks = targetState?.tasks ?? targetFallback?.tasks ?? [];
+        const currentTarget = targetState ?? {
+          page: targetFallback?.meta?.page ?? (targetTasks.length ? 1 : 0),
+          isLoading: false,
+          hasNext:
+            targetFallback?.meta?.has_next ??
+            (targetFallback?.meta?.total ??
+              targetFallback?.task_count ??
+              targetTasks.length) > targetTasks.length,
+          totalCount:
+            targetFallback?.meta?.total ??
+            targetFallback?.task_count ??
+            targetTasks.length,
+          tasks: targetTasks,
+        };
+        next[targetStoryId] = {
+          ...next[targetStoryId],
+          [targetStatusId]: {
+            ...currentTarget,
+            totalCount:
+              currentTarget.totalCount +
+              (targetStoryId === sourceStoryId &&
+              targetStatusId === sourceStatusId
+                ? 0
+                : 1),
+            tasks: [
+              ...currentTarget.tasks.filter(task => task.id !== sourceTask.id),
+              movedTask,
+            ],
+            hasNext:
+              currentTarget.hasNext &&
+              currentTarget.totalCount +
+                (targetStoryId === sourceStoryId &&
+                targetStatusId === sourceStatusId
+                  ? 0
+                  : 1) >
+                currentTarget.tasks.filter(task => task.id !== sourceTask.id)
+                  .length +
+                  1,
+          },
+        };
+        return next;
+      });
 
-        setTaskPagination(prevPag => {
-          const sourceCol = prevPag[sourceStoryId]?.[sourceStatusId];
-          const targetCol = prevPag[targetStoryId]?.[targetStatusId];
-          return {
-            ...prevPag,
-            [sourceStoryId]: {
-              ...prevPag[sourceStoryId],
-              ...(sourceCol
-                ? {
-                    [sourceStatusId]: {
-                      ...sourceCol,
-                      totalCount: Math.max(0, sourceCol.totalCount - 1),
-                      tasks: (sourceCol.tasks ?? []).filter(
-                        t => t.id !== taskId,
-                      ),
-                    },
-                  }
-                : {}),
-            },
-            [targetStoryId]: {
-              ...prevPag[targetStoryId],
-              ...(targetCol
-                ? {
-                    [targetStatusId]: {
-                      ...targetCol,
-                      totalCount: targetCol.totalCount + 1,
-                      tasks: [...(targetCol.tasks ?? []), movedTask!],
-                    },
-                  }
-                : {}),
-            },
-          };
-        });
-
-        return prev.map(story => {
-          let updatedStatuses = story.statuses || [];
-          let updatedTotalTasks = story.total_tasks;
-          if (story.id === sourceStoryId) {
-            updatedStatuses = updatedStatuses.map(col => {
-              if (col.status_id === sourceStatusId) {
-                return {
-                  ...col,
-                  task_count: Math.max(0, col.task_count - 1),
-                  tasks: col.tasks.filter(t => t.id !== taskId),
-                };
-              }
-              return col;
-            });
-            if (sourceStoryId !== targetStoryId) {
-              updatedTotalTasks = Math.max(0, (story.total_tasks ?? 0) - 1);
-            }
-          }
-          if (story.id === targetStoryId) {
-            updatedStatuses = updatedStatuses.map(col => {
-              if (col.status_id === targetStatusId) {
-                return {
-                  ...col,
-                  task_count: col.task_count + 1,
-                  tasks: [...col.tasks, movedTask!],
-                };
-              }
-              return col;
-            });
-            if (sourceStoryId !== targetStoryId) {
-              updatedTotalTasks = (story.total_tasks ?? 0) + 1;
-            }
-          }
+      setLocalUserStories(prev =>
+        prev.map(story => {
+          const isSource = story.id === sourceStoryId;
+          const isTarget = story.id === targetStoryId;
           return {
             ...story,
-            total_tasks: updatedTotalTasks,
-            statuses: updatedStatuses,
+            total_tasks:
+              sourceStoryId === targetStoryId
+                ? story.total_tasks
+                : isSource
+                  ? Math.max(0, (story.total_tasks ?? 0) - 1)
+                  : isTarget
+                    ? (story.total_tasks ?? 0) + 1
+                    : story.total_tasks,
+            statuses: (story.statuses ?? []).map(column => {
+              const wasSource = isSource && column.status_id === sourceStatusId;
+              const isDestination =
+                isTarget && column.status_id === targetStatusId;
+              const tasks = (column.tasks ?? []).filter(
+                task => task.id !== sourceTask.id,
+              );
+              return {
+                ...column,
+                task_count: wasSource
+                  ? Math.max(0, column.task_count - 1)
+                  : isDestination &&
+                      !(sourceStoryId === targetStoryId && wasSource)
+                    ? column.task_count + 1
+                    : column.task_count,
+                tasks: isDestination ? [...tasks, movedTask] : tasks,
+              };
+            }),
           };
-        });
-      });
+        }),
+      );
     },
-    [],
+    [localUserStories],
   );
 
   const rollbackLocalMove = useCallback(
@@ -940,84 +1097,117 @@ const ProjectDeatailsScreen = () => {
       sourceStatusId: string,
       targetStatusId: string,
     ) => {
-      setLocalUserStories(prev => {
-        setTaskPagination(prevPag => {
-          const sourceCol = prevPag[sourceStoryId]?.[sourceStatusId];
-          const targetCol = prevPag[targetStoryId]?.[targetStatusId];
+      setTaskPagination(prev => {
+        const next = Object.fromEntries(
+          Object.entries(prev).map(([storyId, columns]) => [
+            storyId,
+            Object.fromEntries(
+              Object.entries(columns).map(([statusId, state]) => [
+                statusId,
+                {
+                  ...state,
+                  tasks: state.tasks.filter(task => task.id !== sourceTask.id),
+                  totalCount:
+                    storyId === targetStoryId && statusId === targetStatusId
+                      ? Math.max(0, state.totalCount - 1)
+                      : state.totalCount,
+                },
+              ]),
+            ),
+          ]),
+        ) as Record<string, Record<string, ColumnTaskState>>;
+        const sourceState = next[sourceStoryId]?.[sourceStatusId];
+        const sourceFallback = localUserStories
+          .find(story => story.id === sourceStoryId)
+          ?.statuses?.find(column => column.status_id === sourceStatusId);
+        const sourceTasks = sourceState?.tasks ?? sourceFallback?.tasks ?? [];
+        const currentSource = sourceState ?? {
+          page: sourceFallback?.meta?.page ?? (sourceTasks.length ? 1 : 0),
+          isLoading: false,
+          hasNext:
+            sourceFallback?.meta?.has_next ??
+            (sourceFallback?.meta?.total ??
+              sourceFallback?.task_count ??
+              sourceTasks.length) > sourceTasks.length,
+          totalCount:
+            sourceFallback?.meta?.total ??
+            sourceFallback?.task_count ??
+            sourceTasks.length,
+          tasks: sourceTasks,
+        };
+        next[sourceStoryId] = {
+          ...next[sourceStoryId],
+          [sourceStatusId]: {
+            ...currentSource,
+            totalCount:
+              currentSource.totalCount +
+              (sourceStoryId === targetStoryId &&
+              sourceStatusId === targetStatusId
+                ? 0
+                : 1),
+            hasNext:
+              currentSource.hasNext &&
+              currentSource.totalCount +
+                (sourceStoryId === targetStoryId &&
+                sourceStatusId === targetStatusId
+                  ? 0
+                  : 1) >
+                currentSource.tasks.filter(task => task.id !== sourceTask.id)
+                  .length +
+                  1,
+            tasks: [
+              ...currentSource.tasks.filter(task => task.id !== sourceTask.id),
+              sourceTask,
+            ],
+          },
+        };
+        return next;
+      });
 
-          return {
-            ...prevPag,
-            [targetStoryId]: {
-              ...prevPag[targetStoryId],
-              ...(targetCol
-                ? {
-                    [targetStatusId]: {
-                      ...targetCol,
-                      totalCount: Math.max(0, targetCol.totalCount - 1),
-                      tasks: (targetCol.tasks ?? []).filter(
-                        t => t.id !== sourceTask.id,
-                      ),
-                    },
-                  }
-                : {}),
-            },
-            [sourceStoryId]: {
-              ...prevPag[sourceStoryId],
-              ...(sourceCol
-                ? {
-                    [sourceStatusId]: {
-                      ...sourceCol,
-                      totalCount: sourceCol.totalCount + 1,
-                      tasks: [...(sourceCol.tasks ?? []), sourceTask],
-                    },
-                  }
-                : {}),
-            },
-          };
-        });
-
-        return prev.map(story => {
-          let updatedStatuses = story.statuses || [];
-          let updatedTotalTasks = story.total_tasks;
-          if (story.id === targetStoryId) {
-            updatedStatuses = updatedStatuses.map(col => {
-              if (col.status_id === targetStatusId) {
-                return {
-                  ...col,
-                  task_count: Math.max(0, col.task_count - 1),
-                  tasks: col.tasks.filter(t => t.id !== sourceTask.id),
-                };
-              }
-              return col;
-            });
-            if (sourceStoryId !== targetStoryId) {
-              updatedTotalTasks = Math.max(0, (story.total_tasks ?? 0) - 1);
-            }
-          }
-          if (story.id === sourceStoryId) {
-            updatedStatuses = updatedStatuses.map(col => {
-              if (col.status_id === sourceStatusId) {
-                return {
-                  ...col,
-                  task_count: col.task_count + 1,
-                  tasks: [...col.tasks, sourceTask],
-                };
-              }
-              return col;
-            });
-            if (sourceStoryId !== targetStoryId) {
-              updatedTotalTasks = (story.total_tasks ?? 0) + 1;
-            }
-          }
+      const restoredTask: BoardTask = {
+        ...sourceTask,
+        user_story_id: sourceStoryId,
+        status_id: sourceStatusId,
+      };
+      taskLocationOverridesRef.current.delete(sourceTask.id);
+      taskMoveVersionRef.current += 1;
+      setLocalUserStories(prev =>
+        prev.map(story => {
+          const isSource = story.id === sourceStoryId;
+          const isTarget = story.id === targetStoryId;
           return {
             ...story,
-            total_tasks: updatedTotalTasks,
-            statuses: updatedStatuses,
+            total_tasks:
+              sourceStoryId === targetStoryId
+                ? story.total_tasks
+                : isTarget
+                  ? Math.max(0, (story.total_tasks ?? 0) - 1)
+                  : isSource
+                    ? (story.total_tasks ?? 0) + 1
+                    : story.total_tasks,
+            statuses: (story.statuses ?? []).map(column => {
+              const wasTarget = isTarget && column.status_id === targetStatusId;
+              const isSourceColumn =
+                isSource && column.status_id === sourceStatusId;
+              const tasks = (column.tasks ?? []).filter(
+                task => task.id !== sourceTask.id,
+              );
+              return {
+                ...column,
+                task_count: wasTarget
+                  ? Math.max(0, column.task_count - 1)
+                  : isSourceColumn &&
+                      !(sourceStoryId === targetStoryId && wasTarget)
+                    ? column.task_count + 1
+                    : column.task_count,
+                tasks: isSourceColumn ? [...tasks, restoredTask] : tasks,
+              };
+            }),
           };
-        });
-      });
+        }),
+      );
     },
-    [],
+    [localUserStories],
   );
 
   const handleTaskDrop = useCallback(
@@ -1047,7 +1237,7 @@ const ProjectDeatailsScreen = () => {
 
       setDropSuccessZone({ storyId: targetStoryId, statusId: targetStatusId });
       applyLocalMove(
-        task.id,
+        sourceTask,
         sourceStoryId,
         sourceStatusId,
         targetStoryId,
@@ -1109,6 +1299,14 @@ const ProjectDeatailsScreen = () => {
     >
       <Animated.ScrollView
         ref={verticalScrollRef}
+        onLayout={event => {
+          outerViewportHeightRef.current = event.nativeEvent.layout.height;
+          loadStoriesWhenBoardDoesNotScroll();
+        }}
+        onContentSizeChange={(_width, height) => {
+          outerContentHeightRef.current = height;
+          loadStoriesWhenBoardDoesNotScroll();
+        }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={handleVerticalScroll}
@@ -1182,7 +1380,9 @@ const ProjectDeatailsScreen = () => {
             paddingTop: layout.tightGap,
           }}
         >
-          {isBoardStoriesLoading || isSprintSwitchLoading || isFilterApplying ? (
+          {(isBoardStoriesLoading && localUserStories.length === 0) ||
+          isSprintSwitchLoading ||
+          (isFilterApplying && isBoardStoriesFetching) ? (
             <BoardSkeleton
               columnCount={Math.max(boardColumns.length ?? 0, 3)}
             />
@@ -1225,7 +1425,7 @@ const ProjectDeatailsScreen = () => {
                         className='text-xs font-bold'
                         color={colors.white}
                       >
-                        {boardMeta?.total ?? displayStories.length}
+                        {boardMeta?.total ?? 0}
                       </AppText>
                     </View>
                   </View>
@@ -1380,18 +1580,20 @@ const ProjectDeatailsScreen = () => {
         }}
         hasMoreAssignees={Boolean(membersData?.meta?.has_next)}
         isLoadingAssignees={isAssigneesFetching}
-        onApplyFilters={filters => {
+        onApplyFilters={(filters, forceRefresh = false) => {
           const filtersChanged =
             JSON.stringify(filters) !== JSON.stringify(selectedFilters);
-          if (filtersChanged && isFocused && projectId) {
+          if (!filtersChanged && !forceRefresh) return;
+          if (isFocused && projectId) {
             setIsFilterApplying(true);
             filterFetchStarted.current = false;
+            filterResponseAtStartRef.current = boardStoriesResponse;
           }
           setCurrentPage(1);
           setIsFetchingMore(false);
           hasInitializedStories.current = false;
-          setLocalUserStories([]);
           setSelectedFilters(filters);
+          setBoardRefetchKey(previous => previous + 1);
         }}
       />
       <CreateProjectModal
