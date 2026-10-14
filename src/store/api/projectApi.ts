@@ -27,6 +27,9 @@ import {
   ADDPROJECTMEMBER,
   UPDATEPROJECTMEMBERROLE,
   GET_PROJECT_BOARD,
+  START_SPRINT,
+  COMPLETE_SPRINT_BY_ID,
+  UPDATE_SPRINT_BY_ID,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsResponse,
@@ -67,6 +70,12 @@ import {
   GetBoardStoriesParams,
   GetBoardStatusTasksParams,
   GetBoardStatusTasksResponse,
+  StartSprintResponse,
+  StartSprintArgs,
+  CompleteSprintResponse,
+  CompleteSprintArgs,
+  UpdateSprintDetailsResponse,
+  UpdateSprintDetailsArgs,
 } from '../../types/project.type';
 import {
   GetCustomStatusResponse,
@@ -207,7 +216,10 @@ export const projectApi = createApi({
                   ([key, val]) =>
                     val !== undefined &&
                     val !== '--' &&
-                    !(key === 'sprint_id' && (val === 'all' || val === undefined)),
+                    !(
+                      key === 'sprint_id' &&
+                      (val === 'all' || val === undefined)
+                    ),
                 )
                 .map(([key, val]) => [key, val === null ? 'null' : val]),
             )
@@ -629,6 +641,55 @@ export const projectApi = createApi({
         { type: 'Board', id: `STORY_${user_story_id}_STATUS_${status_id}` },
       ],
     }),
+
+    startSprint: build.mutation<StartSprintResponse, StartSprintArgs>({
+      query: ({ project_id, sprint_id, payload }) => ({
+        url: START_SPRINT.replace('{project_id}', project_id),
+        params: { sprint_id },
+        method: 'POST',
+        data: payload,
+      }),
+      invalidatesTags: (_result, _error, { project_id }) => [
+        { type: 'Sprints', id: project_id },
+        'Sprints',
+        'SprintDetails',
+        { type: 'ProjectOverview', id: project_id },
+      ],
+    }),
+
+    completeSprint: build.mutation<CompleteSprintResponse, CompleteSprintArgs>({
+      query: ({ project_id, sprint_id }) => ({
+        url: COMPLETE_SPRINT_BY_ID.replace('{project_id}', project_id),
+        params: { sprint_id },
+        method: 'POST',
+      }),
+      invalidatesTags: (_result, _error, { project_id, sprint_id }) => [
+        { type: 'SprintDetails', id: `${project_id}_${sprint_id}` },
+        { type: 'Sprints', id: project_id },
+        'Sprints',
+        { type: 'ProjectOverview', id: project_id },
+      ],
+    }),
+
+    updateSprintDetails: build.mutation<
+      UpdateSprintDetailsResponse,
+      UpdateSprintDetailsArgs
+    >({
+      query: ({ project_id, sprint_id, payload }) => ({
+        url: UPDATE_SPRINT_BY_ID.replace('{project_id}', project_id).replace(
+          '{sprint_id}',
+          sprint_id,
+        ),
+        method: 'PATCH',
+        data: payload,
+      }),
+      invalidatesTags: (_result, _error, { project_id, sprint_id }) => [
+        { type: 'SprintDetails', id: `${project_id}_${sprint_id}` },
+        { type: 'Sprints', id: project_id },
+        'Sprints',
+        { type: 'ProjectOverview', id: project_id },
+      ],
+    }),
   }),
 });
 
@@ -663,6 +724,9 @@ export const {
   useCreateSprintMutation,
   useGetBoardStoriesQuery,
   useLazyGetBoardStatusTasksQuery,
+  useStartSprintMutation,
+  useCompleteSprintMutation,
+  useUpdateSprintDetailsMutation,
 } = projectApi;
 
 // Aliases matching thunk names

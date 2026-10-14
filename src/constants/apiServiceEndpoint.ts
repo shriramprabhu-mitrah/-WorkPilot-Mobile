@@ -66,6 +66,9 @@ export const GET_SPRINT_BURNDOWN = `/{project_id}/sprint-burndown`;
 export const GET_TEAM_WORKLOAD = `/{project_id}/team-workload`;
 export const GET_WEEKLY_PROGRESS = `/{project_id}/weekly-progress`;
 export const DELETE_SPRINT = `/projects/{project_id}/sprint/{sprint_id}`;
+export const START_SPRINT = `/projects/{project_id}/sprint/start`;
+export const UPDATE_SPRINT_BY_ID = `/projects/{project_id}/sprint/{sprint_id}`;
+export const COMPLETE_SPRINT_BY_ID = `/projects/{project_id}/sprint/complete`;
 
 //TASK
 export const GET_TASK_BY_ID = `/projects/{project_id}/tasks/{task_id}`;

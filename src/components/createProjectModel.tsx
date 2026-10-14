@@ -103,6 +103,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const { layout, isSmallHeight } = useAuthLayout();
   const insets = useSafeAreaInsets();
   const editorRef = useRef<RichEditor>(null);
+  const sprintGoalEditorRef = useRef<RichEditor>(null);
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [roleNameError, setRoleNameError] = useState<string>();
@@ -155,6 +156,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     if (visible) {
       setTimeout(() => {
         editorRef.current?.setContentHTML('');
+        sprintGoalEditorRef.current?.setContentHTML('');
       }, 150);
     }
   }, [visible]);
@@ -182,6 +184,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     setProjectName('');
     setProjectDescription('');
     editorRef.current?.setContentHTML('');
+    sprintGoalEditorRef.current?.setContentHTML('');
     setSprintGoal('');
     setStartDate('');
     setEndDate('');
@@ -699,107 +702,83 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                       );
                     })()}
 
-                  {/* Sprint Fields (Goal & Dates) */}
+                  {/* Sprint Fields: Sprint Goal using RichEditor */}
                   {isSprint && (
-                    <>
-                      <View style={{ gap: moderateScale(6) }}>
-                        <AppInput
-                          label='Sprint Goal'
-                          value={sprintGoal}
-                          onChangeText={setSprintGoal}
-                          placeholder='Enter sprint goal...'
+                    <View style={{ gap: moderateScale(6) }}>
+                      <AppText
+                        variant='body'
+                        color={colors.text}
+                        style={{
+                          fontWeight: '600',
+                          fontSize: moderateScale(14),
+                        }}
+                      >
+                        Sprint Goal
+                      </AppText>
+                      <View
+                        style={{
+                          borderWidth: 1,
+                          borderColor: colors.border || '#E2E8F0',
+                          borderRadius: Radius.md,
+                          backgroundColor: colors.surface,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <View
+                          style={{
+                            borderBottomWidth: 1,
+                            borderBottomColor: colors.border || '#E2E8F0',
+                            backgroundColor: colors.card || colors.surface,
+                          }}
+                        >
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            keyboardShouldPersistTaps='always'
+                            contentContainerStyle={{ alignItems: 'center' }}
+                          >
+                            <RichToolbar
+                              editor={sprintGoalEditorRef}
+                              getEditor={() => sprintGoalEditorRef.current}
+                              actions={toolbarActions}
+                              iconTint={colors.textSecondary}
+                              selectedIconTint={colors.primary}
+                              style={{
+                                backgroundColor: 'transparent',
+                                minHeight: 40,
+                              }}
+                            />
+                          </ScrollView>
+                        </View>
+
+                        {/* Rich Editor for Sprint Goal */}
+                        <RichEditor
+                          ref={sprintGoalEditorRef}
+                          initialContentHTML=''
+                          placeholder='Enter sprint goal details...'
+                          onChange={html => setSprintGoal(html)}
+                          onFocus={() => setActiveDropdown(null)}
+                          useContainer={true}
+                          style={{
+                            minHeight: moderateScale(100),
+                            maxHeight: moderateScale(180),
+                          }}
+                          editorStyle={{
+                            backgroundColor: colors.surface,
+                            color: colors.text,
+                            placeholderColor:
+                              colors.placeholder || colors.textSecondary,
+                            contentCSSText: `
+                              font-size: ${layout?.bodyFontSize || 14}px;
+                              padding: 10px;
+                              outline: none;
+                              -webkit-user-select: text;
+                              user-select: text;
+                            `,
+                          }}
                         />
                       </View>
-
-                      {/* Dates */}
-                      <View style={{ gap: moderateScale(6) }}>
-                        <AppText
-                          variant='body'
-                          color={colors.text}
-                          style={{
-                            fontWeight: '600',
-                            fontSize: moderateScale(14),
-                          }}
-                        >
-                          Start Date
-                        </AppText>
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => setSelectedDateType('start')}
-                          style={{
-                            backgroundColor: colors.surface,
-                            borderWidth: 1,
-                            borderColor: colors.border || '#E2E8F0',
-                            borderRadius: Radius.sm || moderateScale(8),
-                            paddingHorizontal: moderateScale(12),
-                            paddingVertical: moderateScale(10),
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                          }}
-                        >
-                          <AppText
-                            style={{
-                              fontSize: moderateScale(14),
-                              color: startDate
-                                ? colors.text
-                                : colors.placeholder || '#94A3B8',
-                            }}
-                          >
-                            {startDate || 'Select start date'}
-                          </AppText>
-                          <Ionicons
-                            name='calendar-outline'
-                            size={moderateScale(18)}
-                            color={colors.textSecondary || '#94A3B8'}
-                          />
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={{ gap: moderateScale(6) }}>
-                        <AppText
-                          variant='body'
-                          color={colors.text}
-                          style={{
-                            fontWeight: '600',
-                            fontSize: moderateScale(14),
-                          }}
-                        >
-                          End Date
-                        </AppText>
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => setSelectedDateType('end')}
-                          style={{
-                            backgroundColor: colors.surface,
-                            borderWidth: 1,
-                            borderColor: colors.border || '#E2E8F0',
-                            borderRadius: Radius.sm || moderateScale(8),
-                            paddingHorizontal: moderateScale(12),
-                            paddingVertical: moderateScale(10),
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                          }}
-                        >
-                          <AppText
-                            style={{
-                              fontSize: moderateScale(14),
-                              color: endDate
-                                ? colors.text
-                                : colors.placeholder || '#94A3B8',
-                            }}
-                          >
-                            {endDate || 'Select end date'}
-                          </AppText>
-                          <Ionicons
-                            name='calendar-outline'
-                            size={moderateScale(18)}
-                            color={colors.textSecondary || '#94A3B8'}
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    </>
+                    </View>
                   )}
                 </ScrollView>
 

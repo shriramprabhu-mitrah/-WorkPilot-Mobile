@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -22,6 +22,14 @@ import AppText from './common/AppText';
 import AppInput from './common/Input/AppInput';
 import DatePickerModal from './datePickerModel';
 import CustomSnackbar, { SnackbarType } from './common/Snackbar/CustomSnackbar';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { CustomDropdown, DropdownItem } from './CustomDropdown';
+import {
+  RichEditor,
+  RichToolbar,
+  actions,
+} from 'react-native-pell-rich-editor';
+import JiraLogo from '../assets/svg/splasScreenlogo';
 
 export type SprintStatus =
   'planned' | 'active' | 'on_hold' | 'completed' | 'cancelled' | 'archived';
@@ -37,6 +45,7 @@ export interface UpdateSprintRequest {
 interface UpdateSprintModalProps {
   visible: boolean;
   onClose: () => void;
+  mode?: 'start' | 'update' | 'complete';
 
   sprint?: {
     id?: string;
@@ -52,49 +61,48 @@ interface UpdateSprintModalProps {
   };
 
   onUpdate: (payload: UpdateSprintRequest) => Promise<void> | void;
+  onStart?: (payload: {
+    start_date: string;
+    end_date: string;
+  }) => Promise<void> | void;
+  onComplete?: () => Promise<void> | void;
 
   isUpdating?: boolean;
+  completedStoryCount?: number;
+  inProgressStoryCount?: number;
+  error?: string;
 }
-
-const STATUS_OPTIONS: {
-  label: string;
-  value: SprintStatus;
-}[] = [
-  {
-    label: 'Planned',
-    value: 'planned',
-  },
-  {
-    label: 'Active',
-    value: 'active',
-  },
-  {
-    label: 'On Hold',
-    value: 'on_hold',
-  },
-  {
-    label: 'Completed',
-    value: 'completed',
-  },
-  {
-    label: 'Cancelled',
-    value: 'cancelled',
-  },
-  {
-    label: 'Archived',
-    value: 'archived',
-  },
-];
 
 const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
   visible,
   onClose,
+  mode = 'update',
   sprint,
   onUpdate,
+  onStart,
+  onComplete,
   isUpdating = false,
+  completedStoryCount = 0,
+  inProgressStoryCount = 0,
+  error: completeError,
 }) => {
   const { colors } = useTheme();
-  const { isSmallHeight } = useAuthLayout();
+  const { layout, isSmallHeight } = useAuthLayout();
+
+  const sprintGoalEditorRef = useRef<RichEditor>(null);
+
+  const toolbarActions = [
+    actions.heading1,
+    actions.setBold,
+    actions.setItalic,
+    actions.setUnderline,
+    actions.insertBulletsList,
+    actions.insertOrderedList,
+    actions.hiliteColor,
+    actions.insertLink,
+    actions.undo,
+    actions.redo,
+  ];
 
   const [sprintName, setSprintName] = useState('');
   const [sprintGoal, setSprintGoal] = useState('');
@@ -103,12 +111,25 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
   const [endDate, setEndDate] = useState('');
 
   const [selectedStatus, setSelectedStatus] = useState<SprintStatus>('planned');
+  const [activeDropdown, setActiveDropdown] = useState<
+    'status' | 'duration' | null
+  >(null);
+  const [duration, setDuration] = useState<'1' | '2' | '3' | '4' | 'custom'>(
+    '2',
+  );
 
   const [selectedDateType, setSelectedDateType] = useState<
     'start' | 'end' | null
   >(null);
 
   const [localSnackbarVisible, setLocalSnackbarVisible] = useState(false);
+  const durationItems: DropdownItem<typeof duration>[] = [
+    { id: '1', name: '1 Week' },
+    { id: '2', name: '2 Weeks' },
+    { id: '3', name: '3 Weeks' },
+    { id: '4', name: '4 Weeks' },
+    { id: 'custom', name: 'Custom' },
+  ];
 
   const [localSnackbarMessage, setLocalSnackbarMessage] = useState('');
 
@@ -122,6 +143,21 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
     if (!visible || !sprint) {
       return;
     }
+    if (mode === 'complete') {
+      return;
+    }
+    if (mode === 'start') {
+      const now = new Date();
+      setSprintName(sprint?.name ?? '');
+      setSprintGoal(sprint?.goal ?? '');
+      setStartDate(now.toISOString());
+      setDuration('2');
+      const end = new Date(now);
+      end.setDate(end.getDate() + 14);
+      setEndDate(end.toISOString());
+      sprintGoalEditorRef.current?.setContentHTML(sprint?.goal ?? '');
+      return;
+    }
 
     setSprintName(sprint.name ?? '');
 
@@ -132,7 +168,58 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
     setEndDate(sprint.end_date?.split('T')[0] ?? sprint.endDate ?? '');
 
     setSelectedStatus((sprint.status as SprintStatus) ?? 'planned');
-  }, [visible, sprint]);
+
+    setTimeout(() => {
+      sprintGoalEditorRef.current?.setContentHTML(sprint.goal ?? '');
+    }, 150);
+  }, [visible, sprint, mode]);
+
+  const parseSprintDate = (value: string) => {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+    const normalized = new Date(value.slice(0, 19));
+    if (!Number.isNaN(normalized.getTime())) return normalized;
+    const dateOnly = new Date(value.slice(0, 10));
+    return Number.isNaN(dateOnly.getTime()) ? null : dateOnly;
+  };
+
+  const formatDate = (value: string) => {
+    const date = parseSprintDate(value);
+    if (!date) return value;
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleDateString('en-US');
+  };
+
+  const formatTime = (value: string) => {
+    const date = parseSprintDate(value);
+    return (
+      date?.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }) ?? ''
+    );
+  };
+
+  const timeValue = (value: string) => {
+    const date = parseSprintDate(value);
+    return date
+      ? `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+      : '09:00';
+  };
+
+  const chooseDuration = (value: typeof duration) => {
+    setDuration(value);
+    if (value !== 'custom') {
+      const end = new Date(startDate);
+      end.setDate(end.getDate() + Number(value) * 7);
+      setEndDate(end.toISOString());
+    } else {
+      const end = new Date(startDate);
+      end.setDate(end.getDate() + 7);
+      setEndDate(end.toISOString());
+    }
+  };
 
   const showLocalSnackbar = (message: string, type: SnackbarType = 'error') => {
     setLocalSnackbarMessage(message);
@@ -145,6 +232,7 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
       return;
     }
 
+    sprintGoalEditorRef.current?.setContentHTML('');
     setSprintName('');
     setSprintGoal('');
     setStartDate('');
@@ -157,11 +245,16 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
   };
 
   const handleSubmit = async () => {
+    if (mode === 'complete') {
+      await onComplete?.();
+      return;
+    }
+
     const name = sprintName.trim();
     const goal = sprintGoal.trim();
 
     // Validation
-    if (!name) {
+    if (mode === 'update' && !name) {
       showLocalSnackbar('Sprint name is required', 'error');
       return;
     }
@@ -181,6 +274,16 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
       return;
     }
 
+    if (mode === 'start') {
+      try {
+        await onStart?.({ start_date: startDate, end_date: endDate });
+      } catch (error: any) {
+        showLocalSnackbar(
+          error?.data?.message || error?.message || 'Failed to start sprint',
+        );
+      }
+      return;
+    }
     if (!sprint) return;
 
     // Prepare original values
@@ -264,53 +367,135 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
               >
                 {/* Header */}
 
-                <View
-                  className='flex-row items-center justify-between'
-                  style={{
-                    paddingHorizontal: moderateScale(20),
-
-                    paddingTop: moderateScale(18),
-
-                    paddingBottom: moderateScale(14),
-
-                    borderBottomWidth: 1,
-
-                    borderBottomColor: colors.border || '#F1F5F9',
-                  }}
-                >
-                  <AppText
-                    variant='h3'
-                    color={colors.text}
+                {mode === 'complete' ? (
+                  <View style={{ position: 'relative' }}>
+                    <View
+                      style={{
+                        height: moderateScale(145),
+                        width: '100%',
+                        backgroundColor: colors.primary,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Svg
+                        width='100%'
+                        height='100%'
+                        viewBox='0 0 400 180'
+                        preserveAspectRatio='xMidYMid slice'
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                        }}
+                      >
+                        <Defs>
+                          <LinearGradient
+                            id='headerGradient'
+                            x1='0'
+                            y1='0'
+                            x2='1'
+                            y2='1'
+                          >
+                            <Stop
+                              offset='0'
+                              stopColor='#FFFFFF'
+                              stopOpacity={0.18}
+                            />
+                            <Stop
+                              offset='1'
+                              stopColor='#FFFFFF'
+                              stopOpacity={0}
+                            />
+                          </LinearGradient>
+                        </Defs>
+                        <Path
+                          d='M0 110 C100 40 200 180 400 65 L400 180 L0 180 Z'
+                          fill='url(#headerGradient)'
+                        />
+                        <Path
+                          d='M0 135 C120 65 230 200 400 90'
+                          stroke='#FFFFFF'
+                          strokeOpacity={0.15}
+                          strokeWidth={2}
+                          fill='none'
+                        />
+                      </Svg>
+                      <JiraLogo
+                        width={moderateScale(120)}
+                        height={moderateScale(40)}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={handleClose}
+                      disabled={isUpdating}
+                      style={{
+                        position: 'absolute',
+                        top: 14,
+                        right: 14,
+                        padding: 6,
+                        zIndex: 20,
+                      }}
+                    >
+                      <Ionicons
+                        name='close'
+                        size={moderateScale(22)}
+                        color='#FFFFFF'
+                      />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View
+                    className='flex-row items-center justify-between'
                     style={{
-                      fontSize: moderateScale(18),
+                      paddingHorizontal: moderateScale(20),
 
-                      fontWeight: '700',
+                      paddingTop: moderateScale(18),
+
+                      paddingBottom: moderateScale(14),
+
+                      borderBottomWidth: 1,
+
+                      borderBottomColor: colors.border || '#F1F5F9',
                     }}
                   >
-                    Edit Sprint
-                  </AppText>
+                    <AppText
+                      variant='h3'
+                      color={colors.text}
+                      style={{
+                        fontSize: moderateScale(18),
 
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={handleClose}
-                    disabled={isUpdating}
-                    hitSlop={{
-                      top: 10,
-                      bottom: 10,
-                      left: 10,
-                      right: 10,
-                    }}
-                    style={{
-                      padding: moderateScale(4),
-                    }}
-                  >
-                    <Ionicons
-                      name='close'
-                      size={moderateScale(20)}
-                      color={colors.textSecondary || '#94A3B8'}
-                    />
-                  </TouchableOpacity>
-                </View>
+                        fontWeight: '700',
+                      }}
+                    >
+                      {mode === 'start' ? 'Start Sprint' : 'Edit Sprint'}
+                    </AppText>
+
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={handleClose}
+                      disabled={isUpdating}
+                      hitSlop={{
+                        top: 10,
+                        bottom: 10,
+                        left: 10,
+                        right: 10,
+                      }}
+                      style={{
+                        padding: moderateScale(4),
+                      }}
+                    >
+                      <Ionicons
+                        name='close'
+                        size={moderateScale(20)}
+                        color={colors.textSecondary || '#94A3B8'}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
 
                 {/* Body */}
 
@@ -327,262 +512,354 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
                     gap: isSmallHeight ? moderateScale(12) : moderateScale(16),
                   }}
                 >
-                  {/* Sprint Name */}
+                  {mode === 'start' && (
+                    <CustomDropdown
+                      label='Duration'
+                      items={durationItems}
+                      selectedValue={duration}
+                      onSelect={item => {
+                        chooseDuration(item.id);
+                        setActiveDropdown(null);
+                      }}
+                      isOpen={activeDropdown === 'duration'}
+                      onToggle={() =>
+                        setActiveDropdown(
+                          activeDropdown === 'duration' ? null : 'duration',
+                        )
+                      }
+                      placeholder='Select duration'
+                      direction='down'
+                    />
+                  )}
+                  {mode === 'update' && (
+                    <>
+                      {/* Sprint Name */}
 
-                  <View
-                    style={{
-                      gap: moderateScale(6),
-                    }}
-                  >
-                    <View className='flex-row items-center'>
+                      <View
+                        style={{
+                          gap: moderateScale(6),
+                        }}
+                      >
+                        <View className='flex-row items-center'>
+                          <AppText
+                            variant='body'
+                            color={colors.text}
+                            style={{
+                              fontWeight: '600',
+                              fontSize: moderateScale(14),
+                            }}
+                          >
+                            Sprint name
+                          </AppText>
+
+                          <AppText
+                            style={{
+                              color: colors.error || '#EF4444',
+
+                              fontWeight: 'bold',
+
+                              fontSize: moderateScale(14),
+                            }}
+                          >
+                            {' '}
+                            *
+                          </AppText>
+                        </View>
+
+                        <AppInput
+                          value={sprintName}
+                          onChangeText={setSprintName}
+                          placeholder='Enter sprint name...'
+                        />
+                      </View>
+
+                      {/* Sprint Goal */}
+
+                      <View style={{ gap: moderateScale(6) }}>
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          style={{
+                            fontWeight: '600',
+                            fontSize: moderateScale(14),
+                          }}
+                        >
+                          Sprint Goal
+                        </AppText>
+
+                        <View
+                          style={{
+                            borderWidth: 1,
+                            borderColor: colors.border || '#E2E8F0',
+                            borderRadius: Radius.md,
+                            backgroundColor: colors.surface,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {/* Toolbar */}
+                          <View
+                            style={{
+                              borderBottomWidth: 1,
+                              borderBottomColor: colors.border || '#E2E8F0',
+                              backgroundColor: colors.card || colors.surface,
+                            }}
+                          >
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              keyboardShouldPersistTaps='always'
+                              contentContainerStyle={{ alignItems: 'center' }}
+                            >
+                              <RichToolbar
+                                editor={sprintGoalEditorRef}
+                                getEditor={() => sprintGoalEditorRef.current}
+                                actions={toolbarActions}
+                                iconTint={colors.textSecondary}
+                                selectedIconTint={colors.primary}
+                                style={{
+                                  backgroundColor: 'transparent',
+                                  minHeight: 40,
+                                }}
+                              />
+                            </ScrollView>
+                          </View>
+
+                          {/* Rich Text Area */}
+                          <RichEditor
+                            ref={sprintGoalEditorRef}
+                            initialContentHTML={sprintGoal || ''}
+                            placeholder='Enter sprint goal...'
+                            onChange={html => setSprintGoal(html)}
+                            useContainer={true}
+                            style={{
+                              minHeight: moderateScale(80),
+                              maxHeight: moderateScale(160),
+                            }}
+                            editorStyle={{
+                              backgroundColor: colors.surface,
+                              color: colors.text,
+                              placeholderColor:
+                                colors.placeholder || colors.textSecondary,
+                              contentCSSText: `
+                            font-size: ${layout?.bodyFontSize || 14}px;
+                            padding: 10px;
+                            outline: none;
+                            -webkit-user-select: text;
+                            user-select: text;
+                          `,
+                            }}
+                          />
+                        </View>
+                      </View>
+                    </>
+                  )}
+
+                  {mode === 'complete' && (
+                    <>
                       <AppText
                         variant='body'
                         color={colors.text}
                         style={{
                           fontWeight: '600',
-                          fontSize: moderateScale(14),
+                          fontSize: moderateScale(16),
                         }}
                       >
-                        Sprint name
+                        Complete {sprint?.name ?? ''}
                       </AppText>
 
-                      <AppText
+                      <AppText variant='body' color={colors.textSecondary}>
+                        This sprint contains{' '}
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          style={{ fontWeight: '600' }}
+                        >
+                          {completedStoryCount} completed user stories
+                        </AppText>{' '}
+                        and{' '}
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          style={{ fontWeight: '600' }}
+                        >
+                          {inProgressStoryCount} user stories in progress.
+                        </AppText>
+                      </AppText>
+                      <AppText variant='body' color={colors.textSecondary}>
+                        - Completed user stories include stories in the Done
+                        column.
+                      </AppText>
+                      <AppText variant='body' color={colors.textSecondary}>
+                        - In progress includes stories that are not completed.
+                      </AppText>
+
+                      {!!completeError && (
+                        <AppText
+                          variant='caption'
+                          color={colors.error || '#DC2626'}
+                        >
+                          {completeError}
+                        </AppText>
+                      )}
+                    </>
+                  )}
+
+                  {mode !== 'complete' && (
+                    <>
+                      {/* Start Date and Time */}
+
+                      <View
                         style={{
-                          color: colors.error || '#EF4444',
-
-                          fontWeight: 'bold',
-
-                          fontSize: moderateScale(14),
+                          gap: moderateScale(6),
                         }}
                       >
-                        {' '}
-                        *
-                      </AppText>
-                    </View>
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          style={{
+                            fontWeight: '600',
+                            fontSize: moderateScale(14),
+                          }}
+                        >
+                          Start date
+                        </AppText>
 
-                    <AppInput
-                      value={sprintName}
-                      onChangeText={setSprintName}
-                      placeholder='Enter sprint name...'
-                    />
-                  </View>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => setSelectedDateType('start')}
+                          disabled
+                          style={{
+                            backgroundColor: colors.card || colors.surface,
+                            opacity: 0.72,
 
-                  {/* Sprint Goal */}
+                            borderWidth: 1,
 
-                  <View
-                    style={{
-                      gap: moderateScale(6),
-                    }}
-                  >
-                    <AppInput
-                      label='Sprint Goal'
-                      value={sprintGoal}
-                      onChangeText={setSprintGoal}
-                      placeholder='Enter sprint goal...'
-                      multiline
-                      numberOfLines={3}
-                      textAlignVertical='top'
-                      style={{
-                        minHeight: moderateScale(80),
-                      }}
-                    />
-                  </View>
+                            borderColor: colors.border || '#E2E8F0',
 
-                  {/* Start Date */}
+                            borderRadius: Radius.sm || moderateScale(8),
 
-                  <View
-                    style={{
-                      gap: moderateScale(6),
-                    }}
-                  >
-                    <AppText
-                      variant='body'
-                      color={colors.text}
-                      style={{
-                        fontWeight: '600',
-                        fontSize: moderateScale(14),
-                      }}
-                    >
-                      Start Date
-                    </AppText>
+                            paddingHorizontal: moderateScale(12),
 
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={() => setSelectedDateType('start')}
-                      disabled={isUpdating}
-                      style={{
-                        backgroundColor: colors.surface,
+                            paddingVertical: moderateScale(10),
 
-                        borderWidth: 1,
+                            flexDirection: 'row',
 
-                        borderColor: colors.border || '#E2E8F0',
+                            alignItems: 'center',
 
-                        borderRadius: Radius.sm || moderateScale(8),
-
-                        paddingHorizontal: moderateScale(12),
-
-                        paddingVertical: moderateScale(10),
-
-                        flexDirection: 'row',
-
-                        alignItems: 'center',
-
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <AppText
-                        style={{
-                          fontSize: moderateScale(14),
-
-                          color: startDate
-                            ? colors.text
-                            : colors.placeholder || '#94A3B8',
-                        }}
-                      >
-                        {startDate || 'Select start date'}
-                      </AppText>
-
-                      <Ionicons
-                        name='calendar-outline'
-                        size={moderateScale(18)}
-                        color={colors.textSecondary || '#94A3B8'}
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* End Date */}
-
-                  <View
-                    style={{
-                      gap: moderateScale(6),
-                    }}
-                  >
-                    <AppText
-                      variant='body'
-                      color={colors.text}
-                      style={{
-                        fontWeight: '600',
-                        fontSize: moderateScale(14),
-                      }}
-                    >
-                      End Date
-                    </AppText>
-
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={() => setSelectedDateType('end')}
-                      disabled={isUpdating}
-                      style={{
-                        backgroundColor: colors.surface,
-
-                        borderWidth: 1,
-
-                        borderColor: colors.border || '#E2E8F0',
-
-                        borderRadius: Radius.sm || moderateScale(8),
-
-                        paddingHorizontal: moderateScale(12),
-
-                        paddingVertical: moderateScale(10),
-
-                        flexDirection: 'row',
-
-                        alignItems: 'center',
-
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <AppText
-                        style={{
-                          fontSize: moderateScale(14),
-
-                          color: endDate
-                            ? colors.text
-                            : colors.placeholder || '#94A3B8',
-                        }}
-                      >
-                        {endDate || 'Select end date'}
-                      </AppText>
-
-                      <Ionicons
-                        name='calendar-outline'
-                        size={moderateScale(18)}
-                        color={colors.textSecondary || '#94A3B8'}
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Status */}
-
-                  <View
-                    style={{
-                      gap: moderateScale(8),
-                    }}
-                  >
-                    <AppText
-                      variant='body'
-                      color={colors.text}
-                      style={{
-                        fontWeight: '600',
-                        fontSize: moderateScale(14),
-                      }}
-                    >
-                      Status
-                    </AppText>
-
-                    <View
-                      className='flex-row flex-wrap'
-                      style={{
-                        gap: moderateScale(8),
-                      }}
-                    >
-                      {STATUS_OPTIONS.map(option => {
-                        const selected = selectedStatus === option.value;
-
-                        return (
-                          <TouchableOpacity
-                            key={option.value}
-                            activeOpacity={0.7}
-                            onPress={() => setSelectedStatus(option.value)}
-                            disabled={isUpdating}
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <Ionicons
+                            name='calendar-outline'
+                            size={moderateScale(18)}
+                            color={colors.textSecondary || '#94A3B8'}
+                          />
+                          <AppText
                             style={{
-                              borderWidth: 1,
+                              flex: 1,
+                              marginLeft: moderateScale(10),
+                              fontSize: moderateScale(14),
 
-                              borderColor: selected
-                                ? colors.primary
-                                : colors.border,
-
-                              backgroundColor: selected
-                                ? colors.primary
-                                : colors.surface,
-
-                              borderRadius: moderateScale(20),
-
-                              paddingHorizontal: moderateScale(12),
-
-                              paddingVertical: moderateScale(8),
+                              color: startDate
+                                ? colors.text
+                                : colors.placeholder || '#94A3B8',
                             }}
                           >
-                            <AppText
-                              variant='body'
-                              color={
-                                selected
-                                  ? colors.white || '#FFFFFF'
-                                  : colors.text
-                              }
-                              style={{
-                                fontSize: moderateScale(12),
+                            {startDate ? formatDate(startDate) : 'Select date'}
+                          </AppText>
+                          <AppText
+                            style={{
+                              fontSize: moderateScale(14),
+                              color: colors.textSecondary,
+                            }}
+                          >
+                            {formatTime(startDate)}
+                          </AppText>
+                        </TouchableOpacity>
+                      </View>
 
-                                fontWeight: selected ? '600' : '500',
-                              }}
-                            >
-                              {option.label}
-                            </AppText>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
+                      {/* End Date and Time */}
+
+                      <View
+                        style={{
+                          gap: moderateScale(6),
+                        }}
+                      >
+                        <AppText
+                          variant='body'
+                          color={colors.text}
+                          style={{
+                            fontWeight: '600',
+                            fontSize: moderateScale(14),
+                          }}
+                        >
+                          End date
+                        </AppText>
+
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => setSelectedDateType('end')}
+                          disabled={
+                            isUpdating ||
+                            (mode === 'start' && duration !== 'custom')
+                          }
+                          style={{
+                            backgroundColor:
+                              isUpdating ||
+                              (mode === 'start' && duration !== 'custom')
+                                ? colors.card || colors.surface
+                                : colors.surface,
+                            opacity:
+                              isUpdating ||
+                              (mode === 'start' && duration !== 'custom')
+                                ? 0.72
+                                : 1,
+                            borderWidth: 1,
+
+                            borderColor: colors.border || '#E2E8F0',
+
+                            borderRadius: Radius.sm || moderateScale(8),
+
+                            paddingHorizontal: moderateScale(12),
+
+                            paddingVertical: moderateScale(10),
+
+                            flexDirection: 'row',
+
+                            alignItems: 'center',
+
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <Ionicons
+                            name='calendar-outline'
+                            size={moderateScale(18)}
+                            color={colors.textSecondary || '#94A3B8'}
+                          />
+                          <AppText
+                            style={{
+                              flex: 1,
+                              marginLeft: moderateScale(10),
+                              fontSize: moderateScale(14),
+                              color: endDate
+                                ? colors.text
+                                : colors.placeholder || '#94A3B8',
+                            }}
+                          >
+                            {endDate ? formatDate(endDate) : 'Select date'}
+                          </AppText>
+                          <AppText
+                            style={{
+                              fontSize: moderateScale(14),
+                              color: colors.textSecondary,
+                            }}
+                          >
+                            {formatTime(endDate)}
+                          </AppText>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  )}
                 </ScrollView>
 
                 {/* Footer */}
@@ -644,7 +921,10 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
 
                       paddingHorizontal: moderateScale(16),
 
-                      minWidth: moderateScale(120),
+                      minWidth:
+                        mode === 'complete'
+                          ? moderateScale(145)
+                          : moderateScale(120),
 
                       alignItems: 'center',
 
@@ -662,7 +942,11 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
                           fontSize: moderateScale(14),
                         }}
                       >
-                        Update Sprint
+                        {mode === 'start'
+                          ? 'Start Sprint'
+                          : mode === 'complete'
+                            ? 'Complete sprint'
+                            : 'Update Sprint'}
                       </AppText>
                     )}
                   </TouchableOpacity>
@@ -676,19 +960,24 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
       {/* Date Picker */}
 
       <DatePickerModal
-        visible={selectedDateType !== null}
+        visible={selectedDateType === 'end'}
         title={
-          selectedDateType === 'start' ? 'Select Start Date' : 'Select End Date'
+          mode === 'start'
+            ? 'Set Sprint End Date and Time'
+            : 'Update Sprint End Date and Time'
         }
-        selectedDate={selectedDateType === 'start' ? startDate : endDate}
-        minDate={selectedDateType === 'end' ? startDate : undefined}
+        selectedDate={endDate.slice(0, 10)}
+        selectedTime={timeValue(endDate)}
+        minDate={startDate.slice(0, 10)}
+        showTimePicker
         onClose={() => setSelectedDateType(null)}
-        onSelectDate={date => {
-          if (selectedDateType === 'start') {
-            setStartDate(date);
-          } else {
-            setEndDate(date);
-          }
+        onSelectDate={date => setEndDate(date)}
+        onSelectDateTime={(date, time) => {
+          const [year, month, day] = date.split('-').map(Number);
+          const [hour, minute] = time.split(':').map(Number);
+          setEndDate(
+            new Date(year, month - 1, day, hour, minute).toISOString(),
+          );
         }}
       />
 
