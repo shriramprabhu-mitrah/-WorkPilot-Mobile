@@ -985,3 +985,66 @@ export type ColumnTaskState = {
   hasNext: boolean;
   totalCount: number;
 };
+
+export interface StartSprintPayload {
+  start_date: string;
+  end_date: string;
+}
+
+export interface StartSprintData {
+  id: string;
+  name: string;
+  goal: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  total_stories: number;
+}
+
+export interface StartSprintResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: StartSprintData;
+}
+
+export interface StartSprintArgs {
+  project_id: string;
+  sprint_id: string;
+  payload: StartSprintPayload;
+}
+
+export interface CompleteSprintArgs {
+  project_id: string;
+  sprint_id: string;
+}
+
+export interface CompleteSprintResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+export interface UpdateSprintDetailsPayload {
+  name: string;
+  goal?: string;
+  end_date: string;
+}
+
+export interface UpdateSprintDetailsData {
+  'Sprint ID': string;
+}
+
+export interface UpdateSprintDetailsResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: UpdateSprintDetailsData;
+}
+
+export interface UpdateSprintDetailsArgs {
+  project_id: string;
+  sprint_id: string;
+  payload: UpdateSprintDetailsPayload;
+}

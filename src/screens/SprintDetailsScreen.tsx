@@ -27,10 +27,14 @@ import { RootState, useAppDispatch, useAppSelector } from '../store';
 import { UserStory } from '../types/project.type';
 import Screen from '../components/common/ScreenWapper';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { deleteSprint, updateSprintById } from '../services/sprint.service';
+import { deleteSprint } from '../services/sprint.service';
+import {
+  useCompleteSprintMutation,
+  useStartSprintMutation,
+  useUpdateSprintDetailsMutation,
+} from '../store/api/projectApi';
 import DeleteColumnModal from '../components/DeleteColumnModal';
 import UpdateSprintModal from '../components/UpdateSprintModal';
-import { showSuccessToast } from '../utils/utils';
 import SprintDetailsSkeleton from '../components/skeleton/SprintDetailsSkeleton';
 import UserStoriesPaginationSkeleton from '../components/skeleton/UserStoriesPaginationSkeleton';
 import { RootStackParamList } from '../types/navigationTypes';
@@ -128,8 +132,18 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     useDeleteUserStoryMutation();
 
   const [isEditSprintVisible, setIsEditSprintVisible] = useState(false);
+  const [isCompleteSprintVisible, setIsCompleteSprintVisible] = useState(false);
+  const [completeSprintError, setCompleteSprintError] = useState('');
+  const [sprintModalMode, setSprintModalMode] = useState<'start' | 'update'>(
+    'update',
+  );
 
   const [isUpdatingSprint, setIsUpdatingSprint] = useState(false);
+  const [startSprint, { isLoading: isStartingSprint }] =
+    useStartSprintMutation();
+  const [completeSprint, { isLoading: isCompletingSprint }] =
+    useCompleteSprintMutation();
+  const [updateSprintDetails] = useUpdateSprintDetailsMutation();
 
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
@@ -189,6 +203,57 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   }, [currentSprint, sprintId, sprintName]);
 
   const storiesData: UserStory[] = userStories.length > 0 ? userStories : [];
+
+  type SprintAction = 'start' | 'complete' | 'resume' | 'none';
+
+  const sprintActionConfig: Record<
+    string,
+    { label: string; icon: IoniconName; action: SprintAction }
+  > = {
+    planned: {
+      label: 'Start',
+      icon: 'play-outline',
+      action: 'start',
+    },
+    active: {
+      label: 'Complete',
+      icon: 'checkmark-done-outline',
+      action: 'complete',
+    },
+    on_hold: {
+      label: 'Resume',
+      icon: 'play-outline',
+      action: 'resume',
+    },
+    completed: {
+      label: 'Completed',
+      icon: 'checkmark-circle-outline',
+      action: 'none',
+    },
+    cancelled: {
+      label: 'Cancelled',
+      icon: 'close-circle-outline',
+      action: 'none',
+    },
+    archived: {
+      label: 'Archived',
+      icon: 'archive-outline',
+      action: 'none',
+    },
+  };
+
+  const sprintStatus = sprint.status?.trim().toLowerCase() ?? 'planned';
+
+  const sprintAction =
+    sprintActionConfig[sprintStatus] ?? sprintActionConfig.planned;
+
+  const completedStoryCount = storiesData.filter(story =>
+    ['completed', 'done'].includes(story.status?.trim().toLowerCase()),
+  ).length;
+  const inProgressStoryCount = Math.max(
+    0,
+    storiesData.length - completedStoryCount,
+  );
 
   const allSelected =
     storiesData.length > 0 && selectedStories.length === storiesData.length;
@@ -337,8 +402,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
       if (s.includes('active') || s.includes('progress')) return GREEN;
       if (s.includes('plan') || s.includes('todo') || s.includes('backlog'))
         return INDIGO;
-      if (s.includes('done') || s.includes('complete'))
-        return colors.textSecondary;
+      if (s.includes('done') || s.includes('complete')) return VIOLET;
       return colors.textSecondary;
     },
     [colors],
@@ -416,7 +480,13 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                   userStoryId: item.id,
                 })
               }
-              className='flex-row'
+              className='mb-3 flex-row overflow-hidden rounded-2xl border'
+              style={{
+                backgroundColor: isSelected
+                  ? withOpacity(colors.primary, 0.07)
+                  : colors.card,
+                borderColor: isSelected ? colors.primary : colors.border,
+              }}
             >
               {/* Priority accent rail */}
               <View style={{ width: 4, backgroundColor: priorityColor }} />
@@ -632,6 +702,62 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     }
   };
 
+  const handleCompleteSprint = async () => {
+    if (!projectId || !sprintId || isCompletingSprint) return;
+    setCompleteSprintError('');
+    try {
+      await completeSprint({
+        project_id: projectId,
+        sprint_id: sprintId,
+      }).unwrap();
+      setIsCompleteSprintVisible(false);
+      showSnackbar?.({
+        message: 'Sprint completed successfully',
+        type: 'success',
+      });
+      dispatch(
+        getSprintByIdThunk({ project_id: projectId, sprint_id: sprintId }),
+      )
+        .unwrap()
+        .catch(error =>
+          console.error('Failed to refresh completed sprint:', error),
+        );
+    } catch (error: any) {
+      setCompleteSprintError(
+        error?.data?.error?.message ||
+          error?.data?.message ||
+          error?.message ||
+          'Failed to complete sprint. Please try again.',
+      );
+    }
+  };
+
+  const handleSprintAction = useCallback(() => {
+    switch (sprintAction.action) {
+      case 'start':
+        setSprintModalMode('start');
+        setIsEditSprintVisible(true);
+        break;
+
+      case 'complete':
+        setCompleteSprintError('');
+        setIsCompleteSprintVisible(true);
+        break;
+
+      case 'resume':
+        // Add the Resume API here when your backend supports it.
+        showSnackbar({
+          message: 'Resume sprint API is not implemented yet',
+          type: 'info',
+        });
+        break;
+
+      case 'none':
+      default:
+        break;
+    }
+  }, [sprintAction.action]);
+
   const keyExtractor = useCallback((item: UserStory) => item.id, []);
 
   const ListHeaderComponent = useMemo(
@@ -695,7 +821,10 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
             <View className='flex-row items-center'>
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => setIsEditSprintVisible(true)}
+                onPress={() => {
+                  setSprintModalMode('update');
+                  setIsEditSprintVisible(true);
+                }}
                 className='items-center justify-center rounded-full'
                 style={{
                   width: moderateScale(34),
@@ -729,29 +858,62 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
             </View>
           </View>
 
-          <AppText
-            variant='h3'
-            className='mt-4 font-extrabold'
-            style={{ color: '#fff' }}
-            numberOfLines={2}
-          >
-            {sprint.name}
-          </AppText>
+          <View className='mt-4 flex-row items-center justify-between'>
+            <View className='mr-3 flex-1'>
+              <AppText
+                variant='h3'
+                className='mt-4 font-extrabold'
+                style={{ color: '#fff' }}
+                numberOfLines={2}
+              >
+                {sprint.name}
+              </AppText>
 
-          <View className='mt-2 flex-row items-center'>
-            <Ionicons
-              name='calendar-outline'
-              size={moderateScale(14)}
-              color='rgba(255,255,255,0.85)'
-            />
-            <AppText
-              variant='body'
-              className='ml-1.5'
-              style={{ color: 'rgba(255,255,255,0.9)' }}
+              <View className='mt-2 flex-row items-center'>
+                <Ionicons
+                  name='calendar-outline'
+                  size={moderateScale(14)}
+                  color='rgba(255,255,255,0.85)'
+                />
+                <AppText
+                  variant='body'
+                  className='ml-1.5'
+                  style={{ color: 'rgba(255,255,255,0.9)' }}
+                >
+                  {sprint.startDate?.split('T')[0]} →{' '}
+                  {sprint.endDate?.split('T')[0]}
+                </AppText>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleSprintAction}
+              disabled={sprintAction.action === 'none'}
+              className='flex-row items-center rounded-xl px-3 py-2'
+              style={{
+                backgroundColor: colors.white,
+                opacity: sprintAction.action === 'none' ? 0.65 : 1,
+              }}
             >
-              {sprint.startDate?.split('T')[0]} →{' '}
-              {sprint.endDate?.split('T')[0]}
-            </AppText>
+              <Ionicons
+                name={sprintAction.icon}
+                size={moderateScale(13)}
+                color={colors.primary}
+                style={{ marginRight: 4 }}
+              />
+
+              <AppText
+                variant='caption'
+                className='font-bold'
+                style={{
+                  color: colors.primary,
+                  fontSize: moderateScale(12),
+                }}
+              >
+                {sprintAction.label}
+              </AppText>
+            </TouchableOpacity>
           </View>
 
           {timeline ? (
@@ -865,7 +1027,10 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
               color={colors.text}
               className='mt-1 font-medium'
             >
-              {sprint.goal || '-'}
+              {renderParsedHtml(sprint.goal, {
+                color: colors.text,
+                fontSize: moderateScale(14),
+              }) || '-'}
             </AppText>
           </View>
         </View>
@@ -972,17 +1137,40 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         <UpdateSprintModal
           visible={isEditSprintVisible}
           onClose={() => setIsEditSprintVisible(false)}
+          mode={sprintModalMode}
           sprint={currentSprint}
-          isUpdating={isUpdatingSprint}
+          isUpdating={isUpdatingSprint || isStartingSprint}
+          onStart={async payload => {
+            await startSprint({
+              project_id: projectId || '',
+              sprint_id: sprintId,
+              payload,
+            }).unwrap();
+            setIsEditSprintVisible(false);
+            await dispatch(
+              getSprintByIdThunk({
+                project_id: projectId || '',
+                sprint_id: sprintId,
+              }),
+            ).unwrap();
+            showSnackbar({
+              message: 'Sprint started successfully',
+              type: 'success',
+            });
+          }}
           onUpdate={async payload => {
             try {
               setIsUpdatingSprint(true);
 
-              await updateSprintById({
+              await updateSprintDetails({
                 project_id: projectId || '',
                 sprint_id: sprintId,
-                payload,
-              });
+                payload: {
+                  name: payload.name ?? currentSprint?.name ?? '',
+                  goal: payload.goal ?? currentSprint?.goal ?? undefined,
+                  end_date: payload.end_date ?? currentSprint?.end_date ?? '',
+                },
+              }).unwrap();
 
               setIsEditSprintVisible(false);
 
@@ -994,7 +1182,10 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                 }),
               ).unwrap();
 
-              showSuccessToast('Sprint updated successfully', 'success');
+              showSnackbar({
+                message: 'Sprint updated successfully',
+                type: 'success',
+              });
             } catch (error) {
               throw error;
             } finally {
@@ -1079,6 +1270,21 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         loading={isDeletingStory}
         onClose={() => setDeleteStoryItem(null)}
         onDelete={handleConfirmDeleteStory}
+      />
+
+      <UpdateSprintModal
+        visible={isCompleteSprintVisible}
+        mode='complete'
+        onClose={() => {
+          if (!isCompletingSprint) setIsCompleteSprintVisible(false);
+        }}
+        sprint={sprint}
+        isUpdating={isCompletingSprint}
+        error={completeSprintError}
+        completedStoryCount={completedStoryCount}
+        inProgressStoryCount={inProgressStoryCount}
+        onComplete={handleCompleteSprint}
+        onUpdate={() => {}}
       />
     </View>
   );
