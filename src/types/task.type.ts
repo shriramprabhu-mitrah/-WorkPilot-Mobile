@@ -9,6 +9,7 @@ export interface UpdateTaskPayload {
   assignee_id?: string | null;
   reporter_id?: string | null;
   title?: string;
+  sprint_id?: string | null;
 }
 
 export interface UpdateTaskResponse {
@@ -65,6 +66,9 @@ export interface GetTasksParams {
   labels?: string;
   is_deleted?: boolean;
   match?: string;
+  unassigned_task?: boolean;
+  storyless_task?: boolean;
+  _refetchKey?: number;
 }
 
 export interface GetTasksResponse {

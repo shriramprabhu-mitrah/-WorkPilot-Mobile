@@ -35,6 +35,7 @@ import {
   useGetProjectMembersQuery,
   useGetBoardStoriesQuery,
 } from '../store/api/projectApi';
+import { useGetTasksQuery } from '../store/api/userStoryApi';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { ViewState } from '../screens/projectScreens/setting';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
@@ -46,6 +47,16 @@ import {
   getProjectData,
   getCurrentSprintData,
 } from '../store/project_store/reducer/project_reducer';
+
+const ALL_SPRINTS_OPTION: Sprint = {
+  id: 'all',
+  name: 'All sprints',
+  status: 'active',
+  start_date: '',
+  end_date: '',
+  goal: '',
+};
+
 const ProjectDetails: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'projectDetails'>>();
@@ -74,11 +85,13 @@ const ProjectDetails: React.FC = () => {
     },
   );
 
-  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
+  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(
+    ALL_SPRINTS_OPTION,
+  );
   const [isSprintChanging, setIsSprintChanging] = useState(false);
   const [currentSprintIdState, setCurrentSprintIdState] = useState<
     string | undefined
-  >(undefined);
+  >('all');
 
   // Tracks if the user explicitly clicked a sprint to stop auto-reversion
   const userHasSelected = useRef(false);
@@ -94,7 +107,7 @@ const ProjectDetails: React.FC = () => {
     isFetching: sprintByIdFetching,
     refetch: refetchSprintById,
   } = useGetSprintByIdQuery(
-    currentSprintIdState && routeProjectId
+    currentSprintIdState && currentSprintIdState !== 'all' && routeProjectId
       ? { project_id: routeProjectId, sprint_id: currentSprintIdState }
       : skipToken,
   );
@@ -144,20 +157,32 @@ const ProjectDetails: React.FC = () => {
   useGetUserStoryStatusQuery(
     effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
   );
-
-  useGetProjectMembersQuery(
-    effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
+  useGetUserStoriesQuery(
+    effectiveProjectId
+      ? {
+          projectId: effectiveProjectId,
+          payload: {
+            page: 1,
+            page_size: 5,
+            ...(currentSprintIdState && currentSprintIdState !== 'all'
+              ? { sprint_id: currentSprintIdState }
+              : {}),
+          },
+        }
+      : skipToken,
   );
 
   // 3. List Tab Preload
   useGetUserStoriesQuery(
-    effectiveProjectId && currentSprintIdState
+    effectiveProjectId
       ? {
           projectId: effectiveProjectId,
           payload: {
             page: 1,
             page_size: 10,
-            sprint_id: currentSprintIdState,
+            ...(currentSprintIdState && currentSprintIdState !== 'all'
+              ? { sprint_id: currentSprintIdState }
+              : {}),
           },
         }
       : skipToken,
@@ -168,7 +193,10 @@ const ProjectDetails: React.FC = () => {
     effectiveProjectId
       ? {
           projectId: effectiveProjectId,
-          sprintId: currentSprintIdState || undefined,
+          sprintId:
+            currentSprintIdState && currentSprintIdState !== 'all'
+              ? currentSprintIdState
+              : undefined,
         }
       : skipToken,
   );
@@ -176,7 +204,10 @@ const ProjectDetails: React.FC = () => {
     effectiveProjectId
       ? {
           projectId: effectiveProjectId,
-          sprintId: currentSprintIdState || undefined,
+          sprintId:
+            currentSprintIdState && currentSprintIdState !== 'all'
+              ? currentSprintIdState
+              : undefined,
         }
       : skipToken,
   );
@@ -190,7 +221,7 @@ const ProjectDetails: React.FC = () => {
       : skipToken,
   );
 
-  // 5. Backlogs Tab Preload
+  // 5. Backlogs Tab Preload (Unassigned User Stories & Unassigned Tasks)
   useGetUserStoriesQuery(
     effectiveProjectId
       ? {
@@ -198,8 +229,24 @@ const ProjectDetails: React.FC = () => {
           payload: {
             page: 1,
             page_size: 10,
-            sprint_id: null,
+            sort_by: 'created_at',
+            sort_order: 'DESC',
+            is_unassigned_story: true,
           },
+        }
+      : skipToken,
+  );
+  useGetTasksQuery(
+    effectiveProjectId
+      ? {
+          projectId: effectiveProjectId,
+          page: 1,
+          page_size: 10,
+          sort_by: 'created_at',
+          sort_order: 'DESC',
+          is_deleted: false,
+          unassigned_task: true,
+          storyless_task: false,
         }
       : skipToken,
   );
@@ -256,44 +303,13 @@ const ProjectDetails: React.FC = () => {
     return projectDetails?.sprints || sprintsResponse?.data || sprints || [];
   }, [projectDetails?.sprints, sprintsResponse?.data, sprints]);
 
-  // Reset sprint selection tracking when the route project changes
+  // Reset sprint selection tracking when the route project changes -> default to All sprints
   useEffect(() => {
     userHasSelected.current = false;
-    setCurrentSprintIdState(undefined);
-    setSelectedSprint(null);
-  }, [routeProjectId]);
-
-  // Initial sprint selection (only triggers if user hasn't made a manual pick)
-  useEffect(() => {
-    if (userHasSelected.current || !routeProjectId) return;
-
-    const availableSprints = sprintList;
-    if (!availableSprints || availableSprints.length === 0) return;
-
-    const activeSprint = projectDetails?.active_sprint || active_sprint;
-    const totalCount =
-      projectDetails?.metrics?.total_sprints ?? availableSprints.length;
-
-    const targetSprint =
-      activeSprint ||
-      availableSprints[totalCount - 1] ||
-      availableSprints[availableSprints.length - 1];
-
-    const targetSprintId =
-      targetSprint?.id?.toString() || (targetSprint as any)?._id?.toString();
-
-    if (targetSprintId && targetSprintId !== currentSprintIdState) {
-      setCurrentSprintIdState(targetSprintId);
-      setSelectedSprint(targetSprint);
-    }
-  }, [
-    sprintList,
-    projectDetails?.active_sprint,
-    projectDetails?.metrics?.total_sprints,
-    active_sprint,
-    routeProjectId,
-    currentSprintIdState,
-  ]);
+    setCurrentSprintIdState('all');
+    setSelectedSprint(ALL_SPRINTS_OPTION);
+    dispatch(getCurrentSprintData(ALL_SPRINTS_OPTION));
+  }, [routeProjectId, dispatch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -305,7 +321,7 @@ const ProjectDetails: React.FC = () => {
 
       if (routeProjectId) {
         refetchSprints();
-        if (currentSprintIdState) {
+        if (currentSprintIdState && currentSprintIdState !== 'all') {
           refetchSprintById();
         }
       }
@@ -330,10 +346,12 @@ const ProjectDetails: React.FC = () => {
   }, [projectDetails, projectDetailsLoading, projectDetailsFetching, dispatch]);
 
   useEffect(() => {
-    if (sprintByIdData?.data) {
+    if (currentSprintIdState === 'all') {
+      dispatch(getCurrentSprintData(ALL_SPRINTS_OPTION));
+    } else if (sprintByIdData?.data) {
       dispatch(getCurrentSprintData(sprintByIdData.data));
     }
-  }, [sprintByIdData, dispatch]);
+  }, [currentSprintIdState, sprintByIdData, dispatch]);
 
   const handleOnSelectProject = (id: string, name: string) => {
     if (!id || id === routeProjectId) {
@@ -355,6 +373,17 @@ const ProjectDetails: React.FC = () => {
       return;
     }
 
+    if (sprintId === 'all') {
+      setIsSprintChanging(true);
+      userHasSelected.current = true;
+      setSelectedSprint(ALL_SPRINTS_OPTION);
+      setCurrentSprintIdState('all');
+      dispatch(getCurrentSprintData(ALL_SPRINTS_OPTION));
+      setSprintListVisible(false);
+      setTimeout(() => setIsSprintChanging(false), 150);
+      return;
+    }
+
     const foundSprint = sprintList.find(
       (sprint: Sprint) =>
         (sprint.id?.toString() || (sprint as any)._id?.toString()) ===
@@ -366,6 +395,7 @@ const ProjectDetails: React.FC = () => {
     userHasSelected.current = true;
     if (foundSprint) {
       setSelectedSprint(foundSprint);
+      dispatch(getCurrentSprintData(foundSprint));
     }
     setCurrentSprintIdState(sprintId.toString());
     setSprintListVisible(false);
@@ -386,7 +416,10 @@ const ProjectDetails: React.FC = () => {
     }
   };
 
-  const currentSprintName = selectedSprint?.name || currentSprint?.name;
+  const currentSprintName =
+    currentSprintIdState === 'all'
+      ? 'All sprints'
+      : selectedSprint?.name || sprintByIdData?.data?.name || 'All sprints';
 
   const currentProjectId =
     projectDetails?.id?.toString() ||

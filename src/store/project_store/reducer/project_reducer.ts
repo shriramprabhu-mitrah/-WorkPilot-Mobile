@@ -34,6 +34,8 @@ import {
 } from '../../customStatus_store/action/customstatus.thunk';
 import { getTasks, updateTaskThunk } from '../../task_store/action/task.thunk';
 import { TaskMeta } from '../../../types/task.type';
+import { logoutUser } from '../../auth_store/action/auth.thunks';
+import { logout } from '../../auth_store/reducer/auth.reducer';
 
 export interface TaskFilterState {
   status: string | null;
@@ -195,6 +197,25 @@ const projectSlice = createSlice({
 
     setTasks: (state, action: PayloadAction<Task[]>) => {
       state.tasks = action.payload;
+    },
+    deleteUserStoryLocally: (state, action: PayloadAction<string>) => {
+      state.userStories = state.userStories.filter(
+        story => story.id !== action.payload,
+      );
+    },
+    toggleUserStoryFavoriteLocally: (
+      state,
+      action: PayloadAction<{ userStoryId: string; is_favourite: boolean }>,
+    ) => {
+      state.userStories = state.userStories.map(story =>
+        story.id === action.payload.userStoryId
+          ? { ...story, is_favourite: action.payload.is_favourite }
+          : story,
+      );
+    },
+    clearLastVisitedProject: state => {
+      state.project = null;
+      state.projectName = '';
     },
   },
 
@@ -545,6 +566,22 @@ const projectSlice = createSlice({
       .addCase(updateUserStory.rejected, (state, action) => {
         state.userStoryDetailError =
           action.payload ?? 'Failed to update user story';
+      })
+      .addCase(logoutUser.pending, state => {
+        state.project = null;
+        state.projectName = '';
+      })
+      .addCase(logoutUser.fulfilled, state => {
+        state.project = null;
+        state.projectName = '';
+      })
+      .addCase(logoutUser.rejected, state => {
+        state.project = null;
+        state.projectName = '';
+      })
+      .addCase(logout, state => {
+        state.project = null;
+        state.projectName = '';
       });
   },
 });
@@ -560,6 +597,9 @@ export const {
   setTasks,
   getProjectData,
   getCurrentSprintData,
+  deleteUserStoryLocally,
+  toggleUserStoryFavoriteLocally,
+  clearLastVisitedProject,
 } = projectSlice.actions;
 
 export default projectSlice.reducer;

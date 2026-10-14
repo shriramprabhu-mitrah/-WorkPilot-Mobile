@@ -145,8 +145,11 @@ const ProjectDeatailsScreen = () => {
   const projectId =
     project?.id?.toString() || (project as any)?._id?.toString();
 
-  const currentSprintId =
+  const rawSprintId =
     currentSprint?.id?.toString() || (currentSprint as any)?._id?.toString();
+
+  const currentSprintId =
+    rawSprintId === 'all' || !rawSprintId ? undefined : rawSprintId;
 
   // Screen Focus & Refetch Token State
   const [isFocused, setIsFocused] = useState(false);
@@ -221,6 +224,10 @@ const ProjectDeatailsScreen = () => {
               : undefined,
         }
       : skipToken,
+    {
+      refetchOnFocus: true,
+      refetchOnMountOrArgChange: true,
+    },
   );
 
   const boardStories = useMemo(
@@ -392,12 +399,12 @@ const ProjectDeatailsScreen = () => {
   useEffect(() => {
     const sprintChanged =
       previousSprintId.current !== undefined &&
-      previousSprintId.current !== currentSprintId;
+      previousSprintId.current !== rawSprintId;
     if (sprintChanged) {
       setIsSprintSwitchLoading(true);
       hasStartedSprintFetch.current = false;
     }
-    previousSprintId.current = currentSprintId;
+    previousSprintId.current = rawSprintId;
     hasInitializedStories.current = false;
     setLocalUserStories([]);
     setDropZones([]);
@@ -700,9 +707,9 @@ const ProjectDeatailsScreen = () => {
     payload: CreateUserStoryPayload,
     file?: StoryAttachmentFile,
   ) => {
-    if (!projectId || !currentSprintId) {
+    if (!projectId) {
       showSnackbar({
-        message: 'Project or Sprint not selected',
+        message: 'Project not selected',
         type: 'error',
       });
       return;
@@ -712,7 +719,7 @@ const ProjectDeatailsScreen = () => {
         projectId,
         payload: {
           ...payload,
-          sprint_id: currentSprintId,
+          ...(currentSprintId ? { sprint_id: currentSprintId } : {}),
         },
       }).unwrap();
       const userStoryId = response.data?.id;

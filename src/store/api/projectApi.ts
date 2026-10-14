@@ -162,7 +162,7 @@ export const projectApi = createApi({
     >({
       query: ({ project_id, sprint_id }) => ({
         url: GETPROJECTOVERVIEW.replace('{project_id}', project_id),
-        params: sprint_id ? { sprint_id } : undefined,
+        params: sprint_id && sprint_id !== 'all' ? { sprint_id } : undefined,
       }),
       providesTags: (_result, _error, { project_id }) => [
         { type: 'ProjectOverview', id: project_id },
@@ -203,7 +203,12 @@ export const projectApi = createApi({
         const cleanedParams = payload
           ? Object.fromEntries(
               Object.entries({ ...rest, page, page_size })
-                .filter(([_, val]) => val !== undefined && val !== '--')
+                .filter(
+                  ([key, val]) =>
+                    val !== undefined &&
+                    val !== '--' &&
+                    !(key === 'sprint_id' && (val === 'all' || val === undefined)),
+                )
                 .map(([key, val]) => [key, val === null ? 'null' : val]),
             )
           : undefined;
@@ -247,6 +252,8 @@ export const projectApi = createApi({
         return (
           currentArg?.payload?.page !== previousArg?.payload?.page ||
           currentArg?.payload?.sprint_id !== previousArg?.payload?.sprint_id ||
+          currentArg?.payload?.is_unassigned_story !==
+            previousArg?.payload?.is_unassigned_story ||
           currentArg?._refetchKey !== previousArg?._refetchKey
         );
       },
@@ -265,10 +272,14 @@ export const projectApi = createApi({
     >({
       query: ({ projectId, sprintId }) => ({
         url: GET_SPRINT_BURNDOWN.replace('{project_id}', projectId),
-        params: sprintId ? { sprint_id: sprintId } : undefined,
+        params:
+          sprintId && sprintId !== 'all' ? { sprint_id: sprintId } : undefined,
       }),
       providesTags: (_result, _error, { projectId, sprintId }) => [
-        { type: 'BurndownChart', id: `${projectId}_${sprintId ?? 'all'}` },
+        {
+          type: 'BurndownChart',
+          id: `${projectId}_${sprintId && sprintId !== 'all' ? sprintId : 'all'}`,
+        },
       ],
     }),
 
@@ -278,10 +289,14 @@ export const projectApi = createApi({
     >({
       query: ({ projectId, sprintId }) => ({
         url: GET_TEAM_WORKLOAD.replace('{project_id}', projectId),
-        params: sprintId ? { sprint_id: sprintId } : undefined,
+        params:
+          sprintId && sprintId !== 'all' ? { sprint_id: sprintId } : undefined,
       }),
       providesTags: (_result, _error, { projectId, sprintId }) => [
-        { type: 'TeamWorkload', id: `${projectId}_${sprintId ?? 'all'}` },
+        {
+          type: 'TeamWorkload',
+          id: `${projectId}_${sprintId && sprintId !== 'all' ? sprintId : 'all'}`,
+        },
       ],
     }),
 
@@ -536,11 +551,17 @@ export const projectApi = createApi({
       GetBoardStoriesResponse,
       GetBoardStoriesParams
     >({
-      query: ({ project_id, _refetchKey, ...params }) => ({
-        url: GET_PROJECT_BOARD.replace('{project_id}', project_id),
-        method: 'GET',
-        params,
-      }),
+      query: ({ project_id, _refetchKey, ...params }) => {
+        const cleanedParams: Record<string, any> = { ...params };
+        if (cleanedParams.sprint_id === 'all' || !cleanedParams.sprint_id) {
+          delete cleanedParams.sprint_id;
+        }
+        return {
+          url: GET_PROJECT_BOARD.replace('{project_id}', project_id),
+          method: 'GET',
+          params: cleanedParams,
+        };
+      },
       serializeQueryArgs: ({ endpointName, queryArgs }) => {
         const { page, _refetchKey, ...rest } = queryArgs;
         return `${endpointName}_${JSON.stringify(rest)}`;

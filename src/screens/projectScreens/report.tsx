@@ -178,7 +178,9 @@ const Report = () => {
   const { project, currentSprint } = useAppSelector(state => state.projects);
 
   const projectId = project?.id;
-  const sprintId = currentSprint?.id;
+  const rawSprintId = currentSprint?.id?.toString();
+  const sprintId =
+    rawSprintId === 'all' || !rawSprintId ? undefined : rawSprintId;
 
   const [activeModal, setActiveModal] = useState<ActiveModalType>(null);
   const [selectedTimeFilter, setSelectedTimeFilter] =
