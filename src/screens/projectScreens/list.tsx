@@ -16,10 +16,35 @@ import {
 } from '../../store/project_store/action/projectBoard.thunk';
 import { showSnackbar } from '../../components/common/Snackbar';
 import { skipToken } from '@reduxjs/toolkit/query';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { UserStory } from '../../types/project.type';
 import ListSkeleton from '../../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../../components/skeleton/ProjectCardSkeleton';
 import { RootStackParamList } from '../../types/navigationTypes';
+import DeleteColumnModal from '../../components/DeleteColumnModal';
+import { useDeleteUserStoryMutation } from '../../store/api/userStoryApi';
+
+const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
+  const { colors } = useTheme();
+  const { moderateScale } = useAuthLayout();
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={{
+        width: moderateScale(60),
+        marginLeft: moderateScale(8),
+        borderRadius: Radius.md,
+        backgroundColor: colors.error,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Ionicons name='trash-outline' size={moderateScale(25)} color='#FFFFFF' />
+    </TouchableOpacity>
+  );
+};
 
 const List = () => {
   const { colors } = useTheme();
@@ -31,7 +56,11 @@ const List = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [allStories, setAllStories] = useState<UserStory[]>([]);
   const [hasNoMore, setHasNoMore] = useState(false);
+  const [deleteStoryItem, setDeleteStoryItem] = useState<UserStory | null>(null);
   const lastRequestedPageRef = useRef(1);
+
+  const [deleteUserStory, { isLoading: isDeleting }] =
+    useDeleteUserStoryMutation();
 
   // 1. Stable Primitive Selectors
   const projectId = useAppSelector(
@@ -40,11 +69,16 @@ const List = () => {
       (state.projects.project as any)?._id?.toString(),
   );
 
-  const activeSprintId = useAppSelector(
+  const rawActiveSprintId = useAppSelector(
     (state: RootState) =>
       state.projects.currentSprint?.id?.toString() ||
       (state.projects.currentSprint as any)?._id?.toString(),
   );
+
+  const activeSprintId =
+    rawActiveSprintId === 'all' || !rawActiveSprintId
+      ? undefined
+      : rawActiveSprintId;
 
   // 2. Query reads from cache immediately if preloaded by parent
   const {
@@ -53,13 +87,13 @@ const List = () => {
     isFetching: userStoriesFetching,
     refetch: refetchUserStories,
   } = useGetUserStoriesQuery(
-    projectId && activeSprintId
+    projectId
       ? {
           projectId,
           payload: {
             page: currentPage,
             page_size: 10,
-            sprint_id: activeSprintId,
+            ...(activeSprintId ? { sprint_id: activeSprintId } : {}),
           },
         }
       : skipToken,
@@ -69,11 +103,19 @@ const List = () => {
   // 3. Screen focus lifecycle - refresh without wiping preloaded cache
   useFocusEffect(
     useCallback(() => {
-      if (projectId && activeSprintId) {
+      if (projectId) {
         refetchUserStories();
       }
-    }, [projectId, activeSprintId, refetchUserStories]),
+    }, [projectId, refetchUserStories]),
   );
+
+  // Reset pagination and list when project or sprint changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setAllStories([]);
+    setHasNoMore(false);
+    lastRequestedPageRef.current = 1;
+  }, [projectId, rawActiveSprintId]);
 
   // 4. Append paginated API data
   useEffect(() => {
@@ -189,6 +231,33 @@ const List = () => {
     },
     [dispatch, projectId, userStories, rawStories, refetchUserStories],
   );
+
+  const handleConfirmDelete = async () => {
+    if (!deleteStoryItem || !projectId) return;
+    try {
+      await deleteUserStory({
+        projectId,
+        userStoryId: deleteStoryItem.id,
+      }).unwrap();
+
+      setAllStories(prev => {
+        const baseList = prev.length > 0 ? prev : rawStories;
+        return baseList.filter(s => s.id !== deleteStoryItem.id);
+      });
+      setDeleteStoryItem(null);
+      showSnackbar({
+        message: 'User story deleted successfully',
+        type: 'success',
+      });
+      refetchUserStories();
+    } catch (err: any) {
+      showSnackbar({
+        message:
+          err?.data?.message || err?.message || 'Failed to delete user story',
+        type: 'error',
+      });
+    }
+  };
 
   const getPriorityConfig = useCallback(
     (priority?: string) => {
@@ -366,119 +435,145 @@ const List = () => {
             const priorityConfig = getPriorityConfig(item.priority);
 
             return (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                className='flex-row items-center border p-3.5'
-                onPress={() =>
-                  navigation.navigate('issue', {
-                    projectId,
-                    userStoryId: item?.id,
-                    story: item,
-                  })
-                }
-                style={{
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  borderRadius: Radius.md,
-                  gap: layout.elementGap,
-                }}
+              <Swipeable
+                renderRightActions={() => (
+                  <SwipeDeleteAction
+                    onPress={() => setDeleteStoryItem(item)}
+                  />
+                )}
+                overshootRight={false}
               >
-                {/* Left Avatar Icon Box */}
                 <View
-                  className='items-center justify-center rounded-lg'
                   style={{
-                    width: moderateScale(30),
-                    height: moderateScale(30),
-                    backgroundColor: colors.surface,
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                    borderRadius: Radius.md,
+                    overflow: 'hidden',
                   }}
                 >
-                  <WorkItemIcon type='user_story' size={moderateScale(20)} />
-                </View>
-
-                {/* Middle Details Section */}
-                <View className='flex-1' style={{ gap: layout.mediumGap }}>
-                  <AppText
-                    variant='caption'
-                    color={colors.textSecondary}
-                    numberOfLines={1}
-                  >
-                    {item.formatted_serial_number || `#${item.serial_number}`}
-                    {item.sprint_name ? ` • ${item.sprint_name}` : ''}
-                  </AppText>
-                  <AppText
-                    variant='bodyLarge'
-                    color={colors.text}
-                    className='font-bold'
-                    numberOfLines={1}
-                  >
-                    {item.title
-                      ? item.title.charAt(0).toUpperCase() + item.title.slice(1)
-                      : ''}
-                  </AppText>
-                </View>
-
-                <View
-                  className='flex-row items-center'
-                  style={{ gap: layout.elementGap }}
-                >
-                  <View
-                    className='rounded-md px-3 py-1'
-                    style={{ backgroundColor: priorityConfig.bgColor }}
-                  >
-                    <AppText
-                      variant='caption'
-                      className='text-xs font-semibold capitalize'
-                      style={{ color: priorityConfig.color }}
-                    >
-                      {priorityConfig.label}
-                    </AppText>
-                  </View>
-                  <View
-                    className='items-center justify-center px-3 py-1'
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderRadius: Radius.circle,
-                    }}
-                  >
-                    <AppText
-                      variant='caption'
-                      style={{ color: colors.primary }}
-                      className='font-semibold'
-                    >
-                      {item.status}
-                    </AppText>
-                  </View>
-
-                  {/* Favorite Star Button */}
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    onPress={e => {
-                      e.stopPropagation();
-                      handleToggleStoryFavorite(item.id);
-                    }}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    className='flex-row items-center p-3.5'
+                    onPress={() =>
+                      navigation.navigate('issue', {
+                        projectId,
+                        userStoryId: item?.id,
+                        story: item,
+                      })
+                    }
                     style={{
-                      padding: 4,
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      gap: layout.elementGap,
                     }}
                   >
-                    <Ionicons
-                      name={item.is_favourite ? 'star' : 'star-outline'}
-                      size={moderateScale(18)}
-                      color={
-                        item.is_favourite
-                          ? colors.warning
-                          : colors.textSecondary
-                      }
-                    />
+                    {/* Left Avatar Icon Box */}
+                    <View
+                      className='items-center justify-center rounded-lg'
+                      style={{
+                        width: moderateScale(30),
+                        height: moderateScale(30),
+                        backgroundColor: colors.surface,
+                      }}
+                    >
+                      <WorkItemIcon type='user_story' size={moderateScale(20)} />
+                    </View>
+
+                    {/* Middle Details Section */}
+                    <View className='flex-1' style={{ gap: layout.mediumGap }}>
+                      <AppText
+                        variant='caption'
+                        color={colors.textSecondary}
+                        numberOfLines={1}
+                      >
+                        {item.formatted_serial_number || `#${item.serial_number}`}
+                        {item.sprint_name ? ` • ${item.sprint_name}` : ''}
+                      </AppText>
+                      <AppText
+                        variant='bodyLarge'
+                        color={colors.text}
+                        className='font-bold'
+                        numberOfLines={1}
+                      >
+                        {item.title
+                          ? item.title.charAt(0).toUpperCase() + item.title.slice(1)
+                          : ''}
+                      </AppText>
+                    </View>
+
+                    <View
+                      className='flex-row items-center'
+                      style={{ gap: layout.elementGap }}
+                    >
+                      <View
+                        className='rounded-md px-3 py-1'
+                        style={{ backgroundColor: priorityConfig.bgColor }}
+                      >
+                        <AppText
+                          variant='caption'
+                          className='text-xs font-semibold capitalize'
+                          style={{ color: priorityConfig.color }}
+                        >
+                          {priorityConfig.label}
+                        </AppText>
+                      </View>
+                      <View
+                        className='items-center justify-center px-3 py-1'
+                        style={{
+                          backgroundColor: colors.surface,
+                          borderRadius: Radius.circle,
+                        }}
+                      >
+                        <AppText
+                          variant='caption'
+                          style={{ color: colors.primary }}
+                          className='font-semibold'
+                        >
+                          {item.status}
+                        </AppText>
+                      </View>
+
+                      {/* Favorite Star Button */}
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={e => {
+                          e.stopPropagation();
+                          handleToggleStoryFavorite(item.id);
+                        }}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={{
+                          padding: 4,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Ionicons
+                          name={item.is_favourite ? 'star' : 'star-outline'}
+                          size={moderateScale(18)}
+                          color={
+                            item.is_favourite
+                              ? colors.warning
+                              : colors.textSecondary
+                          }
+                        />
+                      </TouchableOpacity>
+                    </View>
                   </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
+              </Swipeable>
             );
           }}
         />
       )}
+
+      <DeleteColumnModal
+        visible={Boolean(deleteStoryItem)}
+        title='Delete User Story'
+        columnTitle={deleteStoryItem?.title ?? 'this user story'}
+        colors={colors}
+        loading={isDeleting}
+        onClose={() => setDeleteStoryItem(null)}
+        onDelete={handleConfirmDelete}
+      />
     </View>
   );
 };

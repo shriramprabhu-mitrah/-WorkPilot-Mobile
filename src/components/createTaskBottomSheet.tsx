@@ -403,11 +403,14 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
       type: taskType.toLowerCase(),
       description: description || '',
       priority: priority.toLowerCase(),
-      user_story_id: userStoryId,
       estimated_hours: totalEstHours,
       actual_hours: totalActHours,
       story_points: storyPointsNum,
     };
+
+    if (userStoryId) {
+      payload.user_story_id = userStoryId;
+    }
 
     if (selectedAssignee?.user_id) {
       payload.assignee_id = selectedAssignee.user_id;
@@ -524,6 +527,8 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
               }}
               keyboardShouldPersistTaps='handled'
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+              scrollEnabled={!isAnyDropdownOpen}
             >
               {/* ROW 1: Task name & Type */}
               <View className='flex-row' style={{ gap: 12, zIndex: 60 }}>
@@ -918,7 +923,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                           borderWidth: 1,
                           borderRadius: Radius.md,
                           zIndex: 100,
-                          maxHeight: moderateScale(200),
+                          maxHeight: moderateScale(220),
                           shadowColor: '#000',
                           shadowOffset: { width: 0, height: 4 },
                           shadowOpacity: 0.15,
@@ -927,8 +932,11 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                         }}
                       >
                         <ScrollView
-                          nestedScrollEnabled
+                          style={{ maxHeight: moderateScale(220) }}
+                          nestedScrollEnabled={true}
                           keyboardShouldPersistTaps='always'
+                          showsVerticalScrollIndicator={true}
+                          bounces={false}
                         >
                           {/* Option to clear / Unassigned */}
                           <TouchableOpacity
@@ -1137,7 +1145,13 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                           elevation: 10,
                         }}
                       >
-                        <ScrollView nestedScrollEnabled keyboardShouldPersistTaps='always'>
+                        <ScrollView
+                          style={{ maxHeight: moderateScale(220) }}
+                          nestedScrollEnabled={true}
+                          keyboardShouldPersistTaps='always'
+                          showsVerticalScrollIndicator={true}
+                          bounces={false}
+                        >
                           {availableStatuses.map(statusItem => {
                             const isSelected = selectedStatus === statusItem.name;
                             return (

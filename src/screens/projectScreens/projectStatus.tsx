@@ -78,7 +78,7 @@ const StatusRowSkeleton: React.FC = () => {
       }}
     >
       {/* 1. Color Swatch Placeholder */}
-      <View style={{ width: moderateScale(42), alignItems: 'center' }}>
+      <View style={{ width: moderateScale(55), alignItems: 'center' }}>
         <View
           style={{
             width: swatchSize,
@@ -90,7 +90,7 @@ const StatusRowSkeleton: React.FC = () => {
       </View>
 
       {/* 2. Name Placeholder */}
-      <View style={{ flex: 1, paddingLeft: moderateScale(14) }}>
+      <View style={{ flex: 1, paddingLeft: moderateScale(20) }}>
         <View
           style={{
             width: '65%',
@@ -108,34 +108,6 @@ const StatusRowSkeleton: React.FC = () => {
             width: moderateScale(42),
             height: moderateScale(20),
             borderRadius: Radius.xs,
-            backgroundColor: skeletonColor,
-          }}
-        />
-      </View>
-
-      {/* 4. Action Buttons Placeholder */}
-      <View
-        style={{
-          width: 76,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 6,
-        }}
-      >
-        <View
-          style={{
-            width: btnSize,
-            height: btnSize,
-            borderRadius: Radius.sm,
-            backgroundColor: skeletonColor,
-          }}
-        />
-        <View
-          style={{
-            width: btnSize,
-            height: btnSize,
-            borderRadius: Radius.sm,
             backgroundColor: skeletonColor,
           }}
         />
@@ -204,21 +176,6 @@ const TableHeader: React.FC = () => {
           Final
         </AppText>
       </View>
-
-      {/* Actions Column */}
-      <View style={{ width: moderateScale(76), alignItems: 'center' }}>
-        <AppText
-          variant='caption'
-          color={colors.textSecondary}
-          style={{
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-          }}
-        >
-          Actions
-        </AppText>
-      </View>
     </View>
   );
 };
@@ -227,16 +184,13 @@ const TableHeader: React.FC = () => {
 
 interface StatusRowProps {
   item: StatusItem;
-  onEdit: (item: StatusItem) => void;
-  onDelete: (id: string) => void;
 }
 
-const StatusRow: React.FC<StatusRowProps> = ({ item, onEdit, onDelete }) => {
+const StatusRow: React.FC<StatusRowProps> = ({ item }) => {
   const { colors } = useTheme();
   const { moderateScale } = useAuthLayout();
 
   const swatchSize = moderateScale(34);
-  const btnSize = moderateScale(32);
 
   return (
     <View
@@ -276,89 +230,100 @@ const StatusRow: React.FC<StatusRowProps> = ({ item, onEdit, onDelete }) => {
       </View>
 
       {/* 3. Closed? Cell */}
-      {item.is_final && (
-        <View style={{ width: moderateScale(70), alignItems: 'center' }}>
+      <View style={{ width: moderateScale(70), alignItems: 'center' }}>
+        {item.is_final ? (
           <View
             style={{
               paddingHorizontal: Spacing.sm,
               paddingVertical: 3,
-              backgroundColor: item.is_final
-                ? `${colors.success}18`
-                : `${colors.error}18`,
+              backgroundColor: `${colors.success}18`,
               borderRadius: Radius.xs,
             }}
           >
             <AppText
               variant='caption'
-              color={item.is_final ? colors.success : colors.error}
+              color={colors.success}
               style={{ fontWeight: '700', fontSize: moderateScale(11) }}
             >
-              {item.is_final ? 'YES' : 'NO'}
+              YES
             </AppText>
           </View>
-        </View>
-      )}
-
-      {/* 4. Action Buttons */}
-      <View
-        style={{
-          width: 76,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 6,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => onEdit(item)}
-          hitSlop={8}
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: btnSize,
-            height: btnSize,
-            borderRadius: Radius.sm,
-            backgroundColor: `${colors.primary}15`,
-          }}
-        >
-          <Ionicons
-            name='pencil-outline'
-            size={moderateScale(15)}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
+        ) : (
+          <View
+            style={{
+              paddingHorizontal: Spacing.sm,
+              paddingVertical: 3,
+              backgroundColor: `${colors.error}18`,
+              borderRadius: Radius.xs,
+            }}
+          >
+            <AppText
+              variant='caption'
+              color={colors.error}
+              style={{ fontWeight: '700', fontSize: moderateScale(11) }}
+            >
+              NO
+            </AppText>
+          </View>
+        )}
       </View>
     </View>
   );
 };
 
-const SwipeDeleteAction = ({
-  onPress,
+const SwipeRightActions = ({
+  onEdit,
+  onDelete,
   isDefault,
 }: {
-  onPress: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
   isDefault: boolean;
 }) => {
   const { colors } = useTheme();
   const { moderateScale } = useAuthLayout();
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={onPress}
-      disabled={isDefault}
+    <View
       style={{
-        width: moderateScale(60),
-        marginLeft: moderateScale(8),
-        borderRadius: Radius.lg,
-        backgroundColor: colors.error,
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        opacity: isDefault ? 0.35 : 1,
+        marginLeft: moderateScale(8),
+        gap: moderateScale(8),
       }}
     >
-      <Ionicons name='trash-outline' size={moderateScale(22)} color='#FFFFFF' />
-    </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onEdit}
+        style={{
+          width: moderateScale(54),
+          height: '100%',
+          borderRadius: Radius.lg,
+          backgroundColor: '#10B981',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name='create-outline' size={moderateScale(25)} color='#FFFFFF' />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onDelete}
+        disabled={isDefault}
+        style={{
+          width: moderateScale(54),
+          height: '100%',
+          borderRadius: Radius.lg,
+          backgroundColor: colors.error,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: isDefault ? 0.35 : 1,
+        }}
+      >
+        <Ionicons name='trash-outline' size={moderateScale(25)} color='#FFFFFF' />
+      </TouchableOpacity>
+    </View>
   );
 };
 
@@ -622,18 +587,15 @@ const ProjectStatus = () => {
           renderItem={({ item }) => (
             <Swipeable
               renderRightActions={() => (
-                <SwipeDeleteAction
-                  onPress={() => handleDelete(item.id)}
+                <SwipeRightActions
+                  onEdit={() => openEdit(item)}
+                  onDelete={() => handleDelete(item.id)}
                   isDefault={item.is_default}
                 />
               )}
               overshootRight={false}
             >
-              <StatusRow
-                item={item}
-                onEdit={openEdit}
-                onDelete={handleDelete}
-              />
+              <StatusRow item={item} />
             </Swipeable>
           )}
           ItemSeparatorComponent={() => (

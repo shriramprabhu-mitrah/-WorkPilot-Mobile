@@ -36,10 +36,71 @@ import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import DeleteColumnModal from '../components/DeleteColumnModal';
 import { showSnackbar } from '../components/common/Snackbar';
 import { RoleApiItem } from '../types/auth.type';
-import CustomDropdown from '../components/CustomDropdown';
 import AddProjectMemberModal from '../components/projectMemberIniviteModel';
+import EditMemberRoleModal from '../components/EditMemberRoleModal';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 const PAGE_SIZE = 10;
+
+const SwipeRightActions = ({
+  onEdit,
+  onDelete,
+  isEditDisabled = false,
+  isDeleteDisabled = false,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+  isEditDisabled?: boolean;
+  isDeleteDisabled?: boolean;
+}) => {
+  const { colors } = useTheme();
+  const { moderateScale } = useAuthLayout();
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: moderateScale(8),
+        gap: moderateScale(8),
+      }}
+    >
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={isEditDisabled ? undefined : onEdit}
+        disabled={isEditDisabled}
+        style={{
+          width: moderateScale(54),
+          height: '100%',
+          borderRadius: Radius.md,
+          backgroundColor: '#10B981',
+          opacity: isEditDisabled ? 0.35 : 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name='create-outline' size={moderateScale(25)} color='#FFFFFF' />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={isDeleteDisabled ? undefined : onDelete}
+        disabled={isDeleteDisabled}
+        style={{
+          width: moderateScale(54),
+          height: '100%',
+          borderRadius: Radius.md,
+          backgroundColor: colors.error,
+          opacity: isDeleteDisabled ? 0.35 : 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name='trash-outline' size={moderateScale(25)} color='#FFFFFF' />
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const MemberItemSeparator = () => <View className='h-3' />;
 
@@ -62,11 +123,9 @@ const Members = () => {
   const [memberToRemove, setMemberToRemove] = useState<ProjectMember | null>(
     null,
   );
+  const [memberToEdit, setMemberToEdit] = useState<ProjectMember | null>(null);
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [debouncedModalSearch, setDebouncedModalSearch] = useState('');
-  const [activeRoleDropdown, setActiveRoleDropdown] = useState<string | null>(
-    null,
-  );
   const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
 
   const projectId = useAppSelector(
@@ -98,7 +157,7 @@ const Members = () => {
   const { data: orgMembersData, refetch: refetchOrgMembers } =
     useGetOrganizationMembersQuery({
       page: 1,
-      page_size: 10,
+      page_size: 50,
       full_name: debouncedModalSearch || undefined,
     });
 
@@ -123,6 +182,31 @@ const Members = () => {
         }
       : skipToken,
   );
+
+  const projectMembers = membersResponse?.data ?? [];
+  const membersMeta = membersResponse?.meta;
+
+  const existingMemberIds = useMemo(() => {
+    const ids = new Set<string>();
+    projectMembers.forEach(pm => {
+      if (pm.user_id) ids.add(String(pm.user_id));
+      if ((pm as any).id) ids.add(String((pm as any).id));
+      if ((pm as any)._id) ids.add(String((pm as any)._id));
+      if (pm.username) ids.add(String(pm.username).toLowerCase());
+    });
+    return ids;
+  }, [projectMembers]);
+
+  const availableOrgMembers = useMemo(() => {
+    return orgMembersList.filter(m => {
+      const memberId = String(m.id || (m as any)._id || (m as any).user_id || '');
+      const username = m.username ? String(m.username).toLowerCase() : '';
+      if (memberId && existingMemberIds.has(memberId)) return false;
+      if (username && existingMemberIds.has(username)) return false;
+      return true;
+    });
+  }, [orgMembersList, existingMemberIds]);
+
   useFocusEffect(
     useCallback(() => {
       if (projectId) {
@@ -131,18 +215,16 @@ const Members = () => {
         refetchRoles();
         refetchOrgMembers();
       }
-    }, [projectId, refetch]),
+    }, [projectId, refetch, refetchRoles, refetchOrgMembers]),
   );
 
   const [removeProjectMember, { isLoading: isRemovingMember }] =
     useRemoveProjectMemberMutation();
 
-  const [updateProjectMemberRole] = useUpdateProjectMemberRoleMutation();
+  const [updateProjectMemberRole, { isLoading: isUpdatingRole }] =
+    useUpdateProjectMemberRoleMutation();
   const [addProjectMembers, { isLoading: isSubmittingMembers }] =
     useAddProjectMembersMutation();
-
-  const projectMembers = membersResponse?.data ?? [];
-  const membersMeta = membersResponse?.meta;
 
   const handleLoadMore = useCallback(() => {
     const hasNext =
@@ -163,12 +245,22 @@ const Members = () => {
   const handleConfirmRemoveMember = useCallback(async () => {
     if (!projectId || !memberToRemove) return;
 
+    if (memberToRemove.role === 'org_admin') {
+      showSnackbar({
+        message: 'Organization admin cannot be removed.',
+        type: 'error',
+      });
+      setMemberToRemove(null);
+      return;
+    }
+
     try {
       const response = await removeProjectMember({
         project_id: projectId,
         user_id: memberToRemove.user_id,
       }).unwrap();
       await refetch();
+      refetchOrgMembers();
       showSnackbar({
         message: response.message || 'Member removed successfully',
         type: 'success',
@@ -182,7 +274,7 @@ const Members = () => {
         type: 'error',
       });
     }
-  }, [memberToRemove, projectId, removeProjectMember, refetch]);
+  }, [memberToRemove, projectId, removeProjectMember, refetch, refetchOrgMembers]);
 
   const handleAddMembersSubmit = async (
     members: { user_id: string; role_id: string }[],
@@ -210,6 +302,7 @@ const Members = () => {
       setIsAddMemberModalVisible(false);
       setModalSearchQuery('');
       await refetch();
+      refetchOrgMembers();
     } catch (error: any) {
       const errorMsg =
         error?.data?.message ||
@@ -222,20 +315,19 @@ const Members = () => {
     }
   };
 
-  const handleRoleSelect = async (userId: string, roleName: string) => {
+  const handleSaveMemberRole = async (userId: string, roleId: string) => {
     if (!projectId) return;
-    setActiveRoleDropdown(null);
-    const selectedRole = rolesList.find((role: any) => role.name === roleName);
-    if (!selectedRole) return;
     try {
       await updateProjectMemberRole({
         project_id: projectId,
         user_id: userId,
         payload: {
-          role_id: selectedRole.id,
+          role_id: roleId,
         },
       }).unwrap();
       showSnackbar({ message: 'Role updated successfully', type: 'success' });
+      setMemberToEdit(null);
+      await refetch();
     } catch (error: any) {
       showSnackbar({
         message: error?.data?.message || 'Failed to update role',
@@ -393,26 +485,30 @@ const Members = () => {
               .join('')
               .slice(0, 2)
               .toUpperCase();
-            const isRoleOpen = activeRoleDropdown === item.user_id;
+            const isOrgAdmin = item.role === 'org_admin';
 
             return (
-              <View
-                className='flex-row items-center border p-3.5 px-2'
-                style={{
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  borderRadius: Radius.md,
-                  gap: layout.elementGap,
-                }}
+              <Swipeable
+                renderRightActions={() => (
+                  <SwipeRightActions
+                    onEdit={() => setMemberToEdit(item)}
+                    onDelete={() => setMemberToRemove(item)}
+                    isEditDisabled={isOrgAdmin}
+                    isDeleteDisabled={isOrgAdmin}
+                  />
+                )}
+                overshootRight={false}
               >
-                {/* Member Avatar */}
                 <View
+                  className='flex-row items-center border p-3.5 px-3'
                   style={{
-                    position: 'relative',
-                    width: moderateScale(44),
-                    height: moderateScale(44),
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    borderRadius: Radius.md,
+                    gap: layout.elementGap,
                   }}
                 >
+                  {/* Member Avatar */}
                   <View
                     className='items-center justify-center overflow-hidden'
                     style={{
@@ -441,94 +537,46 @@ const Members = () => {
                       </AppText>
                     )}
                   </View>
+
+                  {/* Member Details */}
+                  <View className='flex-1' style={{ gap: layout.tightGap }}>
+                    <AppText
+                      variant='bodyLarge'
+                      className='font-bold'
+                      color={colors.text}
+                      numberOfLines={1}
+                    >
+                      {displayName}
+                    </AppText>
+
+                    <AppText
+                      variant='caption'
+                      color={colors.textSecondary}
+                      numberOfLines={1}
+                    >
+                      @{item.username}
+                    </AppText>
+                  </View>
+
+                  {/* Member Role Badge (Non-editable) */}
                   <View
+                    className='rounded-md px-3 py-1.5'
                     style={{
-                      position: 'absolute',
-                      right: -1,
-                      bottom: -1,
-                      width: moderateScale(12),
-                      height: moderateScale(12),
-                      borderRadius: Radius.circle,
-                      backgroundColor: '#4CAF50',
-                      borderWidth: 2,
-                      borderColor: colors.card,
+                      backgroundColor: colors.surface,
+                      borderWidth: 1,
+                      borderColor: colors.border,
                     }}
-                  />
-                </View>
-
-                {/* Member Details */}
-                <View className='flex-1' style={{ gap: layout.tightGap }}>
-                  <AppText
-                    variant='bodyLarge'
-                    className='font-bold'
-                    color={colors.text}
-                    numberOfLines={1}
-                  >
-                    {displayName}
-                  </AppText>
-
-                  <AppText
-                    variant='caption'
-                    color={colors.textSecondary}
-                    numberOfLines={1}
-                  >
-                    @{item.username}
-                  </AppText>
-                </View>
-                {/* Member Role */}
-                {item?.role !== 'org_admin' ? (
-                  <CustomDropdown
-                    items={rolesList.map((role: RoleApiItem) => ({
-                      id: role.id,
-                      name: role.name,
-                    }))}
-                    selectedValue={
-                      rolesList.find(
-                        (role: RoleApiItem) => role.name === item.role,
-                      )?.id
-                    }
-                    onSelect={role => {
-                      handleRoleSelect(item.user_id, role.name);
-                    }}
-                    isOpen={isRoleOpen}
-                    onToggle={() =>
-                      setActiveRoleDropdown(isRoleOpen ? null : item.user_id)
-                    }
-                    direction='down'
-                    width={moderateScale(130)}
-                    showIndicatorDot={false}
-                  />
-                ) : (
-                  <View
-                    className='rounded-md px-3 py-1'
-                    style={{ backgroundColor: colors.surface }}
                   >
                     <AppText
                       variant='caption'
                       className='font-semibold capitalize'
                       color={colors.primary}
                     >
-                      {item.role}
+                      {item.role || 'Member'}
                     </AppText>
                   </View>
-                )}
-
-                {/* Remove Member */}
-                <TouchableOpacity
-                  accessibilityLabel={`Remove ${displayName}`}
-                  accessibilityRole='button'
-                  activeOpacity={0.7}
-                  onPress={() => setMemberToRemove(item)}
-                  className='items-center justify-center rounded-md p-2'
-                  style={{ backgroundColor: colors.surface }}
-                >
-                  <Ionicons
-                    name='trash-outline'
-                    size={moderateScale(18)}
-                    color={colors.error}
-                  />
-                </TouchableOpacity>
-              </View>
+                </View>
+              </Swipeable>
             );
           }}
         />
@@ -538,7 +586,7 @@ const Members = () => {
       <AddProjectMemberModal
         visible={isAddMemberModalVisible}
         roles={rolesList}
-        members={orgMembersList}
+        members={availableOrgMembers}
         searchQuery={modalSearchQuery}
         onSearchChange={setModalSearchQuery}
         isSubmitting={isSubmittingMembers}
@@ -547,6 +595,16 @@ const Members = () => {
           setIsAddMemberModalVisible(false);
           setModalSearchQuery('');
         }}
+      />
+
+      {/* Edit Member Role Modal */}
+      <EditMemberRoleModal
+        visible={Boolean(memberToEdit)}
+        member={memberToEdit}
+        roles={rolesList}
+        isLoading={isUpdatingRole}
+        onClose={() => setMemberToEdit(null)}
+        onSave={handleSaveMemberRole}
       />
 
       {/* Delete Confirmation Modal */}

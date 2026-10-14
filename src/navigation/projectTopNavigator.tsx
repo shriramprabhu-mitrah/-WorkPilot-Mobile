@@ -99,10 +99,33 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
           swipeEnabled: false,
         }}
       />
-      <TopTab.Screen name='Report' component={Report} />
-      <TopTab.Screen name='Backlogs' component={Backlogs} />
-      <TopTab.Screen name='Members' component={Members} />
-      <TopTab.Screen name='Settings'>
+      <TopTab.Screen
+        name='Report'
+        component={Report}
+        options={{
+          swipeEnabled: false,
+        }}
+      />
+      <TopTab.Screen
+        name='Backlogs'
+        component={Backlogs}
+        options={{
+          swipeEnabled: false,
+        }}
+      />
+      <TopTab.Screen
+        name='Members'
+        component={Members}
+        options={{
+          swipeEnabled: false,
+        }}
+      />
+      <TopTab.Screen
+        name='Settings'
+        options={{
+          swipeEnabled: false,
+        }}
+      >
         {props => (
           <Settings
             {...props}

@@ -48,6 +48,7 @@ export const GET_AUDIT = `/audit`;
 //UserStory
 export const GET_USERSTORY = `/projects/{project_id}/user-stories`;
 export const CREATE_USERSTORY = `/projects/{project_id}/user-stories`;
+export const DELETE_USERSTORY = `/projects/{project_id}/user-stories/{user_story_id}`;
 
 //UserStory Status
 export const CREATE_US_STATUS = `/projects/{project_id}/user-story-statuses`;

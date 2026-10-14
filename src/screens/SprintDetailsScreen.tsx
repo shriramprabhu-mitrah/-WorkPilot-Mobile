@@ -15,6 +15,14 @@ import {
   getSprintByIdThunk,
   getUserStories,
 } from '../store/project_store/action/project_thunk';
+import {
+  favouriteUserStoryThunk,
+  unfavouriteUserStoryThunk,
+} from '../store/project_store/action/projectBoard.thunk';
+import {
+  deleteUserStoryLocally,
+  toggleUserStoryFavoriteLocally,
+} from '../store/project_store/reducer/project_reducer';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import { UserStory } from '../types/project.type';
 import Screen from '../components/common/ScreenWapper';
@@ -29,6 +37,9 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
 import { renderParsedHtml } from '../utils/htmlParser';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { useDeleteUserStoryMutation } from '../store/api/userStoryApi';
+import { showSnackbar } from '../components/common/Snackbar';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -74,6 +85,29 @@ const parseDate = (value?: string) => {
   return Number.isNaN(t) ? null : new Date(t);
 };
 
+const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
+  const { colors } = useTheme();
+  const { moderateScale } = useResponsive();
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={{
+        width: moderateScale(60),
+        marginLeft: moderateScale(8),
+        borderRadius: moderateScale(16),
+        backgroundColor: colors.error,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: moderateScale(12),
+      }}
+    >
+      <Ionicons name='trash-outline' size={moderateScale(25)} color='#FFFFFF' />
+    </TouchableOpacity>
+  );
+};
+
 const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
@@ -86,6 +120,12 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   const [selectedStories, setSelectedStories] = useState<string[]>([]);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteStoryItem, setDeleteStoryItem] = useState<UserStory | null>(
+    null,
+  );
+
+  const [deleteUserStory, { isLoading: isDeletingStory }] =
+    useDeleteUserStoryMutation();
 
   const [isEditSprintVisible, setIsEditSprintVisible] = useState(false);
 
@@ -304,6 +344,48 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     [colors],
   );
 
+  const handleToggleStoryFavorite = useCallback(
+    async (storyId: string) => {
+      if (!projectId) return;
+      const story = storiesData.find(s => s.id === storyId);
+      const currentFav = story?.is_favourite ?? false;
+      const nextFav = !currentFav;
+
+      // Optimistically update in Redux store
+      dispatch(
+        toggleUserStoryFavoriteLocally({
+          userStoryId: storyId,
+          is_favourite: nextFav,
+        }),
+      );
+
+      try {
+        if (currentFav) {
+          await dispatch(
+            unfavouriteUserStoryThunk({ projectId, userStoryId: storyId }),
+          ).unwrap();
+        } else {
+          await dispatch(
+            favouriteUserStoryThunk({ projectId, userStoryId: storyId }),
+          ).unwrap();
+        }
+      } catch {
+        // Rollback on failure
+        dispatch(
+          toggleUserStoryFavoriteLocally({
+            userStoryId: storyId,
+            is_favourite: currentFav,
+          }),
+        );
+        showSnackbar({
+          message: 'Failed to update favourite',
+          type: 'error',
+        });
+      }
+    },
+    [dispatch, projectId, storiesData],
+  );
+
   const renderStory = useCallback(
     ({ item }: { item: UserStory }) => {
       const isSelected = selectedStories.includes(item.id);
@@ -311,158 +393,185 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
       const statusColor = getStatusColor(item.status);
 
       return (
-        <TouchableOpacity
-          activeOpacity={0.75}
-          onPress={() =>
-            navigation.navigate('issue', {
-              projectId,
-              userStoryId: item.id,
-            })
-          }
-          className='mb-3 flex-row overflow-hidden rounded-2xl border'
-          style={{
-            backgroundColor: isSelected
-              ? withOpacity(colors.primary, 0.07)
-              : colors.card,
-            borderColor: isSelected ? colors.primary : colors.border,
-          }}
+        <Swipeable
+          renderRightActions={() => (
+            <SwipeDeleteAction onPress={() => setDeleteStoryItem(item)} />
+          )}
+          overshootRight={false}
         >
-          {/* Priority accent rail */}
-          <View style={{ width: 4, backgroundColor: priorityColor }} />
-
-          <View className='flex-1' style={{ padding: moderateScale(14) }}>
-            {/* Row 1: checkbox, id chip, title */}
-            <View className='flex-row items-center'>
-              {/* <View
-                className='mr-3 items-center justify-center rounded-md border'
-                style={{
-                  width: moderateScale(20),
-                  height: moderateScale(20),
-                  borderColor: isSelected
-                    ? colors.primary
-                    : colors.textSecondary,
-                  backgroundColor: isSelected ? colors.primary : 'transparent',
-                }}
-              >
-                {isSelected && (
-                  <Ionicons
-                    name='checkmark'
-                    size={moderateScale(14)}
-                    color='#fff'
-                  />
-                )}
-              </View> */}
-
-              <View
-                className='mr-2 rounded-md'
-                style={{
-                  backgroundColor: withOpacity(colors.primary, 0.12),
-                  paddingHorizontal: moderateScale(7),
-                  paddingVertical: moderateScale(2),
-                }}
-              >
-                <AppText
-                  variant='caption'
-                  style={{
-                    color: colors.primary,
-                    fontSize: moderateScale(11),
-                    fontWeight: '700',
-                  }}
-                  numberOfLines={1}
-                >
-                  {item?.key}
-                </AppText>
-              </View>
-            </View>
-
-            <AppText
-              variant='body'
-              color={colors.text}
-              className='mt-2 font-semibold'
-              numberOfLines={2}
+          <View
+            className='mb-3 overflow-hidden rounded-2xl border'
+            style={{
+              backgroundColor: isSelected
+                ? withOpacity(colors.primary, 0.07)
+                : colors.card,
+              borderColor: isSelected ? colors.primary : colors.border,
+            }}
+          >
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() =>
+                navigation.navigate('issue', {
+                  projectId,
+                  userStoryId: item.id,
+                })
+              }
+              className='flex-row'
             >
-              {item?.title || ''}
-            </AppText>
+              {/* Priority accent rail */}
+              <View style={{ width: 4, backgroundColor: priorityColor }} />
 
-            {item.description ? (
-              <AppText
-                variant='caption'
-                color={colors.textSecondary}
-                className='mt-1'
-                numberOfLines={2}
-              >
-                {renderParsedHtml(item.description, {
-                  color: colors.textSecondary,
-                  fontSize: moderateScale(13),
-                })}
-              </AppText>
-            ) : null}
+              <View className='flex-1' style={{ padding: moderateScale(14) }}>
+                {/* Row 1: key chip and favorite star button */}
+                <View className='flex-row items-center justify-between'>
+                  <View
+                    className='mr-2 rounded-md'
+                    style={{
+                      backgroundColor: withOpacity(colors.primary, 0.12),
+                      paddingHorizontal: moderateScale(7),
+                      paddingVertical: moderateScale(2),
+                    }}
+                  >
+                    <AppText
+                      variant='caption'
+                      style={{
+                        color: colors.primary,
+                        fontSize: moderateScale(11),
+                        fontWeight: '700',
+                      }}
+                      numberOfLines={1}
+                    >
+                      {item?.key}
+                    </AppText>
+                  </View>
 
-            {/* Row 2: meta chips (wraps on narrow screens) */}
-            <View
-              className='flex-row flex-wrap items-center'
-              style={{ marginTop: moderateScale(10), gap: moderateScale(6) }}
-            >
-              <View
-                className='flex-row items-center rounded-full px-2.5 py-1'
-                style={{ backgroundColor: colors.surface }}
-              >
-                <Ionicons
-                  name='list-outline'
-                  size={moderateScale(12)}
-                  color={colors.textSecondary}
-                />
+                  {/* Favorite Star Button */}
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={e => {
+                      e.stopPropagation();
+                      handleToggleStoryFavorite(item.id);
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={{
+                      padding: 4,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name={item.is_favourite ? 'star' : 'star-outline'}
+                      size={moderateScale(18)}
+                      color={
+                        item.is_favourite
+                          ? colors.warning
+                          : colors.textSecondary
+                      }
+                    />
+                  </TouchableOpacity>
+                </View>
+
                 <AppText
-                  variant='caption'
-                  color={colors.textSecondary}
-                  className='ml-1'
-                  style={{ fontSize: moderateScale(11) }}
+                  variant='body'
+                  color={colors.text}
+                  className='mt-2 font-semibold'
+                  numberOfLines={2}
                 >
-                  {item?.total_tasks ?? 0} tasks
+                  {item?.title || ''}
                 </AppText>
-              </View>
 
-              <View
-                className='flex-row items-center rounded-full px-2.5 py-1'
-                style={{ backgroundColor: withOpacity(priorityColor, 0.14) }}
-              >
-                <Ionicons
-                  name='flag'
-                  size={moderateScale(11)}
-                  color={priorityColor}
-                />
-                <AppText
-                  variant='caption'
-                  className='ml-1 font-semibold capitalize'
-                  style={{ color: priorityColor, fontSize: moderateScale(11) }}
-                >
-                  {item.priority}
-                </AppText>
-              </View>
+                {/* {item.description ? (
+                  <AppText
+                    variant='caption'
+                    color={colors.textSecondary}
+                    className='mt-1'
+                    numberOfLines={2}
+                  >
+                    {renderParsedHtml(item.description, {
+                      color: colors.textSecondary,
+                      fontSize: moderateScale(13),
+                    })}
+                  </AppText>
+                ) : null} */}
 
-              <View
-                className='flex-row items-center rounded-full px-2.5 py-1'
-                style={{ backgroundColor: withOpacity(statusColor, 0.14) }}
-              >
+                {/* Row 2: meta chips (wraps on narrow screens) */}
                 <View
-                  className='mr-1.5 rounded-full'
+                  className='flex-row flex-wrap items-center'
                   style={{
-                    width: moderateScale(6),
-                    height: moderateScale(6),
-                    backgroundColor: statusColor,
+                    marginTop: moderateScale(10),
+                    gap: moderateScale(6),
                   }}
-                />
-                <AppText
-                  variant='caption'
-                  className='font-semibold capitalize'
-                  style={{ color: statusColor, fontSize: moderateScale(11) }}
                 >
-                  {item.status}
-                </AppText>
+                  <View
+                    className='flex-row items-center rounded-full px-2.5 py-1'
+                    style={{ backgroundColor: colors.surface }}
+                  >
+                    <Ionicons
+                      name='list-outline'
+                      size={moderateScale(12)}
+                      color={colors.textSecondary}
+                    />
+                    <AppText
+                      variant='caption'
+                      color={colors.textSecondary}
+                      className='ml-1'
+                      style={{ fontSize: moderateScale(11) }}
+                    >
+                      {item?.total_tasks ?? 0} tasks
+                    </AppText>
+                  </View>
+
+                  <View
+                    className='flex-row items-center rounded-full px-2.5 py-1'
+                    style={{
+                      backgroundColor: withOpacity(priorityColor, 0.14),
+                    }}
+                  >
+                    <Ionicons
+                      name='flag'
+                      size={moderateScale(11)}
+                      color={priorityColor}
+                    />
+                    <AppText
+                      variant='caption'
+                      className='ml-1 font-semibold capitalize'
+                      style={{
+                        color: priorityColor,
+                        fontSize: moderateScale(11),
+                      }}
+                    >
+                      {item.priority}
+                    </AppText>
+                  </View>
+
+                  <View
+                    className='flex-row items-center rounded-full px-2.5 py-1'
+                    style={{ backgroundColor: withOpacity(statusColor, 0.14) }}
+                  >
+                    <View
+                      className='mr-1.5 rounded-full'
+                      style={{
+                        width: moderateScale(6),
+                        height: moderateScale(6),
+                        backgroundColor: statusColor,
+                      }}
+                    />
+                    <AppText
+                      variant='caption'
+                      className='font-semibold capitalize'
+                      style={{
+                        color: statusColor,
+                        fontSize: moderateScale(11),
+                      }}
+                    >
+                      {item.status}
+                    </AppText>
+                  </View>
+                </View>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </Swipeable>
       );
     },
     [
@@ -471,9 +580,40 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
       moderateScale,
       getPriorityColor,
       getStatusColor,
-      toggleStory,
+      navigation,
+      projectId,
+      handleToggleStoryFavorite,
     ],
   );
+
+  const handleConfirmDeleteStory = async () => {
+    if (!deleteStoryItem || !projectId) return;
+    const storyIdToDelete = deleteStoryItem.id;
+    try {
+      const response = await deleteUserStory({
+        projectId: projectId.toString(),
+        userStoryId: storyIdToDelete,
+      }).unwrap();
+
+      // Remove story locally from Redux store after successful deletion
+      dispatch(deleteUserStoryLocally(storyIdToDelete));
+
+      // Close the dialog after completion
+      setDeleteStoryItem(null);
+
+      // Show the response message in the snackbar
+      showSnackbar({
+        message: response?.message || 'User story deleted successfully',
+        type: 'success',
+      });
+    } catch (err: any) {
+      showSnackbar({
+        message:
+          err?.data?.message || err?.message || 'Failed to delete user story',
+        type: 'error',
+      });
+    }
+  };
 
   const handleDeleteSprint = async (projectId: string, sprintId: string) => {
     if (!projectId || !sprintId || isDeleting) return;
@@ -885,7 +1025,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         backgroundColor: colors.background,
       }}
     >
-      {loading ? (
+      {loading && storiesData.length === 0 ? (
         <SprintDetailsSkeleton />
       ) : (
         <FlatList
@@ -931,6 +1071,15 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
           }
         />
       )}
+      <DeleteColumnModal
+        visible={Boolean(deleteStoryItem)}
+        title='Delete User Story'
+        columnTitle={deleteStoryItem?.title ?? 'this user story'}
+        colors={colors}
+        loading={isDeletingStory}
+        onClose={() => setDeleteStoryItem(null)}
+        onDelete={handleConfirmDeleteStory}
+      />
     </View>
   );
 };

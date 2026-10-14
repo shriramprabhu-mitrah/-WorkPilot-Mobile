@@ -345,6 +345,21 @@ export interface DeleteProjectPayload {
   onFinally?: () => void;
 }
 
+export interface DeleteUserStoryResponse {
+  data: string;
+  message: string;
+  meta?: {
+    has_next: boolean;
+    has_previous: boolean;
+    page: number;
+    page_size: number;
+    total_items: number;
+    total_pages: number;
+  };
+  status_code: number;
+  success: boolean;
+}
+
 export interface UserStory {
   id: string;
   key: string;
@@ -413,6 +428,7 @@ export interface GetUserStoriesPayload {
   sprint_id?: string | null;
   priority?: string;
   search?: string;
+  is_unassigned_story?: boolean;
 }
 
 export interface GetUserStorieThunkArgs {

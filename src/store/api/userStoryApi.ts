@@ -17,12 +17,14 @@ import {
   DELETETASKATTACHMENT,
   UPDATE_TASKS,
   CREATE_USERSTORY,
+  DELETE_USERSTORY,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetUserStoryByIdParams,
   GetUserStoryByIdResponse,
   UpdateUserStoryPayload,
   UpdateUserStoryResponse,
+  DeleteUserStoryResponse,
   UserStoryDetail,
   GetTaskByIdParams,
   GetTaskByIdResponse,
@@ -118,13 +120,21 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       CreateUserStoryResponse,
       { projectId: string; payload: CreateUserStoryPayload }
     >({
-      query: ({ projectId, payload }) => ({
-        url: CREATE_USERSTORY.replace('{project_id}', projectId),
-        method: 'POST',
-        data: payload,
-      }),
+      query: ({ projectId, payload }) => {
+        const cleanPayload = { ...payload };
+        if (cleanPayload.sprint_id === 'all' || !cleanPayload.sprint_id) {
+          delete (cleanPayload as any).sprint_id;
+        }
+        return {
+          url: CREATE_USERSTORY.replace('{project_id}', projectId),
+          method: 'POST',
+          data: cleanPayload,
+        };
+      },
       invalidatesTags: (_result, _error, { projectId }) => [
         { type: 'UserStories', id: projectId },
+        { type: 'Board', id: `${projectId}_STORIES` },
+        { type: 'Board' },
       ],
     }),
 
@@ -208,12 +218,12 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
     }),
 
     getTasks: build.query<GetTasksResponse, GetTasksParams>({
-      query: ({ projectId, ...params }) => {
+      query: ({ projectId, _refetchKey, ...params }) => {
         const url = GET_TASKS.replace('{project_id}', projectId);
         const cleanedParams = Object.fromEntries(
-          Object.entries(params).filter(([_, val]) => {
+          Object.entries(params).filter(([key, val]) => {
             if (val === undefined || val === null || val === '') return false;
-            if (val === false) return false;
+            if (key === 'sprint_id' && (val === 'all' || !val)) return false;
             return true;
           }),
         );
@@ -223,7 +233,7 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
         };
       },
       serializeQueryArgs: ({ endpointName, queryArgs }) => {
-        const { page, ...rest } = queryArgs || {};
+        const { page, _refetchKey, ...rest } = queryArgs || {};
         return `${endpointName}_${JSON.stringify({ ...rest })}`;
       },
       merge(currentCache, newItems, { arg }) {
@@ -247,11 +257,17 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       forceRefetch({ currentArg, previousArg }) {
         return (
           currentArg?.page !== previousArg?.page ||
-          currentArg?.user_story_id !== previousArg?.user_story_id
+          currentArg?.user_story_id !== previousArg?.user_story_id ||
+          currentArg?.unassigned_task !== previousArg?.unassigned_task ||
+          currentArg?.storyless_task !== previousArg?.storyless_task ||
+          currentArg?._refetchKey !== previousArg?._refetchKey
         );
       },
-      providesTags: (_result, _error, { projectId, user_story_id }) => [
-        { type: 'Tasks', id: `${projectId}_${user_story_id ?? 'all'}` },
+      providesTags: (_result, _error, { projectId, user_story_id, unassigned_task }) => [
+        {
+          type: 'Tasks',
+          id: `${projectId}_${user_story_id ?? (unassigned_task ? 'unassigned' : 'all')}`,
+        },
       ],
     }),
 
@@ -305,9 +321,31 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
         method: 'PATCH',
         data: payload,
       }),
-      invalidatesTags: (_result, _error, { userStoryId }) => [
+      invalidatesTags: (_result, _error, { userStoryId, projectId }) => [
         { type: 'UserStoryDetail', id: userStoryId },
         { type: 'UserStories' },
+        { type: 'Board', id: `${projectId}_STORIES` },
+        { type: 'Board' },
+        { type: 'Sprints' },
+      ],
+    }),
+
+    deleteUserStory: build.mutation<
+      DeleteUserStoryResponse,
+      { projectId: string; userStoryId: string }
+    >({
+      query: ({ projectId, userStoryId }) => ({
+        url: DELETE_USERSTORY.replace('{project_id}', projectId).replace(
+          '{user_story_id}',
+          userStoryId,
+        ),
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { userStoryId, projectId }) => [
+        { type: 'UserStoryDetail', id: userStoryId },
+        { type: 'UserStories' },
+        { type: 'Board', id: `${projectId}_STORIES` },
+        { type: 'Board' },
       ],
     }),
 
@@ -326,6 +364,8 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       invalidatesTags: (_result, _error, { projectId, taskId }) => [
         { type: 'TaskDetail', id: `${projectId}_${taskId}` },
         { type: 'Tasks' },
+        { type: 'Board', id: `${projectId}_STORIES` },
+        { type: 'Board' },
       ],
     }),
 
@@ -484,13 +524,20 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       CreateTaskResponse,
       { projectId: string; payload: CreateTaskPayload }
     >({
-      query: ({ projectId, payload }) => ({
-        url: CREATE_TASK.replace('{project_id}', projectId),
-        method: 'POST',
-        data: payload,
-      }),
+      query: ({ projectId, payload }) => {
+        const cleanPayload = { ...payload };
+        if ((cleanPayload as any).sprint_id === 'all' || !(cleanPayload as any).sprint_id) {
+          delete (cleanPayload as any).sprint_id;
+        }
+        return {
+          url: CREATE_TASK.replace('{project_id}', projectId),
+          method: 'POST',
+          data: cleanPayload,
+        };
+      },
       invalidatesTags: (_result, _error, { projectId, payload }) => [
         { type: 'Tasks', id: `${projectId}_${payload.user_story_id ?? 'all'}` },
+        { type: 'Tasks', id: `${projectId}_unassigned` },
         ...(payload.user_story_id
           ? [{ type: 'UserStoryDetail' as const, id: payload.user_story_id }]
           : []),
@@ -530,6 +577,7 @@ export const {
   useGetUserStoryByIdQuery,
   useCreateUserStoryMutation,
   useUpdateUserStoryMutation,
+  useDeleteUserStoryMutation,
   useUpdateTaskMutation,
   useCreateTaskMutation,
   useGetTaskByIdQuery,

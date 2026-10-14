@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
 import {
   View,
   Modal,
@@ -219,11 +225,18 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
           ? sprintsData
           : project?.sprints || [];
 
+    const allSprintsOption = {
+      id: 'all',
+      name: 'All sprints',
+      isAllSprints: true,
+    };
+
     if (
       sprintsName &&
       !currentSprints.some((item: any) => item.name === sprintsName)
     ) {
       return [
+        allSprintsOption,
         {
           id: 'temporary-created-sprint',
           name: sprintsName,
@@ -233,7 +246,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
       ];
     }
 
-    return currentSprints;
+    return [allSprintsOption, ...currentSprints];
   }, [
     isSprint,
     allProjects,
@@ -246,14 +259,14 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
 
   // Pagination meta
   const currentMeta = isSprint
-    ? sprintsResponse?.meta ??
+    ? (sprintsResponse?.meta ??
       (sprintsResponse as any)?.pagination ??
       (sprintsResponse as any)?.data?.meta ??
-      (sprintsResponse as any)?.data?.pagination
-    : projectsResponse?.meta ??
+      (sprintsResponse as any)?.data?.pagination)
+    : (projectsResponse?.meta ??
       (projectsResponse as any)?.pagination ??
       (projectsResponse as any)?.data?.meta ??
-      (projectsResponse as any)?.data?.pagination;
+      (projectsResponse as any)?.data?.pagination);
 
   const totalLoaded = isSprint ? allSprints.length : allProjects.length;
 
@@ -472,6 +485,45 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                 const name = item.name || item.title || item.sprint_name || '';
 
                 if (isSprint) {
+                  if (item.isAllSprints) {
+                    return (
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => handleSelect('all', 'All sprints')}
+                        className='flex-row items-center justify-between rounded-xl border p-4'
+                        style={{
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        }}
+                      >
+                        <View
+                          className='mr-3.5 items-center justify-center rounded-lg'
+                          style={{
+                            width: moderateScale(30),
+                            height: moderateScale(30),
+                            backgroundColor: `${colors.primary}15`,
+                          }}
+                        >
+                          <Ionicons
+                            name='layers-outline'
+                            size={moderateScale(18)}
+                            color={colors.primary}
+                          />
+                        </View>
+                        <View className='flex-1 justify-center pr-2'>
+                          <AppText
+                            variant='title'
+                            color={colors.text}
+                            className='font-semibold'
+                            numberOfLines={1}
+                          >
+                            All sprints
+                          </AppText>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }
+
                   const startDate = item.start_date || item.startDate;
                   const endDate = item.end_date || item.endDate;
                   const status =
@@ -495,6 +547,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                         borderColor: colors.border,
                       }}
                     >
+                      {/* Left: Sprint Icon */}
                       <View
                         className='mr-3.5 items-center justify-center rounded-lg'
                         style={{
@@ -505,65 +558,18 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                       >
                         <WorkItemIcon type='sprint' size={moderateScale(20)} />
                       </View>
-                      <View className='flex-1 pr-2'>
-                        <View className='flex-row items-center'>
-                          {' '}
-                          <AppText
-                            variant='title'
-                            color={colors.text}
-                            className='flex-1 font-semibold'
-                            numberOfLines={1}
-                          >
-                            {name || `Sprint ${id}`}
-                          </AppText>
-                          {item.isTemporary ? (
-                            <ActivityIndicator
-                              size='small'
-                              color={colors.primary}
-                              style={{ marginLeft: moderateScale(8) }}
-                            />
-                          ) : status ? (
-                            <View
-                              style={{
-                                backgroundColor: colors.surface,
-                              }}
-                              className='ml-2 rounded-full px-2.5 py-0.5'
-                            >
-                              <AppText
-                                variant='caption'
-                                style={{
-                                  color:
-                                    status.toLowerCase() === 'active'
-                                      ? colors.primary
-                                      : colors.textSecondary,
-                                  fontSize: moderateScale(11),
-                                }}
-                                className='font-medium capitalize'
-                              >
-                                {status}
-                              </AppText>
-                            </View>
-                          ) : null}
-                          {!item.isTemporary && (
-                            <TouchableOpacity
-                              activeOpacity={0.7}
-                              onPress={handleOpenSprintDetails}
-                              className='ml-2 items-center justify-center'
-                              hitSlop={{
-                                top: 8,
-                                bottom: 8,
-                                left: 8,
-                                right: 8,
-                              }}
-                            >
-                              <Ionicons
-                                name='chevron-forward-circle-outline'
-                                size={moderateScale(22)}
-                                color={colors.primary}
-                              />
-                            </TouchableOpacity>
-                          )}
-                        </View>
+
+                      {/* Middle: Title, Description, Dates */}
+                      <View className='flex-1 justify-center pr-2'>
+                        <AppText
+                          variant='title'
+                          color={colors.text}
+                          className='font-semibold'
+                          numberOfLines={1}
+                        >
+                          {name || `Sprint ${id}`}
+                        </AppText>
+
                         {item.description ? (
                           <AppText
                             variant='body'
@@ -577,23 +583,75 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                             })}
                           </AppText>
                         ) : null}
+
                         {(startDate || endDate) && (
-                          <View className='mt-2 flex-row items-center gap-1.5'>
+                          <View className='mt-1.5 flex-row items-center gap-1.5'>
                             <Ionicons
                               name='calendar-outline'
-                              size={moderateScale(14)}
+                              size={moderateScale(12)}
                               color={colors.textSecondary}
                             />
                             <AppText
                               variant='caption'
                               color={colors.textSecondary}
-                              style={{ fontSize: moderateScale(12) }}
+                              style={{ fontSize: moderateScale(11) }}
                             >
                               {formatDate(startDate)}
                               {startDate && endDate ? ' — ' : ''}
                               {formatDate(endDate)}
                             </AppText>
                           </View>
+                        )}
+                      </View>
+
+                      {/* Right: Status badge & Eye icon aligned center with sprint icon */}
+                      <View className='flex-row items-center gap-2'>
+                        {item.isTemporary ? (
+                          <ActivityIndicator
+                            size='small'
+                            color={colors.primary}
+                          />
+                        ) : status ? (
+                          <View
+                            style={{
+                              backgroundColor: colors.surface,
+                            }}
+                            className='rounded-full px-2.5 py-0.5'
+                          >
+                            <AppText
+                              variant='caption'
+                              style={{
+                                color:
+                                  status.toLowerCase() === 'active'
+                                    ? colors.primary
+                                    : colors.textSecondary,
+                                fontSize: moderateScale(11),
+                              }}
+                              className='font-medium capitalize'
+                            >
+                              {status}
+                            </AppText>
+                          </View>
+                        ) : null}
+
+                        {!item.isTemporary && (
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={handleOpenSprintDetails}
+                            className='items-center justify-center'
+                            hitSlop={{
+                              top: 8,
+                              bottom: 8,
+                              left: 8,
+                              right: 8,
+                            }}
+                          >
+                            <Ionicons
+                              name='eye-outline'
+                              size={moderateScale(22)}
+                              color={colors.primary}
+                            />
+                          </TouchableOpacity>
                         )}
                       </View>
                     </TouchableOpacity>
