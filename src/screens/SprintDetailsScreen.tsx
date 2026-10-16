@@ -6,8 +6,22 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, TouchableOpacity, View } from 'react-native';
+import {
+  FlatList,
+  Image,
+  ImageBackground,
+  Modal,
+  ScrollView,
+  StatusBar,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Circle, Path } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
 import { useResponsive } from '../utils/responsive';
@@ -25,7 +39,6 @@ import {
 } from '../store/project_store/reducer/project_reducer';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import { UserStory } from '../types/project.type';
-import Screen from '../components/common/ScreenWapper';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { deleteSprint } from '../services/sprint.service';
 import {
@@ -35,24 +48,27 @@ import {
 } from '../store/api/projectApi';
 import DeleteColumnModal from '../components/DeleteColumnModal';
 import UpdateSprintModal from '../components/UpdateSprintModal';
-import SprintDetailsSkeleton from '../components/skeleton/SprintDetailsSkeleton';
 import UserStoriesPaginationSkeleton from '../components/skeleton/UserStoriesPaginationSkeleton';
 import { RootStackParamList } from '../types/navigationTypes';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
-import { renderParsedHtml } from '../utils/htmlParser';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useDeleteUserStoryMutation } from '../store/api/userStoryApi';
 import { showSnackbar } from '../components/common/Snackbar';
 
-type IoniconName = ComponentProps<typeof Ionicons>['name'];
+const SunsetHeaderImage = require('../assets/images/Serene Mountain Lake at Sunset.png');
 
-type SprintStat = {
-  label: string;
-  value: number;
-  color: string;
-  icon: IoniconName;
-};
+// Preload the image asset immediately on module load so it renders instantly
+try {
+  const assetSource = Image.resolveAssetSource(SunsetHeaderImage);
+  if (assetSource?.uri) {
+    Image.prefetch(assetSource.uri);
+  }
+} catch {
+  // Ignore prefetch errors in dev
+}
+
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 interface SprintDetailsScreenProps {
   route: {
@@ -63,11 +79,11 @@ interface SprintDetailsScreenProps {
   };
 }
 
-// Fixed semantic accents (priority / status / stat tiles)
-const AMBER = '#F59E0B';
-const GREEN = '#22C55E';
-const INDIGO = '#6366F1';
-const VIOLET = '#7C3AED';
+// Colors and styling constants
+const COLOR_MINT = '#14E8A8';
+const COLOR_BLUE = '#2563EB';
+const COLOR_ROSE = '#F43F5E';
+const COLOR_GREEN = '#10B981';
 
 const withOpacity = (hex: string, opacity: number) => {
   if (!hex || !hex.startsWith('#')) return hex;
@@ -89,8 +105,18 @@ const parseDate = (value?: string) => {
   return Number.isNaN(t) ? null : new Date(t);
 };
 
+const cleanHtmlText = (html?: string) => {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+};
+
 const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
-  const { colors } = useTheme();
   const { moderateScale } = useResponsive();
 
   return (
@@ -98,35 +124,35 @@ const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
       activeOpacity={0.8}
       onPress={onPress}
       style={{
-        width: moderateScale(60),
-        marginLeft: moderateScale(8),
-        borderRadius: moderateScale(16),
-        backgroundColor: colors.error,
+        width: moderateScale(65),
+        height: '100%',
+        backgroundColor: '#EF4444',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: moderateScale(12),
       }}
     >
-      <Ionicons name='trash-outline' size={moderateScale(25)} color='#FFFFFF' />
+      <Ionicons name='trash-outline' size={moderateScale(22)} color='#FFFFFF' />
     </TouchableOpacity>
   );
 };
 
+type FilterTab = 'all' | 'stories' | 'tasks' | 'high_priority';
+
 const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-
   const dispatch = useAppDispatch();
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { sprintId, sprintName } = route.params;
 
-  const { colors } = useTheme();
+  const { colors, theme, mode } = useTheme();
+  const isDark = Boolean(theme?.dark || mode === 'dark');
   const { hp, wp, moderateScale } = useResponsive();
 
   const [selectedStories, setSelectedStories] = useState<string[]>([]);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteStoryItem, setDeleteStoryItem] = useState<UserStory | null>(
-    null,
-  );
+  const [deleteStoryItem, setDeleteStoryItem] = useState<UserStory | null>(null);
 
   const [deleteUserStory, { isLoading: isDeletingStory }] =
     useDeleteUserStoryMutation();
@@ -137,6 +163,21 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   const [sprintModalMode, setSprintModalMode] = useState<'start' | 'update'>(
     'update',
   );
+  const [isActionMenuVisible, setIsActionMenuVisible] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [isFilterActive, setIsFilterActive] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const filterScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (isFilterActive && activeTab === 'high_priority') {
+      setTimeout(() => {
+        filterScrollRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [isFilterActive, activeTab]);
 
   const [isUpdatingSprint, setIsUpdatingSprint] = useState(false);
   const [startSprint, { isLoading: isStartingSprint }] =
@@ -190,15 +231,19 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     );
   }, [dispatch, projectId, sprintId]);
 
-  // Sprint details fallback from params or Redux store
+  // Sprint details fallback
   const sprint = useMemo(() => {
     return {
       id: currentSprint?.id || sprintId,
-      name: currentSprint?.name || sprintName || 'Sprint 1',
-      startDate: currentSprint?.start_date || 'Sep 21, 2026',
-      endDate: currentSprint?.end_date || 'Sep 26, 2026',
+      name: currentSprint?.name || sprintName || 'Test11',
+      startDate: currentSprint?.start_date || '2026-10-14',
+      endDate: currentSprint?.end_date || '2026-10-15',
       status: currentSprint?.status || 'Active',
-      goal: currentSprint?.goal || '-',
+      goal:
+        currentSprint?.goal ||
+        'Build and ship the core features for ' +
+          (currentSprint?.name || sprintName || 'Test11') +
+          ' sprint.',
     };
   }, [currentSprint, sprintId, sprintName]);
 
@@ -211,17 +256,17 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     { label: string; icon: IoniconName; action: SprintAction }
   > = {
     planned: {
-      label: 'Start',
+      label: 'Start Sprint',
       icon: 'play-outline',
       action: 'start',
     },
     active: {
-      label: 'Complete',
+      label: 'Complete Sprint',
       icon: 'checkmark-done-outline',
       action: 'complete',
     },
     on_hold: {
-      label: 'Resume',
+      label: 'Resume Sprint',
       icon: 'play-outline',
       action: 'resume',
     },
@@ -243,7 +288,6 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   };
 
   const sprintStatus = sprint.status?.trim().toLowerCase() ?? 'planned';
-
   const sprintAction =
     sprintActionConfig[sprintStatus] ?? sprintActionConfig.planned;
 
@@ -255,14 +299,23 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     storiesData.length - completedStoryCount,
   );
 
-  const allSelected =
-    storiesData.length > 0 && selectedStories.length === storiesData.length;
+  const totalTasks = useMemo(() => {
+    return storiesData.reduce((sum, s) => sum + (s?.total_tasks ?? 0), 0);
+  }, [storiesData]);
 
-  // Timeline progress (only shown when both dates are parseable)
+  const highPriorityCount = useMemo(() => {
+    return storiesData.filter(
+      s => s.priority?.trim().toLowerCase() === 'high',
+    ).length;
+  }, [storiesData]);
+
+  // Timeline & progress calculation
   const timeline = useMemo(() => {
     const start = parseDate(sprint.startDate);
     const end = parseDate(sprint.endDate);
-    if (!start || !end || end <= start) return null;
+    if (!start || !end || end <= start) {
+      return { progress: 1, daysLeft: 0 };
+    }
     const now = Date.now();
     const progress = Math.min(
       1,
@@ -272,53 +325,45 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     return { progress, daysLeft };
   }, [sprint.startDate, sprint.endDate]);
 
-  const stats = useMemo<SprintStat[]>(() => {
-    const totalTasks = storiesData.reduce(
-      (sum, s) => sum + (s?.total_tasks ?? 0),
-      0,
-    );
-
-    const high = storiesData.filter(
-      s => s.priority?.toLowerCase() === 'high',
-    ).length;
-
-    return [
-      {
-        label: 'Stories',
-        value: storiesData.length,
-        color: colors.primary,
-        icon: 'albums-outline',
-      },
-      {
-        label: 'Tasks',
-        value: totalTasks,
-        color: AMBER,
-        icon: 'checkbox-outline',
-      },
-      {
-        label: 'High priority',
-        value: high,
-        color: colors.error,
-        icon: 'flame-outline',
-      },
-    ];
-  }, [storiesData, colors]);
-
-  const toggleStory = useCallback((storyId: string) => {
-    setSelectedStories(prev =>
-      prev.includes(storyId)
-        ? prev.filter(id => id !== storyId)
-        : [...prev, storyId],
-    );
-  }, []);
-
-  const toggleSelectAll = useCallback(() => {
-    if (allSelected) {
-      setSelectedStories([]);
-    } else {
-      setSelectedStories(storiesData.map(story => story.id));
+  const progressPercent = useMemo(() => {
+    if (sprintStatus === 'completed') return 100;
+    if (timeline) {
+      return Math.round(timeline.progress * 100);
     }
-  }, [allSelected, storiesData]);
+    if (storiesData.length > 0) {
+      return Math.round((completedStoryCount / storiesData.length) * 100);
+    }
+    return 100;
+  }, [sprintStatus, timeline, storiesData.length, completedStoryCount]);
+
+  const daysLeft = timeline?.daysLeft ?? 0;
+
+  // Filtered stories
+  const filteredStories = useMemo(() => {
+    let list = storiesData;
+
+    if (activeTab === 'stories') {
+      list = list.filter(
+        s => (s as any).issue_type?.toLowerCase() !== 'task',
+      );
+    } else if (activeTab === 'tasks') {
+      list = list.filter(s => (s?.total_tasks ?? 0) > 0);
+    } else if (activeTab === 'high_priority') {
+      list = list.filter(s => s.priority?.toLowerCase() === 'high');
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(
+        s =>
+          s.title?.toLowerCase().includes(q) ||
+          s.key?.toLowerCase().includes(q) ||
+          s.description?.toLowerCase().includes(q),
+      );
+    }
+
+    return list;
+  }, [storiesData, activeTab, searchQuery]);
 
   const handleLoadMore = useCallback(() => {
     if (
@@ -381,14 +426,14 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   ]);
 
   const getPriorityColor = useCallback(
-    (priority: string) => {
+    (priority?: string) => {
       switch (priority?.toLowerCase()) {
         case 'high':
-          return colors.error;
+          return COLOR_ROSE;
         case 'medium':
-          return AMBER;
+          return '#F59E0B';
         case 'low':
-          return GREEN;
+          return COLOR_GREEN;
         default:
           return colors.textSecondary;
       }
@@ -399,10 +444,10 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   const getStatusColor = useCallback(
     (status?: string) => {
       const s = status?.toLowerCase() || '';
-      if (s.includes('active') || s.includes('progress')) return GREEN;
+      if (s.includes('active') || s.includes('progress')) return COLOR_GREEN;
       if (s.includes('plan') || s.includes('todo') || s.includes('backlog'))
-        return INDIGO;
-      if (s.includes('done') || s.includes('complete')) return VIOLET;
+        return '#6366F1';
+      if (s.includes('done') || s.includes('complete')) return '#8B5CF6';
       return colors.textSecondary;
     },
     [colors],
@@ -415,7 +460,6 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
       const currentFav = story?.is_favourite ?? false;
       const nextFav = !currentFav;
 
-      // Optimistically update in Redux store
       dispatch(
         toggleUserStoryFavoriteLocally({
           userStoryId: storyId,
@@ -434,7 +478,6 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
           ).unwrap();
         }
       } catch {
-        // Rollback on failure
         dispatch(
           toggleUserStoryFavoriteLocally({
             userStoryId: storyId,
@@ -450,212 +493,6 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     [dispatch, projectId, storiesData],
   );
 
-  const renderStory = useCallback(
-    ({ item }: { item: UserStory }) => {
-      const isSelected = selectedStories.includes(item.id);
-      const priorityColor = getPriorityColor(item.priority);
-      const statusColor = getStatusColor(item.status);
-
-      return (
-        <Swipeable
-          renderRightActions={() => (
-            <SwipeDeleteAction onPress={() => setDeleteStoryItem(item)} />
-          )}
-          overshootRight={false}
-        >
-          <View
-            className='mb-3 overflow-hidden rounded-2xl border'
-            style={{
-              backgroundColor: isSelected
-                ? withOpacity(colors.primary, 0.07)
-                : colors.card,
-              borderColor: isSelected ? colors.primary : colors.border,
-            }}
-          >
-            <TouchableOpacity
-              activeOpacity={0.75}
-              onPress={() =>
-                navigation.navigate('issue', {
-                  projectId,
-                  userStoryId: item.id,
-                })
-              }
-              className='mb-3 flex-row overflow-hidden rounded-2xl border'
-              style={{
-                backgroundColor: isSelected
-                  ? withOpacity(colors.primary, 0.07)
-                  : colors.card,
-                borderColor: isSelected ? colors.primary : colors.border,
-              }}
-            >
-              {/* Priority accent rail */}
-              <View style={{ width: 4, backgroundColor: priorityColor }} />
-
-              <View className='flex-1' style={{ padding: moderateScale(14) }}>
-                {/* Row 1: key chip and favorite star button */}
-                <View className='flex-row items-center justify-between'>
-                  <View
-                    className='mr-2 rounded-md'
-                    style={{
-                      backgroundColor: withOpacity(colors.primary, 0.12),
-                      paddingHorizontal: moderateScale(7),
-                      paddingVertical: moderateScale(2),
-                    }}
-                  >
-                    <AppText
-                      variant='caption'
-                      style={{
-                        color: colors.primary,
-                        fontSize: moderateScale(11),
-                        fontWeight: '700',
-                      }}
-                      numberOfLines={1}
-                    >
-                      {item?.key}
-                    </AppText>
-                  </View>
-
-                  {/* Favorite Star Button */}
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={e => {
-                      e.stopPropagation();
-                      handleToggleStoryFavorite(item.id);
-                    }}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={{
-                      padding: 4,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Ionicons
-                      name={item.is_favourite ? 'star' : 'star-outline'}
-                      size={moderateScale(18)}
-                      color={
-                        item.is_favourite
-                          ? colors.warning
-                          : colors.textSecondary
-                      }
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                <AppText
-                  variant='body'
-                  color={colors.text}
-                  className='mt-2 font-semibold'
-                  numberOfLines={2}
-                >
-                  {item?.title || ''}
-                </AppText>
-
-                {/* {item.description ? (
-                  <AppText
-                    variant='caption'
-                    color={colors.textSecondary}
-                    className='mt-1'
-                    numberOfLines={2}
-                  >
-                    {renderParsedHtml(item.description, {
-                      color: colors.textSecondary,
-                      fontSize: moderateScale(13),
-                    })}
-                  </AppText>
-                ) : null} */}
-
-                {/* Row 2: meta chips (wraps on narrow screens) */}
-                <View
-                  className='flex-row flex-wrap items-center'
-                  style={{
-                    marginTop: moderateScale(10),
-                    gap: moderateScale(6),
-                  }}
-                >
-                  <View
-                    className='flex-row items-center rounded-full px-2.5 py-1'
-                    style={{ backgroundColor: colors.surface }}
-                  >
-                    <Ionicons
-                      name='list-outline'
-                      size={moderateScale(12)}
-                      color={colors.textSecondary}
-                    />
-                    <AppText
-                      variant='caption'
-                      color={colors.textSecondary}
-                      className='ml-1'
-                      style={{ fontSize: moderateScale(11) }}
-                    >
-                      {item?.total_tasks ?? 0} tasks
-                    </AppText>
-                  </View>
-
-                  <View
-                    className='flex-row items-center rounded-full px-2.5 py-1'
-                    style={{
-                      backgroundColor: withOpacity(priorityColor, 0.14),
-                    }}
-                  >
-                    <Ionicons
-                      name='flag'
-                      size={moderateScale(11)}
-                      color={priorityColor}
-                    />
-                    <AppText
-                      variant='caption'
-                      className='ml-1 font-semibold capitalize'
-                      style={{
-                        color: priorityColor,
-                        fontSize: moderateScale(11),
-                      }}
-                    >
-                      {item.priority}
-                    </AppText>
-                  </View>
-
-                  <View
-                    className='flex-row items-center rounded-full px-2.5 py-1'
-                    style={{ backgroundColor: withOpacity(statusColor, 0.14) }}
-                  >
-                    <View
-                      className='mr-1.5 rounded-full'
-                      style={{
-                        width: moderateScale(6),
-                        height: moderateScale(6),
-                        backgroundColor: statusColor,
-                      }}
-                    />
-                    <AppText
-                      variant='caption'
-                      className='font-semibold capitalize'
-                      style={{
-                        color: statusColor,
-                        fontSize: moderateScale(11),
-                      }}
-                    >
-                      {item.status}
-                    </AppText>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </Swipeable>
-      );
-    },
-    [
-      selectedStories,
-      colors,
-      moderateScale,
-      getPriorityColor,
-      getStatusColor,
-      navigation,
-      projectId,
-      handleToggleStoryFavorite,
-    ],
-  );
-
   const handleConfirmDeleteStory = async () => {
     if (!deleteStoryItem || !projectId) return;
     const storyIdToDelete = deleteStoryItem.id;
@@ -665,13 +502,9 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         userStoryId: storyIdToDelete,
       }).unwrap();
 
-      // Remove story locally from Redux store after successful deletion
       dispatch(deleteUserStoryLocally(storyIdToDelete));
-
-      // Close the dialog after completion
       setDeleteStoryItem(null);
 
-      // Show the response message in the snackbar
       showSnackbar({
         message: response?.message || 'User story deleted successfully',
         type: 'success',
@@ -685,14 +518,15 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     }
   };
 
-  const handleDeleteSprint = async (projectId: string, sprintId: string) => {
-    if (!projectId || !sprintId || isDeleting) return;
+  const handleDeleteSprint = async (
+    targetProjectId: string,
+    targetSprintId: string,
+  ) => {
+    if (!targetProjectId || !targetSprintId || isDeleting) return;
 
     try {
       setIsDeleting(true);
-
-      await deleteSprint(projectId, sprintId);
-
+      await deleteSprint(targetProjectId, targetSprintId);
       setIsDeleteModalVisible(false);
       navigation.goBack();
     } catch (error) {
@@ -711,7 +545,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         sprint_id: sprintId,
       }).unwrap();
       setIsCompleteSprintVisible(false);
-      showSnackbar?.({
+      showSnackbar({
         message: 'Sprint completed successfully',
         type: 'success',
       });
@@ -745,7 +579,6 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         break;
 
       case 'resume':
-        // Add the Resume API here when your backend supports it.
         showSnackbar({
           message: 'Resume sprint API is not implemented yet',
           type: 'info',
@@ -758,510 +591,1725 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     }
   }, [sprintAction.action]);
 
+  const renderStory = useCallback(
+    ({ item }: { item: UserStory }) => {
+      const isSelected = selectedStories.includes(item.id);
+      const priorityColor = getPriorityColor(item.priority);
+      const statusColor = getStatusColor(item.status);
+
+      return (
+        <Swipeable
+          containerStyle={{
+            marginHorizontal: wp(4),
+            marginBottom: moderateScale(12),
+            borderRadius: moderateScale(18),
+            overflow: 'hidden',
+          }}
+          renderRightActions={() => (
+            <SwipeDeleteAction onPress={() => setDeleteStoryItem(item)} />
+          )}
+          overshootRight={false}
+          rightThreshold={40}
+        >
+          <View
+            style={{
+              borderRadius: moderateScale(18),
+              backgroundColor: isSelected
+                ? withOpacity(colors.primary, isDark ? 0.16 : 0.06)
+                : colors.card,
+              borderWidth: 1,
+              borderColor: isSelected ? colors.primary : colors.border,
+              overflow: 'hidden',
+              elevation: 1,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: isDark ? 0.2 : 0.05,
+              shadowRadius: 3,
+            }}
+          >
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() =>
+                navigation.navigate('issue', {
+                  projectId,
+                  userStoryId: item.id,
+                })
+              }
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              {/* Priority accent rail */}
+              <View
+                style={{
+                  width: moderateScale(4),
+                  alignSelf: 'stretch',
+                  backgroundColor: priorityColor,
+                }}
+              />
+
+              <View
+                style={{
+                  flex: 1,
+                  paddingHorizontal: moderateScale(14),
+                  paddingVertical: moderateScale(12),
+                }}
+              >
+                {/* Top row: Key chip & Favorite star */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <View
+                    style={{
+                      backgroundColor: isDark
+                        ? 'rgba(37, 99, 235, 0.25)'
+                        : '#DBEAFE',
+                      borderRadius: moderateScale(6),
+                      paddingHorizontal: moderateScale(8),
+                      paddingVertical: moderateScale(2),
+                    }}
+                  >
+                    <AppText
+                      variant='caption'
+                      style={{
+                        color: isDark ? '#60A5FA' : COLOR_BLUE,
+                        fontSize: moderateScale(11),
+                        fontWeight: '700',
+                      }}
+                      numberOfLines={1}
+                    >
+                      {item?.key}
+                    </AppText>
+                  </View>
+
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={e => {
+                      e.stopPropagation();
+                      handleToggleStoryFavorite(item.id);
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={{
+                      padding: 4,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name={item.is_favourite ? 'star' : 'star-outline'}
+                      size={moderateScale(18)}
+                      color={
+                        item.is_favourite ? '#F59E0B' : colors.textSecondary
+                      }
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Story Title */}
+                <AppText
+                  variant='body'
+                  style={{
+                    marginTop: moderateScale(6),
+                    fontWeight: '700',
+                    color: colors.text,
+                    fontSize: moderateScale(14),
+                  }}
+                  numberOfLines={2}
+                >
+                  {item?.title || ''}
+                </AppText>
+
+                {/* Meta badges */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    marginTop: moderateScale(10),
+                    gap: moderateScale(6),
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      borderRadius: moderateScale(12),
+                      backgroundColor: isDark ? colors.surface : '#F1F5F9',
+                      paddingHorizontal: moderateScale(8),
+                      paddingVertical: moderateScale(3),
+                    }}
+                  >
+                    <Ionicons
+                      name='list-outline'
+                      size={moderateScale(12)}
+                      color={colors.textSecondary}
+                    />
+                    <AppText
+                      variant='caption'
+                      style={{
+                        marginLeft: moderateScale(4),
+                        color: colors.textSecondary,
+                        fontSize: moderateScale(11),
+                        fontWeight: '500',
+                      }}
+                    >
+                      {item?.total_tasks ?? 0} Tasks
+                    </AppText>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      borderRadius: moderateScale(12),
+                      backgroundColor: withOpacity(
+                        priorityColor,
+                        isDark ? 0.22 : 0.12,
+                      ),
+                      paddingHorizontal: moderateScale(8),
+                      paddingVertical: moderateScale(3),
+                    }}
+                  >
+                    <Ionicons
+                      name='flag'
+                      size={moderateScale(11)}
+                      color={priorityColor}
+                    />
+                    <AppText
+                      variant='caption'
+                      style={{
+                        marginLeft: moderateScale(4),
+                        color: priorityColor,
+                        fontSize: moderateScale(11),
+                        fontWeight: '600',
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {item.priority}
+                    </AppText>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      borderRadius: moderateScale(12),
+                      backgroundColor: withOpacity(
+                        statusColor,
+                        isDark ? 0.22 : 0.12,
+                      ),
+                      paddingHorizontal: moderateScale(8),
+                      paddingVertical: moderateScale(3),
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: moderateScale(6),
+                        height: moderateScale(6),
+                        borderRadius: moderateScale(3),
+                        backgroundColor: statusColor,
+                        marginRight: moderateScale(4),
+                      }}
+                    />
+                    <AppText
+                      variant='caption'
+                      style={{
+                        color: statusColor,
+                        fontSize: moderateScale(11),
+                        fontWeight: '600',
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {item.status}
+                    </AppText>
+                  </View>
+                </View>
+              </View>
+
+              <View style={{ paddingRight: moderateScale(12) }}>
+                <Ionicons
+                  name='chevron-forward'
+                  size={moderateScale(18)}
+                  color={colors.textSecondary}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </Swipeable>
+      );
+    },
+    [
+      selectedStories,
+      colors,
+      isDark,
+      moderateScale,
+      getPriorityColor,
+      getStatusColor,
+      navigation,
+      projectId,
+      handleToggleStoryFavorite,
+      wp,
+    ],
+  );
+
   const keyExtractor = useCallback((item: UserStory) => item.id, []);
+
+  // SVG Circular Ring Calculation
+  const circleRadius = 12;
+  const circleCircumference = 2 * Math.PI * circleRadius;
+  const strokeDashoffset =
+    circleCircumference * (1 - Math.min(1, Math.max(0, progressPercent / 100)));
 
   const ListHeaderComponent = useMemo(
     () => (
-      <Screen scroll={false} backgroundColor={colors.surface}>
-        {/* Gradient hero */}
-        <LinearGradient
-          colors={[colors.primary, colors.accentPurple]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+      <View
+        style={{
+          width: screenWidth,
+          backgroundColor: isDark ? colors.background : '#F6F9FD',
+        }}
+      >
+        {/* Top Serene Sunset Header Image with exact curved bottom corners */}
+        <View
           style={{
-            borderRadius: moderateScale(22),
-            padding: moderateScale(18),
+            width: screenWidth,
+            borderBottomLeftRadius: moderateScale(30),
+            borderBottomRightRadius: moderateScale(30),
+            overflow: 'hidden',
+            backgroundColor: isDark ? '#0F172A' : '#1E293B',
           }}
         >
-          <View className='flex-row items-center justify-between'>
-            {/* Back button + Sprint status */}
-            <View className='flex-row items-center'>
-              {/* Back navigation button */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => navigation.goBack()}
-                className='mr-3 items-center justify-center rounded-full'
+          <ImageBackground
+            source={SunsetHeaderImage}
+            resizeMode='cover'
+            fadeDuration={0}
+            style={{
+              width: screenWidth,
+              paddingTop:
+                insets.top > 0
+                  ? insets.top + moderateScale(4)
+                  : moderateScale(14),
+              paddingHorizontal: wp(4),
+              paddingBottom: moderateScale(14),
+            }}
+            imageStyle={{
+              width: screenWidth,
+              borderBottomLeftRadius: moderateScale(30),
+              borderBottomRightRadius: moderateScale(30),
+            }}
+          >
+            {/* Subtle natural contrast gradient */}
+            <LinearGradient
+              colors={[
+                'rgba(15, 23, 42, 0.35)',
+                'transparent',
+                'rgba(10, 25, 65, 0.25)',
+              ]}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+              }}
+            />
+
+            {/* Top Bar: Back Button, Title, and Right Action Buttons */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => navigation.goBack()}
+                  style={{
+                    width: moderateScale(38),
+                    height: moderateScale(38),
+                    borderRadius: moderateScale(19),
+                    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons
+                    name='arrow-back'
+                    size={moderateScale(20)}
+                    color='#FFFFFF'
+                  />
+                </TouchableOpacity>
+
+                <AppText
+                  variant='h3'
+                  style={{
+                    marginLeft: moderateScale(14),
+                    fontSize: moderateScale(18),
+                    fontWeight: '700',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  Sprint Detail
+                </AppText>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {/* Edit Button */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setSprintModalMode('update');
+                    setIsEditSprintVisible(true);
+                  }}
+                  style={{
+                    width: moderateScale(38),
+                    height: moderateScale(38),
+                    borderRadius: moderateScale(19),
+                    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: moderateScale(8),
+                  }}
+                >
+                  <Ionicons
+                    name='pencil'
+                    size={moderateScale(17)}
+                    color='#FFFFFF'
+                  />
+                </TouchableOpacity>
+
+                {/* More Options Button */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setIsActionMenuVisible(true)}
+                  style={{
+                    width: moderateScale(38),
+                    height: moderateScale(38),
+                    borderRadius: moderateScale(19),
+                    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons
+                    name='ellipsis-vertical'
+                    size={moderateScale(18)}
+                    color='#FFFFFF'
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Sprint Info Row: Rocket + Details */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: moderateScale(14),
+              }}
+            >
+              {/* Rocket icon */}
+              <LinearGradient
+                colors={['#3B82F6', '#1D4ED8']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={{
-                  width: moderateScale(34),
-                  height: moderateScale(34),
-                  backgroundColor: 'rgba(255,255,255,0.22)',
+                  width: moderateScale(54),
+                  height: moderateScale(54),
+                  borderRadius: moderateScale(16),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: moderateScale(10),
+                  elevation: 3,
+                  shadowColor: '#1D4ED8',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
                 }}
               >
                 <Ionicons
-                  name='arrow-back'
-                  size={moderateScale(19)}
-                  color='#fff'
+                  name='rocket'
+                  size={moderateScale(28)}
+                  color='#FFFFFF'
                 />
-              </TouchableOpacity>
+              </LinearGradient>
 
-              {/* Sprint status */}
+              {/* Sprint Details Text Column */}
               <View
-                className='flex-row items-center rounded-full px-3 py-1.5'
-                style={{ backgroundColor: 'rgba(255,255,255,0.22)' }}
+                style={{
+                  flex: 1,
+                  marginRight: moderateScale(8),
+                  justifyContent: 'center',
+                }}
+              >
+                <AppText
+                  variant='h3'
+                  numberOfLines={1}
+                  style={{
+                    fontSize: moderateScale(18),
+                    fontWeight: '800',
+                    color: '#FFFFFF',
+                    marginTop: moderateScale(1),
+                  }}
+                >
+                  {sprint.name}
+                </AppText>
+
+                {/* Dates */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginTop: moderateScale(3),
+                  }}
+                >
+                  <Ionicons
+                    name='calendar-outline'
+                    size={moderateScale(12)}
+                    color='rgba(255, 255, 255, 0.85)'
+                  />
+                  <AppText
+                    variant='caption'
+                    numberOfLines={1}
+                    style={{
+                      marginLeft: moderateScale(4),
+                      fontSize: moderateScale(11),
+                      color: 'rgba(255, 255, 255, 0.9)',
+                    }}
+                  >
+                    {sprint.startDate?.split('T')[0]} →{' '}
+                    {sprint.endDate?.split('T')[0]}
+                  </AppText>
+                </View>
+
+                {/* Status Badge */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    alignSelf: 'flex-start',
+                    marginTop: moderateScale(5),
+                    backgroundColor: 'rgba(16, 185, 129, 0.28)',
+                    borderRadius: moderateScale(12),
+                    paddingHorizontal: moderateScale(8),
+                    paddingVertical: moderateScale(2.5),
+                  }}
+                >
+                  <View
+                    style={{
+                      width: moderateScale(6),
+                      height: moderateScale(6),
+                      borderRadius: moderateScale(3),
+                      backgroundColor: '#34D399',
+                      marginRight: moderateScale(5),
+                    }}
+                  />
+                  <AppText
+                    variant='caption'
+                    style={{
+                      fontSize: moderateScale(11),
+                      fontWeight: '600',
+                      color: '#6EE7B7',
+                      textTransform: 'capitalize',
+                    }}
+                  >
+                    {sprint.status}
+                  </AppText>
+                </View>
+              </View>
+            </View>
+
+            {/* Full-width Neon Progress Bar */}
+            <View style={{ marginTop: moderateScale(14) }}>
+              <View
+                style={{
+                  height: moderateScale(7),
+                  borderRadius: moderateScale(4),
+                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                  overflow: 'hidden',
+                }}
               >
                 <View
-                  className='mr-1.5 rounded-full'
                   style={{
-                    width: moderateScale(7),
-                    height: moderateScale(7),
-                    backgroundColor: '#fff',
+                    height: '100%',
+                    width: `${Math.min(100, Math.max(0, progressPercent))}%`,
+                    borderRadius: moderateScale(4),
+                    backgroundColor: COLOR_MINT,
                   }}
                 />
+              </View>
+
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: moderateScale(6),
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Svg
+                    width={moderateScale(15)}
+                    height={moderateScale(15)}
+                    viewBox='0 0 30 30'
+                    style={{ marginRight: moderateScale(5) }}
+                  >
+                    <Circle
+                      cx={15}
+                      cy={15}
+                      r={circleRadius}
+                      stroke='rgba(255, 255, 255, 0.25)'
+                      strokeWidth={4}
+                      fill='none'
+                    />
+                    <Circle
+                      cx={15}
+                      cy={15}
+                      r={circleRadius}
+                      stroke={COLOR_MINT}
+                      strokeWidth={4}
+                      strokeDasharray={circleCircumference}
+                      strokeDashoffset={strokeDashoffset}
+                      strokeLinecap='round'
+                      fill='none'
+                      transform='rotate(-90 15 15)'
+                    />
+                  </Svg>
+                  <AppText
+                    variant='caption'
+                    style={{
+                      fontSize: moderateScale(11),
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      fontWeight: '500',
+                    }}
+                  >
+                    {progressPercent}% completed
+                  </AppText>
+                </View>
+
                 <AppText
                   variant='caption'
-                  className='font-semibold capitalize'
-                  style={{ color: '#fff', fontSize: moderateScale(11) }}
+                  style={{
+                    fontSize: moderateScale(11),
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontWeight: '500',
+                  }}
                 >
-                  {sprint.status}
+                  {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
+                </AppText>
+              </View>
+            </View>
+          </ImageBackground>
+        </View>
+
+        {/* Body Container */}
+        <View style={{ paddingHorizontal: wp(4), paddingTop: moderateScale(14) }}>
+          {/* Three Metric Cards Row (Stories, Tasks, High Priority) */}
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: moderateScale(10),
+            }}
+          >
+            {/* Card 1: Stories */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                setActiveTab('stories');
+                setIsFilterActive(true);
+              }}
+              style={{
+                flex: 1,
+                backgroundColor: isDark ? '#1E293B' : '#E6F0FD',
+                borderRadius: moderateScale(22),
+                padding: moderateScale(14),
+                overflow: 'hidden',
+                position: 'relative',
+                minHeight: moderateScale(116),
+                justifyContent: 'space-between',
+                borderWidth: isDark ? 1 : 0,
+                borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+              }}
+            >
+              {/* Subtle bottom-right corner wave */}
+              <Svg
+                width={moderateScale(55)}
+                height={moderateScale(42)}
+                viewBox='0 0 55 42'
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  bottom: 0,
+                }}
+              >
+                <Path
+                  d='M0,42 C18,36 32,22 36,0 L55,0 L55,42 Z'
+                  fill={isDark ? 'rgba(59, 130, 246, 0.18)' : '#D0E5FC'}
+                />
+              </Svg>
+
+              {/* Document icon in rounded container */}
+              <View
+                style={{
+                  width: moderateScale(36),
+                  height: moderateScale(36),
+                  borderRadius: moderateScale(12),
+                  backgroundColor: isDark
+                    ? 'rgba(59, 130, 246, 0.25)'
+                    : '#D8EAFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Svg width={18} height={18} viewBox='0 0 18 18'>
+                  <Path
+                    d='M4 2.5C4 1.67 4.67 1 5.5 1H10.5L14 4.5V15.5C14 16.33 13.33 17 12.5 17H5.5C4.67 17 4 16.33 4 15.5V2.5Z'
+                    fill={isDark ? '#38BDF8' : '#1D8FF2'}
+                  />
+                  <Path
+                    d='M6 7H12M6 10H12M6 13H10'
+                    stroke='#FFFFFF'
+                    strokeWidth={1.4}
+                    strokeLinecap='round'
+                  />
+                </Svg>
+              </View>
+
+              {/* Number, Label, and Chevron */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: moderateScale(8),
+                }}
+              >
+                <View>
+                  <AppText
+                    variant='h2'
+                    style={{
+                      fontSize: moderateScale(22),
+                      fontWeight: '800',
+                      color: isDark ? '#F8FAFC' : '#0F172A',
+                    }}
+                  >
+                    {storiesData.length}
+                  </AppText>
+                  <AppText
+                    variant='caption'
+                    style={{
+                      fontSize: moderateScale(12.5),
+                      fontWeight: '600',
+                      color: isDark ? '#94A3B8' : '#475569',
+                      marginTop: moderateScale(1),
+                    }}
+                  >
+                    Stories
+                  </AppText>
+                </View>
+
+                <Ionicons
+                  name='chevron-forward'
+                  size={moderateScale(17)}
+                  color={isDark ? '#60A5FA' : '#2563EB'}
+                />
+              </View>
+            </TouchableOpacity>
+
+            {/* Card 2: Tasks */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                setActiveTab('tasks');
+                setIsFilterActive(true);
+              }}
+              style={{
+                flex: 1,
+                backgroundColor: isDark ? '#142E24' : '#E8F8F4',
+                borderRadius: moderateScale(22),
+                padding: moderateScale(14),
+                overflow: 'hidden',
+                position: 'relative',
+                minHeight: moderateScale(116),
+                justifyContent: 'space-between',
+                borderWidth: isDark ? 1 : 0,
+                borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent',
+              }}
+            >
+              {/* Subtle bottom-right corner wave */}
+              <Svg
+                width={moderateScale(55)}
+                height={moderateScale(42)}
+                viewBox='0 0 55 42'
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  bottom: 0,
+                }}
+              >
+                <Path
+                  d='M0,42 C18,36 32,22 36,0 L55,0 L55,42 Z'
+                  fill={isDark ? 'rgba(16, 185, 129, 0.18)' : '#CEF2E6'}
+                />
+              </Svg>
+
+              {/* Checkmark icon in rounded container */}
+              <View
+                style={{
+                  width: moderateScale(36),
+                  height: moderateScale(36),
+                  borderRadius: moderateScale(12),
+                  backgroundColor: isDark
+                    ? 'rgba(16, 185, 129, 0.25)'
+                    : '#D4F6EB',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Svg width={20} height={20} viewBox='0 0 20 20'>
+                  <Circle cx={10} cy={10} r={9} fill='#10B981' />
+                  <Path
+                    d='M6 10L8.8 13L14 7'
+                    stroke='#FFFFFF'
+                    strokeWidth={2}
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                  />
+                </Svg>
+              </View>
+
+              {/* Number, Label, and Chevron */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: moderateScale(8),
+                }}
+              >
+                <View>
+                  <AppText
+                    variant='h2'
+                    style={{
+                      fontSize: moderateScale(22),
+                      fontWeight: '800',
+                      color: isDark ? '#F8FAFC' : '#0F172A',
+                    }}
+                  >
+                    {totalTasks}
+                  </AppText>
+                  <AppText
+                    variant='caption'
+                    style={{
+                      fontSize: moderateScale(12.5),
+                      fontWeight: '600',
+                      color: isDark ? '#94A3B8' : '#475569',
+                      marginTop: moderateScale(1),
+                    }}
+                  >
+                    Tasks
+                  </AppText>
+                </View>
+
+                <Ionicons
+                  name='chevron-forward'
+                  size={moderateScale(17)}
+                  color={isDark ? '#34D399' : '#10B981'}
+                />
+              </View>
+            </TouchableOpacity>
+
+            {/* Card 3: High priority */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                setActiveTab('high_priority');
+                setIsFilterActive(true);
+              }}
+              style={{
+                flex: 1,
+                backgroundColor: isDark ? '#2E1922' : '#FEEBF1',
+                borderRadius: moderateScale(22),
+                padding: moderateScale(14),
+                overflow: 'hidden',
+                position: 'relative',
+                minHeight: moderateScale(116),
+                justifyContent: 'space-between',
+                borderWidth: isDark ? 1 : 0,
+                borderColor: isDark ? 'rgba(244, 63, 94, 0.3)' : 'transparent',
+              }}
+            >
+              {/* Subtle bottom-right corner wave */}
+              <Svg
+                width={moderateScale(55)}
+                height={moderateScale(42)}
+                viewBox='0 0 55 42'
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  bottom: 0,
+                }}
+              >
+                <Path
+                  d='M0,42 C18,36 32,22 36,0 L55,0 L55,42 Z'
+                  fill={isDark ? 'rgba(244, 63, 94, 0.18)' : '#FDD9E3'}
+                />
+              </Svg>
+
+              {/* Flame icon in rounded container */}
+              <View
+                style={{
+                  width: moderateScale(36),
+                  height: moderateScale(36),
+                  borderRadius: moderateScale(12),
+                  backgroundColor: isDark
+                    ? 'rgba(244, 63, 94, 0.25)'
+                    : '#FEDEE6',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons
+                  name='flame'
+                  size={moderateScale(19)}
+                  color='#F43F5E'
+                />
+              </View>
+
+              {/* Number, Label, and Chevron */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: moderateScale(8),
+                }}
+              >
+                <View>
+                  <AppText
+                    variant='h2'
+                    style={{
+                      fontSize: moderateScale(22),
+                      fontWeight: '800',
+                      color: isDark ? '#F8FAFC' : '#0F172A',
+                    }}
+                  >
+                    {highPriorityCount}
+                  </AppText>
+                  <AppText
+                    variant='caption'
+                    style={{
+                      fontSize: moderateScale(12.5),
+                      fontWeight: '600',
+                      color: isDark ? '#94A3B8' : '#475569',
+                      marginTop: moderateScale(1),
+                    }}
+                  >
+                    High priority
+                  </AppText>
+                </View>
+
+                <Ionicons
+                  name='chevron-forward'
+                  size={moderateScale(17)}
+                  color={isDark ? '#FB7185' : '#F43F5E'}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Sprint Goal Card */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              setSprintModalMode('update');
+              setIsEditSprintVisible(true);
+            }}
+            style={{
+              marginTop: moderateScale(14),
+              backgroundColor: isDark ? '#1E1B38' : '#EDF0FD',
+              borderRadius: moderateScale(22),
+              padding: moderateScale(16),
+              overflow: 'hidden',
+              position: 'relative',
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderWidth: isDark ? 1 : 0,
+              borderColor: isDark ? 'rgba(124, 58, 237, 0.3)' : 'transparent',
+            }}
+          >
+            {/* Subtle bottom-right corner wave */}
+            <Svg
+              width={moderateScale(75)}
+              height={moderateScale(55)}
+              viewBox='0 0 75 55'
+              style={{
+                position: 'absolute',
+                right: 0,
+                bottom: 0,
+              }}
+            >
+              <Path
+                d='M0,55 C25,48 45,30 50,0 L75,0 L75,55 Z'
+                fill={isDark ? 'rgba(124, 58, 237, 0.18)' : '#DDE2FE'}
+              />
+            </Svg>
+
+            {/* Target icon with arrow */}
+            <View
+              style={{
+                width: moderateScale(48),
+                height: moderateScale(48),
+                borderRadius: moderateScale(16),
+                backgroundColor: isDark
+                  ? 'rgba(124, 58, 237, 0.25)'
+                  : '#E3E7FE',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: moderateScale(14),
+              }}
+            >
+              <Svg
+                width={moderateScale(28)}
+                height={moderateScale(28)}
+                viewBox='0 0 28 28'
+              >
+                <Circle
+                  cx={14}
+                  cy={14}
+                  r={11}
+                  stroke='#6366F1'
+                  strokeWidth={2.2}
+                  fill='none'
+                />
+                <Circle
+                  cx={14}
+                  cy={14}
+                  r={6.5}
+                  stroke='#6366F1'
+                  strokeWidth={2.2}
+                  fill='none'
+                />
+                <Circle cx={14} cy={14} r={2.5} fill='#6366F1' />
+                <Path
+                  d='M21 7L14 14'
+                  stroke='#6366F1'
+                  strokeWidth={2.2}
+                  strokeLinecap='round'
+                />
+                <Path
+                  d='M23 3L25 5L22 8L20 6Z'
+                  fill='#6366F1'
+                />
+              </Svg>
+            </View>
+
+            <View style={{ flex: 1, marginRight: moderateScale(8) }}>
+              <AppText
+                variant='body'
+                style={{
+                  fontSize: moderateScale(15),
+                  fontWeight: '700',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                }}
+              >
+                Sprint Goal
+              </AppText>
+              <AppText
+                variant='caption'
+                numberOfLines={2}
+                style={{
+                  fontSize: moderateScale(12.5),
+                  color: isDark ? '#CBD5E1' : '#475569',
+                  marginTop: moderateScale(3),
+                  lineHeight: moderateScale(17),
+                }}
+              >
+                {cleanHtmlText(sprint.goal) ||
+                  'Build and ship the core features for ' +
+                    sprint.name +
+                    ' sprint.'}
+              </AppText>
+            </View>
+
+            <Ionicons
+              name='chevron-forward'
+              size={moderateScale(18)}
+              color={isDark ? '#A78BFA' : '#6366F1'}
+            />
+          </TouchableOpacity>
+
+          {/* User Stories Header Row */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: moderateScale(22),
+              marginBottom:
+                !isFilterActive && !isSearchActive ? moderateScale(14) : 0,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <AppText
+                variant='h2'
+                style={{
+                  fontSize: moderateScale(20),
+                  fontWeight: '800',
+                  color: isDark ? colors.text : '#0F172A',
+                }}
+              >
+                User Stories
+              </AppText>
+
+              <View
+                style={{
+                  backgroundColor: isDark
+                    ? 'rgba(37, 99, 235, 0.25)'
+                    : '#DBEAFE',
+                  borderRadius: moderateScale(12),
+                  paddingHorizontal: moderateScale(9),
+                  paddingVertical: moderateScale(2),
+                  marginLeft: moderateScale(8),
+                }}
+              >
+                <AppText
+                  variant='caption'
+                  style={{
+                    color: isDark ? '#60A5FA' : COLOR_BLUE,
+                    fontSize: moderateScale(12),
+                    fontWeight: '700',
+                  }}
+                >
+                  {filteredStories.length}
                 </AppText>
               </View>
             </View>
 
-            {/* Edit and Delete buttons */}
-            <View className='flex-row items-center'>
+            {/* Action Buttons: Search & Filter */}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setIsSearchActive(prev => !prev)}
+                style={{
+                  width: moderateScale(38),
+                  height: moderateScale(38),
+                  borderRadius: moderateScale(19),
+                  backgroundColor: isSearchActive
+                    ? isDark
+                      ? 'rgba(37, 99, 235, 0.3)'
+                      : '#DBEAFE'
+                    : isDark
+                    ? colors.card
+                    : '#F1F5F9',
+                  borderWidth: isDark ? 1 : 0,
+                  borderColor: isDark ? colors.border : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: moderateScale(8),
+                }}
+              >
+                <Ionicons
+                  name='search-outline'
+                  size={moderateScale(18)}
+                  color={
+                    isSearchActive
+                      ? isDark
+                        ? '#60A5FA'
+                        : COLOR_BLUE
+                      : isDark
+                      ? colors.text
+                      : '#475569'
+                  }
+                />
+              </TouchableOpacity>
+
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => {
-                  setSprintModalMode('update');
-                  setIsEditSprintVisible(true);
+                  setIsFilterActive(prev => {
+                    const next = !prev;
+                    if (!next) {
+                      setActiveTab('all');
+                    }
+                    return next;
+                  });
                 }}
-                className='items-center justify-center rounded-full'
                 style={{
-                  width: moderateScale(34),
-                  height: moderateScale(34),
-                  backgroundColor: 'rgba(255,255,255,0.22)',
+                  width: moderateScale(38),
+                  height: moderateScale(38),
+                  borderRadius: moderateScale(19),
+                  backgroundColor: isFilterActive
+                    ? isDark
+                      ? 'rgba(37, 99, 235, 0.3)'
+                      : '#DBEAFE'
+                    : isDark
+                    ? colors.card
+                    : '#F1F5F9',
+                  borderWidth: isDark ? 1 : 0,
+                  borderColor: isDark ? colors.border : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
                 <Ionicons
-                  name='pencil-outline'
-                  size={moderateScale(16)}
-                  color='#fff'
+                  name='options-outline'
+                  size={moderateScale(18)}
+                  color={
+                    isFilterActive
+                      ? isDark
+                        ? '#60A5FA'
+                        : COLOR_BLUE
+                      : isDark
+                      ? colors.text
+                      : '#475569'
+                  }
                 />
               </TouchableOpacity>
+            </View>
+          </View>
 
+          {/* Search Input Bar (when toggled) */}
+          {isSearchActive && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: isDark ? colors.card : '#FFFFFF',
+                borderRadius: moderateScale(14),
+                borderWidth: 1,
+                borderColor: isDark ? colors.border : '#CBD5E1',
+                paddingHorizontal: moderateScale(12),
+                paddingVertical: moderateScale(6),
+                marginTop: moderateScale(10),
+                marginBottom: !isFilterActive ? moderateScale(14) : 0,
+              }}
+            >
+              <Ionicons
+                name='search'
+                size={moderateScale(16)}
+                color={colors.textSecondary}
+                style={{ marginRight: moderateScale(6) }}
+              />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder='Search stories by title or key...'
+                placeholderTextColor={
+                  isDark ? colors.placeholder : '#94A3B8'
+                }
+                style={{
+                  flex: 1,
+                  fontSize: moderateScale(13),
+                  color: isDark ? colors.text : '#0F172A',
+                  paddingVertical: 0,
+                }}
+                autoFocus
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons
+                    name='close-circle'
+                    size={moderateScale(16)}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Filter Tabs Pills Row (when toggled via filter icon) */}
+          {isFilterActive && (
+            <ScrollView
+              ref={filterScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: wp(4),
+              }}
+              style={{
+                marginHorizontal: -wp(4),
+                marginTop: moderateScale(12),
+                marginBottom: moderateScale(14),
+              }}
+            >
+              {/* All Tab */}
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => setIsDeleteModalVisible(true)}
-                className='ml-2 items-center justify-center rounded-full'
+                onPress={() => setActiveTab('all')}
                 style={{
-                  width: moderateScale(34),
-                  height: moderateScale(34),
-                  backgroundColor: 'rgba(255,255,255,0.22)',
+                  backgroundColor:
+                    activeTab === 'all' ? COLOR_BLUE : 'transparent',
+                  borderRadius: moderateScale(18),
+                  paddingHorizontal: moderateScale(12),
+                  paddingVertical: moderateScale(6),
                 }}
               >
-                <Ionicons
-                  name='trash-outline'
-                  size={moderateScale(16)}
-                  color='#fff'
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View className='mt-4 flex-row items-center justify-between'>
-            <View className='mr-3 flex-1'>
-              <AppText
-                variant='h3'
-                className='mt-4 font-extrabold'
-                style={{ color: '#fff' }}
-                numberOfLines={2}
-              >
-                {sprint.name}
-              </AppText>
-
-              <View className='mt-2 flex-row items-center'>
-                <Ionicons
-                  name='calendar-outline'
-                  size={moderateScale(14)}
-                  color='rgba(255,255,255,0.85)'
-                />
                 <AppText
-                  variant='body'
-                  className='ml-1.5'
-                  style={{ color: 'rgba(255,255,255,0.9)' }}
-                >
-                  {sprint.startDate?.split('T')[0]} →{' '}
-                  {sprint.endDate?.split('T')[0]}
-                </AppText>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleSprintAction}
-              disabled={sprintAction.action === 'none'}
-              className='flex-row items-center rounded-xl px-3 py-2'
-              style={{
-                backgroundColor: colors.white,
-                opacity: sprintAction.action === 'none' ? 0.65 : 1,
-              }}
-            >
-              <Ionicons
-                name={sprintAction.icon}
-                size={moderateScale(13)}
-                color={colors.primary}
-                style={{ marginRight: 4 }}
-              />
-
-              <AppText
-                variant='caption'
-                className='font-bold'
-                style={{
-                  color: colors.primary,
-                  fontSize: moderateScale(12),
-                }}
-              >
-                {sprintAction.label}
-              </AppText>
-            </TouchableOpacity>
-          </View>
-
-          {timeline ? (
-            <View style={{ marginTop: moderateScale(16) }}>
-              <View
-                className='overflow-hidden rounded-full'
-                style={{
-                  height: moderateScale(8),
-                  backgroundColor: 'rgba(255,255,255,0.25)',
-                }}
-              >
-                <View
-                  className='rounded-full'
+                  variant='caption'
                   style={{
-                    height: '100%',
-                    width: `${Math.round(timeline.progress * 100)}%`,
-                    backgroundColor: '#fff',
+                    fontSize: moderateScale(12),
+                    fontWeight: activeTab === 'all' ? '700' : '500',
+                    color:
+                      activeTab === 'all'
+                        ? '#FFFFFF'
+                        : isDark
+                        ? colors.textSecondary
+                        : '#64748B',
                   }}
-                />
-              </View>
-              <View className='mt-2 flex-row items-center justify-between'>
-                <AppText
-                  variant='caption'
-                  style={{ color: 'rgba(255,255,255,0.9)' }}
                 >
-                  {Math.round(timeline.progress * 100)}% elapsed
+                  All ({storiesData.length})
                 </AppText>
-                <AppText
-                  variant='caption'
-                  className='font-semibold'
-                  style={{ color: '#fff' }}
-                >
-                  {timeline.daysLeft} {timeline.daysLeft === 1 ? 'day' : 'days'}{' '}
-                  left
-                </AppText>
-              </View>
-            </View>
-          ) : null}
-        </LinearGradient>
+              </TouchableOpacity>
 
-        {/* Stat tiles */}
-        <View
-          className='flex-row'
-          style={{ marginTop: moderateScale(14), gap: moderateScale(10) }}
-        >
-          {stats.map(item => (
-            <View
-              key={item.label}
-              className='flex-1 items-center rounded-2xl'
-              style={{
-                backgroundColor: withOpacity(item.color, 0.12),
-                paddingVertical: moderateScale(14),
-              }}
-            >
-              <Ionicons
-                name={item?.icon}
-                size={moderateScale(18)}
-                color={item.color}
-              />
-              <AppText
-                variant='title'
-                className='mt-1'
-                style={{ color: item.color, fontWeight: '800' }}
-              >
-                {item.value}
-              </AppText>
-              <AppText
-                variant='caption'
-                color={colors.textSecondary}
-                className='text-center'
-                style={{ fontSize: moderateScale(11) }}
-                numberOfLines={1}
-              >
-                {item.label}
-              </AppText>
-            </View>
-          ))}
-        </View>
-
-        {/* Goal card */}
-        <View
-          className='flex-row items-start rounded-2xl border'
-          style={{
-            marginTop: moderateScale(14),
-            padding: moderateScale(14),
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          }}
-        >
-          <View
-            className='mr-3 items-center justify-center rounded-xl'
-            style={{
-              width: moderateScale(36),
-              height: moderateScale(36),
-              backgroundColor: withOpacity(AMBER, 0.15),
-            }}
-          >
-            <Ionicons name='flag' size={moderateScale(18)} color={AMBER} />
-          </View>
-          <View className='flex-1'>
-            <AppText
-              variant='caption'
-              color={colors.textSecondary}
-              className='uppercase'
-              style={{ fontSize: moderateScale(10), letterSpacing: 0.8 }}
-            >
-              Sprint goal
-            </AppText>
-            <AppText
-              variant='body'
-              color={colors.text}
-              className='mt-1 font-medium'
-            >
-              {renderParsedHtml(sprint.goal, {
-                color: colors.text,
-                fontSize: moderateScale(14),
-              }) || '-'}
-            </AppText>
-          </View>
-        </View>
-
-        {/* User stories header */}
-        <View
-          className='flex-row items-center justify-between'
-          style={{
-            marginTop: moderateScale(24),
-            marginBottom: moderateScale(10),
-          }}
-        >
-          <View className='flex-row items-center'>
-            <AppText variant='title' color={colors.text} className='font-bold'>
-              User Stories
-            </AppText>
-            <View
-              className='ml-2 rounded-full px-2.5 py-0.5'
-              style={{ backgroundColor: withOpacity(colors.primary, 0.12) }}
-            >
-              <AppText
-                variant='caption'
-                className='font-semibold'
-                style={{ color: colors.primary, fontSize: moderateScale(11) }}
-              >
-                {storiesData.length}
-              </AppText>
-            </View>
-          </View>
-
-          {/* {storiesData.length > 0 && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={toggleSelectAll}
-              className='flex-row items-center'
-            >
-              <View
-                className='mr-2 items-center justify-center rounded-md border'
+              {/* Stories Tab */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setActiveTab('stories')}
                 style={{
-                  width: moderateScale(18),
-                  height: moderateScale(18),
-                  borderColor: allSelected
-                    ? colors.primary
-                    : colors.textSecondary,
-                  backgroundColor: allSelected ? colors.primary : 'transparent',
+                  backgroundColor:
+                    activeTab === 'stories' ? COLOR_BLUE : 'transparent',
+                  borderRadius: moderateScale(18),
+                  paddingHorizontal: moderateScale(12),
+                  paddingVertical: moderateScale(6),
                 }}
               >
-                {allSelected && (
-                  <Ionicons
-                    name='checkmark'
-                    size={moderateScale(13)}
-                    color='#fff'
-                  />
-                )}
-              </View>
-              <AppText variant='caption' color={colors.textSecondary}>
-                Select all
-              </AppText>
-            </TouchableOpacity>
-          )} */}
-        </View>
+                <AppText
+                  variant='caption'
+                  style={{
+                    fontSize: moderateScale(12),
+                    fontWeight: activeTab === 'stories' ? '700' : '500',
+                    color:
+                      activeTab === 'stories'
+                        ? '#FFFFFF'
+                        : isDark
+                        ? colors.textSecondary
+                        : '#64748B',
+                  }}
+                >
+                  Stories ({storiesData.length})
+                </AppText>
+              </TouchableOpacity>
 
-        {/* Selection bar */}
-        {selectedStories.length > 0 && (
-          <View
-            className='mb-3 flex-row items-center justify-between rounded-xl px-4 py-2.5'
-            style={{ backgroundColor: withOpacity(colors.primary, 0.1) }}
-          >
-            <AppText
-              variant='caption'
-              className='font-semibold'
-              style={{ color: colors.primary }}
-            >
-              {selectedStories.length} selected
-            </AppText>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setSelectedStories([])}
-            >
-              <AppText
-                variant='caption'
-                className='font-semibold'
-                style={{ color: colors.primary }}
+              {/* Vertical Divider */}
+              <View
+                style={{
+                  width: 1,
+                  height: moderateScale(14),
+                  backgroundColor: isDark ? colors.border : '#CBD5E1',
+                  marginHorizontal: moderateScale(6),
+                }}
+              />
+
+              {/* Tasks Tab */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setActiveTab('tasks')}
+                style={{
+                  backgroundColor:
+                    activeTab === 'tasks' ? COLOR_BLUE : 'transparent',
+                  borderRadius: moderateScale(18),
+                  paddingHorizontal: moderateScale(12),
+                  paddingVertical: moderateScale(6),
+                }}
               >
-                Clear
-              </AppText>
-            </TouchableOpacity>
-          </View>
-        )}
-        <DeleteColumnModal
-          visible={isDeleteModalVisible}
-          columnTitle='Want to delete this sprint?'
-          onClose={() => {
-            if (!isDeleting) {
-              setIsDeleteModalVisible(false);
-            }
-          }}
-          onDelete={async () => {
-            await handleDeleteSprint(projectId || '', sprintId);
-          }}
-          loading={isDeleting}
-        />
+                <AppText
+                  variant='caption'
+                  style={{
+                    fontSize: moderateScale(12),
+                    fontWeight: activeTab === 'tasks' ? '700' : '500',
+                    color:
+                      activeTab === 'tasks'
+                        ? '#FFFFFF'
+                        : isDark
+                        ? colors.textSecondary
+                        : '#64748B',
+                  }}
+                >
+                  Tasks ({totalTasks})
+                </AppText>
+              </TouchableOpacity>
 
-        <UpdateSprintModal
-          visible={isEditSprintVisible}
-          onClose={() => setIsEditSprintVisible(false)}
-          mode={sprintModalMode}
-          sprint={currentSprint}
-          isUpdating={isUpdatingSprint || isStartingSprint}
-          onStart={async payload => {
-            await startSprint({
-              project_id: projectId || '',
-              sprint_id: sprintId,
-              payload,
-            }).unwrap();
-            setIsEditSprintVisible(false);
-            await dispatch(
-              getSprintByIdThunk({
-                project_id: projectId || '',
-                sprint_id: sprintId,
-              }),
-            ).unwrap();
-            showSnackbar({
-              message: 'Sprint started successfully',
-              type: 'success',
-            });
-          }}
-          onUpdate={async payload => {
-            try {
-              setIsUpdatingSprint(true);
-
-              await updateSprintDetails({
-                project_id: projectId || '',
-                sprint_id: sprintId,
-                payload: {
-                  name: payload.name ?? currentSprint?.name ?? '',
-                  goal: payload.goal ?? currentSprint?.goal ?? undefined,
-                  end_date: payload.end_date ?? currentSprint?.end_date ?? '',
-                },
-              }).unwrap();
-
-              setIsEditSprintVisible(false);
-
-              // Refetch sprint details
-              await dispatch(
-                getSprintByIdThunk({
-                  project_id: projectId || '',
-                  sprint_id: sprintId,
-                }),
-              ).unwrap();
-
-              showSnackbar({
-                message: 'Sprint updated successfully',
-                type: 'success',
-              });
-            } catch (error) {
-              throw error;
-            } finally {
-              setIsUpdatingSprint(false);
-            }
-          }}
-        />
-      </Screen>
+              {/* High priority Tab */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setActiveTab('high_priority')}
+                style={{
+                  backgroundColor:
+                    activeTab === 'high_priority' ? COLOR_BLUE : 'transparent',
+                  borderRadius: moderateScale(18),
+                  paddingHorizontal: moderateScale(12),
+                  paddingVertical: moderateScale(6),
+                }}
+              >
+                <AppText
+                  variant='caption'
+                  style={{
+                    fontSize: moderateScale(12),
+                    fontWeight: activeTab === 'high_priority' ? '700' : '500',
+                    color:
+                      activeTab === 'high_priority'
+                        ? '#FFFFFF'
+                        : isDark
+                        ? colors.textSecondary
+                        : '#64748B',
+                  }}
+                >
+                  High priority ({highPriorityCount})
+                </AppText>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </View>
+      </View>
     ),
     [
+      screenWidth,
+      isDark,
       colors,
-      sprint,
-      timeline,
-      stats,
+      SunsetHeaderImage,
+      insets.top,
       moderateScale,
+      wp,
       navigation,
-      toggleSelectAll,
-      allSelected,
+      sprint,
+      circleRadius,
+      circleCircumference,
+      strokeDashoffset,
+      progressPercent,
+      daysLeft,
       storiesData.length,
-      selectedStories.length,
+      totalTasks,
+      highPriorityCount,
+      filteredStories.length,
+      isSearchActive,
+      searchQuery,
+      activeTab,
+      isFilterActive,
     ],
   );
 
   return (
     <View
-      className='flex-1'
       style={{
-        backgroundColor: colors.background,
+        flex: 1,
+        width: screenWidth,
+        backgroundColor: isDark ? colors.background : '#F6F9FD',
       }}
     >
-      {loading && storiesData.length === 0 ? (
-        <SprintDetailsSkeleton />
-      ) : (
-        <FlatList
-          data={storiesData}
-          keyExtractor={keyExtractor}
-          renderItem={renderStory}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: wp(4),
-            paddingTop: hp(2),
-            paddingBottom: hp(6),
-          }}
-          ListHeaderComponent={ListHeaderComponent}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={2.5}
-          ListEmptyComponent={
-            !loading && !isFetchingMore ? (
-              <View
-                className='items-center rounded-2xl border'
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'light-content'}
+        translucent
+        backgroundColor='transparent'
+      />
+
+      <FlatList
+        data={filteredStories}
+        keyExtractor={keyExtractor}
+        renderItem={renderStory}
+        showsVerticalScrollIndicator={false}
+        style={{ width: screenWidth, flex: 1 }}
+        contentContainerStyle={{
+          width: screenWidth,
+          paddingBottom: hp(8),
+        }}
+        ListHeaderComponent={ListHeaderComponent}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={2.5}
+        ListEmptyComponent={
+          loading && storiesData.length === 0 ? (
+            <View
+              style={{
+                marginHorizontal: wp(4),
+                marginTop: moderateScale(4),
+              }}
+            >
+              <UserStoriesPaginationSkeleton />
+            </View>
+          ) : !loading && !isFetchingMore ? (
+            <View
+              style={{
+                marginHorizontal: wp(4),
+                marginTop: moderateScale(12),
+                alignItems: 'center',
+                borderRadius: moderateScale(18),
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                padding: moderateScale(28),
+              }}
+            >
+              <Ionicons
+                name='albums-outline'
+                size={moderateScale(32)}
+                color={colors.textSecondary}
+              />
+              <AppText
+                variant='body'
                 style={{
-                  padding: moderateScale(28),
+                  marginTop: moderateScale(8),
+                  color: colors.textSecondary,
+                  textAlign: 'center',
+                }}
+              >
+                {searchQuery
+                  ? 'No user stories match your search'
+                  : 'No user stories in this sprint yet'}
+              </AppText>
+            </View>
+          ) : null
+        }
+        ListFooterComponent={
+          isFetchingMore ? <UserStoriesPaginationSkeleton /> : null
+        }
+      />
+
+      {/* Action Menu Modal (Three dots) */}
+      <Modal
+        visible={isActionMenuVisible}
+        transparent
+        animationType='fade'
+        onRequestClose={() => setIsActionMenuVisible(false)}
+      >
+        <TouchableWithoutFeedback
+          onPress={() => setIsActionMenuVisible(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.55)',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <TouchableWithoutFeedback>
+              <View
+                style={{
                   backgroundColor: colors.card,
+                  borderTopLeftRadius: moderateScale(24),
+                  borderTopRightRadius: moderateScale(24),
+                  paddingHorizontal: wp(5),
+                  paddingTop: moderateScale(16),
+                  paddingBottom:
+                    insets.bottom > 0
+                      ? insets.bottom + moderateScale(10)
+                      : moderateScale(24),
+                  borderTopWidth: isDark ? 1 : 0,
                   borderColor: colors.border,
                 }}
               >
-                <Ionicons
-                  name='albums-outline'
-                  size={moderateScale(32)}
-                  color={colors.textSecondary}
+                {/* Drag handle */}
+                <View
+                  style={{
+                    width: moderateScale(36),
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.border,
+                    alignSelf: 'center',
+                    marginBottom: moderateScale(16),
+                  }}
                 />
+
                 <AppText
-                  variant='body'
-                  color={colors.textSecondary}
-                  className='mt-2 text-center'
+                  variant='h3'
+                  style={{
+                    fontSize: moderateScale(17),
+                    fontWeight: '700',
+                    color: colors.text,
+                    marginBottom: moderateScale(14),
+                  }}
                 >
-                  No user stories in this sprint yet
+                  Sprint Actions
                 </AppText>
+
+                {/* Start or Complete sprint option */}
+                {sprintAction.action !== 'none' && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setIsActionMenuVisible(false);
+                      handleSprintAction();
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: moderateScale(12),
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: moderateScale(38),
+                        height: moderateScale(38),
+                        borderRadius: moderateScale(19),
+                        backgroundColor: isDark
+                          ? 'rgba(16, 185, 129, 0.2)'
+                          : '#ECFDF5',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: moderateScale(12),
+                      }}
+                    >
+                      <Ionicons
+                        name={sprintAction.icon}
+                        size={moderateScale(20)}
+                        color='#10B981'
+                      />
+                    </View>
+                    <AppText
+                      variant='body'
+                      style={{
+                        fontSize: moderateScale(15),
+                        fontWeight: '600',
+                        color: colors.text,
+                      }}
+                    >
+                      {sprintAction.label}
+                    </AppText>
+                  </TouchableOpacity>
+                )}
+
+                {/* Edit Sprint Option */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setIsActionMenuVisible(false);
+                    setSprintModalMode('update');
+                    setIsEditSprintVisible(true);
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: moderateScale(12),
+                  }}
+                >
+                  <View
+                    style={{
+                      width: moderateScale(38),
+                      height: moderateScale(38),
+                      borderRadius: moderateScale(19),
+                      backgroundColor: isDark
+                        ? 'rgba(37, 99, 235, 0.2)'
+                        : '#EFF6FF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: moderateScale(12),
+                    }}
+                  >
+                    <Ionicons
+                      name='pencil-outline'
+                      size={moderateScale(19)}
+                      color={COLOR_BLUE}
+                    />
+                  </View>
+                  <AppText
+                    variant='body'
+                    style={{
+                      fontSize: moderateScale(15),
+                      fontWeight: '600',
+                      color: colors.text,
+                    }}
+                  >
+                    Edit Sprint Details
+                  </AppText>
+                </TouchableOpacity>
+
+                {/* Delete Sprint Option */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setIsActionMenuVisible(false);
+                    setIsDeleteModalVisible(true);
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: moderateScale(12),
+                  }}
+                >
+                  <View
+                    style={{
+                      width: moderateScale(38),
+                      height: moderateScale(38),
+                      borderRadius: moderateScale(19),
+                      backgroundColor: isDark
+                        ? 'rgba(239, 68, 68, 0.2)'
+                        : '#FFF1F2',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: moderateScale(12),
+                    }}
+                  >
+                    <Ionicons
+                      name='trash-outline'
+                      size={moderateScale(19)}
+                      color={COLOR_ROSE}
+                    />
+                  </View>
+                  <AppText
+                    variant='body'
+                    style={{
+                      fontSize: moderateScale(15),
+                      fontWeight: '600',
+                      color: COLOR_ROSE,
+                    }}
+                  >
+                    Delete Sprint
+                  </AppText>
+                </TouchableOpacity>
+
+                {/* Cancel Button */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setIsActionMenuVisible(false)}
+                  style={{
+                    marginTop: moderateScale(10),
+                    backgroundColor: isDark ? colors.surface : '#F1F5F9',
+                    borderRadius: moderateScale(14),
+                    paddingVertical: moderateScale(12),
+                    alignItems: 'center',
+                  }}
+                >
+                  <AppText
+                    variant='body'
+                    style={{
+                      fontSize: moderateScale(14),
+                      fontWeight: '600',
+                      color: colors.textSecondary,
+                    }}
+                  >
+                    Cancel
+                  </AppText>
+                </TouchableOpacity>
               </View>
-            ) : null
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Delete Sprint Modal */}
+      <DeleteColumnModal
+        visible={isDeleteModalVisible}
+        columnTitle='Want to delete this sprint?'
+        onClose={() => {
+          if (!isDeleting) {
+            setIsDeleteModalVisible(false);
           }
-          ListFooterComponent={
-            isFetchingMore ? <UserStoriesPaginationSkeleton /> : null
-          }
-        />
-      )}
+        }}
+        onDelete={async () => {
+          await handleDeleteSprint(projectId || '', sprintId);
+        }}
+        loading={isDeleting}
+      />
+
+      {/* Delete Story Modal */}
       <DeleteColumnModal
         visible={Boolean(deleteStoryItem)}
         title='Delete User Story'
@@ -1272,6 +2320,63 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         onDelete={handleConfirmDeleteStory}
       />
 
+      {/* Start / Update Sprint Modal */}
+      <UpdateSprintModal
+        visible={isEditSprintVisible}
+        onClose={() => setIsEditSprintVisible(false)}
+        mode={sprintModalMode}
+        sprint={currentSprint}
+        isUpdating={isUpdatingSprint || isStartingSprint}
+        onStart={async payload => {
+          await startSprint({
+            project_id: projectId || '',
+            sprint_id: sprintId,
+            payload,
+          }).unwrap();
+          setIsEditSprintVisible(false);
+          await dispatch(
+            getSprintByIdThunk({
+              project_id: projectId || '',
+              sprint_id: sprintId,
+            }),
+          ).unwrap();
+          showSnackbar({
+            message: 'Sprint started successfully',
+            type: 'success',
+          });
+        }}
+        onUpdate={async payload => {
+          try {
+            setIsUpdatingSprint(true);
+            await updateSprintDetails({
+              project_id: projectId || '',
+              sprint_id: sprintId,
+              payload: {
+                name: payload.name ?? currentSprint?.name ?? '',
+                goal: payload.goal ?? currentSprint?.goal ?? undefined,
+                end_date: payload.end_date ?? currentSprint?.end_date ?? '',
+              },
+            }).unwrap();
+
+            setIsEditSprintVisible(false);
+            await dispatch(
+              getSprintByIdThunk({
+                project_id: projectId || '',
+                sprint_id: sprintId,
+              }),
+            ).unwrap();
+
+            showSnackbar({
+              message: 'Sprint updated successfully',
+              type: 'success',
+            });
+          } finally {
+            setIsUpdatingSprint(false);
+          }
+        }}
+      />
+
+      {/* Complete Sprint Modal */}
       <UpdateSprintModal
         visible={isCompleteSprintVisible}
         mode='complete'

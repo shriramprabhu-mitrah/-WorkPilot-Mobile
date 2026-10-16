@@ -140,12 +140,15 @@ const ProjectDetails: React.FC = () => {
   // 2. Board Tab Preload
 
   useGetBoardStoriesQuery(
-    effectiveProjectId && currentSprintIdState
+    effectiveProjectId
       ? {
           project_id: effectiveProjectId,
           page: 1,
-          page_size: 5,
-          sprint_id: currentSprintIdState,
+          page_size: 10,
+          sprint_id:
+            currentSprintIdState && currentSprintIdState !== 'all'
+              ? currentSprintIdState
+              : undefined,
           tasks_per_status: 5,
         }
       : skipToken,
