@@ -193,7 +193,7 @@ const ProjectDeatailsScreen = () => {
     useCreateUserStoryMutation();
 
   const {
-    currentData: boardStoriesResponse,
+    data: boardStoriesResponse,
     isFetching: isBoardStoriesFetching,
     isLoading: isBoardStoriesLoading,
     isError: isBoardStoriesError,
@@ -203,7 +203,7 @@ const ProjectDeatailsScreen = () => {
       ? {
           project_id: projectId,
           page: currentPage,
-          page_size: 5,
+          page_size: 10,
           sprint_id: currentSprintId,
           tasks_per_status: 5,
           task_assignee_id:
@@ -406,6 +406,7 @@ const ProjectDeatailsScreen = () => {
     }
     previousSprintId.current = rawSprintId;
     hasInitializedStories.current = false;
+    lastRequestedPageRef.current = 1;
     setLocalUserStories([]);
     setDropZones([]);
     setActiveDropZone(null);
@@ -417,10 +418,11 @@ const ProjectDeatailsScreen = () => {
     setTaskPagination({});
     taskLocationOverridesRef.current.clear();
     taskMoveVersionRef.current += 1;
-  }, [projectId, currentSprintId]);
+  }, [projectId, rawSprintId]);
 
   useEffect(() => {
     loadedStoriesRef.current.clear();
+    lastRequestedPageRef.current = 1;
     setCurrentPage(1);
     setIsFetchingMore(false);
     hasInitializedStories.current = false;
@@ -501,22 +503,21 @@ const ProjectDeatailsScreen = () => {
       })),
     }));
 
-    if (!hasInitializedStories.current && boardStories.length > 0) {
-      setLocalUserStories(mergedStories);
-      hasInitializedStories.current = true;
-      setIsFetchingMore(false);
-    } else if (currentPage > 1) {
-      setLocalUserStories(prev => {
-        const existingIds = new Set(prev.map(s => s.id));
-        const fresh = mergedStories.filter(s => !existingIds.has(s.id));
-        return fresh.length > 0 ? [...prev, ...fresh] : prev;
+    setLocalUserStories(prev => {
+      if (prev.length === 0) return mergedStories;
+      const prevMap = new Map(prev.map(s => [s.id, s]));
+      return mergedStories.map(story => {
+        const existing = prevMap.get(story.id);
+        if (!existing) return story;
+        return {
+          ...story,
+          is_favourite: existing.is_favourite ?? story.is_favourite,
+        };
       });
-      setIsFetchingMore(false);
-    } else {
-      setLocalUserStories(mergedStories);
-      setIsFetchingMore(false);
-    }
-  }, [boardStories, currentPage, storeLoading, isBoardStoriesFetching]);
+    });
+    hasInitializedStories.current = true;
+    setIsFetchingMore(false);
+  }, [boardStories, storeLoading, isBoardStoriesFetching]);
 
   const handleLoadMoreTasks = useCallback(
     async (storyId: string, statusId: string) => {
@@ -654,24 +655,44 @@ const ProjectDeatailsScreen = () => {
     [projectId, triggerGetStatusTasks],
   );
 
+  const lastRequestedPageRef = useRef(1);
+
+  const hasNextPage = useMemo(() => {
+    if (!boardMeta) return false;
+    if (boardMeta.has_next !== undefined) return Boolean(boardMeta.has_next);
+    if (boardMeta.total_pages !== undefined)
+      return currentPage < boardMeta.total_pages;
+    const totalCount = boardMeta.total ?? boardMeta.total_items;
+    if (totalCount !== undefined) {
+      const currentCount =
+        boardStories.length > 0 ? boardStories.length : localUserStories.length;
+      return currentCount < totalCount;
+    }
+    return false;
+  }, [boardMeta, currentPage, boardStories.length, localUserStories.length]);
+
   const loadNextPage = useCallback(() => {
     if (
       !isFocused ||
       !projectId ||
-      !boardMeta?.has_next ||
+      !hasNextPage ||
       isBoardStoriesFetching ||
       isFetchingMore
     ) {
       return;
     }
+    const nextPage = currentPage + 1;
+    if (lastRequestedPageRef.current === nextPage) return;
+    lastRequestedPageRef.current = nextPage;
     setIsFetchingMore(true);
-    setCurrentPage(prev => prev + 1);
+    setCurrentPage(nextPage);
   }, [
-    projectId,
-    boardMeta?.has_next,
     isFocused,
+    projectId,
+    hasNextPage,
     isBoardStoriesFetching,
     isFetchingMore,
+    currentPage,
   ]);
 
   const handleVerticalScroll = useCallback(
@@ -684,7 +705,7 @@ const ProjectDeatailsScreen = () => {
       verticalScrollOffset.value = offsetY;
       const distanceFromBottom =
         totalContentHeight - (offsetY + viewportHeight);
-      if (distanceFromBottom <= 500) {
+      if (distanceFromBottom <= 400) {
         loadNextPage();
       }
     },
@@ -694,11 +715,14 @@ const ProjectDeatailsScreen = () => {
   const loadStoriesWhenBoardDoesNotScroll = useCallback(() => {
     if (
       outerViewportHeightRef.current > 0 &&
-      outerContentHeightRef.current <= outerViewportHeightRef.current
+      outerContentHeightRef.current <= outerViewportHeightRef.current + 100 &&
+      hasNextPage &&
+      !isBoardStoriesFetching &&
+      !isFetchingMore
     ) {
       loadNextPage();
     }
-  }, [loadNextPage]);
+  }, [hasNextPage, isBoardStoriesFetching, isFetchingMore, loadNextPage]);
 
   const toggleStory = useCallback((storyId: string) => {
     setExpandedStories(prev => ({ ...prev, [storyId]: !prev[storyId] }));
@@ -1304,187 +1328,190 @@ const ProjectDeatailsScreen = () => {
         backgroundColor: colors.surface,
       }}
     >
-      <Animated.ScrollView
-        ref={verticalScrollRef}
-        onLayout={event => {
-          outerViewportHeightRef.current = event.nativeEvent.layout.height;
-          loadStoriesWhenBoardDoesNotScroll();
-        }}
-        onContentSizeChange={(_width, height) => {
-          outerContentHeightRef.current = height;
-          loadStoriesWhenBoardDoesNotScroll();
-        }}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={handleVerticalScroll}
+      {/* Board Header - Fixed at top, below project tabs */}
+      <View
         style={{
-          flex: 1,
-          backgroundColor: colors.surface,
-        }}
-        contentContainerStyle={{
-          paddingTop: moderateScale(20),
-          paddingBottom: isSmallHeight ? hp(20) : hp(12),
+          paddingHorizontal: layout.paddingHorizontal,
+          paddingTop: layout.tightGap,
+          paddingBottom: moderateScale(12),
         }}
       >
-        <View
-          style={{
-            paddingHorizontal: layout.paddingHorizontal,
-            paddingTop: layout.tightGap,
-            paddingBottom: moderateScale(12),
-          }}
-        >
-          <View className='flex-row items-start justify-between'>
-            <View className='flex-1'>
-              <AppText variant='title' className='font-bold'>
-                Kanban Board
-              </AppText>
-              <AppText
-                variant='body'
-                style={{ marginTop: moderateScale(4), opacity: 0.5 }}
-              >
-                Visualize and manage your team's tasks across workflow stages
-              </AppText>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setIsFilterVisible(true)}
-              className='ml-2 flex-row items-center'
+        <View className='flex-row items-start justify-between'>
+          <View className='flex-1'>
+            <AppText variant='title' className='font-bold'>
+              Kanban Board
+            </AppText>
+            <AppText
+              variant='body'
+              style={{ marginTop: moderateScale(4), opacity: 0.5 }}
+            >
+              Visualize and manage your team's tasks across workflow stages
+            </AppText>
+          </View>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setIsFilterVisible(true)}
+            className='ml-2 flex-row items-center'
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: Radius.md,
+              paddingHorizontal: moderateScale(10),
+              paddingVertical: moderateScale(7),
+            }}
+          >
+            <Ionicons
+              name='filter-outline'
+              size={moderateScale(16)}
+              color={colors.white}
+            />
+            <AppText
+              variant='caption'
+              className='ml-1 font-bold'
+              color={colors.white}
+            >
+              Filter {appliedFiltersCount > 0 ? `(${appliedFiltersCount})` : ''}
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Board Container: Horizontal ScrollView wraps fixed column headers & vertically scrollable stories */}
+      <Animated.ScrollView
+        ref={horizontalScrollRef}
+        horizontal
+        nestedScrollEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={event => {
+          horizontalScrollOffset.value = event.nativeEvent.contentOffset.x;
+        }}
+        style={{
+          flex: 1,
+        }}
+        contentContainerStyle={{
+          paddingHorizontal: layout.paddingHorizontal,
+        }}
+      >
+        {(isBoardStoriesLoading && localUserStories.length === 0) ||
+        isSprintSwitchLoading ||
+        (isFilterApplying && isBoardStoriesFetching) ? (
+          <BoardSkeleton columnCount={Math.max(boardColumns.length ?? 0, 3)} />
+        ) : (
+          <View style={{ flex: 1 }}>
+            {/* Fixed Board Header (Column Headers) */}
+            <View
               style={{
-                backgroundColor: colors.primary,
-                borderRadius: Radius.md,
-                paddingHorizontal: moderateScale(10),
-                paddingVertical: moderateScale(7),
+                flexDirection: 'row',
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+                backgroundColor: colors.surface,
               }}
             >
-              <Ionicons
-                name='filter-outline'
-                size={moderateScale(16)}
-                color={colors.white}
-              />
-              <AppText
-                variant='caption'
-                className='ml-1 font-bold'
-                color={colors.white}
-              >
-                Filter{' '}
-                {appliedFiltersCount > 0 ? `(${appliedFiltersCount})` : ''}
-              </AppText>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <Animated.ScrollView
-          ref={horizontalScrollRef}
-          horizontal
-          nestedScrollEnabled
-          showsHorizontalScrollIndicator={false}
-          scrollEventThrottle={16}
-          onScroll={event => {
-            horizontalScrollOffset.value = event.nativeEvent.contentOffset.x;
-          }}
-          contentContainerStyle={{
-            paddingHorizontal: layout.paddingHorizontal,
-            paddingTop: layout.tightGap,
-          }}
-        >
-          {(isBoardStoriesLoading && localUserStories.length === 0) ||
-          isSprintSwitchLoading ||
-          (isFilterApplying && isBoardStoriesFetching) ? (
-            <BoardSkeleton
-              columnCount={Math.max(boardColumns.length ?? 0, 3)}
-            />
-          ) : (
-            <View>
               <View
-                style={{
-                  flexDirection: 'row',
-                  borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
-                }}
+                style={{ width: moderateScale(250), padding: 12 }}
+                className='flex-row items-center justify-between'
               >
                 <View
-                  style={{ width: moderateScale(250), padding: 12 }}
-                  className='flex-row items-center justify-between'
+                  className='flex-row items-center'
+                  style={{ gap: layout.elementGap }}
                 >
+                  <AppText
+                    variant='caption'
+                    className='font-bold tracking-wider'
+                    color={colors.textSecondary}
+                  >
+                    User Stories
+                  </AppText>
                   <View
-                    className='flex-row items-center'
-                    style={{ gap: layout.elementGap }}
+                    className='items-center justify-center'
+                    style={{
+                      minWidth: moderateScale(22),
+                      height: moderateScale(22),
+                      paddingHorizontal: 6,
+                      backgroundColor: colors.primary,
+                      borderRadius: Radius.circle,
+                    }}
                   >
                     <AppText
                       variant='caption'
-                      className='font-bold tracking-wider'
-                      color={colors.textSecondary}
+                      className='text-xs font-bold'
+                      color={colors.white}
                     >
-                      User Stories
+                      {boardMeta?.total ?? 0}
                     </AppText>
-                    <View
-                      className='items-center justify-center'
-                      style={{
-                        minWidth: moderateScale(22),
-                        height: moderateScale(22),
-                        paddingHorizontal: 6,
-                        backgroundColor: colors.primary,
-                        borderRadius: Radius.circle,
-                      }}
-                    >
-                      <AppText
-                        variant='caption'
-                        className='text-xs font-bold'
-                        color={colors.white}
-                      >
-                        {boardMeta?.total ?? 0}
-                      </AppText>
-                    </View>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => setIsModalVisible(true)}
-                    activeOpacity={0.8}
-                    className='items-center justify-center'
-                    style={{
-                      width: moderateScale(22),
-                      height: moderateScale(22),
-                      borderRadius: Radius.circle,
-                      backgroundColor: colors.primary,
-                      elevation: 4,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.25,
-                      shadowRadius: 3,
-                    }}
-                  >
-                    <Ionicons name='add' size={15} color={colors.white} />
-                  </TouchableOpacity>
                 </View>
-                {boardColumns.map(status => (
-                  <View
-                    key={status.status_id}
-                    style={{
-                      width: moderateScale(260),
-                      padding: 12,
-                      borderLeftWidth: 1,
-                      borderLeftColor: colors.border,
-                    }}
-                  >
-                    <View
-                      style={{ flexDirection: 'row', alignItems: 'center' }}
-                    >
-                      <View
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 5,
-                          backgroundColor: status.color,
-                          marginRight: 8,
-                        }}
-                      />
-                      <AppText variant='body' className='font-bold'>
-                        {status.status_name}
-                      </AppText>
-                    </View>
-                  </View>
-                ))}
+                <TouchableOpacity
+                  onPress={() => setIsModalVisible(true)}
+                  activeOpacity={0.8}
+                  className='items-center justify-center'
+                  style={{
+                    width: moderateScale(30),
+                    height: moderateScale(30),
+                    borderRadius: Radius.circle,
+                    backgroundColor: colors.primary,
+                    elevation: 4,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 3,
+                  }}
+                >
+                  <Ionicons name='add' size={20} color={colors.white} />
+                </TouchableOpacity>
               </View>
+              {boardColumns.map(status => (
+                <View
+                  key={status.status_id}
+                  style={{
+                    width: moderateScale(260),
+                    padding: 12,
+                    borderLeftWidth: 1,
+                    borderLeftColor: colors.border,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: status.color,
+                        marginRight: 8,
+                      }}
+                    />
+                    <AppText variant='body' className='font-bold'>
+                      {status.status_name}
+                    </AppText>
+                  </View>
+                </View>
+              ))}
+            </View>
 
+            {/* Vertically Scrollable Board Stories Area (Below Board Header) */}
+            <Animated.ScrollView
+              ref={verticalScrollRef}
+              nestedScrollEnabled
+              onLayout={event => {
+                outerViewportHeightRef.current =
+                  event.nativeEvent.layout.height;
+                loadStoriesWhenBoardDoesNotScroll();
+              }}
+              onContentSizeChange={(_width, height) => {
+                outerContentHeightRef.current = height;
+                loadStoriesWhenBoardDoesNotScroll();
+              }}
+              showsVerticalScrollIndicator={false}
+              scrollEventThrottle={16}
+              onScroll={handleVerticalScroll}
+              style={{
+                flex: 1,
+                backgroundColor: colors.surface,
+              }}
+              contentContainerStyle={{
+                paddingBottom: isSmallHeight ? hp(20) : hp(12),
+              }}
+            >
               {displayStories.map(story => (
                 <UserStoryBoardRow
                   key={story.id}
@@ -1539,7 +1566,7 @@ const ProjectDeatailsScreen = () => {
                   </View>
                 )}
 
-              {isFetchingMore && (
+              {isFetchingMore ? (
                 <View
                   style={{
                     paddingVertical: 16,
@@ -1548,10 +1575,27 @@ const ProjectDeatailsScreen = () => {
                 >
                   <ActivityIndicator size='small' color={colors.primary} />
                 </View>
-              )}
-            </View>
-          )}
-        </Animated.ScrollView>
+              ) : hasNextPage ? (
+                <TouchableOpacity
+                  onPress={loadNextPage}
+                  activeOpacity={0.7}
+                  style={{
+                    paddingVertical: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AppText
+                    variant='caption'
+                    style={{ color: colors.primary, fontWeight: '600' }}
+                  >
+                    Load more stories...
+                  </AppText>
+                </TouchableOpacity>
+              ) : null}
+            </Animated.ScrollView>
+          </View>
+        )}
       </Animated.ScrollView>
       {dragPreviewTask && (
         <DragPreviewOverlay

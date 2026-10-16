@@ -576,6 +576,9 @@ export const projectApi = createApi({
       },
       serializeQueryArgs: ({ endpointName, queryArgs }) => {
         const { page, _refetchKey, ...rest } = queryArgs;
+        if (rest.sprint_id === 'all' || !rest.sprint_id) {
+          delete rest.sprint_id;
+        }
         return `${endpointName}_${JSON.stringify(rest)}`;
       },
       merge(currentCache, newItems, { arg }) {
@@ -589,8 +592,11 @@ export const projectApi = createApi({
         const existingIds = new Set(currentCache.data.map(story => story.id));
         const incoming = Array.isArray(newItems?.data) ? newItems.data : [];
         const uniqueNew = incoming.filter(story => !existingIds.has(story.id));
-        currentCache.data.push(...uniqueNew);
-        currentCache.meta = newItems.meta;
+        return {
+          ...newItems,
+          data: [...currentCache.data, ...uniqueNew],
+          meta: newItems.meta,
+        };
       },
       forceRefetch({ currentArg, previousArg }) {
         return (
