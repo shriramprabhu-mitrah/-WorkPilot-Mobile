@@ -232,9 +232,7 @@ const IssueDetailScreen = () => {
 
   const { data: membersResponse, isLoading: membersLoading } =
     useGetProjectMembersQuery(
-      projectId
-        ? { project_id: projectId, page: 1, page_size: 50 }
-        : skipToken,
+      projectId ? { project_id: projectId, page: 1, page_size: 50 } : skipToken,
     );
 
   const members: ProjectMember[] = useMemo(() => {
@@ -563,9 +561,7 @@ const IssueDetailScreen = () => {
       } catch (error: any) {
         setPriority(prevPriority);
         const errorMessage =
-          error?.data?.message ||
-          error?.message ||
-          'Failed to update priority';
+          error?.data?.message || error?.message || 'Failed to update priority';
         showSnackbar({
           message: errorMessage,
           type: 'error',
@@ -589,8 +585,7 @@ const IssueDetailScreen = () => {
       if (!projectId) return;
       const prevAssignee = assignee;
       const targetUserId = member?.user_id ?? null;
-      const newName =
-        member?.full_name || member?.username || 'Unassigned';
+      const newName = member?.full_name || member?.username || 'Unassigned';
 
       setAssignee({ id: targetUserId, name: newName });
 
@@ -617,9 +612,7 @@ const IssueDetailScreen = () => {
       } catch (error: any) {
         setAssignee(prevAssignee);
         const errorMessage =
-          error?.data?.message ||
-          error?.message ||
-          'Failed to update assignee';
+          error?.data?.message || error?.message || 'Failed to update assignee';
         showSnackbar({
           message: errorMessage,
           type: 'error',
@@ -643,8 +636,7 @@ const IssueDetailScreen = () => {
       if (!projectId) return;
       const prevReporter = reporter;
       const targetUserId = member?.user_id ?? null;
-      const newName =
-        member?.full_name || member?.username || 'N/A';
+      const newName = member?.full_name || member?.username || 'N/A';
 
       setReporter({ id: targetUserId, name: newName });
 
@@ -671,9 +663,7 @@ const IssueDetailScreen = () => {
       } catch (error: any) {
         setReporter(prevReporter);
         const errorMessage =
-          error?.data?.message ||
-          error?.message ||
-          'Failed to update reporter';
+          error?.data?.message || error?.message || 'Failed to update reporter';
         showSnackbar({
           message: errorMessage,
           type: 'error',
@@ -1287,9 +1277,7 @@ const IssueDetailScreen = () => {
       setStatus(prevStatus);
       setStatusId(prevStatusId);
       const errorMessage =
-        error?.data?.message ||
-        error?.message ||
-        'Failed to update status';
+        error?.data?.message || error?.message || 'Failed to update status';
       showSnackbar({
         message: errorMessage,
         type: 'error',
@@ -1297,17 +1285,18 @@ const IssueDetailScreen = () => {
     }
   };
 
+  const title =
+    currentItem?.title ||
+    currentItem?.user_story_name ||
+    currentItem?.task_name ||
+    userStroyName ||
+    taskName;
+
   return (
     <Screen scroll={false} backgroundColor={colors.surface}>
       <CommonHeader
         variant='custom'
-        title={
-          currentItem?.title ||
-          currentItem?.user_story_name ||
-          currentItem?.task_name ||
-          userStroyName ||
-          taskName
-        }
+        title={title}
         onBackPress={() => {
           handleDismissInputFocus();
           navigation.goBack();
@@ -1342,6 +1331,7 @@ const IssueDetailScreen = () => {
             <IssueHeaderSection
               colors={colors}
               currentItem={currentItem}
+              title={title}
               status={status}
               statuses={statuses}
               activeStatusColor={activeStatusColor}

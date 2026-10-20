@@ -63,6 +63,20 @@ export type RootStackParamList = {
     sprintId: string;
     sprintName?: string;
   };
+  userDetail: {
+    userId: string;
+    projectId?: string;
+    member?: {
+      full_name?: string;
+      name?: string;
+      username?: string;
+      user_name?: string;
+      email?: string;
+      role?: string;
+      avatar_url?: string | null;
+      color?: string | null;
+    };
+  };
 };
 
 export type ProjectTopTabParamList = {

@@ -25,6 +25,7 @@ export const CREATE_ROLE = `/organization/roles`;
 export const DELETE_ROLE = `/organization/roles/{role_id}`;
 export const UPDATE_ROLE = `/organization/roles/{role_id}`;
 export const REMOVE_ORG_MEMBER = `/organization/remove-user/{user_id}`;
+export const GET_USER_BY_ID = `/project/user/{user_id}`;
 
 //PROJECT
 export const PROJECTS = `/project`;

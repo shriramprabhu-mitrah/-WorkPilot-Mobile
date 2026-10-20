@@ -50,6 +50,7 @@ interface BoardFilterModalProps {
   onLoadMoreAssignees?: () => void;
   hasMoreAssignees?: boolean;
   isLoadingAssignees?: boolean;
+  hideAssignee?: boolean;
 }
 
 const CATEGORIES: { key: FilterCategory; label: string }[] = [
@@ -61,7 +62,9 @@ const CATEGORIES: { key: FilterCategory; label: string }[] = [
 
 const WORK_TYPE_OPTIONS: FilterItemOption[] = [
   { id: 'task', label: 'Task' },
+  { id: 'feature', label: 'Feature' },
   { id: 'bug', label: 'Bug' },
+  { id: 'chore', label: 'Chore' },
   { id: 'story', label: 'Story' },
 ];
 
@@ -199,13 +202,22 @@ export const BoardFilterModal: React.FC<BoardFilterModalProps> = ({
   onLoadMoreAssignees,
   hasMoreAssignees = false,
   isLoadingAssignees = false,
+  hideAssignee = false,
 }) => {
   const { colors } = useTheme();
   const { layout } = useAuthLayout();
   const insets = useSafeAreaInsets();
 
-  const [activeCategory, setActiveCategory] =
-    useState<FilterCategory>('assignee');
+  const categories = useMemo(
+    () =>
+      hideAssignee
+        ? CATEGORIES.filter(category => category.key !== 'assignee')
+        : CATEGORIES,
+    [hideAssignee],
+  );
+  const [activeCategory, setActiveCategory] = useState<FilterCategory>(
+    hideAssignee ? 'status' : 'assignee',
+  );
   const [localFilters, setLocalFilters] =
     useState<SelectedFilters>(selectedFilters);
   const [searchQuery, setSearchQuery] = useState('');
@@ -261,8 +273,9 @@ export const BoardFilterModal: React.FC<BoardFilterModalProps> = ({
       setSearchQuery('');
       setAssigneePage(1);
       setStatusPage(1);
+      setActiveCategory(hideAssignee ? 'status' : 'assignee');
     }
-  }, [visible, selectedFilters]);
+  }, [visible, selectedFilters, hideAssignee]);
 
   React.useEffect(() => {
     if (activeCategory === 'assignee') setAssigneePage(1);
@@ -404,7 +417,7 @@ export const BoardFilterModal: React.FC<BoardFilterModalProps> = ({
               }}
               showsVerticalScrollIndicator={false}
             >
-              {CATEGORIES.map(category => {
+              {categories.map(category => {
                 const isSelected = activeCategory === category.key;
                 const count = selectedCountForCategory(category.key);
                 return (
@@ -425,7 +438,7 @@ export const BoardFilterModal: React.FC<BoardFilterModalProps> = ({
               {/* Search Field */}
               <View className='mx-3 mt-3'>
                 <AppInput
-                  placeholder={`Search ${CATEGORIES.find(c => c.key === activeCategory)?.label.toLowerCase()}...`}
+                  placeholder={`Search ${categories.find(c => c.key === activeCategory)?.label.toLowerCase()}...`}
                   placeholderTextColor={colors.textSecondary}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -446,9 +459,9 @@ export const BoardFilterModal: React.FC<BoardFilterModalProps> = ({
                 style={{ color: colors.textSecondary }}
               >
                 FILTER BY{' '}
-                {CATEGORIES.find(
-                  c => c.key === activeCategory,
-                )?.label.toUpperCase()}
+                {categories
+                  .find(c => c.key === activeCategory)
+                  ?.label.toUpperCase()}
               </AppText>
 
               {/* Options */}
@@ -464,7 +477,10 @@ export const BoardFilterModal: React.FC<BoardFilterModalProps> = ({
                     onPress={() => toggleOption(activeCategory, item.id)}
                     colors={colors}
                     showAvatar={activeCategory === 'assignee'}
-                    showColor={activeCategory === 'status'}
+                    showColor={
+                      activeCategory === 'status' ||
+                      activeCategory === 'priority'
+                    }
                   />
                 ))}
 
