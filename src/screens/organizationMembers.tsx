@@ -151,7 +151,7 @@ const OrganizationMembers = () => {
     () => (membersResponse?.data as OrganizationMember[] | undefined) ?? [],
     [membersResponse?.data],
   );
-  console.log('members', members);
+
   const filteredMembers = useMemo(() => {
     const search = debouncedSearch.toLowerCase();
 
@@ -489,7 +489,14 @@ const OrganizationMembers = () => {
                 )}
                 overshootRight={false}
               >
-                <View
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    navigation.navigate('userDetail', {
+                      userId: item.id,
+                      member: item,
+                    });
+                  }}
                   className='border p-3.5'
                   style={{
                     backgroundColor: colors.card,
@@ -527,7 +534,7 @@ const OrganizationMembers = () => {
                           className='font-bold'
                           color={colors.white}
                         >
-                          {initials || '?'}
+                          {initials}
                         </AppText>
                       </View>
                     )}
@@ -548,7 +555,7 @@ const OrganizationMembers = () => {
                         numberOfLines={1}
                         className='capitalize'
                       >
-                        {item.role || 'Member'}
+                        {item.role}
                       </AppText>
                     </View>
 
@@ -702,7 +709,7 @@ const OrganizationMembers = () => {
                       </View>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
               </Swipeable>
             );
           }}

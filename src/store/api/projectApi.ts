@@ -30,6 +30,7 @@ import {
   START_SPRINT,
   COMPLETE_SPRINT_BY_ID,
   UPDATE_SPRINT_BY_ID,
+  GET_USER_BY_ID,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsResponse,
@@ -86,6 +87,8 @@ import {
 import {
   CreateSprintPayload,
   CreateSprintResponse,
+  GetByIdUserResponse,
+  GetByIdUserQueryArgs,
 } from '../../types/project.type';
 
 export const projectApi = createApi({
@@ -696,6 +699,23 @@ export const projectApi = createApi({
         { type: 'ProjectOverview', id: project_id },
       ],
     }),
+
+    getUserById: build.query<GetByIdUserResponse, GetByIdUserQueryArgs>({
+      query: ({ user_id, page = 1, page_size = 10, search, status }) => ({
+        url: GET_USER_BY_ID.replace('{user_id}', user_id),
+        method: 'GET',
+        params: {
+          page,
+          page_size,
+          ...(search ? { search } : {}),
+          ...(status && status !== 'all' ? { status } : {}),
+        },
+      }),
+      providesTags: (_result, _error, { user_id }) => [
+        { type: 'Projects', id: `USER_${user_id}` },
+        'Projects',
+      ],
+    }),
   }),
 });
 
@@ -733,6 +753,7 @@ export const {
   useStartSprintMutation,
   useCompleteSprintMutation,
   useUpdateSprintDetailsMutation,
+  useLazyGetUserByIdQuery,
 } = projectApi;
 
 // Aliases matching thunk names

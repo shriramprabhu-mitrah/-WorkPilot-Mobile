@@ -158,7 +158,10 @@ export interface UpdateProjectThunkPayload {
 export interface ProjectMember {
   user_id: string;
   username: string;
+  user_name: string;
+  email: string;
   full_name: string;
+  name: string;
   role: string;
   avatar_url: string | null;
   color: string;
@@ -186,6 +189,7 @@ export interface GetProjectMembersQueryArgs {
   page?: number;
   page_size?: number;
   name?: string;
+  user_id?: string;
   /** Changing this value forces a refetch. Not sent to the API. */
   _refetchKey?: number;
 }
@@ -1047,4 +1051,50 @@ export interface UpdateSprintDetailsArgs {
   project_id: string;
   sprint_id: string;
   payload: UpdateSprintDetailsPayload;
+}
+
+export interface UserAssignedProject {
+  project_id: string;
+  role: string;
+  project_name: string;
+  status: string;
+  organization_name: string;
+  project_key: string;
+  key: string;
+  project_slug: string;
+}
+
+export interface UserProjectsData {
+  user_id: string;
+  user_name: string;
+  username: string;
+  full_name: string;
+  email: string;
+  avatar_url: string;
+  color: string;
+  role: string;
+  project: UserAssignedProject[];
+}
+
+export interface GetByIdUserResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: UserProjectsData;
+  meta?: {
+    page: number;
+    page_size: number;
+    total_items: number;
+    total_pages: number;
+    has_next: boolean;
+    has_previous: boolean;
+  };
+}
+
+export interface GetByIdUserQueryArgs {
+  user_id: string;
+  page?: number;
+  page_size?: number;
+  search?: string;
+  status?: string;
 }

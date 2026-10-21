@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { AppInput, AppText } from '../components';
 import { Radius } from '../constants/Radius';
 import { useAuthLayout } from '../hooks/useAuthLayout';
@@ -35,7 +36,7 @@ import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import DeleteColumnModal from '../components/DeleteColumnModal';
 import { showSnackbar } from '../components/common/Snackbar';
-import { RoleApiItem } from '../types/auth.type';
+import { RootStackParamList } from '../types/navigationTypes';
 import AddProjectMemberModal from '../components/projectMemberIniviteModel';
 import EditMemberRoleModal from '../components/EditMemberRoleModal';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -79,7 +80,11 @@ const SwipeRightActions = ({
           justifyContent: 'center',
         }}
       >
-        <Ionicons name='create-outline' size={moderateScale(25)} color='#FFFFFF' />
+        <Ionicons
+          name='create-outline'
+          size={moderateScale(25)}
+          color='#FFFFFF'
+        />
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -96,7 +101,11 @@ const SwipeRightActions = ({
           justifyContent: 'center',
         }}
       >
-        <Ionicons name='trash-outline' size={moderateScale(25)} color='#FFFFFF' />
+        <Ionicons
+          name='trash-outline'
+          size={moderateScale(25)}
+          color='#FFFFFF'
+        />
       </TouchableOpacity>
     </View>
   );
@@ -115,6 +124,7 @@ const styles = StyleSheet.create({
 });
 
 const Members = () => {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const { layout, moderateScale } = useAuthLayout();
   const [searchQuery, setSearchQuery] = useState('');
@@ -199,7 +209,9 @@ const Members = () => {
 
   const availableOrgMembers = useMemo(() => {
     return orgMembersList.filter(m => {
-      const memberId = String(m.id || (m as any)._id || (m as any).user_id || '');
+      const memberId = String(
+        m.id || (m as any)._id || (m as any).user_id || '',
+      );
       const username = m.username ? String(m.username).toLowerCase() : '';
       if (memberId && existingMemberIds.has(memberId)) return false;
       if (username && existingMemberIds.has(username)) return false;
@@ -274,7 +286,13 @@ const Members = () => {
         type: 'error',
       });
     }
-  }, [memberToRemove, projectId, removeProjectMember, refetch, refetchOrgMembers]);
+  }, [
+    memberToRemove,
+    projectId,
+    removeProjectMember,
+    refetch,
+    refetchOrgMembers,
+  ]);
 
   const handleAddMembersSubmit = async (
     members: { user_id: string; role_id: string }[],
@@ -499,7 +517,16 @@ const Members = () => {
                 )}
                 overshootRight={false}
               >
-                <View
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() =>
+                    projectId &&
+                    navigation.navigate('userDetail', {
+                      userId: item.user_id,
+                      projectId,
+                      member: item,
+                    })
+                  }
                   className='flex-row items-center border p-3.5 px-3'
                   style={{
                     backgroundColor: colors.card,
@@ -575,7 +602,7 @@ const Members = () => {
                       {item.role || 'Member'}
                     </AppText>
                   </View>
-                </View>
+                </TouchableOpacity>
               </Swipeable>
             );
           }}

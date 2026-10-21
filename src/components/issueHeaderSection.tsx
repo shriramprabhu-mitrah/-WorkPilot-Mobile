@@ -11,6 +11,7 @@ import { getStatusLabel } from '../utils/enum';
 import { useTheme } from '../theme/ThemeProvider';
 
 interface Props {
+  title: string;
   colors: ThemeColors;
   currentItem: any;
   status: string;
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export const IssueHeaderSection: React.FC<Props> = ({
+  title,
   currentItem,
   status,
   activeStatusColor,
@@ -65,7 +67,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
         color={colors.text}
         className='text-xl font-bold capitalize'
       >
-        {currentItem?.title}
+        {currentItem?.title || title}
       </AppText>
 
       <View

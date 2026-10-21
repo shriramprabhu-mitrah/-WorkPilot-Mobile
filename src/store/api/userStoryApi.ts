@@ -263,7 +263,11 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
           currentArg?._refetchKey !== previousArg?._refetchKey
         );
       },
-      providesTags: (_result, _error, { projectId, user_story_id, unassigned_task }) => [
+      providesTags: (
+        _result,
+        _error,
+        { projectId, user_story_id, unassigned_task },
+      ) => [
         {
           type: 'Tasks',
           id: `${projectId}_${user_story_id ?? (unassigned_task ? 'unassigned' : 'all')}`,
@@ -526,7 +530,10 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
     >({
       query: ({ projectId, payload }) => {
         const cleanPayload = { ...payload };
-        if ((cleanPayload as any).sprint_id === 'all' || !(cleanPayload as any).sprint_id) {
+        if (
+          (cleanPayload as any).sprint_id === 'all' ||
+          !(cleanPayload as any).sprint_id
+        ) {
           delete (cleanPayload as any).sprint_id;
         }
         return {
