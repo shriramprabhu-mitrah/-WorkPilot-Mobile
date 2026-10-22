@@ -49,6 +49,7 @@ import {
 import DeleteColumnModal from '../components/DeleteColumnModal';
 import UpdateSprintModal from '../components/UpdateSprintModal';
 import UserStoriesPaginationSkeleton from '../components/skeleton/UserStoriesPaginationSkeleton';
+import SprintDetailsSkeleton from '../components/skeleton/SprintDetailsSkeleton';
 import { RootStackParamList } from '../types/navigationTypes';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
@@ -201,6 +202,9 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     userStories = [],
     userStoryLoading: loading,
     isFetchingMore,
+    getCurrentSprintLoading,
+    error,
+    userStoryError,
   } = useAppSelector((state: RootState) => state.projects);
 
   const projectId = project?.id;
@@ -212,6 +216,28 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   } = usePermissions({
     projectId: projectId?.toString(),
   });
+
+  const isSameSprint = Boolean(
+    currentSprint?.id && String(currentSprint.id) === String(sprintId),
+  );
+
+  const [hasLoadedForThisSprint, setHasLoadedForThisSprint] =
+    useState(isSameSprint);
+  const currentSprintIdRef = useRef(sprintId);
+
+  if (currentSprintIdRef.current !== sprintId) {
+    currentSprintIdRef.current = sprintId;
+    setHasLoadedForThisSprint(isSameSprint);
+  }
+
+  useEffect(() => {
+    if (
+      (isSameSprint && !getCurrentSprintLoading && !loading) ||
+      (!getCurrentSprintLoading && !loading && (error || userStoryError))
+    ) {
+      setHasLoadedForThisSprint(true);
+    }
+  }, [isSameSprint, getCurrentSprintLoading, loading, error, userStoryError]);
 
   // Fetch Sprint & User Stories on Mount
   useEffect(() => {
@@ -2033,6 +2059,10 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
       isFilterActive,
     ],
   );
+
+  if (!hasLoadedForThisSprint) {
+    return <SprintDetailsSkeleton onBack={() => navigation.goBack()} />;
+  }
 
   return (
     <View

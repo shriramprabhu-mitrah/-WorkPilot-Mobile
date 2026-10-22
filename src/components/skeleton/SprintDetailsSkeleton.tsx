@@ -1,10 +1,15 @@
-import { View } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useResponsive } from '../../utils/responsive';
 import { SkeletonBlock } from '../../utils/validations';
 import Screen from '../common/ScreenWapper';
 
-const SprintDetailsSkeleton = () => {
+interface SprintDetailsSkeletonProps {
+  onBack?: () => void;
+}
+
+const SprintDetailsSkeleton = ({ onBack }: SprintDetailsSkeletonProps) => {
   const { colors } = useTheme();
   const { hp, wp, moderateScale } = useResponsive();
 
@@ -33,12 +38,35 @@ const SprintDetailsSkeleton = () => {
           {/* Back, Status, Edit and Delete */}
           <View className='flex-row items-center justify-between'>
             <View className='flex-row items-center'>
-              <SkeletonBlock
-                width={moderateScale(34)}
-                height={moderateScale(34)}
-                borderRadius={moderateScale(17)}
-                backgroundColor={skeletonColor}
-              />
+              {onBack ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={onBack}
+                  style={{
+                    width: moderateScale(34),
+                    height: moderateScale(34),
+                    borderRadius: moderateScale(17),
+                    backgroundColor: colors.surface,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Ionicons
+                    name='arrow-back'
+                    size={moderateScale(18)}
+                    color={colors.text}
+                  />
+                </TouchableOpacity>
+              ) : (
+                <SkeletonBlock
+                  width={moderateScale(34)}
+                  height={moderateScale(34)}
+                  borderRadius={moderateScale(17)}
+                  backgroundColor={skeletonColor}
+                />
+              )}
 
               <View style={{ marginLeft: moderateScale(12) }}>
                 <SkeletonBlock
