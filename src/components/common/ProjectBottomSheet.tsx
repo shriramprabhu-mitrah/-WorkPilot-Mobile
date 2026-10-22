@@ -98,6 +98,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [allProjects, setAllProjects] = useState<any[]>([]);
   const [allSprints, setAllSprints] = useState<any[]>([]);
+  const [loadedListKey, setLoadedListKey] = useState<string | null>(null);
   const [hasNoMore, setHasNoMore] = useState(false);
   const lastRequestedPageRef = useRef(1);
   const isSprint = mode === 'sprints';
@@ -124,7 +125,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
 
   // RTK Query: Fetch projects
   const {
-    data: projectsResponse,
+    currentData: projectsResponse,
     isLoading: isProjectsLoading,
     isFetching: isProjectsFetching,
   } = useGetProjectsQuery(
@@ -134,7 +135,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
 
   // RTK Query: Fetch sprints
   const {
-    data: sprintsResponse,
+    currentData: sprintsResponse,
     isLoading: isSprintsLoading,
     isFetching: isSprintsFetching,
   } = useGetSprintsQuery(
@@ -147,13 +148,14 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     { skip: !visible || !isSprint || !resolvedProjectId },
   );
 
-  // Extract raw response data
-  const projectsData = projectsResponse?.data || [];
-  const sprintsData = sprintsResponse?.data || [];
+  const isCurrentFetching = isSprint ? isSprintsFetching : isProjectsFetching;
+  const isCurrentLoading = isSprint ? isSprintsLoading : isProjectsLoading;
+  const listKey = isSprint ? `sprints:${resolvedProjectId ?? ''}` : 'projects';
 
   // Append paginated projects data
   useEffect(() => {
     if (!visible || !projectsResponse?.data) return;
+    setLoadedListKey('projects');
     const incoming = Array.isArray(projectsResponse.data)
       ? projectsResponse.data
       : [];
@@ -187,6 +189,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   // Append paginated sprints data
   useEffect(() => {
     if (!visible || !sprintsResponse?.data) return;
+    setLoadedListKey(`sprints:${resolvedProjectId ?? ''}`);
     const incoming = Array.isArray(sprintsResponse.data)
       ? sprintsResponse.data
       : [];
@@ -217,17 +220,20 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     }
   }, [sprintsResponse, page, visible]);
 
+  const showSkeleton =
+    visible &&
+    loadedListKey !== listKey &&
+    (isCurrentLoading || isCurrentFetching);
+  const hasCurrentList = loadedListKey === listKey;
+
   const listData = useMemo(() => {
+    if (showSkeleton) return [];
+    if (!hasCurrentList) return [];
     if (!isSprint) {
-      return allProjects.length > 0 ? allProjects : projectsData;
+      return allProjects;
     }
 
-    const currentSprints =
-      allSprints.length > 0
-        ? allSprints
-        : sprintsData.length > 0
-          ? sprintsData
-          : [];
+    const currentSprints = allSprints;
 
     const allSprintsOption = {
       id: 'all',
@@ -254,9 +260,9 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   }, [
     isSprint,
     allProjects,
-    projectsData,
+    showSkeleton,
     allSprints,
-    sprintsData,
+    hasCurrentList,
     sprintsName,
   ]);
 
@@ -282,13 +288,6 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
           ? totalLoaded < currentMeta.total_items
           : !hasNoMore;
 
-  const isCurrentFetching = isSprint ? isSprintsFetching : isProjectsFetching;
-  const isCurrentLoading = isSprint ? isSprintsLoading : isProjectsLoading;
-
-  const showSkeleton =
-    (isCurrentLoading || (isCurrentFetching && page === 1)) &&
-    (isSprint ? allSprints.length === 0 : allProjects.length === 0);
-
   const reduxIsFetchingMore = isCurrentFetching && page > 1;
 
   const effectiveHasMore = hasMoreProp ?? rtkHasMore;
@@ -299,8 +298,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
       setPage(1);
       lastRequestedPageRef.current = 1;
       setHasNoMore(false);
-      setAllProjects([]);
-      setAllSprints([]);
+      setSearch('');
       setRefetchKey(prev => prev + 1);
     }
   }, [visible, mode, resolvedProjectId]);
