@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -52,6 +52,7 @@ interface Props {
     onBlur: () => void;
     editable?: boolean;
   };
+  canEditDetails?: boolean;
 }
 
 export const IssueMetaDetails: React.FC<Props> = ({
@@ -64,6 +65,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
   members = [],
   membersLoading = false,
   storyPointsInputProps,
+  canEditDetails,
 }) => {
   const { layout, isSmallHeight } = useAuthLayout();
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
@@ -72,11 +74,19 @@ export const IssueMetaDetails: React.FC<Props> = ({
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
   const [reporterSearchQuery, setReporterSearchQuery] = useState('');
 
+  useEffect(() => {
+    if (!canEditDetails) {
+      setShowPriorityDropdown(false);
+      setShowAssigneeDropdown(false);
+      setShowReporterDropdown(false);
+    }
+  }, [canEditDetails]);
+
   const CONTROL_WIDTH = moderateScale(140);
   const DROPDOWN_WIDTH = moderateScale(190);
 
   const togglePriorityDropdown = () => {
-    if (!editableFields?.priority) {
+    if (!canEditDetails || !editableFields?.priority) {
       return;
     }
     setShowAssigneeDropdown(false);
@@ -120,11 +130,15 @@ export const IssueMetaDetails: React.FC<Props> = ({
         const isPriorityRow = item.label === 'Priority';
         const isStoryPointsRow = item.label === 'Story pts';
 
-        const isAssigneeEditable = isAssigneeRow && editableFields?.assignee;
-        const isReporterEditable = isReporterRow && editableFields?.reporter;
-        const isPriorityEditable = isPriorityRow && editableFields?.priority;
+        const canEdit = canEditDetails ?? false;
+        const isAssigneeEditable =
+          isAssigneeRow && canEdit && !!editableFields?.assignee;
+        const isReporterEditable =
+          isReporterRow && canEdit && !!editableFields?.reporter;
+        const isPriorityEditable =
+          isPriorityRow && canEdit && !!editableFields?.priority;
         const isStoryPointsEditable =
-          isStoryPointsRow && editableFields?.storyPoints;
+          isStoryPointsRow && canEdit && !!editableFields?.storyPoints;
 
         const rowZIndex = isAssigneeRow
           ? showAssigneeDropdown

@@ -30,6 +30,7 @@ import {
   useGetUserProfileQuery,
   useGetOrganizationDetailQuery,
   useGetFavouritesQuery,
+  useGetRolesQuery,
 } from '../store/api/homeApi';
 import ProjectListBottomSheet from '../components/common/ProjectBottomSheet';
 import { getAllProjectInfo } from '../store/project_store/action/project_thunk';
@@ -71,6 +72,7 @@ export const Home: React.FC = () => {
   const { refetch: refetchOrganizationDetail } =
     useGetOrganizationDetailQuery();
 
+  const { refetch: refetchRolePermission } = useGetRolesQuery();
   // ── RTK Query: Recent projects ──
   const {
     data: recentProjects,
@@ -176,6 +178,7 @@ export const Home: React.FC = () => {
       // Execute sequential async checks
       checkOrganizationStatus();
       refetchRecentProjects();
+      refetchRolePermission();
 
       if (currentTabRef.current === 'favorites') {
         setFavoritesPage(1);
@@ -189,7 +192,7 @@ export const Home: React.FC = () => {
         fetchingRef.current = false;
         setIsFetchingMore(false);
       };
-    }, [checkOrganizationStatus, refetchRecentProjects]),
+    }, [checkOrganizationStatus, refetchRecentProjects, refetchRolePermission]),
   );
 
   const handleOpenDrawer = () => {
@@ -302,10 +305,15 @@ export const Home: React.FC = () => {
     const targetProjectId =
       item?.project_id || (item as any)?.projectId || (project as any)?.id;
 
-    if (resourceType === 'project' || resourceType === 'sprint') {
+    if (resourceType === 'project') {
       const projectId = item?.project_id?.toString() || item?.id?.toString();
       if (!projectId) return;
       handleOnSelectProject(projectId, item?.project_name);
+    } else if (resourceType === 'sprint') {
+      stackNavigation.navigate('SprintDetails', {
+        sprintId: item.sprint_id || item.resource_id,
+        sprintName: item.sprint_name,
+      });
     } else if (resourceType === 'user_story' || resourceType === 'userstory') {
       const userStoryId = item?.resource_id || item?.user_story_id || item?.id;
       stackNavigation.navigate('issue', {
@@ -614,16 +622,18 @@ export const Home: React.FC = () => {
   );
 
   const renderItemCard = ({ item }: { item: any }) => {
+    const resourceType = item.resource_type;
     const title =
-      item.task_title ||
-      item.user_story_title ||
-      item.task_name ||
-      item.user_story_name ||
-      item.task?.title ||
-      item.user_story?.title ||
-      (item.action ? formatAction(item.action) : 'Activity Item');
-    const resourceType =
-      item.resource_type || item.type || item.item_type || 'task';
+      resourceType === 'sprint'
+        ? item.sprint_name
+        : item.title ||
+          item.task_title ||
+          item.user_story_title ||
+          item.task_name ||
+          item.user_story_name ||
+          item.task?.title ||
+          item.user_story?.title ||
+          (item.action ? formatAction(item.action) : 'Activity Item');
 
     return (
       <TouchableOpacity

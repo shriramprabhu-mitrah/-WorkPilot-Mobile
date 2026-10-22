@@ -155,10 +155,7 @@ const AppNavigator = () => {
               component={OrganizationMembers}
             />
             <Stack.Screen name='ProjectStatus' component={ProjectStatus} />
-            <Stack.Screen
-              name='userDetail'
-              component={UserDetailsScreen}
-            />
+            <Stack.Screen name='userDetail' component={UserDetailsScreen} />
           </Stack.Navigator>
         ) : (
           <Stack.Navigator

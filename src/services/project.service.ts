@@ -8,6 +8,7 @@ import {
   GET_RECENT_PROJECTS,
   GET_USERSTORY_BY_ID,
   GET_TASK_BY_ID,
+  PROJECTBYUSERROLE,
   UPDATE_PROJECT,
   UPDATE_USER_STORY,
   GET_BURNDOWN_BY_PROJECT_SPRINT,
@@ -19,6 +20,7 @@ import {
   GetBurnbownParams,
   GetBurndownResponse,
   GetProjectByIdResponse,
+  GetProjectUserRoleResponse,
   GetProjectsParams,
   GetProjectsResponse,
   GetRecentProjectResponse,
@@ -33,6 +35,18 @@ import {
   UpdateUserStoryPayload,
   UpdateUserStoryResponse,
 } from '../types/project.type';
+
+export const getProjectUserRoleService = async (
+  projectId: string,
+): Promise<GetProjectUserRoleResponse> => {
+  try {
+    const url = PROJECTBYUSERROLE.replace('{project_id}', projectId);
+    return await get<GetProjectUserRoleResponse>(url);
+  } catch (error) {
+    console.error('Get Project User Role API failed:', error);
+    throw error;
+  }
+};
 
 export const getProjectService = async (
   params?: GetProjectsParams,

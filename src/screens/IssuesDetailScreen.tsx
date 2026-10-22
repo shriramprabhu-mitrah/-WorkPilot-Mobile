@@ -91,6 +91,7 @@ import {
   TaskCommentAttachmentResponse,
   UploadUserStoryCommentAttachmentResponse,
 } from '../types/attachment.type';
+import usePermissions from '../hooks/usePermissions';
 
 type IssueDetailRouteProp = RouteProp<RootStackParamList, 'issue'>;
 
@@ -126,6 +127,17 @@ const IssueDetailScreen = () => {
   const userStroyName = route.params?.storyName;
   const taskName = route.params?.taskName;
 
+  const {
+    permissionsReady,
+    canEditTask,
+    canEditUserStory,
+    canCreateTask,
+    canAddComments,
+    canEditComments,
+    canDeleteComments,
+  } = usePermissions({
+    projectId,
+  });
   const { isEditingDescription } = useAppSelector(
     (state: RootState) => state.issue,
   );
@@ -229,6 +241,9 @@ const IssueDetailScreen = () => {
   const commentsLoading = isTaskView
     ? taskCommentsLoading
     : userStoryCommentsLoading;
+
+  const canEdit =
+    permissionsReady && (isTaskView ? canEditTask : canEditUserStory);
 
   const { data: membersResponse, isLoading: membersLoading } =
     useGetProjectMembersQuery(
@@ -1340,6 +1355,7 @@ const IssueDetailScreen = () => {
               onSelectStatus={selectStatus}
               onSelectId={selectStatusId}
               isLoading={isDetailsLoading}
+              canEditStatus={canEdit}
             />
             <IssueMetaDetails
               details={details}
@@ -1361,18 +1377,22 @@ const IssueDetailScreen = () => {
                 onBlur: () => handleStoryPointsBlur(storyPointsText),
                 editable: true,
               }}
+              canEditDetails={canEdit}
             />
             <IssueDescriptionSection
               description={currentDescription}
               colors={colors}
               onEdit={handleOpenEditModal}
               isLoading={isDetailsLoading}
+              canEditDescription={canEdit}
             />
             <IssueAttachments
               colors={colors}
               projectId={projectId}
               userStoryId={userStoryId}
               taskId={taskId}
+              canAddAttachment={canEdit}
+              canDeleteAttachment={canEdit}
             />
             {!isTaskView && (
               <IssueChildTasksSection
@@ -1388,6 +1408,7 @@ const IssueDetailScreen = () => {
                   refetchTasks();
                   refetchUserStory();
                 }}
+                canAddTask={canCreateTask}
               />
             )}
             <IssueCommentsSection
@@ -1405,6 +1426,9 @@ const IssueDetailScreen = () => {
               taskId={taskId}
               userStoryId={userStoryId}
               projectId={projectId}
+              canAddComment={permissionsReady && canAddComments}
+              canEditComment={permissionsReady && canEditComments}
+              canDeleteComment={permissionsReady && canDeleteComments}
             />
           </ScrollView>
         </TouchableWithoutFeedback>
@@ -1431,6 +1455,8 @@ const IssueDetailScreen = () => {
             attachments={commentAttachments}
             onAttachmentsChange={setCommentAttachments}
             onUploadAttachment={handleUploadCommentAttachment}
+            canAddComment={permissionsReady && canAddComments}
+            canEditComment={permissionsReady && canEditComments}
           />
         </View>
       </KeyboardAvoidingView>

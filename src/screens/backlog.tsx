@@ -42,6 +42,7 @@ import MoveToSprintModal from '../components/MoveToSprintModal';
 import CreateTaskBottomSheet from '../components/createTaskBottomSheet';
 import { TASK_PRIORITY_OPTIONS } from '../utils/enum';
 import { showSnackbar } from '../components/common/Snackbar';
+import { usePermissions } from '../hooks/usePermissions';
 
 const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
   const { colors } = useTheme();
@@ -115,6 +116,15 @@ export const Backlogs = () => {
   const { project } = useAppSelector(state => state.projects);
   const projectId =
     project?.id?.toString() || (project as any)?._id?.toString();
+  const {
+    permissionsReady,
+    isLoading: permissionsLoading,
+    canCreateUserStory,
+    canCreateTask,
+    canEditUserStory,
+    canEditTask,
+    canDeleteUserStory,
+  } = usePermissions({ projectId });
 
   // Mutations
   const [createUserStory, { isLoading: isCreatingStory }] =
@@ -338,6 +348,13 @@ export const Backlogs = () => {
 
   // Delete Story
   const handleConfirmDelete = async () => {
+    if (!permissionsReady || !canDeleteUserStory) {
+      showSnackbar({
+        message: 'You do not have permission to delete user stories.',
+        type: 'error',
+      });
+      return;
+    }
     if (!deleteStoryItem || !projectId) return;
     try {
       await deleteUserStory({
@@ -468,55 +485,59 @@ export const Backlogs = () => {
             </AppText>
           </View>
           <View className='flex-row items-center gap-2'>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setIsCreateStoryVisible(true)}
-              disabled={!projectId}
-              className='flex-row items-center rounded-lg px-2.5 py-1.5'
-              style={{
-                backgroundColor: colors.primary,
-                opacity: projectId ? 1 : 0.5,
-                gap: moderateScale(4),
-              }}
-            >
-              <Ionicons
-                name='add'
-                size={moderateScale(16)}
-                color={colors.white}
-              />
-              <AppText
-                variant='caption'
-                className='text-xs font-semibold'
-                color={colors.white}
+            {permissionsReady && canCreateUserStory && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setIsCreateStoryVisible(true)}
+                disabled={!projectId}
+                className='flex-row items-center rounded-lg px-2.5 py-1.5'
+                style={{
+                  backgroundColor: colors.primary,
+                  opacity: projectId ? 1 : 0.5,
+                  gap: moderateScale(4),
+                }}
               >
-                Add Story
-              </AppText>
-            </TouchableOpacity>
+                <Ionicons
+                  name='add'
+                  size={moderateScale(16)}
+                  color={colors.white}
+                />
+                <AppText
+                  variant='caption'
+                  className='text-xs font-semibold'
+                  color={colors.white}
+                >
+                  Add Story
+                </AppText>
+              </TouchableOpacity>
+            )}
 
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setIsCreateTaskVisible(true)}
-              disabled={!projectId}
-              className='flex-row items-center rounded-lg px-2.5 py-1.5'
-              style={{
-                backgroundColor: colors.primary,
-                opacity: projectId ? 1 : 0.5,
-                gap: moderateScale(4),
-              }}
-            >
-              <Ionicons
-                name='add'
-                size={moderateScale(16)}
-                color={colors.white}
-              />
-              <AppText
-                variant='caption'
-                className='text-xs font-semibold'
-                color={colors.white}
+            {permissionsReady && canCreateTask && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setIsCreateTaskVisible(true)}
+                disabled={!projectId}
+                className='flex-row items-center rounded-lg px-2.5 py-1.5'
+                style={{
+                  backgroundColor: colors.primary,
+                  opacity: projectId ? 1 : 0.5,
+                  gap: moderateScale(4),
+                }}
               >
-                Add Task
-              </AppText>
-            </TouchableOpacity>
+                <Ionicons
+                  name='add'
+                  size={moderateScale(16)}
+                  color={colors.white}
+                />
+                <AppText
+                  variant='caption'
+                  className='text-xs font-semibold'
+                  color={colors.white}
+                >
+                  Add Task
+                </AppText>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -632,11 +653,13 @@ export const Backlogs = () => {
                     return (
                       <Swipeable
                         key={story.id}
-                        renderRightActions={() => (
-                          <SwipeDeleteAction
-                            onPress={() => setDeleteStoryItem(story)}
-                          />
-                        )}
+                        renderRightActions={() =>
+                          permissionsReady && canDeleteUserStory ? (
+                            <SwipeDeleteAction
+                              onPress={() => setDeleteStoryItem(story)}
+                            />
+                          ) : null
+                        }
                         overshootRight={false}
                       >
                         <View
@@ -723,38 +746,40 @@ export const Backlogs = () => {
                             className='mt-3 flex-row items-center justify-end border-t pt-2.5'
                             style={{ borderColor: colors.border }}
                           >
-                            <TouchableOpacity
-                              activeOpacity={0.7}
-                              onPress={() =>
-                                setMoveModalItem({
-                                  id: story.id,
-                                  title: story.title,
-                                  formattedSerial:
-                                    story.formatted_serial_number ||
-                                    `#${story.serial_number}`,
-                                  type: 'story',
-                                })
-                              }
-                              className='flex-row items-center rounded-lg border px-3 py-1.5'
-                              style={{
-                                backgroundColor: `${colors.primary}12`,
-                                borderColor: `${colors.primary}40`,
-                                gap: moderateScale(5),
-                              }}
-                            >
-                              <Ionicons
-                                name='arrow-redo-outline'
-                                size={moderateScale(13)}
-                                color={colors.primary}
-                              />
-                              <AppText
-                                variant='caption'
-                                className='text-[11px] font-bold'
-                                color={colors.primary}
+                            {permissionsReady && canEditUserStory && (
+                              <TouchableOpacity
+                                activeOpacity={0.7}
+                                onPress={() =>
+                                  setMoveModalItem({
+                                    id: story.id,
+                                    title: story.title,
+                                    formattedSerial:
+                                      story.formatted_serial_number ||
+                                      `#${story.serial_number}`,
+                                    type: 'story',
+                                  })
+                                }
+                                className='flex-row items-center rounded-lg border px-3 py-1.5'
+                                style={{
+                                  backgroundColor: `${colors.primary}12`,
+                                  borderColor: `${colors.primary}40`,
+                                  gap: moderateScale(5),
+                                }}
                               >
-                                Move to Sprint
-                              </AppText>
-                            </TouchableOpacity>
+                                <Ionicons
+                                  name='arrow-redo-outline'
+                                  size={moderateScale(13)}
+                                  color={colors.primary}
+                                />
+                                <AppText
+                                  variant='caption'
+                                  className='text-[11px] font-bold'
+                                  color={colors.primary}
+                                >
+                                  Move to Sprint
+                                </AppText>
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </View>
                       </Swipeable>
@@ -1001,38 +1026,40 @@ export const Backlogs = () => {
                           className='mt-3 flex-row items-center justify-end border-t pt-2.5'
                           style={{ borderColor: colors.border }}
                         >
-                          <TouchableOpacity
-                            activeOpacity={0.7}
-                            onPress={() =>
-                              setMoveModalItem({
-                                id: task.id,
-                                title: task.title,
-                                formattedSerial:
-                                  task.formatted_serial_number ||
-                                  `#${task.serial_number}`,
-                                type: 'task',
-                              })
-                            }
-                            className='flex-row items-center rounded-lg border px-3 py-1.5'
-                            style={{
-                              backgroundColor: `${colors.primary}12`,
-                              borderColor: `${colors.primary}40`,
-                              gap: moderateScale(5),
-                            }}
-                          >
-                            <Ionicons
-                              name='arrow-redo-outline'
-                              size={moderateScale(13)}
-                              color={colors.primary}
-                            />
-                            <AppText
-                              variant='caption'
-                              className='text-[11px] font-bold'
-                              color={colors.primary}
+                          {permissionsReady && canEditTask && (
+                            <TouchableOpacity
+                              activeOpacity={0.7}
+                              onPress={() =>
+                                setMoveModalItem({
+                                  id: task.id,
+                                  title: task.title,
+                                  formattedSerial:
+                                    task.formatted_serial_number ||
+                                    `#${task.serial_number}`,
+                                  type: 'task',
+                                })
+                              }
+                              className='flex-row items-center rounded-lg border px-3 py-1.5'
+                              style={{
+                                backgroundColor: `${colors.primary}12`,
+                                borderColor: `${colors.primary}40`,
+                                gap: moderateScale(5),
+                              }}
                             >
-                              Move to Sprint
-                            </AppText>
-                          </TouchableOpacity>
+                              <Ionicons
+                                name='arrow-redo-outline'
+                                size={moderateScale(13)}
+                                color={colors.primary}
+                              />
+                              <AppText
+                                variant='caption'
+                                className='text-[11px] font-bold'
+                                color={colors.primary}
+                              >
+                                Move to Sprint
+                              </AppText>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </View>
                     );

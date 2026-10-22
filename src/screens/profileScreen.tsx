@@ -952,6 +952,9 @@ const ProfileScreen = () => {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               className='flex-row items-center justify-center gap-2 rounded-xl py-3'
+              style={{
+                borderRadius: Radius.sm,
+              }}
             >
               <Ionicons
                 name={

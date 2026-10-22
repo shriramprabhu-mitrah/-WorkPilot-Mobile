@@ -47,6 +47,7 @@ type UserStoryBoardRowProps = {
   taskPagination: Record<string, Record<string, ColumnTaskState>>;
   onLoadMoreTasks: (storyId: string, statusId: string) => void;
   colors: ThemeColors;
+  canDragTasks: boolean;
 };
 
 const UserStoryBoardRowComponent = ({
@@ -73,6 +74,7 @@ const UserStoryBoardRowComponent = ({
   colors,
   taskPagination,
   onLoadMoreTasks,
+  canDragTasks,
 }: UserStoryBoardRowProps) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const isStoryless = story?.id === 'storyless';
@@ -278,8 +280,8 @@ const UserStoryBoardRowComponent = ({
               ? !task.user_story_id || task.user_story_id === 'storyless'
               : Boolean(
                   task.user_story_id &&
-                    task.user_story_id !== 'storyless' &&
-                    String(task.user_story_id) === String(story.id),
+                  task.user_story_id !== 'storyless' &&
+                  String(task.user_story_id) === String(story.id),
                 )),
         );
 
@@ -318,6 +320,7 @@ const UserStoryBoardRowComponent = ({
                   dragPreviewX={dragPreviewX}
                   dragPreviewY={dragPreviewY}
                   colors={colors}
+                  canDrag={canDragTasks}
                 />
               ))}
           </TaskDropZone>
@@ -328,4 +331,3 @@ const UserStoryBoardRowComponent = ({
 };
 
 export const UserStoryBoardRow = React.memo(UserStoryBoardRowComponent);
-

@@ -58,6 +58,7 @@ import {
   DeleteProjectResponse,
   GetProjectMembersQueryArgs,
   GetProjectMembersResponse,
+  GetProjectUserRoleResponse,
   RemoveProjectMemberArgs,
   RemoveProjectMemberResponse,
   UpdateProjectMemberRolePayload,
@@ -78,6 +79,7 @@ import {
   UpdateSprintDetailsResponse,
   UpdateSprintDetailsArgs,
 } from '../../types/project.type';
+import { getProjectUserRoleService } from '../../services/project.service';
 import {
   GetCustomStatusResponse,
   GetUserStoryStatusResponse,
@@ -108,6 +110,7 @@ export const projectApi = createApi({
     'TeamWorkload',
     'WeeklyProgress',
     'ProjectMembers',
+    'ProjectUserRole',
     'UserStoryDetail',
     'Tasks',
     'Comments',
@@ -116,6 +119,23 @@ export const projectApi = createApi({
     'Board',
   ],
   endpoints: build => ({
+    getProjectUserRole: build.query<GetProjectUserRoleResponse, string>({
+      async queryFn(projectId) {
+        try {
+          return { data: await getProjectUserRoleService(projectId) };
+        } catch (error: any) {
+          return {
+            error: {
+              status: error.response?.status ?? 'CUSTOM_ERROR',
+              data: error.response?.data ?? error.message,
+            },
+          };
+        }
+      },
+      providesTags: (_result, _error, projectId) => [
+        { type: 'ProjectUserRole', id: projectId },
+      ],
+    }),
     getUpcomingDeadlines: build.query<
       UpcomingDeadlinesResponse,
       UpcomingDeadlinesQueryArgs
@@ -720,6 +740,7 @@ export const projectApi = createApi({
 });
 
 export const {
+  useGetProjectUserRoleQuery,
   useGetProjectsQuery,
   useGetSprintsQuery,
   useGetProjectByIdQuery,

@@ -48,6 +48,8 @@ interface Props {
   projectId: string;
   userStoryId?: string;
   taskId?: string;
+  canAddAttachment?: boolean;
+  canDeleteAttachment?: boolean;
 }
 
 const getAttachmentIcon = (fileType?: string) => {
@@ -95,6 +97,8 @@ export const IssueAttachments: React.FC<Props> = ({
   projectId,
   userStoryId,
   taskId,
+  canAddAttachment,
+  canDeleteAttachment,
 }) => {
   const dispatch = useAppDispatch();
   const { layout } = useAuthLayout();
@@ -203,6 +207,10 @@ export const IssueAttachments: React.FC<Props> = ({
       size?: number;
       tempId: string;
     }) => {
+      if (!canAddAttachment) {
+        removeLocalAttachment(file.tempId);
+        return;
+      }
       try {
         let result;
         if (isTask && taskId && projectId) {
@@ -250,6 +258,7 @@ export const IssueAttachments: React.FC<Props> = ({
       refetchUserStoryAttachments,
       uploadTaskAttachment,
       uploadUserStoryAttachment,
+      canAddAttachment,
     ],
   );
 
@@ -435,7 +444,7 @@ export const IssueAttachments: React.FC<Props> = ({
   }, []);
 
   const confirmDelete = useCallback(async () => {
-    if (!deletingAttachment) return;
+    if (!canDeleteAttachment || !deletingAttachment) return;
     const targetId = deletingAttachment.id;
     closeDeleteModal();
     try {
@@ -633,39 +642,41 @@ export const IssueAttachments: React.FC<Props> = ({
               )}
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            onPress={() => {
-              if (isVideo) {
-                handleRemoveLocalVideo(item.id);
-                return;
-              }
-              const targetAttachment = isAttachment(item)
-                ? item
-                : isLocal && item.serverId
-                  ? ({ ...item, id: item.serverId } as Attachment)
-                  : null;
-              if (targetAttachment) {
-                setDeletingAttachment(targetAttachment);
-                setDeleteModalVisible(true);
-              }
-            }}
-            activeOpacity={0.7}
-            disabled={isDeletingThis}
-            hitSlop={8}
-          >
-            {isDeletingThis ? (
-              <ActivityIndicator
-                size='small'
-                color={colors.error || '#FF3B30'}
-              />
-            ) : (
-              <Ionicons
-                name='trash-outline'
-                size={20}
-                color={colors.error || '#FF3B30'}
-              />
-            )}
-          </TouchableOpacity>
+          {canDeleteAttachment && (
+            <TouchableOpacity
+              onPress={() => {
+                if (isVideo) {
+                  handleRemoveLocalVideo(item.id);
+                  return;
+                }
+                const targetAttachment = isAttachment(item)
+                  ? item
+                  : isLocal && item.serverId
+                    ? ({ ...item, id: item.serverId } as Attachment)
+                    : null;
+                if (targetAttachment) {
+                  setDeletingAttachment(targetAttachment);
+                  setDeleteModalVisible(true);
+                }
+              }}
+              activeOpacity={0.7}
+              disabled={isDeletingThis}
+              hitSlop={8}
+            >
+              {isDeletingThis ? (
+                <ActivityIndicator
+                  size='small'
+                  color={colors.error || '#FF3B30'}
+                />
+              ) : (
+                <Ionicons
+                  name='trash-outline'
+                  size={20}
+                  color={colors.error || '#FF3B30'}
+                />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -684,18 +695,22 @@ export const IssueAttachments: React.FC<Props> = ({
         <AppText variant='bodyLarge' color={colors.text} className='font-bold'>
           Attachments
         </AppText>
-        <TouchableOpacity
-          onPress={() => !isAnyUploading && !refreshing && setMenuVisible(true)}
-          activeOpacity={0.7}
-          disabled={isAnyUploading || refreshing}
-          hitSlop={8}
-        >
-          {isAnyUploading ? (
-            <ActivityIndicator size='small' color={colors.primary} />
-          ) : (
-            <Ionicons name='add-outline' size={24} color={colors.primary} />
-          )}
-        </TouchableOpacity>
+        {canAddAttachment && (
+          <TouchableOpacity
+            onPress={() =>
+              !isAnyUploading && !refreshing && setMenuVisible(true)
+            }
+            activeOpacity={0.7}
+            disabled={isAnyUploading || refreshing}
+            hitSlop={8}
+          >
+            {isAnyUploading ? (
+              <ActivityIndicator size='small' color={colors.primary} />
+            ) : (
+              <Ionicons name='add-outline' size={24} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading ? (

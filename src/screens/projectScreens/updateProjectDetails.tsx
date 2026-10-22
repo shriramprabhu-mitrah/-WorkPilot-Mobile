@@ -25,6 +25,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../types/navigationTypes';
 import { Radius } from '../../constants/Radius';
 import DeleteColumnModal from '../../components/DeleteColumnModal';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface UpdateProjectDetailsProps {
   initialProjectName?: string;
@@ -44,6 +45,15 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
     moderateScale,
   } = useAuthLayout();
   const { project } = useAppSelector((state: RootState) => state.projects);
+  const projectId = useAppSelector(
+    state =>
+      state.projects.project?.id?.toString() ||
+      (state.projects.project as any)?._id?.toString(),
+  );
+
+  const { permissionsReady, canEditProject, canDeleteProject } = usePermissions(
+    { projectId },
+  );
 
   const [name, setName] = useState<string>(project?.name || initialProjectName);
   const [description, setDescription] = useState<string>(
@@ -89,6 +99,13 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
   // };
 
   const handleSave = async () => {
+    if (!permissionsReady || !canEditProject) {
+      showSnackbar({
+        message: 'You do not have permission to update this project',
+        type: 'error',
+      });
+      return;
+    }
     const projectId = project?.id;
 
     if (!name.trim()) {
@@ -126,6 +143,13 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
   };
 
   const handleDeleteProject = async () => {
+    if (!permissionsReady || !canDeleteProject) {
+      showSnackbar({
+        message: 'You do not have permission to delete this project',
+        type: 'error',
+      });
+      return;
+    }
     const projectId = project?.id;
     if (!projectId) {
       showSnackbar({ message: 'Project ID not found', type: 'error' });
@@ -198,6 +222,7 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
         <AppInput
           label='Project Name'
           placeholder='Enter project name...'
+          disabled={!canEditProject}
           value={name}
           onChangeText={setName}
           leftIcon={
@@ -211,6 +236,7 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
         <AppInput
           label='Description'
           placeholder='Enter project description...'
+          disabled={!canEditProject}
           value={description}
           onChangeText={setDescription}
           multiline
@@ -244,6 +270,7 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
           >
             <TouchableOpacity
               activeOpacity={0.7}
+              disabled={!canEditProject}
               onPress={() => setIsDropdownOpen(!isDropdownOpen)}
               className='flex-row items-center justify-between'
               style={{
@@ -300,39 +327,43 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
         style={{ paddingBottom: moderateScale(100), gap: layout.elementGap }}
       >
         <View style={{ marginTop: moderateScale(10) }}>
-          <PrimaryButton
-            title='Save Changes'
-            loading={isLoading}
-            disabled={!name.trim() || isLoading || isDeleting}
-            onPress={handleSave}
-          />
+          {permissionsReady && canEditProject && (
+            <PrimaryButton
+              title='Save Changes'
+              loading={isLoading}
+              disabled={!name.trim() || isLoading || isDeleting}
+              onPress={handleSave}
+            />
+          )}
         </View>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          disabled={isDeleting || isLoading}
-          onPress={() => setShowDeleteModal(true)}
-          className='border'
-          style={{
-            borderColor: colors.border,
-            backgroundColor: colors.background,
-            paddingVertical: isSmallHeight
-              ? verticalScale(10)
-              : isLargeHeight
-                ? verticalScale(16)
-                : verticalScale(12),
-            borderRadius: Radius.md,
-            alignItems: 'center',
-            opacity: isDeleting || isLoading ? 0.6 : 1,
-          }}
-        >
-          <AppText
-            variant='body'
-            className='font-bold'
-            color={colors.accentOrange}
+        {permissionsReady && canDeleteProject && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            disabled={isDeleting || isLoading}
+            onPress={() => setShowDeleteModal(true)}
+            className='border'
+            style={{
+              borderColor: colors.border,
+              backgroundColor: colors.background,
+              paddingVertical: isSmallHeight
+                ? verticalScale(10)
+                : isLargeHeight
+                  ? verticalScale(16)
+                  : verticalScale(12),
+              borderRadius: Radius.md,
+              alignItems: 'center',
+              opacity: isDeleting || isLoading ? 0.6 : 1,
+            }}
           >
-            Move to trash
-          </AppText>
-        </TouchableOpacity>
+            <AppText
+              variant='body'
+              className='font-bold'
+              color={colors.accentOrange}
+            >
+              Move to trash
+            </AppText>
+          </TouchableOpacity>
+        )}
       </View>
 
       <DeleteColumnModal

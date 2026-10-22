@@ -28,6 +28,7 @@ interface Props {
   userStoryId?: string;
   onAddTask?: () => void;
   onTaskCreated?: () => void;
+  canAddTask?: boolean;
 }
 
 export const IssueChildTasksSection: React.FC<Props> = ({
@@ -41,6 +42,7 @@ export const IssueChildTasksSection: React.FC<Props> = ({
   userStoryId,
   onAddTask,
   onTaskCreated,
+  canAddTask,
 }) => {
   const dispatch = useAppDispatch();
   const { layout } = useAuthLayout();
@@ -295,13 +297,15 @@ export const IssueChildTasksSection: React.FC<Props> = ({
               </AppText>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            onPress={handlePressAdd}
-            activeOpacity={0.7}
-            hitSlop={8}
-          >
-            <Ionicons name='add-outline' size={24} color={colors.primary} />
-          </TouchableOpacity>
+          {canAddTask && (
+            <TouchableOpacity
+              onPress={handlePressAdd}
+              activeOpacity={0.7}
+              hitSlop={8}
+            >
+              <Ionicons name='add-outline' size={24} color={colors.primary} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 

@@ -55,6 +55,7 @@ import { useNavigation } from '@react-navigation/native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useDeleteUserStoryMutation } from '../store/api/userStoryApi';
 import { showSnackbar } from '../components/common/Snackbar';
+import { usePermissions } from '../hooks/usePermissions';
 
 const SunsetHeaderImage = require('../assets/images/Serene Mountain Lake at Sunset.png');
 
@@ -152,7 +153,9 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   const [selectedStories, setSelectedStories] = useState<string[]>([]);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteStoryItem, setDeleteStoryItem] = useState<UserStory | null>(null);
+  const [deleteStoryItem, setDeleteStoryItem] = useState<UserStory | null>(
+    null,
+  );
 
   const [deleteUserStory, { isLoading: isDeletingStory }] =
     useDeleteUserStoryMutation();
@@ -201,6 +204,14 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   } = useAppSelector((state: RootState) => state.projects);
 
   const projectId = project?.id;
+  const {
+    permissionsReady,
+    canEditSprint,
+    canDeleteSprint,
+    canDeleteUserStory,
+  } = usePermissions({
+    projectId: projectId?.toString(),
+  });
 
   // Fetch Sprint & User Stories on Mount
   useEffect(() => {
@@ -304,9 +315,8 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   }, [storiesData]);
 
   const highPriorityCount = useMemo(() => {
-    return storiesData.filter(
-      s => s.priority?.trim().toLowerCase() === 'high',
-    ).length;
+    return storiesData.filter(s => s.priority?.trim().toLowerCase() === 'high')
+      .length;
   }, [storiesData]);
 
   // Timeline & progress calculation
@@ -343,9 +353,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     let list = storiesData;
 
     if (activeTab === 'stories') {
-      list = list.filter(
-        s => (s as any).issue_type?.toLowerCase() !== 'task',
-      );
+      list = list.filter(s => (s as any).issue_type?.toLowerCase() !== 'task');
     } else if (activeTab === 'tasks') {
       list = list.filter(s => (s?.total_tasks ?? 0) > 0);
     } else if (activeTab === 'high_priority') {
@@ -494,7 +502,14 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   );
 
   const handleConfirmDeleteStory = async () => {
-    if (!deleteStoryItem || !projectId) return;
+    if (
+      !permissionsReady ||
+      !canDeleteUserStory ||
+      !deleteStoryItem ||
+      !projectId
+    ) {
+      return;
+    }
     const storyIdToDelete = deleteStoryItem.id;
     try {
       const response = await deleteUserStory({
@@ -522,7 +537,15 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     targetProjectId: string,
     targetSprintId: string,
   ) => {
-    if (!targetProjectId || !targetSprintId || isDeleting) return;
+    if (
+      !permissionsReady ||
+      !canDeleteSprint ||
+      !targetProjectId ||
+      !targetSprintId ||
+      isDeleting
+    ) {
+      return;
+    }
 
     try {
       setIsDeleting(true);
@@ -537,7 +560,15 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   };
 
   const handleCompleteSprint = async () => {
-    if (!projectId || !sprintId || isCompletingSprint) return;
+    if (
+      !permissionsReady ||
+      !canEditSprint ||
+      !projectId ||
+      !sprintId ||
+      isCompletingSprint
+    ) {
+      return;
+    }
     setCompleteSprintError('');
     try {
       await completeSprint({
@@ -605,9 +636,11 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
             borderRadius: moderateScale(18),
             overflow: 'hidden',
           }}
-          renderRightActions={() => (
-            <SwipeDeleteAction onPress={() => setDeleteStoryItem(item)} />
-          )}
+          renderRightActions={() =>
+            permissionsReady && canDeleteUserStory ? (
+              <SwipeDeleteAction onPress={() => setDeleteStoryItem(item)} />
+            ) : null
+          }
           overshootRight={false}
           rightThreshold={40}
         >
@@ -961,48 +994,52 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
 
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {/* Edit Button */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setSprintModalMode('update');
-                    setIsEditSprintVisible(true);
-                  }}
-                  style={{
-                    width: moderateScale(38),
-                    height: moderateScale(38),
-                    borderRadius: moderateScale(19),
-                    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: moderateScale(8),
-                  }}
-                >
-                  <Ionicons
-                    name='pencil'
-                    size={moderateScale(17)}
-                    color='#FFFFFF'
-                  />
-                </TouchableOpacity>
+                {permissionsReady && canEditSprint && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setSprintModalMode('update');
+                      setIsEditSprintVisible(true);
+                    }}
+                    style={{
+                      width: moderateScale(38),
+                      height: moderateScale(38),
+                      borderRadius: moderateScale(19),
+                      backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: moderateScale(8),
+                    }}
+                  >
+                    <Ionicons
+                      name='pencil'
+                      size={moderateScale(17)}
+                      color='#FFFFFF'
+                    />
+                  </TouchableOpacity>
+                )}
 
                 {/* More Options Button */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setIsActionMenuVisible(true)}
-                  style={{
-                    width: moderateScale(38),
-                    height: moderateScale(38),
-                    borderRadius: moderateScale(19),
-                    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Ionicons
-                    name='ellipsis-vertical'
-                    size={moderateScale(18)}
-                    color='#FFFFFF'
-                  />
-                </TouchableOpacity>
+                {permissionsReady && (canEditSprint || canDeleteSprint) && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => setIsActionMenuVisible(true)}
+                    style={{
+                      width: moderateScale(38),
+                      height: moderateScale(38),
+                      borderRadius: moderateScale(19),
+                      backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name='ellipsis-vertical'
+                      size={moderateScale(18)}
+                      color='#FFFFFF'
+                    />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -1210,7 +1247,9 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         </View>
 
         {/* Body Container */}
-        <View style={{ paddingHorizontal: wp(4), paddingTop: moderateScale(14) }}>
+        <View
+          style={{ paddingHorizontal: wp(4), paddingTop: moderateScale(14) }}
+        >
           {/* Three Metric Cards Row (Stories, Tasks, High Priority) */}
           <View
             style={{
@@ -1528,7 +1567,9 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
           {/* Sprint Goal Card */}
           <TouchableOpacity
             activeOpacity={0.85}
+            disabled={!permissionsReady || !canEditSprint}
             onPress={() => {
+              if (!permissionsReady || !canEditSprint) return;
               setSprintModalMode('update');
               setIsEditSprintVisible(true);
             }}
@@ -1604,10 +1645,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                   strokeWidth={2.2}
                   strokeLinecap='round'
                 />
-                <Path
-                  d='M23 3L25 5L22 8L20 6Z'
-                  fill='#6366F1'
-                />
+                <Path d='M23 3L25 5L22 8L20 6Z' fill='#6366F1' />
               </Svg>
             </View>
 
@@ -1707,8 +1745,8 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                       ? 'rgba(37, 99, 235, 0.3)'
                       : '#DBEAFE'
                     : isDark
-                    ? colors.card
-                    : '#F1F5F9',
+                      ? colors.card
+                      : '#F1F5F9',
                   borderWidth: isDark ? 1 : 0,
                   borderColor: isDark ? colors.border : 'transparent',
                   alignItems: 'center',
@@ -1725,8 +1763,8 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                         ? '#60A5FA'
                         : COLOR_BLUE
                       : isDark
-                      ? colors.text
-                      : '#475569'
+                        ? colors.text
+                        : '#475569'
                   }
                 />
               </TouchableOpacity>
@@ -1751,8 +1789,8 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                       ? 'rgba(37, 99, 235, 0.3)'
                       : '#DBEAFE'
                     : isDark
-                    ? colors.card
-                    : '#F1F5F9',
+                      ? colors.card
+                      : '#F1F5F9',
                   borderWidth: isDark ? 1 : 0,
                   borderColor: isDark ? colors.border : 'transparent',
                   alignItems: 'center',
@@ -1768,8 +1806,8 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                         ? '#60A5FA'
                         : COLOR_BLUE
                       : isDark
-                      ? colors.text
-                      : '#475569'
+                        ? colors.text
+                        : '#475569'
                   }
                 />
               </TouchableOpacity>
@@ -1802,9 +1840,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder='Search stories by title or key...'
-                placeholderTextColor={
-                  isDark ? colors.placeholder : '#94A3B8'
-                }
+                placeholderTextColor={isDark ? colors.placeholder : '#94A3B8'}
                 style={{
                   flex: 1,
                   fontSize: moderateScale(13),
@@ -1863,8 +1899,8 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                       activeTab === 'all'
                         ? '#FFFFFF'
                         : isDark
-                        ? colors.textSecondary
-                        : '#64748B',
+                          ? colors.textSecondary
+                          : '#64748B',
                   }}
                 >
                   All ({storiesData.length})
@@ -1892,8 +1928,8 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                       activeTab === 'stories'
                         ? '#FFFFFF'
                         : isDark
-                        ? colors.textSecondary
-                        : '#64748B',
+                          ? colors.textSecondary
+                          : '#64748B',
                   }}
                 >
                   Stories ({storiesData.length})
@@ -1931,8 +1967,8 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                       activeTab === 'tasks'
                         ? '#FFFFFF'
                         : isDark
-                        ? colors.textSecondary
-                        : '#64748B',
+                          ? colors.textSecondary
+                          : '#64748B',
                   }}
                 >
                   Tasks ({totalTasks})
@@ -1960,8 +1996,8 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                       activeTab === 'high_priority'
                         ? '#FFFFFF'
                         : isDark
-                        ? colors.textSecondary
-                        : '#64748B',
+                          ? colors.textSecondary
+                          : '#64748B',
                   }}
                 >
                   High priority ({highPriorityCount})
@@ -2080,9 +2116,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         animationType='fade'
         onRequestClose={() => setIsActionMenuVisible(false)}
       >
-        <TouchableWithoutFeedback
-          onPress={() => setIsActionMenuVisible(false)}
-        >
+        <TouchableWithoutFeedback onPress={() => setIsActionMenuVisible(false)}>
           <View
             style={{
               flex: 1,
@@ -2131,12 +2165,61 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                 </AppText>
 
                 {/* Start or Complete sprint option */}
-                {sprintAction.action !== 'none' && (
+                {permissionsReady &&
+                  canEditSprint &&
+                  sprintAction.action !== 'none' && (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setIsActionMenuVisible(false);
+                        handleSprintAction();
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingVertical: moderateScale(12),
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: moderateScale(38),
+                          height: moderateScale(38),
+                          borderRadius: moderateScale(19),
+                          backgroundColor: isDark
+                            ? 'rgba(16, 185, 129, 0.2)'
+                            : '#ECFDF5',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: moderateScale(12),
+                        }}
+                      >
+                        <Ionicons
+                          name={sprintAction.icon}
+                          size={moderateScale(20)}
+                          color='#10B981'
+                        />
+                      </View>
+                      <AppText
+                        variant='body'
+                        style={{
+                          fontSize: moderateScale(15),
+                          fontWeight: '600',
+                          color: colors.text,
+                        }}
+                      >
+                        {sprintAction.label}
+                      </AppText>
+                    </TouchableOpacity>
+                  )}
+
+                {/* Edit Sprint Option */}
+                {permissionsReady && canEditSprint && (
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => {
                       setIsActionMenuVisible(false);
-                      handleSprintAction();
+                      setSprintModalMode('update');
+                      setIsEditSprintVisible(true);
                     }}
                     style={{
                       flexDirection: 'row',
@@ -2150,17 +2233,17 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                         height: moderateScale(38),
                         borderRadius: moderateScale(19),
                         backgroundColor: isDark
-                          ? 'rgba(16, 185, 129, 0.2)'
-                          : '#ECFDF5',
+                          ? 'rgba(37, 99, 235, 0.2)'
+                          : '#EFF6FF',
                         alignItems: 'center',
                         justifyContent: 'center',
                         marginRight: moderateScale(12),
                       }}
                     >
                       <Ionicons
-                        name={sprintAction.icon}
-                        size={moderateScale(20)}
-                        color='#10B981'
+                        name='pencil-outline'
+                        size={moderateScale(19)}
+                        color={COLOR_BLUE}
                       />
                     </View>
                     <AppText
@@ -2171,99 +2254,56 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                         color: colors.text,
                       }}
                     >
-                      {sprintAction.label}
+                      Edit Sprint Details
                     </AppText>
                   </TouchableOpacity>
                 )}
 
-                {/* Edit Sprint Option */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setIsActionMenuVisible(false);
-                    setSprintModalMode('update');
-                    setIsEditSprintVisible(true);
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingVertical: moderateScale(12),
-                  }}
-                >
-                  <View
-                    style={{
-                      width: moderateScale(38),
-                      height: moderateScale(38),
-                      borderRadius: moderateScale(19),
-                      backgroundColor: isDark
-                        ? 'rgba(37, 99, 235, 0.2)'
-                        : '#EFF6FF',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: moderateScale(12),
-                    }}
-                  >
-                    <Ionicons
-                      name='pencil-outline'
-                      size={moderateScale(19)}
-                      color={COLOR_BLUE}
-                    />
-                  </View>
-                  <AppText
-                    variant='body'
-                    style={{
-                      fontSize: moderateScale(15),
-                      fontWeight: '600',
-                      color: colors.text,
-                    }}
-                  >
-                    Edit Sprint Details
-                  </AppText>
-                </TouchableOpacity>
-
                 {/* Delete Sprint Option */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setIsActionMenuVisible(false);
-                    setIsDeleteModalVisible(true);
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingVertical: moderateScale(12),
-                  }}
-                >
-                  <View
+                {permissionsReady && canDeleteSprint && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setIsActionMenuVisible(false);
+                      setIsDeleteModalVisible(true);
+                    }}
                     style={{
-                      width: moderateScale(38),
-                      height: moderateScale(38),
-                      borderRadius: moderateScale(19),
-                      backgroundColor: isDark
-                        ? 'rgba(239, 68, 68, 0.2)'
-                        : '#FFF1F2',
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: moderateScale(12),
+                      paddingVertical: moderateScale(12),
                     }}
                   >
-                    <Ionicons
-                      name='trash-outline'
-                      size={moderateScale(19)}
-                      color={COLOR_ROSE}
-                    />
-                  </View>
-                  <AppText
-                    variant='body'
-                    style={{
-                      fontSize: moderateScale(15),
-                      fontWeight: '600',
-                      color: COLOR_ROSE,
-                    }}
-                  >
-                    Delete Sprint
-                  </AppText>
-                </TouchableOpacity>
+                    <View
+                      style={{
+                        width: moderateScale(38),
+                        height: moderateScale(38),
+                        borderRadius: moderateScale(19),
+                        backgroundColor: isDark
+                          ? 'rgba(239, 68, 68, 0.2)'
+                          : '#FFF1F2',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: moderateScale(12),
+                      }}
+                    >
+                      <Ionicons
+                        name='trash-outline'
+                        size={moderateScale(19)}
+                        color={COLOR_ROSE}
+                      />
+                    </View>
+                    <AppText
+                      variant='body'
+                      style={{
+                        fontSize: moderateScale(15),
+                        fontWeight: '600',
+                        color: COLOR_ROSE,
+                      }}
+                    >
+                      Delete Sprint
+                    </AppText>
+                  </TouchableOpacity>
+                )}
 
                 {/* Cancel Button */}
                 <TouchableOpacity
@@ -2328,8 +2368,11 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
         sprint={currentSprint}
         isUpdating={isUpdatingSprint || isStartingSprint}
         onStart={async payload => {
+          if (!permissionsReady || !canEditSprint || !projectId || !sprintId) {
+            return;
+          }
           await startSprint({
-            project_id: projectId || '',
+            project_id: projectId,
             sprint_id: sprintId,
             payload,
           }).unwrap();
@@ -2346,6 +2389,9 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
           });
         }}
         onUpdate={async payload => {
+          if (!permissionsReady || !canEditSprint || !projectId || !sprintId) {
+            return;
+          }
           try {
             setIsUpdatingSprint(true);
             await updateSprintDetails({
