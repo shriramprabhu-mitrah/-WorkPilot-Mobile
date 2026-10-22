@@ -11,6 +11,7 @@ interface Props {
   colors: ThemeColors;
   onEdit: () => void;
   isLoading?: boolean;
+  canEditDescription?: boolean;
 }
 
 export const IssueDescriptionSection: React.FC<Props> = ({
@@ -18,6 +19,7 @@ export const IssueDescriptionSection: React.FC<Props> = ({
   colors,
   onEdit,
   isLoading = false,
+  canEditDescription,
 }) => {
   const { layout } = useAuthLayout();
 
@@ -35,7 +37,7 @@ export const IssueDescriptionSection: React.FC<Props> = ({
         <AppText variant='bodyLarge' color={colors.text} className='font-bold'>
           Description
         </AppText>
-        {!isLoading && (
+        {!isLoading && canEditDescription && (
           <TouchableOpacity
             onPress={onEdit}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

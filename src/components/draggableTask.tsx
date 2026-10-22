@@ -37,6 +37,7 @@ type DraggableTaskProps = {
   dragPreviewX: SharedValue<number>;
   dragPreviewY: SharedValue<number>;
   colors: ThemeColors;
+  canDrag?: boolean;
 };
 
 const DraggableTaskComponent = ({
@@ -56,6 +57,7 @@ const DraggableTaskComponent = ({
   dragPreviewX,
   dragPreviewY,
   colors,
+  canDrag = true,
 }: DraggableTaskProps) => {
   const { width: viewportWidth, height: viewportHeight } =
     useWindowDimensions();
@@ -102,6 +104,7 @@ const DraggableTaskComponent = ({
   );
 
   const panGesture = Gesture.Pan()
+    .enabled(canDrag)
     .activateAfterLongPress(200)
     .maxPointers(1)
     .onStart(event => {

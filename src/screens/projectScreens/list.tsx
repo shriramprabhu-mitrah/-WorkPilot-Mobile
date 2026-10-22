@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import { View, FlatList, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -23,6 +29,7 @@ import ProjectCardSkeleton from '../../components/skeleton/ProjectCardSkeleton';
 import { RootStackParamList } from '../../types/navigationTypes';
 import DeleteColumnModal from '../../components/DeleteColumnModal';
 import { useDeleteUserStoryMutation } from '../../store/api/userStoryApi';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
   const { colors } = useTheme();
@@ -56,7 +63,9 @@ const List = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [allStories, setAllStories] = useState<UserStory[]>([]);
   const [hasNoMore, setHasNoMore] = useState(false);
-  const [deleteStoryItem, setDeleteStoryItem] = useState<UserStory | null>(null);
+  const [deleteStoryItem, setDeleteStoryItem] = useState<UserStory | null>(
+    null,
+  );
   const lastRequestedPageRef = useRef(1);
 
   const [deleteUserStory, { isLoading: isDeleting }] =
@@ -68,6 +77,9 @@ const List = () => {
       state.projects.project?.id?.toString() ||
       (state.projects.project as any)?._id?.toString(),
   );
+  const { canDeleteUserStory, isLoading: permissionsLoading } = usePermissions({
+    projectId: projectId,
+  });
 
   const rawActiveSprintId = useAppSelector(
     (state: RootState) =>
@@ -147,7 +159,8 @@ const List = () => {
     }
   }, [userStoriesResponse, currentPage]);
 
-  const rawStories = (userStoriesResponse?.data as UserStory[] | undefined) ?? [];
+  const rawStories =
+    (userStoriesResponse?.data as UserStory[] | undefined) ?? [];
   const userStories = allStories.length > 0 ? allStories : rawStories;
   const userStoryMeta = userStoriesResponse?.meta ?? null;
 
@@ -167,7 +180,13 @@ const List = () => {
       lastRequestedPageRef.current = nextPage;
       setCurrentPage(nextPage);
     }
-  }, [userStoriesFetching, userStoryMeta, hasNoMore, userStories.length, currentPage]);
+  }, [
+    userStoriesFetching,
+    userStoryMeta,
+    hasNoMore,
+    userStories.length,
+    currentPage,
+  ]);
 
   const filteredStories = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -233,7 +252,13 @@ const List = () => {
   );
 
   const handleConfirmDelete = async () => {
-    if (!deleteStoryItem || !projectId) return;
+    if (
+      permissionsLoading ||
+      !canDeleteUserStory ||
+      !deleteStoryItem ||
+      !projectId
+    )
+      return;
     try {
       await deleteUserStory({
         projectId,
@@ -436,11 +461,14 @@ const List = () => {
 
             return (
               <Swipeable
-                renderRightActions={() => (
-                  <SwipeDeleteAction
-                    onPress={() => setDeleteStoryItem(item)}
-                  />
-                )}
+                enabled={!permissionsLoading && canDeleteUserStory}
+                renderRightActions={() =>
+                  !permissionsLoading && canDeleteUserStory ? (
+                    <SwipeDeleteAction
+                      onPress={() => setDeleteStoryItem(item)}
+                    />
+                  ) : null
+                }
                 overshootRight={false}
               >
                 <View
@@ -475,7 +503,10 @@ const List = () => {
                         backgroundColor: colors.surface,
                       }}
                     >
-                      <WorkItemIcon type='user_story' size={moderateScale(20)} />
+                      <WorkItemIcon
+                        type='user_story'
+                        size={moderateScale(20)}
+                      />
                     </View>
 
                     {/* Middle Details Section */}
@@ -485,7 +516,8 @@ const List = () => {
                         color={colors.textSecondary}
                         numberOfLines={1}
                       >
-                        {item.formatted_serial_number || `#${item.serial_number}`}
+                        {item.formatted_serial_number ||
+                          `#${item.serial_number}`}
                         {item.sprint_name ? ` • ${item.sprint_name}` : ''}
                       </AppText>
                       <AppText
@@ -495,7 +527,8 @@ const List = () => {
                         numberOfLines={1}
                       >
                         {item.title
-                          ? item.title.charAt(0).toUpperCase() + item.title.slice(1)
+                          ? item.title.charAt(0).toUpperCase() +
+                            item.title.slice(1)
                           : ''}
                       </AppText>
                     </View>

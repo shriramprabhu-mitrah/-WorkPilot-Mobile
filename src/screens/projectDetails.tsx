@@ -570,6 +570,7 @@ const ProjectDetails: React.FC = () => {
       <ProjectListBottomSheet
         visible={projectSheetVisible}
         mode='projects'
+        projectId={currentProjectId}
         onDismiss={() => setProjectSheetVisible(false)}
         onSelectProject={handleOnSelectProject}
       />

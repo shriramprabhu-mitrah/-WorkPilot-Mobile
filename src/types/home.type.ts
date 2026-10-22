@@ -34,6 +34,8 @@ export interface Activity {
   story_points?: string;
   user_story_name?: string;
   task_name?: string;
+  sprint_name: string;
+  sprint_id: string;
 }
 
 export interface ViewedItem {
@@ -115,6 +117,15 @@ export interface SearchItem {
   status?: string;
   project_id?: string;
   project_name?: string;
+  userId?: string;
+  full_name?: string;
+  name?: string;
+  username?: string;
+  user_name?: string;
+  email?: string;
+  role?: string;
+  avatar_url?: string | null;
+  color?: string | null;
 }
 
 export interface SearchResponse {

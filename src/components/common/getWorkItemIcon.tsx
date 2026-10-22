@@ -148,6 +148,14 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
           color={color || colors?.primary}
         />
       );
+    case 'member':
+      return (
+        <Ionicons
+          name='person-outline'
+          size={size}
+          color={color || colors?.primary}
+        />
+      );
 
     default:
       return (

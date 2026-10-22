@@ -62,6 +62,8 @@ interface Props {
   ) => void;
   onUploadAttachment?: (file: AttachmentFile) => Promise<void>;
   autoFocus?: boolean;
+  canAddComment?: boolean;
+  canEditComment?: boolean;
 }
 
 export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
@@ -82,6 +84,8 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
       onAttachmentsChange: externalOnAttachmentsChange,
       onUploadAttachment,
       autoFocus = false,
+      canAddComment,
+      canEditComment,
     },
     ref,
   ) => {
@@ -103,6 +107,21 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
     const openBottomSheet = () => {
       Keyboard.dismiss();
       setBottomSheetVisible(true);
+    };
+
+    const handleSubmitComment = () => {
+      const canSubmit = editingCommentId
+        ? canEditComment === true
+        : canAddComment === true;
+      if (
+        !canSubmit ||
+        isSubmittingComment ||
+        isAnyAttachmentUploading ||
+        isCommentEmpty
+      ) {
+        return;
+      }
+      onSubmit();
     };
 
     const requestCameraPermission = async () => {
@@ -270,6 +289,10 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
 
     const showReplyBanner = Boolean(replyingToCommentId);
     const showInlineCancel = Boolean(editingCommentId);
+    const canUseCommentInput = canAddComment === true || showInlineCancel;
+    const canSubmitComment = editingCommentId
+      ? canEditComment === true
+      : canAddComment === true;
 
     const isAnyAttachmentUploading = attachments.some(a => a.isUploading);
 
@@ -421,289 +444,293 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
           )}
 
           {/* Editor Main Box Container */}
-          <View
-            style={{
-              borderWidth: 1,
-              borderColor: isFocused ? colors.primary : colors.border,
-              borderRadius: 8,
-              backgroundColor: colors.card,
-            }}
-          >
-            {/* Rich Text Input Field */}
-            <RichEditor
-              ref={editorRef}
-              initialContentHTML={comment}
-              placeholder={placeholder}
-              onChange={onChangeComment}
-              onFocus={() => setIsFocused(true)}
-              useContainer
-              disabled={isSubmittingComment}
+          {canUseCommentInput && (
+            <View
               style={{
-                minHeight: 50,
-                maxHeight: 150,
-              }}
-              editorStyle={{
+                borderWidth: 1,
+                borderColor: isFocused ? colors.primary : colors.border,
+                borderRadius: 8,
                 backgroundColor: colors.card,
-                color: colors.text,
-                placeholderColor: colors.textSecondary,
-                contentCSSText: `
+              }}
+            >
+              {/* Rich Text Input Field */}
+              <RichEditor
+                ref={editorRef}
+                initialContentHTML={comment}
+                placeholder={placeholder}
+                onChange={onChangeComment}
+                onFocus={() => setIsFocused(true)}
+                useContainer
+                disabled={isSubmittingComment}
+                style={{
+                  minHeight: 50,
+                  maxHeight: 150,
+                }}
+                editorStyle={{
+                  backgroundColor: colors.card,
+                  color: colors.text,
+                  placeholderColor: colors.textSecondary,
+                  contentCSSText: `
                   font-size: ${layout.bodyFontSize}px;
                   padding: 8px;
                   outline: none;
                   -webkit-user-select: text;
                   user-select: text;
                 `,
-              }}
-            />
-
-            {/* Inline Attachment Previews */}
-            {attachments.length > 0 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps='always'
-                contentContainerStyle={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 8,
-                  gap: 8,
                 }}
-                style={{
-                  borderTopWidth: 1,
-                  borderTopColor: colors.border,
-                }}
-              >
-                {attachments.map(item => {
-                  const isImage =
-                    item.type === 'image' || item.type === 'document';
-                  const isVideo = item.type === 'video';
+              />
 
-                  return (
-                    <View
-                      key={item.id}
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 8,
-                        backgroundColor: colors.surface,
-                        borderColor: colors.border,
-                        borderWidth: 1,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {isImage ? (
-                        <Image
-                          source={{ uri: item.uri }}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            borderRadius: 7,
-                          }}
-                          resizeMode='cover'
-                        />
-                      ) : (
-                        <View
-                          style={{
-                            flex: 1,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            padding: 4,
-                          }}
-                        >
-                          <Ionicons
-                            name={
-                              isVideo
-                                ? 'videocam-outline'
-                                : 'document-text-outline'
-                            }
-                            size={24}
-                            color={colors.primary}
-                          />
-                          <AppText
-                            variant='caption'
-                            color={colors.textSecondary}
-                            numberOfLines={1}
-                            style={{ fontSize: 9, marginTop: 2 }}
-                          >
-                            {item.name}
-                          </AppText>
-                        </View>
-                      )}
+              {/* Inline Attachment Previews */}
+              {attachments.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps='always'
+                  contentContainerStyle={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 8,
+                    gap: 8,
+                  }}
+                  style={{
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border,
+                  }}
+                >
+                  {attachments.map(item => {
+                    const isImage =
+                      item.type === 'image' || item.type === 'document';
+                    const isVideo = item.type === 'video';
 
-                      {item.isUploading && (
-                        <View
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            backgroundColor: 'rgba(0,0,0,0.4)',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <ActivityIndicator
-                            size='small'
-                            color={colors.white || '#FFFFFF'}
-                          />
-                        </View>
-                      )}
-
-                      {!isSubmittingComment && (
-                        <TouchableOpacity
-                          onPress={() => handleRemoveAttachment(item.id)}
-                          style={{
-                            position: 'absolute',
-                            top: -6,
-                            right: -6,
-                            backgroundColor: colors.card,
-                            borderRadius: 10,
-                            zIndex: 10,
-                          }}
-                        >
-                          <Ionicons
-                            name='close-circle'
-                            size={20}
-                            color={colors.error || '#FF3B30'}
-                          />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            )}
-
-            {/* Bottom Toolbar Area */}
-            {showToolbar && (
-              <View
-                style={{
-                  borderTopWidth: 1,
-                  borderTopColor: colors.border,
-                  backgroundColor: colors.card,
-                }}
-              >
-                <View className='flex-row items-center justify-between'>
-                  <View className='flex-1 flex-row items-center'>
-                    {/* 1. Attachment Button */}
-                    <TouchableOpacity
-                      onPress={openBottomSheet}
-                      activeOpacity={0.7}
-                      disabled={isSubmittingComment}
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 8,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <WorkItemIcon
-                        type='add'
-                        size={22}
-                        color={colors.primary}
-                      />
-                    </TouchableOpacity>
-
-                    {/* 2. Letter Case Toggle Icon */}
-                    <TouchableOpacity
-                      onPress={handleToggleCase}
-                      activeOpacity={0.7}
-                      disabled={isSubmittingComment}
-                      style={{
-                        paddingHorizontal: 8,
-                        paddingVertical: 6,
-                        marginHorizontal: 2,
-                        borderRadius: 6,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        backgroundColor: isUpperCase
-                          ? `${colors.primary}20`
-                          : 'transparent',
-                      }}
-                    >
-                      <WorkItemIcon
-                        type='format-letter-case'
-                        size={22}
-                        color={
-                          isUpperCase ? colors.primary : colors.textSecondary
-                        }
-                      />
-                    </TouchableOpacity>
-
-                    {/* Vertical Divider */}
-                    <View
-                      style={{
-                        width: 1,
-                        height: 20,
-                        backgroundColor: colors.border,
-                        marginHorizontal: 4,
-                      }}
-                    />
-
-                    {/* 3. Scrollable Rich Text Tools */}
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ alignItems: 'center' }}
-                      style={{ flex: 1 }}
-                      keyboardShouldPersistTaps='always'
-                    >
-                      <RichToolbar
-                        editor={editorRef}
-                        actions={scrollableActions}
-                        iconTint={colors.textSecondary}
-                        selectedIconTint={colors.primary}
+                    return (
+                      <View
+                        key={item.id}
                         style={{
-                          backgroundColor: 'transparent',
+                          width: 64,
+                          height: 64,
+                          borderRadius: 8,
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                          borderWidth: 1,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {isImage ? (
+                          <Image
+                            source={{ uri: item.uri }}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              borderRadius: 7,
+                            }}
+                            resizeMode='cover'
+                          />
+                        ) : (
+                          <View
+                            style={{
+                              flex: 1,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              padding: 4,
+                            }}
+                          >
+                            <Ionicons
+                              name={
+                                isVideo
+                                  ? 'videocam-outline'
+                                  : 'document-text-outline'
+                              }
+                              size={24}
+                              color={colors.primary}
+                            />
+                            <AppText
+                              variant='caption'
+                              color={colors.textSecondary}
+                              numberOfLines={1}
+                              style={{ fontSize: 9, marginTop: 2 }}
+                            >
+                              {item.name}
+                            </AppText>
+                          </View>
+                        )}
+
+                        {item.isUploading && (
+                          <View
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              backgroundColor: 'rgba(0,0,0,0.4)',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <ActivityIndicator
+                              size='small'
+                              color={colors.white || '#FFFFFF'}
+                            />
+                          </View>
+                        )}
+
+                        {!isSubmittingComment && (
+                          <TouchableOpacity
+                            onPress={() => handleRemoveAttachment(item.id)}
+                            style={{
+                              position: 'absolute',
+                              top: -6,
+                              right: -6,
+                              backgroundColor: colors.card,
+                              borderRadius: 10,
+                              zIndex: 10,
+                            }}
+                          >
+                            <Ionicons
+                              name='close-circle'
+                              size={20}
+                              color={colors.error || '#FF3B30'}
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              )}
+
+              {/* Bottom Toolbar Area */}
+              {showToolbar && (
+                <View
+                  style={{
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border,
+                    backgroundColor: colors.card,
+                  }}
+                >
+                  <View className='flex-row items-center justify-between'>
+                    <View className='flex-1 flex-row items-center'>
+                      {/* 1. Attachment Button */}
+                      <TouchableOpacity
+                        onPress={openBottomSheet}
+                        activeOpacity={0.7}
+                        disabled={isSubmittingComment}
+                        style={{
+                          paddingHorizontal: 10,
+                          paddingVertical: 8,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <WorkItemIcon
+                          type='add'
+                          size={22}
+                          color={colors.primary}
+                        />
+                      </TouchableOpacity>
+
+                      {/* 2. Letter Case Toggle Icon */}
+                      <TouchableOpacity
+                        onPress={handleToggleCase}
+                        activeOpacity={0.7}
+                        disabled={isSubmittingComment}
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 6,
+                          marginHorizontal: 2,
+                          borderRadius: 6,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          backgroundColor: isUpperCase
+                            ? `${colors.primary}20`
+                            : 'transparent',
+                        }}
+                      >
+                        <WorkItemIcon
+                          type='format-letter-case'
+                          size={22}
+                          color={
+                            isUpperCase ? colors.primary : colors.textSecondary
+                          }
+                        />
+                      </TouchableOpacity>
+
+                      {/* Vertical Divider */}
+                      <View
+                        style={{
+                          width: 1,
+                          height: 20,
+                          backgroundColor: colors.border,
+                          marginHorizontal: 4,
                         }}
                       />
-                    </ScrollView>
-                  </View>
 
-                  {/* Right Action Buttons */}
-                  <View
-                    className='flex-row items-center'
-                    style={{ gap: 12, paddingRight: 10, paddingLeft: 6 }}
-                  >
-                    {showInlineCancel && (
+                      {/* 3. Scrollable Rich Text Tools */}
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ alignItems: 'center' }}
+                        style={{ flex: 1 }}
+                        keyboardShouldPersistTaps='always'
+                      >
+                        <RichToolbar
+                          editor={editorRef}
+                          actions={scrollableActions}
+                          iconTint={colors.textSecondary}
+                          selectedIconTint={colors.primary}
+                          style={{
+                            backgroundColor: 'transparent',
+                          }}
+                        />
+                      </ScrollView>
+                    </View>
+
+                    {/* Right Action Buttons */}
+                    <View
+                      className='flex-row items-center'
+                      style={{ gap: 12, paddingRight: 10, paddingLeft: 6 }}
+                    >
+                      {showInlineCancel && (
+                        <TouchableOpacity
+                          onPress={onCancelEdit}
+                          disabled={isSubmittingComment}
+                        >
+                          <AppText
+                            variant='body'
+                            color={colors.textSecondary}
+                            className='font-medium'
+                          >
+                            Cancel
+                          </AppText>
+                        </TouchableOpacity>
+                      )}
+
                       <TouchableOpacity
-                        onPress={onCancelEdit}
-                        disabled={isSubmittingComment}
+                        disabled={
+                          !canSubmitComment ||
+                          isCommentEmpty ||
+                          isSubmittingComment ||
+                          isAnyAttachmentUploading
+                        }
+                        onPress={handleSubmitComment}
                       >
                         <AppText
                           variant='body'
-                          color={colors.textSecondary}
-                          className='font-medium'
+                          color={
+                            canAddComment &&
+                            !isCommentEmpty &&
+                            !isSubmittingComment &&
+                            !isAnyAttachmentUploading
+                              ? colors.primary
+                              : colors.secondary
+                          }
+                          className='font-bold'
                         >
-                          Cancel
+                          {submitLabel}
                         </AppText>
                       </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity
-                      disabled={
-                        isCommentEmpty ||
-                        isSubmittingComment ||
-                        isAnyAttachmentUploading
-                      }
-                      onPress={onSubmit}
-                    >
-                      <AppText
-                        variant='body'
-                        color={
-                          !isCommentEmpty &&
-                          !isSubmittingComment &&
-                          !isAnyAttachmentUploading
-                            ? colors.primary
-                            : colors.secondary
-                        }
-                        className='font-bold'
-                      >
-                        {submitLabel}
-                      </AppText>
-                    </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              </View>
-            )}
-          </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Attachment Bottom Sheet */}

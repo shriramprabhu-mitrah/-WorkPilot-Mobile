@@ -65,6 +65,7 @@ import {
 } from '../components/skeleton/boardSkeleton';
 import { UserStoryBoardRow } from '../components/userStoryBoardRow';
 import TaskCard from '../components/TaskCard';
+import { usePermissions } from '../hooks/usePermissions';
 
 const DragPreviewOverlay = ({
   task,
@@ -246,6 +247,12 @@ const ProjectDeatailsScreen = () => {
   const projectId =
     project?.id?.toString() || (project as any)?._id?.toString();
 
+  const {
+    isLoading: permissionsLoading,
+    canCreateUserStory,
+    canEditTask,
+  } = usePermissions({ projectId: projectId });
+
   const rawSprintId =
     currentSprint?.id?.toString() || (currentSprint as any)?._id?.toString();
 
@@ -386,7 +393,10 @@ const ProjectDeatailsScreen = () => {
   const filterResponseAtStartRef = useRef(boardStoriesResponse);
   const boardMeta = boardStoriesResponse?.meta ?? null;
   const boardColumns = useMemo<BoardStatusColumn[]>(() => {
-    if (boardStories.length > 0 && (boardStories[0].statuses || []).length > 0) {
+    if (
+      boardStories.length > 0 &&
+      (boardStories[0].statuses || []).length > 0
+    ) {
       return [...(boardStories[0].statuses || [])].sort(
         (a, b) => a.display_order - b.display_order,
       );
@@ -624,7 +634,13 @@ const ProjectDeatailsScreen = () => {
         filterFetchStarted.current = false;
       });
     refetchStorylessTasks();
-  }, [boardRefetchKey, isFocused, projectId, refetchBoardStories, refetchStorylessTasks]);
+  }, [
+    boardRefetchKey,
+    isFocused,
+    projectId,
+    refetchBoardStories,
+    refetchStorylessTasks,
+  ]);
 
   type OptimisticAction =
     | { kind: 'story'; storyId: string; isFav: boolean }
@@ -782,7 +798,9 @@ const ProjectDeatailsScreen = () => {
       (story.statuses || []).forEach(statusCol => {
         const existing = nextPagination[story.id][statusCol.status_id];
         const initialTasks = (statusCol.tasks ?? []).filter(task => {
-          const override = taskLocationOverridesRef.current.get(String(task.id));
+          const override = taskLocationOverridesRef.current.get(
+            String(task.id),
+          );
           if (!override) return true;
           if (
             String(override.statusId) === String(statusCol.status_id) &&
@@ -808,7 +826,9 @@ const ProjectDeatailsScreen = () => {
           };
         } else {
           const filteredExisting = existing.tasks.filter(task => {
-            const override = taskLocationOverridesRef.current.get(String(task.id));
+            const override = taskLocationOverridesRef.current.get(
+              String(task.id),
+            );
             if (!override) return true;
             return (
               String(override.statusId) === String(statusCol.status_id) &&
@@ -1282,7 +1302,13 @@ const ProjectDeatailsScreen = () => {
         }
       });
     },
-    [dispatch, projectId, displayStories, addOptimisticUpdate, refetchStorylessTasks],
+    [
+      dispatch,
+      projectId,
+      displayStories,
+      addOptimisticUpdate,
+      refetchStorylessTasks,
+    ],
   );
 
   const registerTaskDropZone = useCallback((zone: DropZone) => {
@@ -1337,8 +1363,7 @@ const ProjectDeatailsScreen = () => {
             if (item.storyId !== 'storyless') return false;
             const adjustedX = item.x - (currentX - item.scrollXAtMeasure);
             return (
-              absoluteX >= adjustedX &&
-              absoluteX <= adjustedX + item.width
+              absoluteX >= adjustedX && absoluteX <= adjustedX + item.width
             );
           });
           if (xMatchInStoryless) return xMatchInStoryless;
@@ -1517,9 +1542,11 @@ const ProjectDeatailsScreen = () => {
                     : (story.total_tasks ?? 0) + 1,
               statuses: (story.statuses ?? []).map(column => {
                 const wasSource =
-                  isSource && String(column.status_id) === String(sourceStatusId);
+                  isSource &&
+                  String(column.status_id) === String(sourceStatusId);
                 const isDestination =
-                  isTarget && String(column.status_id) === String(targetStatusId);
+                  isTarget &&
+                  String(column.status_id) === String(targetStatusId);
                 const tasks = (column.tasks ?? []).filter(
                   task => String(task.id) !== String(sourceTask.id),
                 );
@@ -1637,9 +1664,11 @@ const ProjectDeatailsScreen = () => {
                     : (story.total_tasks ?? 0) + 1,
               statuses: (story.statuses ?? []).map(column => {
                 const wasTarget =
-                  isTarget && String(column.status_id) === String(targetStatusId);
+                  isTarget &&
+                  String(column.status_id) === String(targetStatusId);
                 const isSourceColumn =
-                  isSource && String(column.status_id) === String(sourceStatusId);
+                  isSource &&
+                  String(column.status_id) === String(sourceStatusId);
                 const tasks = (column.tasks ?? []).filter(
                   task => String(task.id) !== String(sourceTask.id),
                 );
@@ -1670,6 +1699,12 @@ const ProjectDeatailsScreen = () => {
       absoluteX: number,
       absoluteY: number,
     ) => {
+      if (permissionsLoading || !canEditTask) {
+        setActiveDropZone(null);
+        setDropSuccessZone(null);
+        return;
+      }
+
       setActiveDropZone(null);
 
       const isSourceStoryless =
@@ -1925,24 +1960,26 @@ const ProjectDeatailsScreen = () => {
                     </AppText>
                   </View>
                 </View>
-                <TouchableOpacity
-                  onPress={() => setIsModalVisible(true)}
-                  activeOpacity={0.8}
-                  className='items-center justify-center'
-                  style={{
-                    width: moderateScale(30),
-                    height: moderateScale(30),
-                    borderRadius: Radius.circle,
-                    backgroundColor: colors.primary,
-                    elevation: 4,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 3,
-                  }}
-                >
-                  <Ionicons name='add' size={20} color={colors.white} />
-                </TouchableOpacity>
+                {!permissionsLoading && canCreateUserStory && (
+                  <TouchableOpacity
+                    onPress={() => setIsModalVisible(true)}
+                    activeOpacity={0.8}
+                    className='items-center justify-center'
+                    style={{
+                      width: moderateScale(30),
+                      height: moderateScale(30),
+                      borderRadius: Radius.circle,
+                      backgroundColor: colors.primary,
+                      elevation: 4,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 3,
+                    }}
+                  >
+                    <Ionicons name='add' size={20} color={colors.white} />
+                  </TouchableOpacity>
+                )}
               </View>
               {boardColumns.map(status => (
                 <View
@@ -2022,6 +2059,7 @@ const ProjectDeatailsScreen = () => {
                   taskPagination={taskPagination}
                   onLoadMoreTasks={handleLoadMoreTasks}
                   colors={colors}
+                  canDragTasks={!permissionsLoading && canEditTask}
                 />
               ))}
 

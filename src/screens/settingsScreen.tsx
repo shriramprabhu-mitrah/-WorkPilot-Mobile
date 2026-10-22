@@ -13,7 +13,7 @@ import DeviceInfo from 'react-native-device-info';
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import { ThemeSettingsScreen } from '../theme/ThemeSettingsScreen'; // Ensure path is correct
-
+import { usePermissions } from '../hooks/usePermissions';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
@@ -41,6 +41,7 @@ const Workpoilet = [
 export default function SettingsScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { colors, strings } = useTheme();
+  const { isOrgAdmin } = usePermissions();
   const dispatch = useAppDispatch();
   const { layout, moderateScale, wp, isSmallHeight, hp } = useAuthLayout();
   const { user } = useAppSelector(state => state.auth);
@@ -281,94 +282,98 @@ export default function SettingsScreen() {
             </AppText>
           </View>
         </TouchableOpacity>
-        {sections.map(section => (
-          <View
-            key={section.title}
-            style={{ marginBottom: layout.sectionGap, gap: layout.tightGap }}
-          >
-            <AppText
-              variant='caption'
-              color={colors.textSecondary}
-              style={{
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: 1,
-                marginBottom: layout.tightGap,
-                paddingLeft: moderateScale(4),
-              }}
-            >
-              {section.title}
-            </AppText>
+        {sections
+          .filter(section =>
+            section.title === 'Organization' ? isOrgAdmin : true,
+          )
+          .map(section => (
             <View
-              className='rounded-xl border'
-              style={{
-                borderRadius: Radius.sm,
-                paddingHorizontal: layout.paddingHorizontal * 0.5,
-                paddingTop: layout.paddingTop,
-                paddingBottom: layout.paddingBottom,
-                backgroundColor: colors.background || colors.surface,
-                borderColor: colors.border,
-              }}
+              key={section.title}
+              style={{ marginBottom: layout.sectionGap, gap: layout.tightGap }}
             >
-              {section.items.map(
-                ({ iconName, label, path, color, isThemeSection }, index) => (
-                  <View
-                    key={label}
-                    style={{
-                      borderBottomWidth:
-                        index !== section.items.length - 1 ? 1 : 0,
-                      borderBottomColor: colors.border,
-                    }}
-                  >
-                    <TouchableOpacity
-                      disabled={isThemeSection}
-                      onPress={() => navigation.navigate(path as any)}
-                      activeOpacity={0.6}
-                      className='flex-row items-center justify-between'
+              <AppText
+                variant='caption'
+                color={colors.textSecondary}
+                style={{
+                  fontWeight: '600',
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                  marginBottom: layout.tightGap,
+                  paddingLeft: moderateScale(4),
+                }}
+              >
+                {section.title}
+              </AppText>
+              <View
+                className='rounded-xl border'
+                style={{
+                  borderRadius: Radius.sm,
+                  paddingHorizontal: layout.paddingHorizontal * 0.5,
+                  paddingTop: layout.paddingTop,
+                  paddingBottom: layout.paddingBottom,
+                  backgroundColor: colors.background || colors.surface,
+                  borderColor: colors.border,
+                }}
+              >
+                {section.items.map(
+                  ({ iconName, label, path, color, isThemeSection }, index) => (
+                    <View
+                      key={label}
                       style={{
-                        paddingHorizontal: moderateScale(16),
-                        paddingVertical: moderateScale(14),
+                        borderBottomWidth:
+                          index !== section.items.length - 1 ? 1 : 0,
+                        borderBottomColor: colors.border,
                       }}
                     >
-                      <View className='flex-1 flex-row items-center'>
-                        <View
-                          className='items-center justify-center rounded-lg'
-                          style={{
-                            width: moderateScale(32),
-                            height: moderateScale(32),
-                            backgroundColor: `${color}1A`,
-                            marginRight: moderateScale(12),
-                          }}
-                        >
+                      <TouchableOpacity
+                        disabled={isThemeSection}
+                        onPress={() => navigation.navigate(path as any)}
+                        activeOpacity={0.6}
+                        className='flex-row items-center justify-between'
+                        style={{
+                          paddingHorizontal: moderateScale(16),
+                          paddingVertical: moderateScale(14),
+                        }}
+                      >
+                        <View className='flex-1 flex-row items-center'>
+                          <View
+                            className='items-center justify-center rounded-lg'
+                            style={{
+                              width: moderateScale(32),
+                              height: moderateScale(32),
+                              backgroundColor: `${color}1A`,
+                              marginRight: moderateScale(12),
+                            }}
+                          >
+                            <Ionicons
+                              name={iconName}
+                              size={moderateScale(16)}
+                              color={color}
+                            />
+                          </View>
+                          <AppText variant='body' style={{ fontWeight: '500' }}>
+                            {label}
+                          </AppText>
+                        </View>
+                        {isThemeSection && (
+                          <View>
+                            <ThemeSettingsScreen />
+                          </View>
+                        )}
+                        {!isThemeSection && (
                           <Ionicons
-                            name={iconName}
+                            name='chevron-forward-outline'
                             size={moderateScale(16)}
-                            color={color}
+                            color={colors.placeholder || colors.textSecondary}
                           />
-                        </View>
-                        <AppText variant='body' style={{ fontWeight: '500' }}>
-                          {label}
-                        </AppText>
-                      </View>
-                      {isThemeSection && (
-                        <View>
-                          <ThemeSettingsScreen />
-                        </View>
-                      )}
-                      {!isThemeSection && (
-                        <Ionicons
-                          name='chevron-forward-outline'
-                          size={moderateScale(16)}
-                          color={colors.placeholder || colors.textSecondary}
-                        />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                ),
-              )}
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ),
+                )}
+              </View>
             </View>
-          </View>
-        ))}
+          ))}
         <View
           style={{
             marginBottom: layout.sectionGap,
@@ -462,7 +467,7 @@ export default function SettingsScreen() {
           className='flex-row items-center justify-center border'
           style={{
             borderRadius: Radius.sm,
-            backgroundColor: colors.background || colors.surface,
+            backgroundColor: colors.error,
             borderColor: colors.border,
             paddingVertical: moderateScale(12),
             gap: moderateScale(8),
@@ -471,11 +476,11 @@ export default function SettingsScreen() {
           <Ionicons
             name='log-out-outline'
             size={moderateScale(18)}
-            color={colors.error}
+            color={colors.white}
           />
           <AppText
             style={{
-              color: colors.error,
+              color: colors.white,
               fontWeight: '600',
               fontSize: moderateScale(14),
             }}

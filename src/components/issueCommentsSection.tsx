@@ -47,6 +47,9 @@ interface Props {
   taskId?: string;
   userStoryId?: string;
   projectId?: string;
+  canAddComment?: boolean;
+  canEditComment?: boolean;
+  canDeleteComment?: boolean;
 }
 
 export const IssueCommentsSection: React.FC<Props> = ({
@@ -64,6 +67,9 @@ export const IssueCommentsSection: React.FC<Props> = ({
   taskId,
   userStoryId,
   projectId,
+  canAddComment,
+  canEditComment,
+  canDeleteComment,
 }) => {
   const [triggerTaskReplies] = useLazyGetTaskCommentRepliesQuery();
   const [triggerUserStoryReplies] = useLazyGetUserStoryCommentRepliesQuery();
@@ -191,12 +197,13 @@ export const IssueCommentsSection: React.FC<Props> = ({
   }, [onRefreshReplies, fetchRepliesForComment]);
 
   const handleOpenDeleteModal = (commentId: string) => {
+    if (!canDeleteComment) return;
     setSelectedCommentId(commentId);
     setIsDeleteModalVisible(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedCommentId) {
+    if (!canDeleteComment || !selectedCommentId) {
       return;
     }
     const targetId = selectedCommentId;
@@ -381,10 +388,13 @@ export const IssueCommentsSection: React.FC<Props> = ({
             style={{ gap: 12 }}
           >
             <View className='flex-row items-center' style={{ gap: 12 }}>
-              {onReply && (
+              {!canAddComment && onReply && (
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={() => onReply(initialParentCommentId || item.id)}
+                  onPress={() => {
+                    if (!canAddComment) return;
+                    onReply(initialParentCommentId || item.id);
+                  }}
                 >
                   <AppText
                     variant='caption'
@@ -416,35 +426,39 @@ export const IssueCommentsSection: React.FC<Props> = ({
             </View>
 
             <View className='flex-row items-center' style={{ gap: 14 }}>
-              <TouchableOpacity
-                disabled={isDeletingThis}
-                onPress={() => {
-                  onStartEdit(item.id, commentText);
-                }}
-              >
-                <Ionicons
-                  name='pencil-outline'
-                  size={16}
-                  color={
-                    editingCommentId === item.id
-                      ? colors.primary
-                      : colors.textSecondary
-                  }
-                />
-              </TouchableOpacity>
-              {isDeletingThis ? (
-                <ActivityIndicator size='small' color={colors.error} />
-              ) : (
+              {canEditComment && (
                 <TouchableOpacity
-                  onPress={() => handleOpenDeleteModal(item.id)}
+                  disabled={isDeletingThis}
+                  onPress={() => {
+                    if (!canEditComment) return;
+                    onStartEdit(item.id, commentText);
+                  }}
                 >
                   <Ionicons
-                    name='trash-outline'
+                    name='pencil-outline'
                     size={16}
-                    color={colors.error || '#FF3B30'}
+                    color={
+                      editingCommentId === item.id
+                        ? colors.primary
+                        : colors.textSecondary
+                    }
                   />
                 </TouchableOpacity>
               )}
+              {canDeleteComment &&
+                (isDeletingThis ? (
+                  <ActivityIndicator size='small' color={colors.error} />
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => handleOpenDeleteModal(item.id)}
+                  >
+                    <Ionicons
+                      name='trash-outline'
+                      size={16}
+                      color={colors.error || '#FF3B30'}
+                    />
+                  </TouchableOpacity>
+                ))}
             </View>
           </View>
         </View>

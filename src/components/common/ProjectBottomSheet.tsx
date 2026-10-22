@@ -36,6 +36,7 @@ import CustomSnackbar, { SnackbarType } from './Snackbar/CustomSnackbar';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../types/navigationTypes';
 import { renderParsedHtml } from '../../utils/htmlParser';
+import usePermissions from '../../hooks/usePermissions';
 
 export interface ProjectListBottomSheetProps {
   visible: boolean;
@@ -44,7 +45,7 @@ export interface ProjectListBottomSheetProps {
   mode?: 'projects' | 'sprints';
   projectId?: string;
   onSelectProject?: (projectId: string, projectName: string) => void;
-  onSelectSprint?: (sprintId: string) => void;
+  onSelectSprint?: (sprintId: string, sprintName: string) => void;
   onEndReached?: () => void;
   hasMore?: boolean;
   isFetchingMore?: boolean;
@@ -78,6 +79,8 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   isFetchingMore: isFetchingMoreProp,
 }) => {
   const { colors, strings } = useTheme();
+  const { permissionsReady, canCreateProject, canCreateSprint } =
+    usePermissions({ projectId: projectId });
   const { layout } = useAuthLayout();
   const insets = useSafeAreaInsets();
   const closeIconSize = moderateScale(20);
@@ -98,6 +101,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const [hasNoMore, setHasNoMore] = useState(false);
   const lastRequestedPageRef = useRef(1);
   const isSprint = mode === 'sprints';
+  const canCreate = isSprint ? canCreateSprint : canCreateProject;
 
   const [localSnackbarVisible, setLocalSnackbarVisible] = useState(false);
   const [localSnackbarMessage, setLocalSnackbarMessage] = useState('');
@@ -149,7 +153,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
 
   // Append paginated projects data
   useEffect(() => {
-    if (!projectsResponse?.data) return;
+    if (!visible || !projectsResponse?.data) return;
     const incoming = Array.isArray(projectsResponse.data)
       ? projectsResponse.data
       : [];
@@ -178,11 +182,11 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
         return [...prev, ...unique];
       });
     }
-  }, [projectsResponse, page]);
+  }, [projectsResponse, page, visible]);
 
   // Append paginated sprints data
   useEffect(() => {
-    if (!sprintsResponse?.data) return;
+    if (!visible || !sprintsResponse?.data) return;
     const incoming = Array.isArray(sprintsResponse.data)
       ? sprintsResponse.data
       : [];
@@ -211,7 +215,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
         return [...prev, ...unique];
       });
     }
-  }, [sprintsResponse, page]);
+  }, [sprintsResponse, page, visible]);
 
   const listData = useMemo(() => {
     if (!isSprint) {
@@ -223,7 +227,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
         ? allSprints
         : sprintsData.length > 0
           ? sprintsData
-          : project?.sprints || [];
+          : [];
 
     const allSprintsOption = {
       id: 'all',
@@ -254,7 +258,6 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
     allSprints,
     sprintsData,
     sprintsName,
-    project?.sprints,
   ]);
 
   // Pagination meta
@@ -282,13 +285,10 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const isCurrentFetching = isSprint ? isSprintsFetching : isProjectsFetching;
   const isCurrentLoading = isSprint ? isSprintsLoading : isProjectsLoading;
 
-  const isFirstTime = isSprint
-    ? allSprints.length === 0 && sprintsResponse === undefined
-    : allProjects.length === 0 && projectsResponse === undefined;
   const showSkeleton =
-    isFirstTime && (isCurrentLoading || isCurrentFetching) && page === 1;
+    (isCurrentLoading || (isCurrentFetching && page === 1)) &&
+    (isSprint ? allSprints.length === 0 : allProjects.length === 0);
 
-  const loading = isCurrentLoading || (isCurrentFetching && page === 1);
   const reduxIsFetchingMore = isCurrentFetching && page > 1;
 
   const effectiveHasMore = hasMoreProp ?? rtkHasMore;
@@ -355,7 +355,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   const handleSelect = (id: string, name: string) => {
     if (!id) return;
     if (isSprint) {
-      onSelectSprint?.(id);
+      onSelectSprint?.(id, name);
     } else {
       onSelectProject?.(id, name);
     }
@@ -401,29 +401,31 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
               {sheetTitle}
             </AppText>
             <View className='flex-row items-center gap-5'>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setIsCreateModalVisible(true)}
-                style={{
-                  backgroundColor: colors.primary,
-                }}
-                className='flex-row items-center gap-1 rounded-lg px-2 py-2'
-              >
-                <Ionicons
-                  name='add'
-                  size={moderateScale(14)}
-                  color={colors.white}
-                  className='font-semibold'
-                />
-                <AppText
-                  variant='button'
-                  color={colors.white}
-                  style={{ fontSize: moderateScale(12) }}
-                  className='font-semibold'
+              {canCreate && permissionsReady && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setIsCreateModalVisible(true)}
+                  style={{
+                    backgroundColor: colors.primary,
+                  }}
+                  className='flex-row items-center gap-1 rounded-lg px-2 py-2'
                 >
-                  {newButtonTitle}
-                </AppText>
-              </TouchableOpacity>
+                  <Ionicons
+                    name='add'
+                    size={moderateScale(14)}
+                    color={colors.white}
+                    className='font-semibold'
+                  />
+                  <AppText
+                    variant='button'
+                    color={colors.white}
+                    style={{ fontSize: moderateScale(12) }}
+                    className='font-semibold'
+                  >
+                    {newButtonTitle}
+                  </AppText>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={onDismiss}
@@ -718,7 +720,10 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
 
       <CreateProjectModal
         visible={isCreateModalVisible}
-        onClose={() => setIsCreateModalVisible(false)}
+        onClose={() => {
+          if (permissionsReady || !canCreate) return;
+          setIsCreateModalVisible(true);
+        }}
         mode={isSprint ? 'sprint' : 'project'}
         title={isSprint ? 'Create Sprint' : 'New Project'}
         projectId={resolvedProjectId}

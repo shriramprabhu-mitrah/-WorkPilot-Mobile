@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, TouchableOpacity, FlatList, ScrollView } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
+import { View, TouchableOpacity, FlatList, Image } from 'react-native';
+import { usePermissions } from '../hooks/usePermissions';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import AppText from '../components/common/AppText';
@@ -14,6 +14,8 @@ import { RootStackParamList } from '../types/navigationTypes';
 import Screen from '../components/common/ScreenWapper';
 import { showSnackbar } from '../components/common/Snackbar';
 import { renderParsedHtml } from '../utils/htmlParser';
+import { getStatusThemeColor, getPriorityThemeColor } from '../utils/enum';
+import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 
 type SearchCategory =
   'all' | 'task' | 'user_story' | 'project' | 'member' | 'sprint';
@@ -27,39 +29,27 @@ const CATEGORY_OPTIONS: { label: string; value: SearchCategory }[] = [
   { label: 'Sprints', value: 'sprint' },
 ];
 
-const CATEGORY_STORE_KEY_MAP: Record<
-  Exclude<SearchCategory, 'all'>,
-  'tasks' | 'user_stories' | 'projects' | 'members' | 'sprints'
-> = {
-  task: 'tasks',
-  user_story: 'user_stories',
-  project: 'projects',
-  member: 'members',
-  sprint: 'sprints',
-};
-
-const ICONS: Record<string, string> = {
-  task: 'checkbox',
-  user_story: 'bookmark',
-  project: 'folder',
-  sprint: 'repeat',
-  member: 'person-outline',
-};
-
 const SearchScreen = () => {
+  const CATEGORY_STORE_KEY_MAP: Record<
+    Exclude<SearchCategory, 'all'>,
+    'tasks' | 'user_stories' | 'projects' | 'members' | 'sprints'
+  > = {
+    task: 'tasks',
+    user_story: 'user_stories',
+    project: 'projects',
+    member: 'members',
+    sprint: 'sprints',
+  };
+
   const { colors } = useTheme();
   const { layout, hp, moderateScale } = useAuthLayout();
+  const { isOrgAdmin } = usePermissions();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] =
     useState<SearchCategory>('all');
-
-  useEffect(() => {
-    setSearchQuery('');
-    setSelectedCategory('all');
-  }, []);
 
   useEffect(() => {
     const trimmedQuery = searchQuery.trim();
@@ -70,16 +60,14 @@ const SearchScreen = () => {
 
   const {
     data: searchResponse,
-    isLoading: SearchLoading,
-    isFetching: searchFetching,
+    isLoading: isSearchLoading,
+    isFetching: isSearchFetching,
   } = useGlobalSearchQuery(
     debouncedQuery ? { query: debouncedQuery } : skipToken,
-    {
-      refetchOnMountOrArgChange: true,
-    },
+    { refetchOnMountOrArgChange: true },
   );
 
-  const searchLoading = SearchLoading || searchFetching;
+  const searchLoading = isSearchLoading || isSearchFetching;
 
   const filteredResults = useMemo(() => {
     const searchResults = searchResponse?.data;
@@ -92,7 +80,7 @@ const SearchScreen = () => {
         const storeKey = CATEGORY_STORE_KEY_MAP[cat];
         return (searchResults[storeKey] || []).map((item: SearchItem) => ({
           ...item,
-          type: cat,
+          type: item.type || cat,
         }));
       });
     }
@@ -102,17 +90,9 @@ const SearchScreen = () => {
 
     return categoryData.map((item: SearchItem) => ({
       ...item,
-      type: selectedCategory,
+      type: item.type || selectedCategory,
     }));
   }, [searchResponse?.data, selectedCategory, debouncedQuery]);
-
-  const getItemSubtitle = (item: SearchItem) => {
-    if (item.project_name) return item.project_name;
-    if (item.status) return item.status;
-    if (item.priority) return item.priority;
-    if (item.description) return item.description;
-    return item.type ? item.type.replace('_', ' ') : '';
-  };
 
   const handleItemPress = useCallback(
     (item: SearchItem) => {
@@ -144,14 +124,32 @@ const SearchScreen = () => {
 
         case 'sprint':
           if (item.project_id) {
-            navigation.navigate('projectDetails', {
-              projectId: item.project_id,
-              projectName: item.project_name || 'Project Details',
+            navigation.navigate('SprintDetails', {
+              sprintId: item.id,
+              sprintName: item.name || item.title || 'Sprint Details',
             });
           } else {
             showSnackbar({
               message: 'No project linked to this sprint',
               type: 'error',
+            });
+          }
+          break;
+
+        case 'member':
+          if (isOrgAdmin) {
+            navigation.navigate('userDetail', {
+              userId: item.id,
+              member: {
+                full_name: item.name || item.title,
+                name: item.name || item.title,
+                username: item.username,
+                user_name: item.user_name,
+                email: item.email,
+                role: item.role,
+                avatar_url: item.avatar_url,
+                color: item.color,
+              },
             });
           }
           break;
@@ -164,14 +162,198 @@ const SearchScreen = () => {
           break;
       }
     },
-    [navigation],
+    [navigation, isOrgAdmin],
   );
+
+  const renderCardContent = (item: SearchItem) => {
+    switch (item.type) {
+      case 'project':
+        return (
+          <>
+            {item.description ? (
+              <AppText
+                variant='caption'
+                color={colors.textSecondary}
+                numberOfLines={1}
+                style={{ fontSize: moderateScale(11) }}
+              >
+                {renderParsedHtml(item.description, {
+                  color: colors.textSecondary,
+                  fontSize: moderateScale(11),
+                })}
+              </AppText>
+            ) : null}
+            {item.status && (
+              <View
+                className='mt-1 self-start rounded px-2 py-0.5'
+                style={{ backgroundColor: colors.surface }}
+              >
+                <AppText
+                  variant='caption'
+                  style={{
+                    fontSize: moderateScale(10),
+                    textTransform: 'uppercase',
+                    color: getStatusThemeColor(item.status, colors),
+                  }}
+                >
+                  {item.status.replace('_', ' ')}
+                </AppText>
+              </View>
+            )}
+          </>
+        );
+
+      case 'sprint':
+        return (
+          <View
+            className='mt-1 flex-row flex-wrap items-center'
+            style={{ gap: moderateScale(6) }}
+          >
+            {item.project_name && (
+              <AppText
+                variant='caption'
+                color={colors.textSecondary}
+                numberOfLines={1}
+                style={{ fontSize: moderateScale(11) }}
+              >
+                {item.project_name}
+              </AppText>
+            )}
+            {item.status && (
+              <View
+                className='rounded px-1.5 py-0.5'
+                style={{ backgroundColor: colors.surface }}
+              >
+                <AppText
+                  variant='caption'
+                  style={{
+                    fontSize: moderateScale(10),
+                    color: getStatusThemeColor(item.status, colors),
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {item.status}
+                </AppText>
+              </View>
+            )}
+          </View>
+        );
+
+      case 'member':
+        return (
+          <View className='mt-1'>
+            <View
+              className='flex-row items-center'
+              style={{ gap: moderateScale(6) }}
+            >
+              {item.user_name && (
+                <AppText
+                  variant='caption'
+                  color={colors.textSecondary}
+                  numberOfLines={1}
+                  style={{ fontSize: moderateScale(11) }}
+                >
+                  @{item.user_name}
+                </AppText>
+              )}
+              {item.email && (
+                <AppText
+                  variant='caption'
+                  color={colors.textSecondary}
+                  numberOfLines={1}
+                  style={{ fontSize: moderateScale(11) }}
+                >
+                  {item.user_name ? `• ${item.email}` : item.email}
+                </AppText>
+              )}
+            </View>
+
+            {item.role && (
+              <View
+                className='mt-1 self-start rounded px-2 py-0.5'
+                style={{ backgroundColor: colors.surface }}
+              >
+                <AppText
+                  variant='caption'
+                  color={colors.primary}
+                  style={{
+                    fontSize: moderateScale(10),
+                    textTransform: 'capitalize',
+                    fontWeight: '600',
+                  }}
+                >
+                  {item.role.replace('_', ' ')}
+                </AppText>
+              </View>
+            )}
+          </View>
+        );
+
+      case 'task':
+      case 'user_story':
+      default:
+        return (
+          <View className='mt-1'>
+            {item.project_name && (
+              <AppText
+                variant='caption'
+                color={colors.textSecondary}
+                numberOfLines={1}
+                style={{
+                  fontSize: moderateScale(11),
+                  marginBottom: moderateScale(2),
+                }}
+              >
+                {item.project_name}
+              </AppText>
+            )}
+            <View
+              className='flex-row items-center'
+              style={{ gap: moderateScale(6) }}
+            >
+              {item.status && (
+                <View
+                  className='rounded px-1.5 py-0.5'
+                  style={{ backgroundColor: colors.surface }}
+                >
+                  <AppText
+                    variant='caption'
+                    style={{
+                      fontSize: moderateScale(10),
+                      color: getStatusThemeColor(item.status, colors),
+                    }}
+                  >
+                    {item.status}
+                  </AppText>
+                </View>
+              )}
+              {item.priority && (
+                <View
+                  className='rounded px-1.5 py-0.5'
+                  style={{ backgroundColor: colors.surface }}
+                >
+                  <AppText
+                    variant='caption'
+                    style={{
+                      fontSize: moderateScale(10),
+                      textTransform: 'capitalize',
+                      color: getPriorityThemeColor(item.priority, colors),
+                    }}
+                  >
+                    {item.priority}
+                  </AppText>
+                </View>
+              )}
+            </View>
+          </View>
+        );
+    }
+  };
 
   const renderResultItem = useCallback(
     ({ item }: { item: SearchItem }) => {
-      const title = item.title || 'Untitled';
-      const subtitle = getItemSubtitle(item);
-      const iconName = ICONS[item.type] || 'person-outline';
+      const title = item.name || item.title || 'Untitled';
+      const isMember = item.type === 'member';
 
       return (
         <TouchableOpacity
@@ -184,57 +366,85 @@ const SearchScreen = () => {
             gap: layout.elementGap,
           }}
         >
-          <View
-            className='items-center justify-center rounded-lg'
-            style={{
-              width: moderateScale(36),
-              height: moderateScale(36),
-              backgroundColor: colors.surface,
-            }}
-          >
-            <Ionicons
-              name={iconName as any}
-              size={moderateScale(20)}
-              color={colors.primary}
-            />
-          </View>
-          <View className='flex-1'>
-            <AppText
-              variant='body'
-              className='font-bold capitalize'
-              color={colors.text}
-              style={{
-                fontSize: moderateScale(14),
-                lineHeight: moderateScale(18),
-              }}
-              numberOfLines={1}
-            >
-              {title}
-            </AppText>
-            {item.key && (
-              <AppText
-                variant='caption'
-                color={colors.textSecondary}
-                numberOfLines={1}
-                style={{ fontSize: moderateScale(11) }}
+          {isMember ? (
+            item.avatar_url ? (
+              <Image
+                source={{ uri: item.avatar_url }}
+                style={{
+                  width: moderateScale(38),
+                  height: moderateScale(38),
+                  borderRadius: moderateScale(19),
+                }}
+                resizeMode='cover'
+              />
+            ) : (
+              <View
+                className='items-center justify-center rounded-full'
+                style={{
+                  width: moderateScale(38),
+                  height: moderateScale(38),
+                  backgroundColor: colors.primary,
+                }}
               >
-                {item.key}
-              </AppText>
-            )}
-            <AppText
-              variant='caption'
-              color={colors.textSecondary}
-              numberOfLines={1}
-              style={{ fontSize: moderateScale(11) }}
+                <AppText
+                  variant='body'
+                  className='font-bold uppercase text-white'
+                  style={{ fontSize: moderateScale(14) }}
+                >
+                  {(
+                    item.full_name ||
+                    item.user_name ||
+                    item.name ||
+                    'U'
+                  ).charAt(0)}
+                </AppText>
+              </View>
+            )
+          ) : (
+            <View
+              className='items-center justify-center rounded-lg'
+              style={{
+                width: moderateScale(38),
+                height: moderateScale(38),
+                backgroundColor: colors.surface,
+              }}
             >
-              {renderParsedHtml(subtitle, {
-                color: colors.textSecondary,
-                fontSize: moderateScale(11),
-              }) ?? 'No Subtitle'}
-            </AppText>
+              <WorkItemIcon type={item.type} size={moderateScale(20)} />
+            </View>
+          )}
+          <View className='flex-1 justify-center'>
+            <View
+              className='flex-row items-center'
+              style={{ gap: moderateScale(6) }}
+            >
+              {item.key && (
+                <AppText
+                  variant='caption'
+                  color={colors.primary}
+                  numberOfLines={1}
+                  className='font-semibold'
+                  style={{ fontSize: moderateScale(12) }}
+                >
+                  {item.key}
+                </AppText>
+              )}
+              <AppText
+                variant='body'
+                className='flex-1 font-semibold'
+                color={colors.text}
+                numberOfLines={1}
+                style={{
+                  fontSize: moderateScale(14),
+                  lineHeight: moderateScale(18),
+                }}
+              >
+                {title}
+              </AppText>
+            </View>
+            {renderCardContent(item)}
           </View>
-          <Ionicons
-            name='chevron-forward'
+          <WorkItemIcon
+            type='chevron-right'
             size={moderateScale(16)}
             color={colors.textSecondary}
           />
@@ -274,30 +484,20 @@ const SearchScreen = () => {
         onSelectCategory={value => setSelectedCategory(value as SearchCategory)}
       />
 
-      <ScrollView
-        style={{ flex: 1 }}
+      <FlatList
+        data={filteredResults}
+        keyExtractor={(item, index) => `${item.type}-${item.id}-${index}`}
+        renderItem={renderResultItem}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={renderEmptyState}
+        keyboardShouldPersistTaps='handled'
         contentContainerStyle={{
           paddingHorizontal: layout.paddingHorizontal,
-          paddingTop: moderateScale(5),
+          paddingTop: moderateScale(8),
           paddingBottom: hp(10),
+          flexGrow: 1,
         }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps='handled'
-      >
-        <FlatList
-          data={filteredResults}
-          keyExtractor={(item, index) => `${item.id}-${item.type}-${index}`}
-          renderItem={renderResultItem}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={renderEmptyState}
-          contentContainerStyle={{
-            flexGrow: 1,
-            gap: layout.tightGap,
-          }}
-          scrollEnabled={false}
-          keyboardShouldPersistTaps='handled'
-        />
-      </ScrollView>
+      />
     </Screen>
   );
 };

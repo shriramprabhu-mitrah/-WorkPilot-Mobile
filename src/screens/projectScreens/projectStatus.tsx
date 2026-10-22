@@ -28,6 +28,7 @@ import {
 } from '../../store/api/projectApi';
 import Screen from '../../components/common/ScreenWapper';
 import DeleteColumnModal from '../../components/DeleteColumnModal';
+import { usePermissions } from '../../hooks/usePermissions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -275,10 +276,14 @@ const SwipeRightActions = ({
   onEdit,
   onDelete,
   isDefault,
+  canEdit,
+  canDelete,
 }: {
   onEdit: () => void;
   onDelete: () => void;
   isDefault: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }) => {
   const { colors } = useTheme();
   const { moderateScale } = useAuthLayout();
@@ -292,37 +297,49 @@ const SwipeRightActions = ({
         gap: moderateScale(8),
       }}
     >
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={onEdit}
-        style={{
-          width: moderateScale(54),
-          height: '100%',
-          borderRadius: Radius.lg,
-          backgroundColor: '#10B981',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Ionicons name='create-outline' size={moderateScale(25)} color='#FFFFFF' />
-      </TouchableOpacity>
+      {canEdit && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={onEdit}
+          style={{
+            width: moderateScale(54),
+            height: '100%',
+            borderRadius: Radius.lg,
+            backgroundColor: '#10B981',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons
+            name='create-outline'
+            size={moderateScale(25)}
+            color='#FFFFFF'
+          />
+        </TouchableOpacity>
+      )}
 
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={onDelete}
-        disabled={isDefault}
-        style={{
-          width: moderateScale(54),
-          height: '100%',
-          borderRadius: Radius.lg,
-          backgroundColor: colors.error,
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: isDefault ? 0.35 : 1,
-        }}
-      >
-        <Ionicons name='trash-outline' size={moderateScale(25)} color='#FFFFFF' />
-      </TouchableOpacity>
+      {canDelete && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={onDelete}
+          disabled={isDefault}
+          style={{
+            width: moderateScale(54),
+            height: '100%',
+            borderRadius: Radius.lg,
+            backgroundColor: colors.error,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: isDefault ? 0.35 : 1,
+          }}
+        >
+          <Ionicons
+            name='trash-outline'
+            size={moderateScale(25)}
+            color='#FFFFFF'
+          />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -346,6 +363,22 @@ const ProjectStatus = () => {
   const [editItem, setEditItem] = useState<StatusItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<StatusItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const {
+    permissionsReady,
+    canCreateUserStory,
+    canEditUserStory,
+    canDeleteUserStory,
+    canCreateTask,
+    canEditTask,
+    canDeleteTask,
+  } = usePermissions({ projectId });
+  const canCreateStatus =
+    activeTab === 'userStory' ? canCreateUserStory : canCreateTask;
+  const canEditStatus =
+    activeTab === 'userStory' ? canEditUserStory : canEditTask;
+  const canDeleteStatus =
+    activeTab === 'userStory' ? canDeleteUserStory : canDeleteTask;
 
   const {
     data: userStoryStatusResponse,
@@ -427,21 +460,27 @@ const ProjectStatus = () => {
     : statuses;
 
   const openAdd = () => {
+    if (!permissionsReady || !canCreateStatus) return;
     setEditItem(null);
     setModalVisible(true);
   };
 
   const openEdit = (item: StatusItem) => {
+    if (!permissionsReady || !canEditStatus) return;
     setEditItem(item);
     setModalVisible(true);
   };
 
   const handleDelete = (id: string) => {
+    if (!permissionsReady || !canDeleteStatus) return;
     const item = statuses.find(status => status.id === id);
     if (item) setDeleteItem(item);
   };
 
   const handleConfirmDelete = async () => {
+    if (!permissionsReady || !canDeleteStatus || !deleteItem || !projectId) {
+      return;
+    }
     if (!deleteItem || !projectId) return;
     try {
       if (activeTab === 'userStory') {
@@ -462,6 +501,10 @@ const ProjectStatus = () => {
   };
 
   const handleSave = async (name: string, color: string, is_final: boolean) => {
+    if (!permissionsReady) return;
+    if (editItem ? !canEditStatus : !canCreateStatus) {
+      return;
+    }
     if (!projectId) return;
     const payload = {
       project_id: projectId,
@@ -584,20 +627,28 @@ const ProjectStatus = () => {
         <FlatList
           data={filtered}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <Swipeable
-              renderRightActions={() => (
-                <SwipeRightActions
-                  onEdit={() => openEdit(item)}
-                  onDelete={() => handleDelete(item.id)}
-                  isDefault={item.is_default}
-                />
-              )}
-              overshootRight={false}
-            >
-              <StatusRow item={item} />
-            </Swipeable>
-          )}
+          renderItem={({ item }) => {
+            const canSwipe =
+              permissionsReady && (canEditStatus || canDeleteStatus);
+            return (
+              <Swipeable
+                renderRightActions={() => (
+                  <SwipeRightActions
+                    onEdit={() => openEdit(item)}
+                    onDelete={() => handleDelete(item.id)}
+                    isDefault={item.is_default}
+                    canEdit={canEditStatus}
+                    canDelete={canDeleteStatus}
+                  />
+                )}
+                overshootRight={false}
+                enabled={canSwipe}
+                rightThreshold={40}
+              >
+                <StatusRow item={item} />
+              </Swipeable>
+            );
+          }}
           ItemSeparatorComponent={() => (
             <View style={{ height: moderateScale(10) }} />
           )}
@@ -628,24 +679,26 @@ const ProjectStatus = () => {
         />
       )}
 
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={openAdd}
-        style={{
-          position: 'absolute',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.primary,
-          bottom: Math.max(insets.bottom, Spacing.lg) + moderateScale(12),
-          right: layout?.paddingHorizontal ?? Spacing.lg,
-          width: moderateScale(56),
-          height: moderateScale(56),
-          borderRadius: Radius.circle,
-          ...Shadows.button,
-        }}
-      >
-        <Ionicons name='add' size={moderateScale(28)} color='#FFFFFF' />
-      </TouchableOpacity>
+      {permissionsReady && canCreateStatus && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={openAdd}
+          style={{
+            position: 'absolute',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colors.primary,
+            bottom: Math.max(insets.bottom, Spacing.lg) + moderateScale(12),
+            right: layout?.paddingHorizontal ?? Spacing.lg,
+            width: moderateScale(56),
+            height: moderateScale(56),
+            borderRadius: Radius.circle,
+            ...Shadows.button,
+          }}
+        >
+          <Ionicons name='add' size={moderateScale(28)} color='#FFFFFF' />
+        </TouchableOpacity>
+      )}
 
       <StatusModal
         visible={modalVisible}

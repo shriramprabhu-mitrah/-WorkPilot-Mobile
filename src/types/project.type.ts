@@ -163,6 +163,7 @@ export interface ProjectMember {
   full_name: string;
   name: string;
   role: string;
+  role_id?: string;
   avatar_url: string | null;
   color: string;
   organization_name: string;
@@ -183,6 +184,16 @@ export interface GetProjectMembersResponse extends ApiResponse<
 > {
   meta: ProjectMembersMeta;
 }
+
+export interface ProjectUserRole {
+  project_id: string;
+  project_name: string;
+  project_key: string;
+  role_id: string;
+  role: string;
+}
+
+export interface GetProjectUserRoleResponse extends ApiResponse<ProjectUserRole> {}
 
 export interface GetProjectMembersQueryArgs {
   project_id: string;

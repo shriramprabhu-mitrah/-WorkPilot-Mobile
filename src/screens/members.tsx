@@ -40,6 +40,7 @@ import { RootStackParamList } from '../types/navigationTypes';
 import AddProjectMemberModal from '../components/projectMemberIniviteModel';
 import EditMemberRoleModal from '../components/EditMemberRoleModal';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { usePermissions } from '../hooks/usePermissions';
 
 const PAGE_SIZE = 10;
 
@@ -143,6 +144,8 @@ const Members = () => {
       state.projects.project?.id?.toString() ||
       (state.projects.project as any)?._id?.toString(),
   );
+  const { permissionsReady, canEditProject, canDeleteProject, isOrgAdmin } =
+    usePermissions({ projectId });
   const lastRequestedPageRef = useRef(1);
 
   useEffect(() => {
@@ -255,6 +258,13 @@ const Members = () => {
   }, [isFetching, membersMeta, projectMembers.length, currentPage]);
 
   const handleConfirmRemoveMember = useCallback(async () => {
+    if (!permissionsReady || !canDeleteProject) {
+      showSnackbar({
+        message: 'You do not have permission to remove project members.',
+        type: 'error',
+      });
+      return;
+    }
     if (!projectId || !memberToRemove) return;
 
     if (memberToRemove.role === 'org_admin') {
@@ -297,6 +307,13 @@ const Members = () => {
   const handleAddMembersSubmit = async (
     members: { user_id: string; role_id: string }[],
   ) => {
+    if (!permissionsReady || !canEditProject) {
+      showSnackbar({
+        message: 'You do not have permission to add project members.',
+        type: 'error',
+      });
+      return;
+    }
     if (!projectId) {
       showSnackbar({
         message: 'Project ID is missing.',
@@ -334,6 +351,13 @@ const Members = () => {
   };
 
   const handleSaveMemberRole = async (userId: string, roleId: string) => {
+    if (!permissionsReady || !canEditProject) {
+      showSnackbar({
+        message: 'You do not have permission to update member roles.',
+        type: 'error',
+      });
+      return;
+    }
     if (!projectId) return;
     try {
       await updateProjectMemberRole({
@@ -391,20 +415,30 @@ const Members = () => {
             </AppText>
           </View>
         </View>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setIsAddMemberModalVisible(true)}
-          className='flex-row items-center rounded-md px-3 py-2'
-          style={{
-            backgroundColor: colors.primary,
-            gap: moderateScale(5),
-          }}
-        >
-          <Ionicons name='add' size={moderateScale(16)} color={colors.white} />
-          <AppText variant='caption' className='font-bold' color={colors.white}>
-            Add Members
-          </AppText>
-        </TouchableOpacity>
+        {permissionsReady && canEditProject && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setIsAddMemberModalVisible(true)}
+            className='flex-row items-center rounded-md px-3 py-2'
+            style={{
+              backgroundColor: colors.primary,
+              gap: moderateScale(5),
+            }}
+          >
+            <Ionicons
+              name='add'
+              size={moderateScale(16)}
+              color={colors.white}
+            />
+            <AppText
+              variant='caption'
+              className='font-bold'
+              color={colors.white}
+            >
+              Add Members
+            </AppText>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }, [
@@ -507,26 +541,31 @@ const Members = () => {
 
             return (
               <Swipeable
-                renderRightActions={() => (
-                  <SwipeRightActions
-                    onEdit={() => setMemberToEdit(item)}
-                    onDelete={() => setMemberToRemove(item)}
-                    isEditDisabled={isOrgAdmin}
-                    isDeleteDisabled={isOrgAdmin}
-                  />
-                )}
+                renderRightActions={() => {
+                  if (!permissionsReady) return null;
+                  if (!canEditProject && !canDeleteProject) return null;
+                  return (
+                    <SwipeRightActions
+                      onEdit={() => setMemberToEdit(item)}
+                      onDelete={() => setMemberToRemove(item)}
+                      isEditDisabled={isOrgAdmin || !canEditProject}
+                      isDeleteDisabled={isOrgAdmin || !canDeleteProject}
+                    />
+                  );
+                }}
                 overshootRight={false}
               >
                 <TouchableOpacity
                   activeOpacity={0.75}
-                  onPress={() =>
-                    projectId &&
-                    navigation.navigate('userDetail', {
-                      userId: item.user_id,
-                      projectId,
-                      member: item,
-                    })
-                  }
+                  onPress={() => {
+                    if (isOrgAdmin) {
+                      navigation.navigate('userDetail', {
+                        userId: item.user_id,
+                        projectId,
+                        member: item,
+                      });
+                    }
+                  }}
                   className='flex-row items-center border p-3.5 px-3'
                   style={{
                     backgroundColor: colors.card,

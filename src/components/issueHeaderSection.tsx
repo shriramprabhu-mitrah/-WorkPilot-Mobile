@@ -22,6 +22,7 @@ interface Props {
   onSelectId: (status: string) => void;
   statuses: CustomStatus[] | UserStoryStatusItem[] | [];
   isLoading?: boolean;
+  canEditStatus: boolean;
 }
 
 export const IssueHeaderSection: React.FC<Props> = ({
@@ -35,6 +36,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
   onSelectId,
   statuses,
   isLoading = false,
+  canEditStatus,
 }) => {
   const { layout } = useAuthLayout();
   const { colors } = useTheme();
@@ -108,7 +110,8 @@ export const IssueHeaderSection: React.FC<Props> = ({
           </View>
         ) : (
           <TouchableOpacity
-            activeOpacity={0.8}
+            activeOpacity={canEditStatus ? 0.8 : 1}
+            disabled={!canEditStatus}
             onPress={onToggleStatusPicker}
             className='flex-row items-center rounded-lg border'
             style={{
@@ -153,11 +156,13 @@ export const IssueHeaderSection: React.FC<Props> = ({
             </View>
 
             {/* Arrow */}
-            <Ionicons
-              name={showStatusPicker ? 'chevron-up' : 'chevron-down'}
-              size={layout.controlSize * 0.8}
-              color={activeStatusColor}
-            />
+            {canEditStatus && (
+              <Ionicons
+                name={showStatusPicker ? 'chevron-up' : 'chevron-down'}
+                size={layout.controlSize * 0.8}
+                color={activeStatusColor}
+              />
+            )}
           </TouchableOpacity>
         )}
 
