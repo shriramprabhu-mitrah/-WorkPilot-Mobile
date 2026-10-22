@@ -49,7 +49,7 @@ type UserStoryBoardRowProps = {
   colors: ThemeColors;
 };
 
-export const UserStoryBoardRow = ({
+const UserStoryBoardRowComponent = ({
   story,
   projectId,
   columns,
@@ -75,6 +75,8 @@ export const UserStoryBoardRow = ({
   onLoadMoreTasks,
 }: UserStoryBoardRowProps) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const isStoryless = story?.id === 'storyless';
+  const isDark = colors.background !== '#FFFFFF';
 
   return (
     <View
@@ -83,23 +85,36 @@ export const UserStoryBoardRow = ({
         borderBottomWidth: 1,
         borderBottomColor: colors.border,
         minHeight: expanded ? 250 : 100,
+        backgroundColor: isStoryless
+          ? isDark
+            ? '#0F1E36'
+            : '#EFF6FF'
+          : undefined,
       }}
     >
       <TouchableOpacity
-        onPress={() =>
+        onPress={() => {
+          if (story?.id === 'storyless') {
+            onToggle();
+            return;
+          }
           navigation.navigate('issue', {
             projectId,
             userStoryId: story?.id,
             story: story as any,
-          })
-        }
+          });
+        }}
         activeOpacity={0.7}
         style={{
           width: moderateScale(250),
           minHeight: 90,
           paddingHorizontal: 12,
           paddingVertical: 12,
-          backgroundColor: colors.card || colors.surface,
+          backgroundColor: isStoryless
+            ? isDark
+              ? '#1E3A8A'
+              : '#DEEBFF'
+            : colors.card || colors.surface,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
         }}
@@ -128,7 +143,11 @@ export const UserStoryBoardRow = ({
               style={{
                 fontSize: 15,
                 lineHeight: 14,
-                color: colors.text,
+                color: isStoryless
+                  ? isDark
+                    ? '#93C5FD'
+                    : '#0E6FFF'
+                  : colors.text,
               }}
             >
               {expanded ? '▼' : '▶'}
@@ -148,7 +167,9 @@ export const UserStoryBoardRow = ({
                 width: 10,
                 height: 10,
                 borderRadius: 6,
-                backgroundColor: story.status_color || colors.textSecondary,
+                backgroundColor: isStoryless
+                  ? colors.primary
+                  : story.status_color || colors.textSecondary,
               }}
             />
           </View>
@@ -168,7 +189,11 @@ export const UserStoryBoardRow = ({
               ellipsizeMode='tail'
               style={{
                 lineHeight: 20,
-                color: colors.text,
+                color: isStoryless
+                  ? isDark
+                    ? '#93C5FD'
+                    : '#0E6FFF'
+                  : colors.text,
               }}
             >
               {story.title}
@@ -176,41 +201,54 @@ export const UserStoryBoardRow = ({
 
             <AppText
               variant='caption'
-              color={colors.textSecondary}
+              color={
+                isStoryless
+                  ? isDark
+                    ? '#BFDBFE'
+                    : '#2563EB'
+                  : colors.textSecondary
+              }
               style={{
                 marginTop: 2,
                 lineHeight: 17,
+                fontWeight: isStoryless ? '600' : 'normal',
               }}
             >
-              {story.total_tasks ?? 0} tasks · {story.story_points ?? 0} pts
+              {story.id === 'storyless'
+                ? `${story.total_tasks ?? 0} tasks`
+                : `${story.total_tasks ?? 0} tasks · ${story.story_points ?? 0} pts`}
             </AppText>
           </View>
 
-          <TouchableOpacity
-            onPress={e => {
-              e.stopPropagation();
-              onToggleStoryFavorite?.(story.id);
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={{
-              width: 28,
-              height: 22,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <AppText
+          {story.id !== 'storyless' ? (
+            <TouchableOpacity
+              onPress={e => {
+                e.stopPropagation();
+                onToggleStoryFavorite?.(story.id);
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{
-                color: story.is_favourite
-                  ? colors.warning
-                  : colors.textSecondary,
-                fontSize: 20,
-                lineHeight: 22,
+                width: 28,
+                height: 22,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              {story.is_favourite ? '★' : '☆'}
-            </AppText>
-          </TouchableOpacity>
+              <AppText
+                style={{
+                  color: story.is_favourite
+                    ? colors.warning
+                    : colors.textSecondary,
+                  fontSize: 20,
+                  lineHeight: 22,
+                }}
+              >
+                {story.is_favourite ? '★' : '☆'}
+              </AppText>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 28 }} />
+          )}
         </View>
       </TouchableOpacity>
 
@@ -226,15 +264,23 @@ export const UserStoryBoardRow = ({
           dropSuccessZone?.storyId === story.id &&
           dropSuccessZone?.statusId === statusCol.status_id;
         const columnPaginationState =
-          taskPagination[story.id]?.[statusCol.status_id];
+          story.id === 'storyless'
+            ? undefined
+            : taskPagination[story.id]?.[statusCol.status_id];
         const tasks = (
           columnPaginationState?.tasks ??
           columnData?.tasks ??
           []
         ).filter(
           task =>
-            task.status_id === statusCol.status_id &&
-            task.user_story_id === story.id,
+            String(task.status_id) === String(statusCol.status_id) &&
+            (story.id === 'storyless'
+              ? !task.user_story_id || task.user_story_id === 'storyless'
+              : Boolean(
+                  task.user_story_id &&
+                    task.user_story_id !== 'storyless' &&
+                    String(task.user_story_id) === String(story.id),
+                )),
         );
 
         return (
@@ -280,3 +326,6 @@ export const UserStoryBoardRow = ({
     </View>
   );
 };
+
+export const UserStoryBoardRow = React.memo(UserStoryBoardRowComponent);
+

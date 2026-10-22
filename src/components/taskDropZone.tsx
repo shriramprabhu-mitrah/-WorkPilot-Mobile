@@ -21,7 +21,7 @@ type TaskDropZoneProps = {
   colors: ThemeColors;
 };
 
-export const TaskDropZone = ({
+const TaskDropZoneComponent = ({
   storyId,
   statusId,
   onRegister,
@@ -190,3 +190,6 @@ export const TaskDropZone = ({
     </View>
   );
 };
+
+export const TaskDropZone = React.memo(TaskDropZoneComponent);
+

@@ -39,7 +39,7 @@ type DraggableTaskProps = {
   colors: ThemeColors;
 };
 
-export const DraggableTask = ({
+const DraggableTaskComponent = ({
   task,
   sourceStoryId,
   sourceStatusId,
@@ -62,6 +62,9 @@ export const DraggableTask = ({
   const isDragging = useSharedValue(false);
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
+  const lastHoverTime = useSharedValue(0);
+  const lastHoverX = useSharedValue(-999);
+  const lastHoverY = useSharedValue(-999);
 
   useAnimatedReaction(
     () => ({ x: dragX.value, y: dragY.value, dragging: isDragging.value }),
@@ -71,22 +74,27 @@ export const DraggableTask = ({
       const curX = horizontalScrollOffset?.value ?? 0;
       const curY = verticalScrollOffset?.value ?? 0;
 
-      if (current.x > viewportWidth - 40) {
-        const next = curX + 50;
+      const SCROLL_STEP = 16;
+      const EDGE_THRESHOLD_H = 45;
+      const EDGE_THRESHOLD_TOP = 150;
+      const EDGE_THRESHOLD_BOTTOM = viewportHeight - 80;
+
+      if (current.x > viewportWidth - EDGE_THRESHOLD_H) {
+        const next = curX + SCROLL_STEP;
         horizontalScrollOffset.value = next;
         scrollTo(horizontalScrollRef, next, 0, false);
-      } else if (current.x < 40) {
-        const next = Math.max(0, curX - 50);
+      } else if (current.x < EDGE_THRESHOLD_H && curX > 0) {
+        const next = Math.max(0, curX - SCROLL_STEP);
         horizontalScrollOffset.value = next;
         scrollTo(horizontalScrollRef, next, 0, false);
       }
 
-      if (current.y > viewportHeight - 80) {
-        const next = curY + 50;
+      if (current.y > EDGE_THRESHOLD_BOTTOM) {
+        const next = curY + SCROLL_STEP;
         verticalScrollOffset.value = next;
         scrollTo(verticalScrollRef, 0, next, false);
-      } else if (current.y < 300) {
-        const next = Math.max(0, curY - 50);
+      } else if (current.y < EDGE_THRESHOLD_TOP && curY > 0) {
+        const next = Math.max(0, curY - SCROLL_STEP);
         verticalScrollOffset.value = next;
         scrollTo(verticalScrollRef, 0, next, false);
       }
@@ -95,12 +103,16 @@ export const DraggableTask = ({
 
   const panGesture = Gesture.Pan()
     .activateAfterLongPress(200)
+    .maxPointers(1)
     .onStart(event => {
       isDragging.value = true;
       dragX.value = event.absoluteX;
       dragY.value = event.absoluteY;
       dragPreviewX.value = event.absoluteX;
       dragPreviewY.value = event.absoluteY;
+      lastHoverX.value = event.absoluteX;
+      lastHoverY.value = event.absoluteY;
+      lastHoverTime.value = Date.now();
       scheduleOnRN(onDragPreview, task);
       scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
     })
@@ -109,7 +121,16 @@ export const DraggableTask = ({
       dragY.value = event.absoluteY;
       dragPreviewX.value = event.absoluteX;
       dragPreviewY.value = event.absoluteY;
-      scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
+
+      const dx = Math.abs(event.absoluteX - lastHoverX.value);
+      const dy = Math.abs(event.absoluteY - lastHoverY.value);
+      const now = Date.now();
+      if ((dx > 12 || dy > 12) && now - lastHoverTime.value > 50) {
+        lastHoverX.value = event.absoluteX;
+        lastHoverY.value = event.absoluteY;
+        lastHoverTime.value = now;
+        scheduleOnRN(onHoverDropZone, event.absoluteX, event.absoluteY);
+      }
     })
     .onEnd(event => {
       scheduleOnRN(
@@ -134,22 +155,14 @@ export const DraggableTask = ({
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
-    // The source remains parked in its list slot; only the overlay follows the finger.
-    transform: [{ scale: 1 }],
-    zIndex: 1,
-    elevation: 0,
-    shadowColor: isDragging.value ? colors.black : 'transparent',
-    shadowOffset: { width: 0, height: isDragging.value ? 4 : 0 },
-    shadowOpacity: isDragging.value ? 0.2 : 0,
-    shadowRadius: isDragging.value ? 8 : 0,
+    opacity: isDragging.value || isDragPreviewing ? 0.35 : 1,
+    transform: [{ scale: isDragging.value ? 0.98 : 1 }],
   }));
 
   return (
     <View>
       <GestureDetector gesture={panGesture}>
-        <Animated.View
-          style={[animatedStyle, isDragPreviewing && { opacity: 0 }]}
-        >
+        <Animated.View style={animatedStyle}>
           <TaskCard
             item={{
               id: task.id,
@@ -176,3 +189,5 @@ export const DraggableTask = ({
     </View>
   );
 };
+
+export const DraggableTask = React.memo(DraggableTaskComponent);

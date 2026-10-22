@@ -236,4 +236,4 @@ const TaskCard = ({ item, projectId, onToggleFavorite }: TaskCardProps) => {
   );
 };
 
-export default TaskCard;
+export default React.memo(TaskCard);

@@ -754,6 +754,8 @@ export const {
   useCompleteSprintMutation,
   useUpdateSprintDetailsMutation,
   useLazyGetUserByIdQuery,
+  useLazyGetSprintsQuery,
+  useLazyGetUserStoriesQuery,
 } = projectApi;
 
 // Aliases matching thunk names
