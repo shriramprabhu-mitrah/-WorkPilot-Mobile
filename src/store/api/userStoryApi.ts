@@ -257,6 +257,7 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       forceRefetch({ currentArg, previousArg }) {
         return (
           currentArg?.page !== previousArg?.page ||
+          currentArg?.sprint_id !== previousArg?.sprint_id ||
           currentArg?.user_story_id !== previousArg?.user_story_id ||
           currentArg?.unassigned_task !== previousArg?.unassigned_task ||
           currentArg?.storyless_task !== previousArg?.storyless_task ||

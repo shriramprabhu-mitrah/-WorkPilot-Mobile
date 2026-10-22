@@ -330,6 +330,7 @@ const ProjectDeatailsScreen = () => {
             selectedFilters.work_type.length > 0
               ? selectedFilters.work_type.join(',')
               : undefined,
+          _refetchKey: refetchKey + boardRefetchKey,
         }
       : skipToken,
     {
@@ -435,7 +436,7 @@ const ProjectDeatailsScreen = () => {
   );
 
   useEffect(() => {
-    if (storylessTasksResponse?.data) {
+    if (storylessTasksResponse?.data && Array.isArray(storylessTasksResponse.data)) {
       const rawTasks = storylessTasksResponse.data;
       const mapped: BoardTask[] = rawTasks.map(t => {
         const override = taskLocationOverridesRef.current.get(String(t.id));
@@ -504,8 +505,18 @@ const ProjectDeatailsScreen = () => {
     } else if (storylessTasksResponse && !storylessTasksResponse.data) {
       setLocalStorylessTasks([]);
       hasInitializedStoryless.current = true;
+    } else if (!isStorylessTasksLoading && !isStorylessTasksFetching) {
+      hasInitializedStoryless.current = true;
     }
-  }, [storylessTasksResponse, projectId, boardColumns]);
+  }, [
+    storylessTasksResponse,
+    projectId,
+    boardColumns,
+    rawSprintId,
+    isStorylessTasksLoading,
+    isStorylessTasksFetching,
+    isStorylessTasksError,
+  ]);
 
   const storylessStory = useMemo<BoardStory>(() => {
     return {
@@ -716,11 +727,16 @@ const ProjectDeatailsScreen = () => {
     const sprintChanged =
       previousSprintId.current !== undefined &&
       previousSprintId.current !== rawSprintId;
+    previousSprintId.current = rawSprintId;
+
     if (sprintChanged) {
       setIsSprintSwitchLoading(true);
       hasStartedSprintFetch.current = false;
+      horizontalScrollRef.current?.scrollTo({ x: 0, animated: false });
+      refetchBoardStories();
+      refetchStorylessTasks();
     }
-    previousSprintId.current = rawSprintId;
+
     hasInitializedStories.current = false;
     hasInitializedStoryless.current = false;
     lastRequestedPageRef.current = 1;
@@ -736,7 +752,7 @@ const ProjectDeatailsScreen = () => {
     setTaskPagination({});
     taskLocationOverridesRef.current.clear();
     taskMoveVersionRef.current += 1;
-  }, [projectId, rawSprintId]);
+  }, [projectId, rawSprintId, refetchBoardStories, refetchStorylessTasks]);
 
   useEffect(() => {
     loadedStoriesRef.current.clear();
@@ -757,12 +773,7 @@ const ProjectDeatailsScreen = () => {
       hasStartedSprintFetch.current = true;
       return;
     }
-    if (
-      hasStartedSprintFetch.current &&
-      (boardStoriesResponse !== undefined || isBoardStoriesError) &&
-      (storylessTasksResponse !== undefined || isStorylessTasksError) &&
-      currentPage === 1
-    ) {
+    if (!isBoardStoriesFetching && !isStorylessTasksFetching) {
       setIsSprintSwitchLoading(false);
       hasStartedSprintFetch.current = false;
     }
@@ -777,11 +788,22 @@ const ProjectDeatailsScreen = () => {
     currentPage,
   ]);
 
+  useEffect(() => {
+    if (isSprintSwitchLoading) {
+      const timer = setTimeout(() => {
+        setIsSprintSwitchLoading(false);
+        hasInitializedStories.current = true;
+        hasInitializedStoryless.current = true;
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSprintSwitchLoading]);
+
   // Seed / append from Redux into local list – is_favourite comes from the API
   useEffect(() => {
     if (!boardStories?.length && currentPage === 1) {
       if (!storeLoading && !isBoardStoriesFetching) {
-        setLocalUserStories(prev => (prev.length > 0 ? [] : prev));
+        setLocalUserStories([]);
         hasInitializedStories.current = true;
       }
       return;
@@ -865,7 +887,7 @@ const ProjectDeatailsScreen = () => {
     }));
 
     setLocalUserStories(prev => {
-      if (prev.length === 0) return mergedStories;
+      if (prev.length === 0 || currentPage === 1) return mergedStories;
       const prevMap = new Map(prev.map(s => [s.id, s]));
       return mergedStories.map(story => {
         const existing = prevMap.get(story.id);
@@ -878,7 +900,15 @@ const ProjectDeatailsScreen = () => {
     });
     hasInitializedStories.current = true;
     setIsFetchingMore(false);
-  }, [boardStories, storeLoading, isBoardStoriesFetching]);
+  }, [
+    boardStories,
+    storeLoading,
+    isBoardStoriesFetching,
+    rawSprintId,
+    currentPage,
+    isBoardStoriesLoading,
+    isBoardStoriesError,
+  ]);
 
   const handleLoadMoreTasks = useCallback(
     async (storyId: string, statusId: string) => {

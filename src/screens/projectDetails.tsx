@@ -92,6 +92,7 @@ const ProjectDetails: React.FC = () => {
   const [currentSprintIdState, setCurrentSprintIdState] = useState<
     string | undefined
   >('all');
+  const [activeTab, setActiveTab] = useState<string>('Summary');
 
   // Tracks if the user explicitly clicked a sprint to stop auto-reversion
   const userHasSelected = useRef(false);
@@ -191,9 +192,9 @@ const ProjectDetails: React.FC = () => {
       : skipToken,
   );
 
-  // 4. Report Tab Preload
+  // 4. Report Tab Preload (Only active when the user opens the Report tab)
   useGetBurndownChartQuery(
-    effectiveProjectId
+    effectiveProjectId && activeTab === 'Report'
       ? {
           projectId: effectiveProjectId,
           sprintId:
@@ -204,7 +205,7 @@ const ProjectDetails: React.FC = () => {
       : skipToken,
   );
   useGetTeamWorkloadQuery(
-    effectiveProjectId
+    effectiveProjectId && activeTab === 'Report'
       ? {
           projectId: effectiveProjectId,
           sprintId:
@@ -215,7 +216,7 @@ const ProjectDetails: React.FC = () => {
       : skipToken,
   );
   useGetWeeklyProgressQuery(
-    effectiveProjectId
+    effectiveProjectId && activeTab === 'Report'
       ? {
           projectId: effectiveProjectId,
           start_date: todayStr,
@@ -300,7 +301,6 @@ const ProjectDetails: React.FC = () => {
     useState<boolean>(false);
   const [sprintListVisible, setSprintListVisible] = useState<boolean>(false);
   const [settingsView, setSettingsView] = useState<ViewState>('MAIN_SETTINGS');
-  const [activeTab, setActiveTab] = useState<string>('Summary');
 
   const sprintList = useMemo<Sprint[]>(() => {
     return projectDetails?.sprints || sprintsResponse?.data || sprints || [];

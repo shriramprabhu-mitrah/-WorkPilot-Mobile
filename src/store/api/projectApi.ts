@@ -309,6 +309,9 @@ export const projectApi = createApi({
         url: GET_SPRINT_BURNDOWN.replace('{project_id}', projectId),
         params:
           sprintId && sprintId !== 'all' ? { sprint_id: sprintId } : undefined,
+        headers: {
+          'x-skip-snackbar': 'true',
+        },
       }),
       providesTags: (_result, _error, { projectId, sprintId }) => [
         {
@@ -326,6 +329,9 @@ export const projectApi = createApi({
         url: GET_TEAM_WORKLOAD.replace('{project_id}', projectId),
         params:
           sprintId && sprintId !== 'all' ? { sprint_id: sprintId } : undefined,
+        headers: {
+          'x-skip-snackbar': 'true',
+        },
       }),
       providesTags: (_result, _error, { projectId, sprintId }) => [
         {
@@ -624,6 +630,7 @@ export const projectApi = createApi({
       forceRefetch({ currentArg, previousArg }) {
         return (
           currentArg?.page !== previousArg?.page ||
+          currentArg?.sprint_id !== previousArg?.sprint_id ||
           currentArg?._refetchKey !== previousArg?._refetchKey
         );
       },
