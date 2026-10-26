@@ -4,9 +4,6 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import AuthLogoHeader from '../components/AuthLogoHeader';
 import AppText from '../components/common/AppText';
-import { AppInput, PasswordInput } from '../components/common/Input';
-import PrimaryButton from '../components/common/Button/PrimaryButton';
-import AuthFooter from '../components/common/AuthFooter';
 import Screen from '../components/common/ScreenWapper';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
@@ -14,25 +11,28 @@ import { useAuthLayout } from '../hooks/useAuthLayout';
 import { useAppDispatch, useAppSelector } from '../store';
 import { signInUser } from '../store/auth_store/action/auth.thunks';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { moderateScale, useResponsive } from '../utils/responsive';
 import { handleLoading } from '../store/auth_store/reducer/auth.reducer';
 import { showSnackbar } from '../components/common/Snackbar';
+import AppInput from '../components/common/Input/AppInput';
+import PasswordInput from '../components/common/Input/PasswordInput';
+import PrimaryButton from '../components/common/Button/PrimaryButton';
 
 const LoginScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { loading } = useAppSelector(state => state.auth);
   const dispatch = useAppDispatch();
   const { colors, strings } = useTheme();
-  const { height: screenHeight } = useResponsive();
-  const { layout, isSmallHeight } = useAuthLayout();
+  const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+
   const [errors, setErrors] = useState({
     email: '',
     password: '',
   });
-  const responsiveOverlap = Math.round(screenHeight * -0.035);
-  const cardBorderRadius = moderateScale(24);
 
   const validate = () => {
     const newErrors = {
@@ -91,145 +91,182 @@ const LoginScreen = () => {
 
   return (
     <Screen scroll={true}>
-      <View className='flex-1'>
-        {/* Curved Hero Header */}
+      <View style={{ flexGrow: 1, backgroundColor: '#FFFFFF' }}>
+        {/* Top Hero Header with Rocket/Plane SVG, Office Image & Brand */}
         <AuthLogoHeader />
-        {/* Elevated Floating Card Sheet with Top Wave Curve */}
+
+        {/* Main Floating Card Section */}
         <View
           style={{
-            backgroundColor: colors.card || colors.surface,
-            paddingHorizontal: layout.paddingHorizontal,
-            paddingTop: isSmallHeight
-              ? moderateScale(16)
-              : layout.paddingTop || moderateScale(24),
-            paddingBottom: isSmallHeight
-              ? moderateScale(5)
-              : layout.paddingBottom || moderateScale(24),
-            gap: isSmallHeight ? moderateScale(6) : layout.elementGap,
-            borderTopLeftRadius: cardBorderRadius,
-            borderTopRightRadius: cardBorderRadius,
-            overflow: 'hidden',
-            marginTop: responsiveOverlap,
-            zIndex: 10,
-            elevation: 5,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -3 },
-            shadowOpacity: 0.1,
-            shadowRadius: 6,
-            flexGrow: 1,
+            flex: 1,
+            backgroundColor: '#FFFFFF',
+            paddingHorizontal: moderateScale(24),
+            paddingTop: moderateScale(4),
+            paddingBottom: hp(4),
+            justifyContent: 'space-between',
           }}
         >
-          {/* Card Title Header */}
-          <View
-            style={{
-              gap: layout.tightGap,
-              marginBottom: isSmallHeight
-                ? layout.largeSectionGap
-                : layout.sectionGap,
-            }}
-          >
-            <AppText
-              variant='h2'
+          <View>
+            {/* Header: Welcome Back with Hand Wave Emoji */}
+            <View
               style={{
-                fontSize: isSmallHeight
-                  ? moderateScale(18)
-                  : layout.titleFontSize,
+                gap: layout.tightGap,
+                marginBottom: isSmallHeight
+                  ? layout.largeSectionGap
+                  : layout.sectionGap,
               }}
             >
-              {strings.auth.loginTitle}
-            </AppText>
-            <AppText
-              variant='body'
-              color={colors.textSecondary}
-              style={{
-                fontSize: isSmallHeight ? moderateScale(11) : moderateScale(12),
-              }}
-            >
-              {strings.auth.loginSubtitle}
-            </AppText>
-          </View>
-
-          {/* Form Inputs */}
-          <View
-            style={{
-              gap: isSmallHeight ? layout.largeSectionGap : layout.sectionGap,
-              marginBottom: layout.sectionGap,
-              marginTop: isSmallHeight
-                ? layout.largeSectionGap
-                : layout.tightGap,
-            }}
-          >
-            <AppInput
-              label={strings.auth.email}
-              placeholder={strings.auth.emailPlaceholder}
-              keyboardType='email-address'
-              autoCapitalize='none'
-              value={email}
-              error={errors.email}
-              leftIcon={
-                <Ionicons
-                  name='mail-outline'
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              }
-              onChangeText={text => {
-                setEmail(text);
-                setErrors(prev => ({
-                  ...prev,
-                  email: '',
-                }));
-              }}
-            />
-
-            <PasswordInput
-              label='Password'
-              placeholder='Enter your password'
-              value={password}
-              error={errors.password}
-              leftIcon={
-                <Ionicons
-                  name='lock-closed-outline'
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              }
-              onChangeText={text => {
-                setPassword(text);
-                setErrors(prev => ({
-                  ...prev,
-                  password: '',
-                }));
-              }}
-            />
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={{
-                alignSelf: 'flex-end',
-                paddingTop: layout.tightGap,
-                marginBottom: layout.largeSectionGap,
-              }}
-              onPress={() => navigation.navigate('ForgotPassword')}
-            >
-              <AppText variant='body' color={colors.primary}>
-                Forgot Password?
+              <AppText
+                variant='h1'
+                style={{
+                  fontSize: isSmallHeight
+                    ? moderateScale(18)
+                    : layout.titleFontSize,
+                  fontWeight: '800',
+                }}
+              >
+                {strings.auth.loginTitle}
               </AppText>
-            </TouchableOpacity>
-          </View>
+              <AppText
+                variant='body'
+                color={colors.textSecondary}
+                style={{
+                  fontSize: isSmallHeight
+                    ? moderateScale(11)
+                    : moderateScale(12),
+                }}
+              >
+                {strings.auth.loginSubtitle}
+              </AppText>
+            </View>
 
-          {/* Action Buttons */}
-          <View style={{ gap: layout.largeSectionGap }}>
-            <PrimaryButton
-              title={strings.auth.login}
-              loading={loading}
-              onPress={onLogin}
-            />
-            <AuthFooter
-              title="Don't have an account?"
-              actionText='Sign up'
-              onPress={() => navigation.navigate('signUp')}
-            />
+            {/* Form Inputs Container */}
+            <View style={{ gap: moderateScale(14) }}>
+              {/* Email Input */}
+              <AppInput
+                label='Email'
+                value={email}
+                onChangeText={text => {
+                  setEmail(text);
+                  if (errors.email) {
+                    setErrors(prev => ({ ...prev, email: '' }));
+                  }
+                }}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+                placeholder='Enter your email'
+                keyboardType='email-address'
+                autoCapitalize='none'
+                autoComplete='email'
+                error={errors.email}
+                leftIcon={
+                  <Ionicons
+                    name='mail-outline'
+                    size={moderateScale(19)}
+                    color={emailFocused ? '#2563EB' : '#94A3B8'}
+                  />
+                }
+                style={{
+                  fontSize: moderateScale(13.5),
+                  color: '#0F172A',
+                }}
+              />
+
+              {/* Password Input */}
+              <PasswordInput
+                label='Password'
+                value={password}
+                onChangeText={text => {
+                  setPassword(text);
+                  if (errors.password) {
+                    setErrors(prev => ({ ...prev, password: '' }));
+                  }
+                }}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+                placeholder='Enter your password'
+                error={errors.password}
+                leftIcon={
+                  <Ionicons
+                    name='lock-closed-outline'
+                    size={moderateScale(19)}
+                    color={passwordFocused ? '#2563EB' : '#94A3B8'}
+                  />
+                }
+                style={{
+                  fontSize: moderateScale(13.5),
+                  color: '#0F172A',
+                }}
+              />
+
+              {/* Remember Me and Forgot Password Row */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={{
+                  alignSelf: 'flex-end',
+                  paddingTop: layout.tightGap,
+                }}
+                onPress={() => navigation.navigate('ForgotPassword')}
+              >
+                <AppText variant='body' color={colors.primary}>
+                  Forgot Password?
+                </AppText>
+              </TouchableOpacity>
+
+              {/* Log In Button */}
+              <PrimaryButton
+                title='Log In'
+                onPress={onLogin}
+                loading={loading}
+                disabled={loading}
+                style={{
+                  backgroundColor: '#1D64F2',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: moderateScale(6),
+                  shadowColor: '#1D64F2',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 10,
+                  elevation: 6,
+                }}
+                textColor='#FFFFFF'
+              />
+
+              {/* Don't have an account? Sign up */}
+              <View
+                className='flex-row items-center justify-center'
+                style={{
+                  marginVertical: moderateScale(6),
+                }}
+              >
+                <AppText
+                  variant='caption'
+                  style={{
+                    fontSize: moderateScale(12.5),
+                    color: '#64748B',
+                  }}
+                >
+                  Don't have an account?{' '}
+                </AppText>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('signUp')}
+                >
+                  <AppText
+                    variant='caption'
+                    style={{
+                      fontSize: moderateScale(12.5),
+                      color: '#1D64F2',
+                      fontWeight: '700',
+                    }}
+                  >
+                    Sign up
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </View>
       </View>

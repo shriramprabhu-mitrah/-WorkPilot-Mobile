@@ -543,7 +543,7 @@ const ProjectStatus = () => {
         : createCustomState.isLoading || isTaskListFetching;
 
   return (
-    <Screen scroll={false} backgroundColor={colors.background}>
+    <Screen scroll={false} backgroundColor={colors.surface}>
       <CommonHeader
         variant='status'
         title='Statuses'

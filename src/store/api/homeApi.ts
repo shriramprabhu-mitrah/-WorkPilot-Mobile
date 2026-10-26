@@ -64,6 +64,9 @@ export interface GetFavouritesQueryArgs extends GetFavouritesParams {
 
 export interface GetGlobalSearchQueryArgs {
   query: string;
+  category?: string;
+  page?: number;
+  page_size?: number;
 }
 
 export const homeApi = createApi({
@@ -278,13 +281,56 @@ export const homeApi = createApi({
     }),
 
     globalSearch: build.query<SearchResponse, GetGlobalSearchQueryArgs>({
-      query: ({ query }) => ({
+      query: ({ query, category = 'all', page = 1, page_size = 10 }) => ({
         url: GLOBAL_SEARCH,
-        params: { q: query },
+        params: {
+          q: query,
+          category: category || 'all',
+          page,
+          page_size,
+        },
       }),
-      // Each distinct query string is its own cache entry, so typing a new
-      // term automatically triggers a fresh request.
-      serializeQueryArgs: ({ queryArgs }) => queryArgs.query,
+      // Cache key per query and category so switching categories retains separate cached pages
+      serializeQueryArgs: ({ queryArgs }) =>
+        `${queryArgs.query}-${queryArgs.category || 'all'}`,
+
+      // Merge paginated responses for the active search/category
+      merge(currentCache, newItems, { arg }) {
+        if (arg.page === 1 || !currentCache?.data) {
+          return newItems;
+        }
+
+        const categories = [
+          'tasks',
+          'user_stories',
+          'projects',
+          'members',
+          'sprints',
+        ] as const;
+
+        categories.forEach(cat => {
+          const currentList = currentCache.data[cat] || [];
+          const incomingList = newItems.data?.[cat] || [];
+          if (incomingList.length > 0) {
+            const existingIds = new Set(currentList.map(item => item.id));
+            const uniqueIncoming = incomingList.filter(
+              item => !existingIds.has(item.id),
+            );
+            currentCache.data[cat] = [...currentList, ...uniqueIncoming];
+          }
+        });
+
+        currentCache.meta = newItems.meta;
+        currentCache.pagination = newItems.pagination;
+      },
+
+      forceRefetch({ currentArg, previousArg }) {
+        return (
+          currentArg?.page !== previousArg?.page ||
+          currentArg?.category !== previousArg?.category ||
+          currentArg?.query !== previousArg?.query
+        );
+      },
     }),
 
     changePassword: build.mutation<
@@ -355,6 +401,7 @@ export const {
   useGetOrganizationDetailQuery,
   useGetFavouritesQuery,
   useGlobalSearchQuery,
+  useLazyGlobalSearchQuery,
   useChangePasswordMutation,
   useUpdateOrganizationMutation,
   useGetCountriesQuery,

@@ -5,7 +5,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from 'axios';
 import { Platform } from 'react-native';
-import { store } from '../../store/store';
+import { store, clearStorage } from '../../store/store';
 import {
   refreshToken,
   logoutUser,
@@ -124,6 +124,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       console.log('[AUTH] Access token rejected');
 
+      clearStorage();
       store.dispatch(logout());
 
       showSnackbar({
