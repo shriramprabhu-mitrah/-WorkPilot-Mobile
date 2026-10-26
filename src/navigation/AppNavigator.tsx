@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Linking } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
@@ -6,7 +6,7 @@ import SignUpScreen from '../screens/signUp';
 import VerifyEmailScreen from '../screens/verifyEmail';
 import ForgotPassword from '../screens/forgetPassword';
 import ResetPassword from '../screens/resetPassword';
-import { mmkv, useAppDispatch, useAppSelector } from '../store';
+import { clearStorage, mmkv, useAppDispatch, useAppSelector } from '../store';
 import DrawerNavigator from './DrawerNavigator';
 import issueDetailsScreen from '../screens/IssuesDetailScreen';
 import ProjectDetails from '../screens/projectDetails';
@@ -22,7 +22,11 @@ import { navigationRef } from './navigationRef';
 import WebLoginScreen from '../screens/WebLoginScreen';
 import OnboardingScreen from '../screens/onboardingScreen';
 import OnBoardingLoginScreen from '../screens/OnBoardingLoginScreen';
-import { authenticateWithToken } from '../store/auth_store/reducer/auth.reducer';
+import {
+  authenticateWithToken,
+  logout,
+} from '../store/auth_store/reducer/auth.reducer';
+import { jwtDecode } from 'jwt-decode';
 import QuickAccessScreen from '../screens/QuickAccess';
 import WebSignupScreen from '../screens/WebSignup';
 import SearchScreen from '../screens/searchScreen';
@@ -44,7 +48,33 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
   const dispatch = useAppDispatch();
-  const { isAuthenticated } = useAppSelector(state => state.auth);
+  const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
+  const accessToken = useAppSelector(state => state.auth.tokens?.accessToken);
+
+  const initialAuthChecked = useRef(false);
+
+  useEffect(() => {
+    if (!initialAuthChecked.current) {
+      initialAuthChecked.current = true;
+      if (isAuthenticated) {
+        if (!accessToken) {
+          clearStorage();
+          dispatch(logout());
+          return;
+        }
+        try {
+          const decoded = jwtDecode<{ exp?: number }>(accessToken);
+          if (decoded?.exp && decoded.exp <= Math.floor(Date.now() / 1000)) {
+            clearStorage();
+            dispatch(logout());
+          }
+        } catch (error) {
+          clearStorage();
+          dispatch(logout());
+        }
+      }
+    }
+  }, []);
 
   const onboardingCompleted = mmkv.getBoolean('onboardingCompleted') ?? false;
 
@@ -159,7 +189,7 @@ const AppNavigator = () => {
           </Stack.Navigator>
         ) : (
           <Stack.Navigator
-            key={onboardingCompleted ? 'login-stack' : 'onboarding-stack'}
+            key='unauthenticated-stack'
             initialRouteName={onboardingCompleted ? 'login' : 'Onboarding'}
             screenOptions={{
               headerShown: false,

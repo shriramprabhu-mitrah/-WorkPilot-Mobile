@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -10,7 +10,6 @@ import AppText from '../components/common/AppText';
 import AppInput from '../components/common/Input/AppInput';
 import PasswordInput from '../components/common/Input/PasswordInput';
 import PrimaryButton from '../components/common/Button/PrimaryButton';
-import AuthFooter from '../components/common/AuthFooter';
 import PasswordRules from '../components/passwordRules';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
@@ -19,14 +18,12 @@ import { showSnackbar } from '../components/common/Snackbar';
 import { mmkv, useAppDispatch } from '../store';
 import { signUpUser } from '../store/auth_store/action/auth.thunks';
 import { userValidateService } from '../services/auth.service';
-import { useResponsive } from '../utils/responsive';
 
 const SignUpScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const dispatch = useAppDispatch();
   const { colors, strings } = useTheme();
-  const { layout, moderateScale, isSmallHeight } = useAuthLayout();
-  const { height: screenHeight } = useResponsive();
+  const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
   const insets = useSafeAreaInsets();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -40,8 +37,6 @@ const SignUpScreen = () => {
     password: '',
   });
   const [loading, setLoading] = useState(false);
-  const responsiveOverlap = Math.round(screenHeight * -0.035);
-  const cardBorderRadius = moderateScale(24);
 
   // Debounce API validation for username
   useEffect(() => {
@@ -60,7 +55,10 @@ const SignUpScreen = () => {
         const response = await userValidateService('username', trimmedUsername);
         if (isCancelled) return;
 
-        if (response?.data?.available === false || response?.success === false) {
+        if (
+          response?.data?.available === false ||
+          response?.success === false
+        ) {
           setErrors(prev => ({
             ...prev,
             username: response?.message || 'username is already taken.',
@@ -72,9 +70,7 @@ const SignUpScreen = () => {
         if (isCancelled) return;
         const errorMessage =
           error?.response?.data?.message ||
-          (error?.response?.status === 409
-            ? 'username is already taken.'
-            : '');
+          (error?.response?.status === 409 ? 'username is already taken.' : '');
         if (errorMessage) {
           setErrors(prev => ({ ...prev, username: errorMessage }));
         }
@@ -105,7 +101,10 @@ const SignUpScreen = () => {
         const response = await userValidateService('email', trimmedEmail);
         if (isCancelled) return;
 
-        if (response?.data?.available === false || response?.success === false) {
+        if (
+          response?.data?.available === false ||
+          response?.success === false
+        ) {
           setErrors(prev => ({
             ...prev,
             email: response?.message || 'email is already taken.',
@@ -117,9 +116,7 @@ const SignUpScreen = () => {
         if (isCancelled) return;
         const errorMessage =
           error?.response?.data?.message ||
-          (error?.response?.status === 409
-            ? 'email is already taken.'
-            : '');
+          (error?.response?.status === 409 ? 'email is already taken.' : '');
         if (errorMessage) {
           setErrors(prev => ({ ...prev, email: errorMessage }));
         }
@@ -229,245 +226,286 @@ const SignUpScreen = () => {
   return (
     <Screen scroll={true}>
       {/* Dynamic Header */}
-      <AuthLogoHeader />
-      {/* Dynamic Card Container */}
-      <View
-        style={{
-          backgroundColor: colors.card || colors.surface,
-          paddingHorizontal: layout.paddingHorizontal,
-          paddingTop: isSmallHeight
-            ? moderateScale(16)
-            : layout.paddingTop || moderateScale(24),
-          paddingBottom: isSmallHeight
-            ? moderateScale(5)
-            : layout.paddingBottom || moderateScale(24),
-          gap: isSmallHeight ? moderateScale(6) : layout.elementGap,
-          borderTopLeftRadius: cardBorderRadius,
-          borderTopRightRadius: cardBorderRadius,
-          overflow: 'hidden', // Clips internal content to reveal top radius curves
-          marginTop: responsiveOverlap, // Negative overlap to pull card over the header
-          zIndex: 10,
-          elevation: 5, // Android shadow
-          shadowColor: '#000', // iOS shadow
-          shadowOffset: { width: 0, height: -3 },
-          shadowOpacity: 0.1,
-          shadowRadius: 6,
-          flexGrow: 1,
-        }}
-      >
-        {/* Header Title Section */}
-        <View>
-          <AppText
-            variant='h2'
-            style={{
-              fontSize: isSmallHeight
-                ? moderateScale(17)
-                : layout.titleFontSize,
-            }}
-          >
-            {strings?.signUp?.headerTitle || 'Create Account'}
-          </AppText>
-          <AppText
-            variant='body'
-            color={colors.textSecondary}
-            style={{
-              fontSize: isSmallHeight ? moderateScale(11) : moderateScale(12),
-            }}
-          >
-            {strings?.signUp?.headerSubtitle ||
-              'Sign up to get started with your account.'}
-          </AppText>
-        </View>
-
-        {/* Input Form Section */}
+      <View style={{ flexGrow: 1, backgroundColor: '#FFFFFF' }}>
+        <AuthLogoHeader />
         <View
-          className='z-10'
-          style={{ gap: isSmallHeight ? moderateScale(5) : layout.elementGap }}
-        >
-          <AppInput
-            label={strings?.signUp?.fullNameLabel}
-            placeholder={strings?.signUp?.fullNamePlaceholder}
-            leftIcon={
-              <Ionicons
-                name='person-outline'
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-            }
-            value={fullName}
-            error={errors.fullName}
-            onChangeText={text => {
-              setFullName(text);
-              setErrors(prev => ({ ...prev, fullName: '' }));
-            }}
-          />
-          <AppInput
-            label={strings?.signUp?.userNameLabel}
-            placeholder={strings?.signUp?.userNamePlaceholder}
-            leftIcon={
-              <Ionicons
-                name='at-outline'
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-            }
-            value={username}
-            error={errors.username}
-            onChangeText={text => {
-              setUsername(text);
-              setErrors(prev => ({ ...prev, username: '' }));
-            }}
-          />
-          <AppInput
-            label={strings?.signUp?.workEmailLabel}
-            placeholder={strings?.signUp?.workEmailPlaceholder}
-            keyboardType='email-address'
-            autoCapitalize='none'
-            leftIcon={
-              <Ionicons
-                name='mail-outline'
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-            }
-            value={email}
-            error={errors.email}
-            onChangeText={text => {
-              setEmail(text);
-              setErrors(prev => ({ ...prev, email: '' }));
-            }}
-          />
-          <View className='relative z-20'>
-            <PasswordRules password={password} />
-            <PasswordInput
-              label={strings?.signUp?.passwordLabel}
-              placeholder={strings?.signUp?.passwordPlaceholder}
-              leftIcon={
-                <Ionicons
-                  name='lock-closed-outline'
-                  size={moderateScale(18)}
-                  color={colors.textSecondary}
-                />
-              }
-              value={password}
-              error={errors.password}
-              onChangeText={text => {
-                setPassword(text);
-                setErrors(prev => ({ ...prev, password: '' }));
-              }}
-            />
-          </View>
-        </View>
-        {/* Checkbox Section */}
-        <View
-          className='z-0 flex-row items-center'
           style={{
-            gap: moderateScale(8),
-            marginVertical: isSmallHeight ? 2 : 4,
+            flex: 1,
+            backgroundColor: '#FFFFFF',
+            paddingHorizontal: moderateScale(24),
+            paddingTop: moderateScale(4),
+            paddingBottom: isSmallHeight
+              ? Math.max(hp(2), insets.bottom + moderateScale(12))
+              : Math.max(hp(4), insets.bottom + moderateScale(12)),
+            justifyContent: 'space-between',
           }}
         >
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setAgreed(!agreed)}
-            className='items-center justify-center'
-            style={{
-              width: moderateScale(18),
-              height: moderateScale(18),
-              borderRadius: moderateScale(4),
-              backgroundColor: agreed ? colors.primary : 'transparent',
-              borderWidth: agreed ? 0 : moderateScale(1.5),
-              borderColor: colors.border,
-            }}
-          >
-            {agreed && (
-              <Ionicons
-                name='checkmark'
-                size={moderateScale(12)}
-                color='#FFFFFF'
+          <View>
+            {/* Header Title Section */}
+            <View
+              style={{
+                gap: layout.tightGap,
+                marginBottom: isSmallHeight
+                  ? moderateScale(8)
+                  : layout.sectionGap,
+              }}
+            >
+              <AppText
+                variant='h1'
+                style={{
+                  fontSize: isSmallHeight
+                    ? moderateScale(18)
+                    : layout.titleFontSize,
+                  fontWeight: '800',
+                }}
+              >
+                {strings?.signUp?.headerTitle || 'Create Account'}
+              </AppText>
+              <AppText
+                variant='body'
+                color={colors.textSecondary}
+                style={{
+                  fontSize: isSmallHeight
+                    ? moderateScale(11)
+                    : moderateScale(12),
+                }}
+              >
+                {strings?.signUp?.headerSubtitle ||
+                  'Sign up to get started with your account.'}
+              </AppText>
+            </View>
+
+            {/* Input Form Section */}
+            <View
+              style={{
+                gap: isSmallHeight ? moderateScale(5) : moderateScale(12),
+              }}
+            >
+              <AppInput
+                label={strings?.signUp?.fullNameLabel}
+                placeholder={strings?.signUp?.fullNamePlaceholder}
+                leftIcon={
+                  <Ionicons
+                    name='person-outline'
+                    size={moderateScale(18)}
+                    color={colors.textSecondary}
+                  />
+                }
+                value={fullName}
+                error={errors.fullName}
+                onChangeText={text => {
+                  setFullName(text);
+                  setErrors(prev => ({ ...prev, fullName: '' }));
+                }}
               />
-            )}
-          </TouchableOpacity>
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-            }}
-          >
-            <AppText
-              variant='body'
-              color={colors.textSecondary}
+              <AppInput
+                label={strings?.signUp?.userNameLabel}
+                placeholder={strings?.signUp?.userNamePlaceholder}
+                leftIcon={
+                  <Ionicons
+                    name='at-outline'
+                    size={moderateScale(18)}
+                    color={colors.textSecondary}
+                  />
+                }
+                value={username}
+                error={errors.username}
+                onChangeText={text => {
+                  setUsername(text);
+                  setErrors(prev => ({ ...prev, username: '' }));
+                }}
+              />
+              <AppInput
+                label={strings?.signUp?.workEmailLabel}
+                placeholder={strings?.signUp?.workEmailPlaceholder}
+                keyboardType='email-address'
+                autoCapitalize='none'
+                leftIcon={
+                  <Ionicons
+                    name='mail-outline'
+                    size={moderateScale(18)}
+                    color={colors.textSecondary}
+                  />
+                }
+                value={email}
+                error={errors.email}
+                onChangeText={text => {
+                  setEmail(text);
+                  setErrors(prev => ({ ...prev, email: '' }));
+                }}
+              />
+              <View>
+                <PasswordRules password={password} />
+                <PasswordInput
+                  label={strings?.signUp?.passwordLabel}
+                  placeholder={strings?.signUp?.passwordPlaceholder}
+                  leftIcon={
+                    <Ionicons
+                      name='lock-closed-outline'
+                      size={moderateScale(18)}
+                      color={colors.textSecondary}
+                    />
+                  }
+                  value={password}
+                  error={errors.password}
+                  onChangeText={text => {
+                    setPassword(text);
+                    setErrors(prev => ({ ...prev, password: '' }));
+                  }}
+                />
+              </View>
+            </View>
+            {/* Checkbox Section */}
+            <View
+              className='flex-row items-center'
               style={{
-                fontSize: isSmallHeight ? moderateScale(10) : moderateScale(11),
+                gap: isSmallHeight ? moderateScale(5) : moderateScale(8),
+                marginVertical: isSmallHeight ? 2 : 4,
               }}
             >
-              {strings?.signUp?.termsPrefix}{' '}
-            </AppText>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate('Terms')}
-            >
-              <AppText
-                variant='body'
-                color={colors.primary}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setAgreed(!agreed)}
+                className='items-center justify-center'
                 style={{
-                  fontSize: isSmallHeight
-                    ? moderateScale(10)
-                    : moderateScale(11),
-                  textDecorationLine: 'underline',
+                  width: moderateScale(18),
+                  height: moderateScale(18),
+                  borderRadius: moderateScale(4),
+                  backgroundColor: agreed ? colors.primary : 'transparent',
+                  borderWidth: agreed ? 0 : moderateScale(1.5),
+                  borderColor: colors.border,
                 }}
               >
-                {strings?.signUp?.customerAgreement}
-              </AppText>
-            </TouchableOpacity>
+                {agreed && (
+                  <Ionicons
+                    name='checkmark'
+                    size={moderateScale(12)}
+                    color='#FFFFFF'
+                  />
+                )}
+              </TouchableOpacity>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                <AppText
+                  variant='body'
+                  color={colors.textSecondary}
+                  style={{
+                    fontSize: isSmallHeight
+                      ? moderateScale(10)
+                      : moderateScale(11),
+                  }}
+                >
+                  {strings?.signUp?.termsPrefix}{' '}
+                </AppText>
 
-            <AppText
-              variant='body'
-              color={colors.textSecondary}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Terms')}
+                >
+                  <AppText
+                    variant='body'
+                    color={colors.primary}
+                    style={{
+                      fontSize: isSmallHeight
+                        ? moderateScale(10)
+                        : moderateScale(11),
+                      textDecorationLine: 'underline',
+                    }}
+                  >
+                    {strings?.signUp?.customerAgreement}
+                  </AppText>
+                </TouchableOpacity>
+
+                <AppText
+                  variant='body'
+                  color={colors.textSecondary}
+                  style={{
+                    fontSize: isSmallHeight
+                      ? moderateScale(10)
+                      : moderateScale(11),
+                  }}
+                >
+                  {' '}
+                  {strings?.signUp?.termsMiddle}{' '}
+                </AppText>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('PrivacyPolicy')}
+                >
+                  <AppText
+                    variant='body'
+                    color={colors.primary}
+                    style={{
+                      fontSize: isSmallHeight
+                        ? moderateScale(10)
+                        : moderateScale(11),
+                      textDecorationLine: 'underline',
+                    }}
+                  >
+                    {strings?.signUp?.privacyPolicy}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {/* Footer & Buttons */}
+            <View
               style={{
-                fontSize: isSmallHeight ? moderateScale(10) : moderateScale(11),
+                gap: isSmallHeight ? moderateScale(8) : layout.elementGap,
               }}
             >
-              {' '}
-              {strings?.signUp?.termsMiddle}{' '}
-            </AppText>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate('PrivacyPolicy')}
-            >
-              <AppText
-                variant='body'
-                color={colors.primary}
+              <PrimaryButton
+                title={strings?.signUp?.signUpButton}
+                disabled={isSignUpDisabled}
+                loading={loading}
+                onPress={handleSignUp}
                 style={{
-                  fontSize: isSmallHeight
-                    ? moderateScale(10)
-                    : moderateScale(11),
-                  textDecorationLine: 'underline',
+                  backgroundColor: '#1D64F2',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: moderateScale(isSmallHeight ? 2 : 6),
+                  shadowColor: '#1D64F2',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 10,
+                  elevation: 6,
                 }}
+                textColor='#FFFFFF'
+              />
+              <View
+                className='flex-row items-center justify-center'
+                style={{ marginVertical: isSmallHeight ? 0 : moderateScale(6) }}
               >
-                {strings?.signUp?.privacyPolicy}
-              </AppText>
-            </TouchableOpacity>
+                <AppText
+                  variant='caption'
+                  style={{ fontSize: moderateScale(12.5), color: '#64748B' }}
+                >
+                  {strings?.signUp?.footerTitle}{' '}
+                </AppText>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('loginScreen')}
+                >
+                  <AppText
+                    variant='caption'
+                    style={{
+                      fontSize: moderateScale(12.5),
+                      color: '#1D64F2',
+                      fontWeight: '700',
+                    }}
+                  >
+                    {strings?.signUp?.footerAction}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-        {/* Footer & Buttons */}
-        <View
-          className='z-0'
-          style={{ gap: isSmallHeight ? moderateScale(8) : layout.elementGap }}
-        >
-          <PrimaryButton
-            title={strings?.signUp?.signUpButton}
-            disabled={isSignUpDisabled}
-            loading={loading}
-            onPress={handleSignUp}
-          />
-          <AuthFooter
-            title={strings?.signUp?.footerTitle}
-            actionText={strings?.signUp?.footerAction}
-            onPress={() => navigation.navigate('loginScreen')}
-          />
         </View>
       </View>
     </Screen>

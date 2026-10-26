@@ -15,7 +15,8 @@ import SplashScreen from './src/splash/splashScreen';
 import { useNavigation } from '@react-navigation/native';
 import './global.css';
 import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
-import { mmkv, store } from './src/store';
+import { mmkv, store, persistor } from './src/store';
+import { PersistGate } from 'redux-persist/integration/react';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/config/toastConfig';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -37,7 +38,9 @@ function App() {
           <SafeAreaProvider>
             <PaperProvider>
               <SnackbarProvider>
-                <AppContent />
+                <PersistGate loading={<SplashScreen />} persistor={persistor}>
+                  <AppContent />
+                </PersistGate>
               </SnackbarProvider>
             </PaperProvider>
           </SafeAreaProvider>

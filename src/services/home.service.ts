@@ -41,11 +41,19 @@ export const getAuditService = async (
   }
 };
 
-export const globalSearch = async (query: string): Promise<SearchResponse> => {
+export const globalSearch = async (
+  query: string,
+  category: string = 'all',
+  page: number = 1,
+  pageSize: number = 10,
+): Promise<SearchResponse> => {
   try {
     return await get<SearchResponse>(GLOBAL_SEARCH, {
       params: {
         q: query,
+        category,
+        page,
+        page_size: pageSize,
       },
     });
   } catch (error) {

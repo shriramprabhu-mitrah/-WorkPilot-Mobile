@@ -227,10 +227,10 @@ const Members = () => {
       if (projectId) {
         lastRequestedPageRef.current = 1;
         refetch();
-        refetchRoles();
+        // refetchRoles();
         refetchOrgMembers();
       }
-    }, [projectId, refetch, refetchRoles, refetchOrgMembers]),
+    }, [projectId, refetch, refetchOrgMembers]),
   );
 
   const [removeProjectMember, { isLoading: isRemovingMember }] =
@@ -537,7 +537,7 @@ const Members = () => {
               .join('')
               .slice(0, 2)
               .toUpperCase();
-            const isOrgAdmin = item.role === 'org_admin';
+            const isOrgAdminRole = item.role === 'org_admin';
 
             return (
               <Swipeable
@@ -548,8 +548,8 @@ const Members = () => {
                     <SwipeRightActions
                       onEdit={() => setMemberToEdit(item)}
                       onDelete={() => setMemberToRemove(item)}
-                      isEditDisabled={isOrgAdmin || !canEditProject}
-                      isDeleteDisabled={isOrgAdmin || !canDeleteProject}
+                      isEditDisabled={isOrgAdminRole || !canEditProject}
+                      isDeleteDisabled={isOrgAdminRole || !canDeleteProject}
                     />
                   );
                 }}

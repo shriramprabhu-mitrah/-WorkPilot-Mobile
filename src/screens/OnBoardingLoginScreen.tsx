@@ -7,19 +7,24 @@ import Svg, {
   Stop,
   Circle,
 } from 'react-native-svg';
-import AnimatedRN, { FadeInUp } from 'react-native-reanimated';
+import AnimatedRN, {
+  Easing,
+  FadeInUp,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import PrimaryButton from '../components/common/Button/PrimaryButton';
 import JiraLogo from '../assets/svg/splasScreenlogo';
+import CosmicOrbitalTracks from '../components/onboarding/CosmicOrbitalTracks';
+import { Radius } from '../constants/Radius';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { useResponsive } from '../utils/responsive';
-import { Radius } from '../constants/Radius';
-import reactotron from 'reactotron-react-native';
 
 const OnBoardingLoginScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -31,6 +36,7 @@ const OnBoardingLoginScreen = () => {
   const logoSize = isCompact ? moderateScale(28) : moderateScale(36);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const buttonRotation = useSharedValue(0);
 
   useEffect(() => {
     Animated.parallel([
@@ -52,9 +58,6 @@ const OnBoardingLoginScreen = () => {
     navigation.navigate('loginScreen');
   };
 
-  const handleSignupPress = () => {
-    navigation.navigate('WebSignup');
-  };
   return (
     <Screen scroll={false}>
       <View
@@ -72,7 +75,7 @@ const OnBoardingLoginScreen = () => {
             bottom: 0,
             right: 0,
             width: '85%',
-            opacity: 0.25,
+            opacity: 0.18,
           }}
         >
           <Image
@@ -111,6 +114,7 @@ const OnBoardingLoginScreen = () => {
           />
           <Circle cx='20%' cy='30%' r='140' fill='url(#glassGlow)' />
         </Svg>
+        <CosmicOrbitalTracks buttonRotation={buttonRotation} />
         <View
           className='flex-1 items-center justify-center'
           style={{ gap: layout.largeSectionGap * 4 }}
@@ -131,7 +135,11 @@ const OnBoardingLoginScreen = () => {
             >
               {strings.splash?.title}
             </AppText>
-            <AppText variant='bodyLarge' color={colors.white}>
+            <AppText
+              variant='bodyLarge'
+              color={colors.white}
+              style={{ textAlign: 'center' }}
+            >
               Stay focused. Stay productive. Anywhere.
             </AppText>
           </Animated.View>
@@ -139,15 +147,23 @@ const OnBoardingLoginScreen = () => {
             entering={FadeInUp.delay(300).duration(700).springify()}
             style={{
               paddingBottom: isSmallHeight
-                ? moderateScale(30)
-                : moderateScale(40),
+                ? moderateScale(24)
+                : moderateScale(36),
               gap: layout.sectionGap,
+              alignItems: 'center',
+              zIndex: 20,
             }}
             className='w-full items-center justify-center'
           >
             <PrimaryButton
               title='LOGIN'
-              onPress={handleLoginPress}
+              onPress={() => {
+                buttonRotation.value = withTiming(buttonRotation.value + 360, {
+                  duration: 450,
+                  easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+                });
+                handleLoginPress();
+              }}
               className='w-1/2 font-bold'
               style={{
                 backgroundColor: colors.white,
@@ -156,20 +172,20 @@ const OnBoardingLoginScreen = () => {
               }}
               textColor={colors.primary}
             />
-            {/* <PrimaryButton
-              title='SIGN UP'
-              onPress={handleSignupPress}
-              className='w-1/2 font-bold'
+            <View
               style={{
-                backgroundColor: colors.white,
-                paddingVertical: moderateScale(10),
-                borderRadius: Radius.sm,
+                alignItems: 'center',
+                paddingHorizontal: moderateScale(16),
               }}
-              textColor={colors.primary}
-            /> */}
-            <AppText variant='body' color={colors.white}>
-              Welcome back! Log in to access your account.
-            </AppText>
+            >
+              <AppText
+                variant='body'
+                color='rgba(255, 255, 255, 0.85)'
+                style={{ fontSize: moderateScale(isSmallHeight ? 12 : 14) }}
+              >
+                Welcome back! Log in to access your account.
+              </AppText>
+            </View>
           </AnimatedRN.View>
         </View>
       </View>

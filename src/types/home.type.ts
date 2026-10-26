@@ -109,14 +109,15 @@ export interface ActivityItem {
 }
 export interface SearchItem {
   id: string;
-  type: string;
-  title: string;
+  type?: string;
+  title?: string;
   key?: string;
   description?: string;
   priority?: string;
   status?: string;
   project_id?: string;
   project_name?: string;
+  project_slug?: string;
   userId?: string;
   full_name?: string;
   name?: string;
@@ -128,16 +129,50 @@ export interface SearchItem {
   color?: string | null;
 }
 
+export interface CategoryPagination {
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  total: number;
+}
+
+export interface SearchMeta {
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  total_tasks?: number;
+  total_user_stories?: number;
+  total_projects?: number;
+  total_members?: number;
+  total_sprints?: number;
+  pagination?: {
+    tasks?: CategoryPagination;
+    user_stories?: CategoryPagination;
+    projects?: CategoryPagination;
+    members?: CategoryPagination;
+    sprints?: CategoryPagination;
+  };
+}
+
 export interface SearchResponse {
   success: boolean;
   status_code: number;
   message: string;
   data: {
-    tasks: SearchItem[];
-    user_stories: SearchItem[];
-    projects: SearchItem[];
-    members: SearchItem[];
-    sprints: SearchItem[];
+    tasks?: SearchItem[];
+    user_stories?: SearchItem[];
+    projects?: SearchItem[];
+    members?: SearchItem[];
+    sprints?: SearchItem[];
+  };
+  meta?: SearchMeta;
+  pagination?: {
+    tasks?: CategoryPagination;
+    user_stories?: CategoryPagination;
+    projects?: CategoryPagination;
+    members?: CategoryPagination;
+    sprints?: CategoryPagination;
   };
 }
 
@@ -153,4 +188,32 @@ export interface UserInsightsResponse {
   status_code: number;
   message: string;
   data: UserInsights;
+}
+
+export type SearchCategory =
+  'all' | 'tasks' | 'user_stories' | 'projects' | 'members' | 'sprints';
+
+export interface CategoryPagingState {
+  page: number;
+  has_next: boolean;
+  total: number;
+}
+
+export const TYPE_MAPPING: Record<
+  'tasks' | 'user_stories' | 'projects' | 'members' | 'sprints',
+  string
+> = {
+  tasks: 'task',
+  user_stories: 'user_story',
+  projects: 'project',
+  members: 'member',
+  sprints: 'sprint',
+};
+
+export interface CategoryDataState {
+  tasks: SearchItem[];
+  user_stories: SearchItem[];
+  projects: SearchItem[];
+  members: SearchItem[];
+  sprints: SearchItem[];
 }
