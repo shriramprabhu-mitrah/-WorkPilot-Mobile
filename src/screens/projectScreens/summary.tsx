@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -16,7 +16,7 @@ import { AppText } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
 import SummarySkeleton from '../../components/skeleton/summarySkeleton';
 import {
-  useGetProjectOverviewQuery,
+  useGetProjectDashboardQuery,
   useGetUpcomingDeadlinesQuery,
 } from '../../store/api/projectApi';
 import { skipToken } from '@reduxjs/toolkit/query';
@@ -25,6 +25,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../types/navigationTypes';
 import { getPriorityLabel, getPriorityThemeColor } from '../../utils/enum';
 import { formatDate } from '../../utils/utils';
+import Svg, { Path } from 'react-native-svg';
 
 export const Summary: React.FC = () => {
   const { colors } = useTheme();
@@ -41,13 +42,14 @@ export const Summary: React.FC = () => {
 
   // 2. RTK Query Hook
   const {
-    data: overviewResponse,
+    data: dashboardResponse,
     isLoading,
     refetch,
-  } = useGetProjectOverviewQuery(
+  } = useGetProjectDashboardQuery(
     projectId ? { project_id: projectId } : skipToken,
   );
-  const overviewData = overviewResponse?.data;
+  const dashboardData = dashboardResponse?.data;
+  const overviewData = dashboardData?.overview;
 
   const {
     data: deadlinesResponse,
@@ -57,6 +59,9 @@ export const Summary: React.FC = () => {
     projectId ? { project_id: projectId } : skipToken,
   );
   const deadlines = deadlinesResponse?.data ?? [];
+  const [hiddenStatuses, setHiddenStatuses] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   // 3. Animation values
   const drawAnim = useRef(new Animated.Value(0)).current;
@@ -101,20 +106,67 @@ export const Summary: React.FC = () => {
     [drawAnim],
   );
 
-  const chartData = useMemo(
-    () => [
-      { status: 'To Do', value: 6, color: `${colors.secondary}75` },
-      { status: 'Done', value: 4, color: `${colors.success}75` },
-      { status: 'In Progress', value: 5, color: `${colors.primary}75` },
-      { status: 'In Review', value: 3, color: `${colors.accentOrange}75` },
-    ],
-    [colors.secondary, colors.success, colors.primary, colors.accentOrange],
+  const statusItems = useMemo(
+    () =>
+      Object.entries(dashboardData?.task_status ?? {}).map(
+        ([status, value]) => ({
+          status,
+          value: value.count,
+          color: value.color,
+          percentage: value.percentage,
+        }),
+      ),
+    [dashboardData?.task_status],
   );
 
-  const chartTotal = useMemo(
-    () => chartData.reduce((total, item) => total + item.value, 0),
-    [chartData],
+  const visibleStatusItems = useMemo(
+    () =>
+      statusItems.filter(
+        item => item.value > 0 && !hiddenStatuses.has(item.status),
+      ),
+    [statusItems, hiddenStatuses],
   );
+
+  const chartData = useMemo(
+    () => visibleStatusItems.map(item => ({ ...item })),
+    [visibleStatusItems],
+  );
+
+  const chartPercentages = useMemo(() => {
+    const visibleCount = visibleStatusItems.reduce(
+      (total, item) => total + item.value,
+      0,
+    );
+    let cumulativePercentage = 0;
+
+    return visibleStatusItems.map(item => {
+      const percentage = visibleCount ? (item.value / visibleCount) * 100 : 0;
+      const middlePercentage = cumulativePercentage + percentage / 2;
+      cumulativePercentage += percentage;
+
+      // Position labels around the outside of the donut, starting at 12 o'clock.
+      const angle = (middlePercentage / 100) * 2 * Math.PI - Math.PI / 2;
+      const radius = moderateScale(140);
+      const centerX = moderateScale(150);
+      const centerY = moderateScale(130);
+      const arrowTipRadius = moderateScale(100);
+      const arrowEndRadius = moderateScale(130);
+      const tipX = centerX + Math.cos(angle) * arrowTipRadius;
+      const tipY = centerY + Math.sin(angle) * arrowTipRadius;
+      const endX = centerX + Math.cos(angle) * arrowEndRadius;
+      const endY = centerY + Math.sin(angle) * arrowEndRadius;
+      const arrowHeadSize = moderateScale(4);
+      return {
+        status: item.status,
+        percentage,
+        left: centerX + Math.cos(angle) * radius - moderateScale(22),
+        top: centerY + Math.sin(angle) * radius - moderateScale(9),
+        arrow: `M ${tipX} ${tipY} L ${endX} ${endY} M ${tipX} ${tipY} L ${tipX + Math.cos(angle + 2.5) * arrowHeadSize} ${tipY + Math.sin(angle + 2.5) * arrowHeadSize} M ${tipX} ${tipY} L ${tipX + Math.cos(angle - 2.5) * arrowHeadSize} ${tipY + Math.sin(angle - 2.5) * arrowHeadSize}`,
+      };
+    });
+  }, [visibleStatusItems, moderateScale]);
+
+  const chartTotal = overviewData?.total_tasks ?? 0;
 
   const donutTheme = useMemo(() => {
     if (colors.background === '#FFFFFF') return 'light';
@@ -130,10 +182,9 @@ export const Summary: React.FC = () => {
     return <SummarySkeleton />;
   }
 
-  const totalTasks = overviewData?.total_tasks;
   const completedTasks = overviewData?.completed;
-  const updatedTasks = overviewData?.pending;
-  const createdTasks = overviewData?.total_tasks;
+  const pendingTasks = overviewData?.pending;
+  const overdueTasks = overviewData?.overdue;
   const dueSoonTasks = overviewData?.due_soon;
 
   return (
@@ -186,7 +237,7 @@ export const Summary: React.FC = () => {
               {completedTasks} completed
             </AppText>
             <AppText variant='caption' color={colors.textSecondary}>
-              in the last 7 days
+              across this project
             </AppText>
           </View>
 
@@ -209,7 +260,7 @@ export const Summary: React.FC = () => {
               }}
             >
               <Ionicons
-                name='pencil-sharp'
+                name='time-outline'
                 size={moderateScale(15)}
                 color={colors.primary}
               />
@@ -220,10 +271,10 @@ export const Summary: React.FC = () => {
               color={colors.text}
               style={{ color: colors.primary }}
             >
-              {updatedTasks} updated
+              {pendingTasks} pending
             </AppText>
             <AppText variant='caption' color={colors.textSecondary}>
-              in the last 7 days
+              across this project
             </AppText>
           </View>
 
@@ -246,7 +297,7 @@ export const Summary: React.FC = () => {
               }}
             >
               <Ionicons
-                name='add-outline'
+                name='alert-circle-outline'
                 size={moderateScale(20)}
                 color={colors.accentPurple}
               />
@@ -257,10 +308,10 @@ export const Summary: React.FC = () => {
               color={colors.text}
               style={{ color: colors.accentPurple }}
             >
-              {createdTasks} created
+              {overdueTasks} overdue
             </AppText>
             <AppText variant='caption' color={colors.textSecondary}>
-              in the last 7 days
+              across this project
             </AppText>
           </View>
 
@@ -297,7 +348,7 @@ export const Summary: React.FC = () => {
               {dueSoonTasks} due soon
             </AppText>
             <AppText variant='caption' color={colors.textSecondary}>
-              in the next 7 days
+              in the next 2 days
             </AppText>
           </View>
         </View>
@@ -320,31 +371,84 @@ export const Summary: React.FC = () => {
           <AppText
             variant='caption'
             color={colors.textSecondary}
-            style={{ paddingBottom: moderateScale(10) }}
+            style={{ paddingBottom: moderateScale(20) }}
           >
-            in the last 14 days
+            Task status across this project
           </AppText>
 
           {/* Donut Chart Container with Center Label Absolute Positioning */}
-          <View className='relative items-center justify-center'>
+          <View
+            className='relative items-center justify-center'
+            style={{
+              width: moderateScale(300),
+              height: moderateScale(260),
+              alignSelf: 'center',
+            }}
+          >
             <Animated.View
               style={{
                 opacity: fadeAnim,
                 transform: [{ rotate: circleDraw }],
               }}
             >
-              <DonutChart
-                data={chartData}
-                valueKey='value'
-                labelKey='status'
-                colorKey='color'
-                width={moderateScale(300)}
-                height={moderateScale(260)}
-                legend={false}
-                innerRadius={moderateScale(75)}
-                theme={donutTheme}
-              />
+              {chartData.length > 0 ? (
+                <DonutChart
+                  data={chartData}
+                  valueKey='value'
+                  labelKey='status'
+                  colorKey='color'
+                  width={moderateScale(300)}
+                  height={moderateScale(260)}
+                  legend={false}
+                  innerRadius={moderateScale(75)}
+                  theme={donutTheme}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: moderateScale(300),
+                    height: moderateScale(260),
+                  }}
+                />
+              )}
             </Animated.View>
+
+            <Svg
+              pointerEvents='none'
+              width={moderateScale(300)}
+              height={moderateScale(260)}
+              style={{ position: 'absolute' }}
+            >
+              {chartPercentages.map(item => (
+                <Path
+                  key={`arrow-${item.status}`}
+                  d={item.arrow}
+                  stroke={colors.textSecondary}
+                  strokeWidth={moderateScale(1)}
+                  fill='none'
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                />
+              ))}
+            </Svg>
+
+            {chartPercentages.map(item => (
+              <AppText
+                key={item.status}
+                variant='caption'
+                className='font-semibold'
+                style={{
+                  position: 'absolute',
+                  left: item.left,
+                  top: item.top,
+                  color: colors.text,
+                  overflow: 'hidden',
+                }}
+                pointerEvents='none'
+              >
+                {item.percentage.toFixed(1)}%
+              </AppText>
+            ))}
 
             {/* Stationary Center Label */}
             <View
@@ -359,7 +463,7 @@ export const Summary: React.FC = () => {
                   color: colors.textSecondary,
                 }}
               >
-                {chartTotal || totalTasks}
+                {chartTotal}
               </AppText>
               <AppText
                 variant='body'
@@ -375,12 +479,23 @@ export const Summary: React.FC = () => {
           </View>
 
           {/* Status Items List */}
-          {chartData.map(item => (
+          {statusItems.map(item => (
             <TouchableOpacity
               key={item.status}
               activeOpacity={0.7}
+              onPress={() =>
+                setHiddenStatuses(current => {
+                  const next = new Set(current);
+                  if (next.has(item.status)) next.delete(item.status);
+                  else next.add(item.status);
+                  return next;
+                })
+              }
               className='flex-row items-center justify-between'
-              style={{ paddingVertical: moderateScale(10) }}
+              style={{
+                paddingVertical: moderateScale(10),
+                opacity: hiddenStatuses.has(item.status) ? 0.4 : 1,
+              }}
             >
               <View
                 className='flex-row items-center'

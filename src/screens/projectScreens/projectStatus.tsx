@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import SwipeableOption from '../../components/SwipeableOption';
 import { AppText } from '../../components';
 import CommonHeader from '../../components/common/CommonHeader';
 import { Radius } from '../../constants/Radius';
@@ -268,78 +268,6 @@ const StatusRow: React.FC<StatusRowProps> = ({ item }) => {
           </View>
         )}
       </View>
-    </View>
-  );
-};
-
-const SwipeRightActions = ({
-  onEdit,
-  onDelete,
-  isDefault,
-  canEdit,
-  canDelete,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-  isDefault: boolean;
-  canEdit: boolean;
-  canDelete: boolean;
-}) => {
-  const { colors } = useTheme();
-  const { moderateScale } = useAuthLayout();
-
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginLeft: moderateScale(8),
-        gap: moderateScale(8),
-      }}
-    >
-      {canEdit && (
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={onEdit}
-          style={{
-            width: moderateScale(54),
-            height: '100%',
-            borderRadius: Radius.lg,
-            backgroundColor: '#10B981',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons
-            name='create-outline'
-            size={moderateScale(25)}
-            color='#FFFFFF'
-          />
-        </TouchableOpacity>
-      )}
-
-      {canDelete && (
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={onDelete}
-          disabled={isDefault}
-          style={{
-            width: moderateScale(54),
-            height: '100%',
-            borderRadius: Radius.lg,
-            backgroundColor: colors.error,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: isDefault ? 0.35 : 1,
-          }}
-        >
-          <Ionicons
-            name='trash-outline'
-            size={moderateScale(25)}
-            color='#FFFFFF'
-          />
-        </TouchableOpacity>
-      )}
     </View>
   );
 };
@@ -631,22 +559,50 @@ const ProjectStatus = () => {
             const canSwipe =
               permissionsReady && (canEditStatus || canDeleteStatus);
             return (
-              <Swipeable
-                renderRightActions={() => (
-                  <SwipeRightActions
-                    onEdit={() => openEdit(item)}
-                    onDelete={() => handleDelete(item.id)}
-                    isDefault={item.is_default}
-                    canEdit={canEditStatus}
-                    canDelete={canDeleteStatus}
-                  />
-                )}
-                overshootRight={false}
+              <SwipeableOption
                 enabled={canSwipe}
+                actionWidth={moderateScale(
+                  8 +
+                    (canEditStatus ? 54 : 0) +
+                    (canDeleteStatus ? 54 : 0) +
+                    (canEditStatus && canDeleteStatus ? 8 : 0),
+                )}
+                leftInset={moderateScale(8)}
+                gap={moderateScale(8)}
                 rightThreshold={40}
+                actions={[
+                  ...(canEditStatus
+                    ? [
+                        {
+                          key: 'edit-status',
+                          icon: 'create-outline' as const,
+                          accessibilityLabel: 'Edit status',
+                          onPress: () => openEdit(item),
+                          width: moderateScale(54),
+                          iconSize: moderateScale(25),
+                          borderRadius: Radius.lg,
+                          color: colors.success,
+                        },
+                      ]
+                    : []),
+                  ...(canDeleteStatus
+                    ? [
+                        {
+                          key: 'delete-status',
+                          icon: 'trash-outline' as const,
+                          accessibilityLabel: 'Delete status',
+                          onPress: () => handleDelete(item.id),
+                          width: moderateScale(54),
+                          iconSize: moderateScale(25),
+                          borderRadius: Radius.lg,
+                          disabled: item.is_default,
+                        },
+                      ]
+                    : []),
+                ]}
               >
                 <StatusRow item={item} />
-              </Swipeable>
+              </SwipeableOption>
             );
           }}
           ItemSeparatorComponent={() => (

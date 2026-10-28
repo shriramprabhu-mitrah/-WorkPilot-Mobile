@@ -316,6 +316,25 @@ export interface GetProjectOverviewQueryArgs {
   _refetchKey?: number;
 }
 
+export interface ProjectDashboardStatus {
+  count: number;
+  color: string;
+  percentage: number;
+}
+
+export interface GetProjectDashboardResponse extends ApiResponse {
+  data: {
+    overview: ProjectOverviewMetrics;
+    task_status: Record<string, ProjectDashboardStatus>;
+  };
+}
+
+export interface GetProjectDashboardQueryArgs {
+  project_id: string;
+  sprint_id?: string;
+  _refetchKey?: number;
+}
+
 export interface GetCustomStatusQueryArgs {
   project_id: string;
   _refetchKey?: number;
@@ -643,6 +662,7 @@ export interface TeamWorkloadMember {
   email?: string;
   profile_picture?: string;
   avatar_url?: string;
+  color?: string;
   tasks_count?: number;
   total_tasks?: number;
   tasks?: number;

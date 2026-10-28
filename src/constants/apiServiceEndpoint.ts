@@ -43,6 +43,7 @@ export const UPDATEPROJECTMEMBERROLE = `/project/{project_id}/member/{user_id}`;
 export const DELETEPROJECTMEMBER = `/project/{project_id}/member/{user_id}`;
 export const UPCOMMINGDEADLINES = `/{project_id}/upcoming-deadlines`;
 export const PROJECTBYUSERROLE = `/project/{project_id}/user-role`;
+export const GETPROJECTDASHBOARD = '/{project_id}/dashboard';
 
 //Activity
 export const GET_AUDIT = `/audit`;

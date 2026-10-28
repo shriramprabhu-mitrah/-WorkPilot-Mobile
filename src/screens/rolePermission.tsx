@@ -33,7 +33,7 @@ import {
   RolePermissionsMap,
 } from '../types/auth.type';
 import RolePermissionSkeleton from '../components/skeleton/rolePermissionSkeleton';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import SwipeableOption from '../components/SwipeableOption';
 
 const ACTION_METAS: ActionMeta[] = [
   {
@@ -111,36 +111,6 @@ const createDefaultPermissions = (): RolePermissionsMap => ({
   tasks: { add: false, delete: false, modify: false, view: true },
   user_stories: { add: false, delete: false, modify: false, view: true },
 });
-
-const SwipeDeleteAction = ({
-  onPress,
-  disabled,
-}: {
-  onPress: () => void;
-  disabled?: boolean;
-}) => {
-  const { colors } = useTheme();
-  const { moderateScale } = useAuthLayout();
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={onPress}
-      disabled={disabled}
-      style={{
-        width: moderateScale(60),
-        height: '100%',
-        borderRadius: 16,
-        backgroundColor: colors.error,
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: disabled ? 0.35 : 1,
-      }}
-    >
-      <Ionicons name='trash-outline' size={moderateScale(22)} color='#FFFFFF' />
-    </TouchableOpacity>
-  );
-};
 
 const RolePermission = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -488,14 +458,20 @@ const RolePermission = () => {
           }}
         >
           {activeRole && (
-            <Swipeable
-              renderRightActions={() => (
-                <SwipeDeleteAction
-                  onPress={handleDelete}
-                  disabled={activeRole.is_system}
-                />
-              )}
-              overshootRight={false}
+            <SwipeableOption
+              actionWidth={moderateScale(60)}
+              actions={[
+                {
+                  key: 'delete-role',
+                  icon: 'trash-outline',
+                  accessibilityLabel: 'Delete role',
+                  onPress: handleDelete,
+                  width: moderateScale(60),
+                  iconSize: moderateScale(22),
+                  borderRadius: moderateScale(16),
+                  disabled: activeRole.is_system,
+                },
+              ]}
               containerStyle={{
                 marginBottom: moderateScale(16),
               }}
@@ -556,7 +532,7 @@ const RolePermission = () => {
                   <Ionicons name='checkmark' size={20} color={colors.white} />
                 </TouchableOpacity>
               </View>
-            </Swipeable>
+            </SwipeableOption>
           )}
 
           {/* Permissions Accordion */}

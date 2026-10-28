@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, TouchableOpacity, Image } from 'react-native';
 import AppText from '../../common/AppText';
 import { useTheme } from '../../../hooks/useTheme';
@@ -9,7 +9,10 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 interface SearchMemberCardProps {
   item: SearchItem;
-  onPress: (item: SearchItem) => void;
+  onPress: (
+    item: SearchItem,
+    origin?: { x: number; y: number; size: number },
+  ) => void;
 }
 
 const getInitials = (item: SearchItem) => {
@@ -38,11 +41,18 @@ export const SearchMemberCard = React.memo<SearchMemberCardProps>(
     const isOrgAdminRole = item.role === 'org_admin';
     const initials = getInitials(item);
     const avatarBg = item.color || colors.primary;
+    const avatarRef = useRef<View>(null);
 
     return (
       <TouchableOpacity
         activeOpacity={0.75}
-        onPress={() => onPress(item)}
+        onPress={() => {
+          const avatar = avatarRef.current;
+          avatar?.measureInWindow((x, y, width) =>
+            onPress(item, { x, y, size: width }),
+          );
+          if (!avatar) onPress(item);
+        }}
         className='border'
         style={{
           backgroundColor: colors.card,
@@ -55,6 +65,7 @@ export const SearchMemberCard = React.memo<SearchMemberCardProps>(
         <View className='flex-row items-center'>
           {/* Avatar */}
           <View
+            ref={avatarRef}
             className='items-center justify-center overflow-hidden'
             style={{
               width: moderateScale(48),
