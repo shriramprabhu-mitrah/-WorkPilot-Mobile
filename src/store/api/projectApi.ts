@@ -31,6 +31,7 @@ import {
   COMPLETE_SPRINT_BY_ID,
   UPDATE_SPRINT_BY_ID,
   GET_USER_BY_ID,
+  GETPROJECTDASHBOARD,
 } from '../../constants/apiServiceEndpoint';
 import {
   GetProjectsResponse,
@@ -78,6 +79,8 @@ import {
   CompleteSprintArgs,
   UpdateSprintDetailsResponse,
   UpdateSprintDetailsArgs,
+  GetProjectDashboardResponse,
+  GetProjectDashboardQueryArgs,
 } from '../../types/project.type';
 import { getProjectUserRoleService } from '../../services/project.service';
 import {
@@ -102,6 +105,7 @@ export const projectApi = createApi({
     'ProjectDetails',
     'SprintDetails',
     'ProjectOverview',
+    'ProjectDashboard',
     'CustomStatus',
     'UserStoryStatus',
     'UserStories',
@@ -198,6 +202,19 @@ export const projectApi = createApi({
       }),
       providesTags: (_result, _error, { project_id }) => [
         { type: 'ProjectOverview', id: project_id },
+      ],
+    }),
+
+    getProjectDashboard: build.query<
+      GetProjectDashboardResponse,
+      GetProjectDashboardQueryArgs
+    >({
+      query: ({ project_id, sprint_id }) => ({
+        url: GETPROJECTDASHBOARD.replace('{project_id}', project_id),
+        params: sprint_id && sprint_id !== 'all' ? { sprint_id } : undefined,
+      }),
+      providesTags: (_result, _error, { project_id, sprint_id }) => [
+        { type: 'ProjectDashboard', id: `${project_id}_${sprint_id ?? 'all'}` },
       ],
     }),
 
@@ -753,6 +770,7 @@ export const {
   useGetProjectByIdQuery,
   useGetSprintByIdQuery,
   useGetProjectOverviewQuery,
+  useGetProjectDashboardQuery,
   useGetUpcomingDeadlinesQuery,
   useGetCustomStatusQuery,
   useGetUserStoryStatusQuery,

@@ -24,7 +24,7 @@ import {
   useGetProjectByIdQuery,
   useGetSprintByIdQuery,
   useGetSprintsQuery,
-  useGetProjectOverviewQuery,
+  useGetProjectDashboardQuery,
   useGetUpcomingDeadlinesQuery,
   useGetCustomStatusQuery,
   useGetUserStoryStatusQuery,
@@ -131,7 +131,7 @@ const ProjectDetails: React.FC = () => {
     (projectDetails as any)?._id?.toString();
 
   // 1. Summary Tab Preload
-  useGetProjectOverviewQuery(
+  useGetProjectDashboardQuery(
     effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
   );
   useGetUpcomingDeadlinesQuery(

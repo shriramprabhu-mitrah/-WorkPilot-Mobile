@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { Image, View, TouchableOpacity } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
@@ -13,6 +13,51 @@ interface TeamWorkloadChartProps {
 
 const ITEMS_PER_PAGE = 4;
 
+interface MemberAvatarProps {
+  uri?: string;
+  initials: string;
+  backgroundColor: string;
+  textColor: string;
+  size: number;
+  fontSize: number;
+}
+
+const MemberAvatar: React.FC<MemberAvatarProps> = ({
+  uri,
+  initials,
+  backgroundColor,
+  textColor,
+  size,
+  fontSize,
+}) => {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  return (
+    <View
+      className='items-center justify-center overflow-hidden'
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor,
+      }}
+    >
+      {uri && !imageFailed ? (
+        <Image
+          source={{ uri }}
+          resizeMode='cover'
+          onError={() => setImageFailed(true)}
+          style={{ width: size, height: size }}
+        />
+      ) : (
+        <AppText style={{ color: textColor, fontSize, fontWeight: '700' }}>
+          {initials}
+        </AppText>
+      )}
+    </View>
+  );
+};
+
 export const TeamWorkloadChart: React.FC<TeamWorkloadChartProps> = ({
   data = [],
   isLoading = false,
@@ -24,7 +69,10 @@ export const TeamWorkloadChart: React.FC<TeamWorkloadChartProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
 
   const workloadList = Array.isArray(data) ? data : [];
-  const totalPages = Math.max(1, Math.ceil(workloadList.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(workloadList.length / ITEMS_PER_PAGE),
+  );
 
   const pageMembers = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -99,7 +147,10 @@ export const TeamWorkloadChart: React.FC<TeamWorkloadChartProps> = ({
         </View>
 
         {/* Pagination Arrows */}
-        <View className='flex-row items-center rounded-lg border px-2 py-1' style={{ borderColor: colors?.border }}>
+        <View
+          className='flex-row items-center rounded-lg border px-2 py-1'
+          style={{ borderColor: colors?.border }}
+        >
           <TouchableOpacity
             activeOpacity={0.6}
             onPress={handlePrevPage}
@@ -139,85 +190,87 @@ export const TeamWorkloadChart: React.FC<TeamWorkloadChartProps> = ({
       {/* Main Chart Content */}
       <View className='my-2 flex-row' style={{ minHeight: moderateScale(180) }}>
         {/* Left Y-Axis: Member Avatars & Info */}
-        <View style={{ width: moderateScale(95), justifyContent: 'space-around', paddingRight: 8 }}>
-          {isEmpty ? (
-            // 4 Placeholder member rows when no data (matching screenshot)
-            [1, 2, 3, 4].map(idx => (
-              <View key={idx} className='flex-row items-center my-1'>
-                <View
-                  style={{
-                    width: moderateScale(22),
-                    height: moderateScale(22),
-                    borderRadius: moderateScale(11),
-                    backgroundColor: '#E5E7EB',
-                    marginRight: 6,
-                  }}
-                />
-                <View
-                  style={{
-                    width: moderateScale(42),
-                    height: moderateScale(12),
-                    borderRadius: moderateScale(4),
-                    backgroundColor: '#E5E7EB',
-                  }}
-                />
-              </View>
-            ))
-          ) : (
-            pageMembers.map((member, idx) => {
-              const name =
-                member.name ||
-                member.user_name ||
-                member.username ||
-                `User ${idx + 1}`;
-              const initials = name
-                .split(' ')
-                .map((n: string) => n[0])
-                .slice(0, 2)
-                .join('')
-                .toUpperCase();
-
-              return (
-                <View key={member.id || member.user_id || idx} className='flex-row items-center my-1.5'>
+        <View
+          style={{
+            width: moderateScale(95),
+            justifyContent: 'space-around',
+            paddingRight: 8,
+          }}
+        >
+          {isEmpty
+            ? // 4 Placeholder member rows when no data (matching screenshot)
+              [1, 2, 3, 4].map(idx => (
+                <View key={idx} className='my-1 flex-row items-center'>
                   <View
-                    className='items-center justify-center'
                     style={{
-                      width: moderateScale(24),
-                      height: moderateScale(24),
-                      borderRadius: moderateScale(12),
-                      backgroundColor: colors?.primary || '#3B82F6',
+                      width: moderateScale(22),
+                      height: moderateScale(22),
+                      borderRadius: moderateScale(11),
+                      backgroundColor: '#E5E7EB',
                       marginRight: 6,
                     }}
+                  />
+                  <View
+                    style={{
+                      width: moderateScale(42),
+                      height: moderateScale(12),
+                      borderRadius: moderateScale(4),
+                      backgroundColor: '#E5E7EB',
+                    }}
+                  />
+                </View>
+              ))
+            : pageMembers.map((member, idx) => {
+                const name =
+                  member.name ||
+                  member.user_name ||
+                  member.username ||
+                  `User ${idx + 1}`;
+                const initials = name
+                  .split(' ')
+                  .map((n: string) => n[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase();
+
+                return (
+                  <View
+                    key={member.id || member.user_id || idx}
+                    className='my-1.5 flex-row items-center'
+                    style={{ gap: moderateScale(10) }}
                   >
+                    <MemberAvatar
+                      key={`${member.user_id || member.id || idx}-${member.avatar_url || member.profile_picture || ''}`}
+                      uri={member.avatar_url || member.profile_picture}
+                      initials={initials}
+                      backgroundColor={
+                        member.color || colors?.primary || '#3B82F6'
+                      }
+                      textColor={colors?.white || '#FFFFFF'}
+                      size={moderateScale(24)}
+                      fontSize={moderateScale(9)}
+                    />
                     <AppText
+                      numberOfLines={1}
+                      ellipsizeMode='tail'
+                      variant='caption'
+                      className='flex-1 font-semibold'
                       style={{
-                        color: colors?.white || '#FFFFFF',
-                        fontSize: moderateScale(9),
-                        fontWeight: '700',
+                        color: colors?.text,
+                        fontSize: moderateScale(11),
                       }}
                     >
-                      {initials}
+                      {name}
                     </AppText>
                   </View>
-                  <AppText
-                    numberOfLines={1}
-                    ellipsizeMode='tail'
-                    variant='caption'
-                    className='flex-1 font-semibold'
-                    style={{ color: colors?.text, fontSize: moderateScale(11) }}
-                  >
-                    {name}
-                  </AppText>
-                </View>
-              );
-            })
-          )}
+                );
+              })}
         </View>
 
         {/* Right Area: Chart Canvas with Vertical Grid Ticks */}
         <View className='flex-1 justify-between'>
           {/* Vertical Grid Lines and Bars Area */}
-          <View className='flex-1 justify-around relative'>
+          <View className='relative flex-1 justify-around'>
             {/* Background Vertical Grid Lines */}
             <View className='absolute inset-0 flex-row justify-between'>
               {ticks.map((_, i) => (
@@ -247,10 +300,7 @@ export const TeamWorkloadChart: React.FC<TeamWorkloadChartProps> = ({
               /* If Data exists, render horizontal paired bars for each member */
               pageMembers.map((member, idx) => {
                 const tasks =
-                  member.tasks_count ??
-                  member.total_tasks ??
-                  member.tasks ??
-                  0;
+                  member.tasks_count ?? member.total_tasks ?? member.tasks ?? 0;
                 const points =
                   member.story_points ??
                   member.total_points ??
@@ -267,9 +317,12 @@ export const TeamWorkloadChart: React.FC<TeamWorkloadChartProps> = ({
                 )}%`;
 
                 return (
-                  <View key={member.id || member.user_id || idx} className='my-1.5 justify-center'>
+                  <View
+                    key={member.id || member.user_id || idx}
+                    className='my-1.5 justify-center'
+                  >
                     {/* Tasks Bar (Light grey/slate) */}
-                    <View className='flex-row items-center mb-1'>
+                    <View className='mb-1 flex-row items-center'>
                       <View
                         style={{
                           width: taskWidthPct as any,

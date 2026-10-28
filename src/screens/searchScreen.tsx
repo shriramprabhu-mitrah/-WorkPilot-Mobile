@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { FlatList, RefreshControl } from 'react-native';
 import { usePermissions } from '../hooks/usePermissions';
 import { useNavigation } from '@react-navigation/native';
@@ -14,12 +14,19 @@ import { showSnackbar } from '../components/common/Snackbar';
 import { SearchItemCard } from '../components/search/cards/SearchItemCard';
 import { SearchFooter } from '../components/search/SearchFooter';
 import { SearchEmptyState } from '../components/search/SearchEmptyState';
+import MemberDetailsModal from '../components/MemberDetailsModal';
 
 const SearchScreen = () => {
   const { colors } = useTheme();
   const { layout, hp, moderateScale } = useAuthLayout();
   const { isOrgAdmin } = usePermissions();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const [memberDetails, setMemberDetails] = useState<SearchItem | null>(null);
+  const [memberDetailsOrigin, setMemberDetailsOrigin] = useState<{
+    x: number;
+    y: number;
+    size: number;
+  } | null>(null);
 
   const {
     searchQuery,
@@ -39,7 +46,7 @@ const SearchScreen = () => {
 
   // Handle item navigation
   const handleItemPress = useCallback(
-    (item: SearchItem) => {
+    (item: SearchItem, origin?: { x: number; y: number; size: number }) => {
       const itemType =
         item.type || (item.email || item.user_name ? 'member' : 'unknown');
 
@@ -98,6 +105,9 @@ const SearchScreen = () => {
                 color: item.color || null,
               },
             });
+          } else {
+            setMemberDetailsOrigin(origin || null);
+            setMemberDetails(item);
           }
           break;
 
@@ -209,6 +219,12 @@ const SearchScreen = () => {
           paddingBottom: hp(10),
           flexGrow: 1,
         }}
+      />
+      <MemberDetailsModal
+        visible={Boolean(memberDetails)}
+        member={memberDetails}
+        origin={memberDetailsOrigin}
+        onClose={() => setMemberDetails(null)}
       />
     </Screen>
   );

@@ -22,7 +22,6 @@ import {
 } from '../../store/project_store/action/projectBoard.thunk';
 import { showSnackbar } from '../../components/common/Snackbar';
 import { skipToken } from '@reduxjs/toolkit/query';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { UserStory } from '../../types/project.type';
 import ListSkeleton from '../../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../../components/skeleton/ProjectCardSkeleton';
@@ -30,28 +29,7 @@ import { RootStackParamList } from '../../types/navigationTypes';
 import DeleteColumnModal from '../../components/DeleteColumnModal';
 import { useDeleteUserStoryMutation } from '../../store/api/userStoryApi';
 import { usePermissions } from '../../hooks/usePermissions';
-
-const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
-  const { colors } = useTheme();
-  const { moderateScale } = useAuthLayout();
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={onPress}
-      style={{
-        width: moderateScale(60),
-        marginLeft: moderateScale(8),
-        borderRadius: Radius.md,
-        backgroundColor: colors.error,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Ionicons name='trash-outline' size={moderateScale(25)} color='#FFFFFF' />
-    </TouchableOpacity>
-  );
-};
+import SwipeableOption from '../../components/SwipeableOption';
 
 const List = () => {
   const { colors } = useTheme();
@@ -460,16 +438,20 @@ const List = () => {
             const priorityConfig = getPriorityConfig(item.priority);
 
             return (
-              <Swipeable
+              <SwipeableOption
                 enabled={!permissionsLoading && canDeleteUserStory}
-                renderRightActions={() =>
-                  !permissionsLoading && canDeleteUserStory ? (
-                    <SwipeDeleteAction
-                      onPress={() => setDeleteStoryItem(item)}
-                    />
-                  ) : null
-                }
-                overshootRight={false}
+                actionWidth={moderateScale(68)}
+                leftInset={moderateScale(8)}
+                actions={[
+                  {
+                    key: 'delete-story',
+                    icon: 'trash-outline',
+                    accessibilityLabel: 'Delete user story',
+                    onPress: () => setDeleteStoryItem(item),
+                    width: moderateScale(60),
+                    iconSize: moderateScale(25),
+                  },
+                ]}
               >
                 <View
                   style={{
@@ -592,7 +574,7 @@ const List = () => {
                     </View>
                   </TouchableOpacity>
                 </View>
-              </Swipeable>
+              </SwipeableOption>
             );
           }}
         />

@@ -8,7 +8,10 @@ import { SearchSprintCard } from './SearchSprintCard';
 
 interface SearchItemCardProps {
   item: SearchItem;
-  onPress: (item: SearchItem) => void;
+  onPress: (
+    item: SearchItem,
+    origin?: { x: number; y: number; size: number },
+  ) => void;
 }
 
 export const SearchItemCard = React.memo<SearchItemCardProps>(

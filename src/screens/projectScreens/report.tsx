@@ -21,6 +21,8 @@ import {
   useGetWeeklyProgressQuery,
 } from '../../store/api/projectApi';
 import {
+  BurndownDayPoint,
+  SprintBurndownItem,
   TeamWorkloadMember,
   WeeklyProgressDayItem,
 } from '../../types/project.type';
@@ -37,6 +39,41 @@ import {
   Y_AXIS_TICKS,
 } from '../../utils/reportData';
 import { skipToken } from '@reduxjs/toolkit/query';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isBurndownDayPoint = (value: unknown): value is BurndownDayPoint =>
+  isRecord(value) &&
+  typeof value.day === 'number' &&
+  typeof value.date === 'string' &&
+  typeof value.ideal_hours === 'number' &&
+  typeof value.actual_hours === 'number';
+
+const isSprintBurndownItem = (value: unknown): value is SprintBurndownItem =>
+  isRecord(value) &&
+  typeof value.sprint_id === 'string' &&
+  typeof value.sprint_name === 'string' &&
+  Array.isArray(value.data) &&
+  value.data.every(isBurndownDayPoint);
+
+const unwrapBurndownPayload = (payload: unknown): SprintBurndownItem[] => {
+  if (Array.isArray(payload)) {
+    const sprintItems = payload.filter(isSprintBurndownItem);
+    if (sprintItems.length > 0) return sprintItems;
+
+    const wrappedResponse = payload.find(isRecord);
+    return wrappedResponse ? unwrapBurndownPayload(wrappedResponse) : [];
+  }
+
+  if (!isRecord(payload)) return [];
+
+  if (Array.isArray(payload.sprint_burndown)) {
+    return payload.sprint_burndown.filter(isSprintBurndownItem);
+  }
+
+  return unwrapBurndownPayload(payload.data);
+};
 
 interface FilterCheckboxProps {
   label: string;
@@ -186,14 +223,13 @@ const Report = () => {
   const [selectedTimeFilter, setSelectedTimeFilter] =
     useState<TimeFilterOption>('All Time');
 
-  const [weeklyStartDate, setWeeklyStartDate] = useState<string>(
-    getTodayDateString(),
-  );
-  const [weeklyEndDate, setWeeklyEndDate] = useState<string>(
-    getTodayDateString(),
-  );
+  const [weeklyStartDate, setWeeklyStartDate] =
+    useState<string>(getTodayDateString());
+  const [weeklyEndDate, setWeeklyEndDate] =
+    useState<string>(getTodayDateString());
 
   const [isFocusLoading, setIsFocusLoading] = useState(false);
+  const [burndownPage, setBurndownPage] = useState(1);
 
   // Ref to track previous context (Project ID & Sprint ID)
   const lastFetchedKeyRef = useRef<string | null>(null);
@@ -215,25 +251,31 @@ const Report = () => {
     projectId
       ? {
           projectId,
-          sprintId: sprintId || undefined,
         }
       : skipToken,
   );
 
-  const rawData: any = burndownResponse?.data;
-  const sprintBurndownList: any[] = Array.isArray(rawData?.sprint_burndown)
-    ? rawData.sprint_burndown
-    : Array.isArray(rawData)
-    ? rawData
-    : [];
+  const sprintBurndownList = unwrapBurndownPayload(burndownResponse);
+  const burndownTotalPages = Math.max(1, sprintBurndownList.length);
+  const activeSprintBurndown = sprintBurndownList[burndownPage - 1] ?? null;
 
-  const activeSprintBurndown =
-    (sprintId && sprintBurndownList.find(s => s && s.sprint_id === sprintId)) ||
-    (sprintBurndownList.length > 0 ? sprintBurndownList[0] : null);
+  useEffect(() => {
+    setBurndownPage(page => Math.min(page, burndownTotalPages));
+  }, [burndownTotalPages]);
 
-  const burndownPoints: any[] = Array.isArray(activeSprintBurndown?.data)
-    ? activeSprintBurndown.data
-    : [];
+  useEffect(() => {
+    setBurndownPage(1);
+  }, [projectId]);
+
+  const burndownPoints = activeSprintBurndown?.data ?? [];
+
+  const burndownMaxValue = Math.max(
+    0,
+    ...burndownPoints.flatMap(point => [
+      Number(point.ideal_hours) || 0,
+      Number(point.actual_hours) || 0,
+    ]),
+  );
 
   const {
     data: workloadResponse,
@@ -254,8 +296,8 @@ const Report = () => {
   const workloadList: TeamWorkloadMember[] = Array.isArray(rawWorkload)
     ? rawWorkload
     : Array.isArray(rawWorkload?.team_workload)
-    ? rawWorkload.team_workload
-    : [];
+      ? rawWorkload.team_workload
+      : [];
 
   const {
     data: weeklyProgressResponse,
@@ -277,8 +319,8 @@ const Report = () => {
   const weeklyProgressList: WeeklyProgressDayItem[] = Array.isArray(rawWeekly)
     ? rawWeekly
     : Array.isArray(rawWeekly?.weekly_progress)
-    ? rawWeekly.weekly_progress
-    : [];
+      ? rawWeekly.weekly_progress
+      : [];
 
   // Fetch Burndown Chart, Team Workload, and Weekly Progress data when screen comes into focus
   useFocusEffect(
@@ -338,9 +380,12 @@ const Report = () => {
     weeklyProgressFetching,
   ]);
 
-  const showBurndownSkeleton = !burndownResponse && (isFocusLoading || burndownLoading);
-  const showWorkloadSkeleton = !workloadResponse && (isFocusLoading || workloadLoading);
-  const showWeeklySkeleton = !weeklyProgressResponse && (isFocusLoading || weeklyProgressLoading);
+  const showBurndownSkeleton =
+    !burndownResponse && (isFocusLoading || burndownLoading);
+  const showWorkloadSkeleton =
+    !workloadResponse && (isFocusLoading || workloadLoading);
+  const showWeeklySkeleton =
+    !weeklyProgressResponse && (isFocusLoading || weeklyProgressLoading);
 
   const toggleStatus = useCallback((key: StatusKey) => {
     setStatuses(prev => ({ ...prev, [key]: !prev[key] }));
@@ -360,47 +405,94 @@ const Report = () => {
           {
             data: [0, 0, 0, 0, 0],
             color: (opacity = 1) =>
-              colors?.primary || `rgba(59, 130, 246, ${opacity})`,
+              colors?.textSecondary || `rgba(156, 163, 175, ${opacity})`,
             strokeWidth: 2,
           },
           {
             data: [0, 0, 0, 0, 0],
             color: (opacity = 1) =>
-              colors?.textSecondary || `rgba(156, 163, 175, ${opacity})`,
-            strokeWidth: 2,
-            strokeDashArray: [5, 5],
+              colors?.primary || `rgba(59, 130, 246, ${opacity})`,
+            strokeWidth: 2.5,
           },
         ],
       };
     }
 
+    const totalPoints = burndownPoints.length;
+    const MAX_X_TICKS = 5;
+    const visibleIndices = new Set<number>();
+
+    // 2 or 3 dates: show ONLY start date (0) and end date (totalPoints - 1)
+    if (totalPoints === 2 || totalPoints === 3) {
+      visibleIndices.add(0);
+      visibleIndices.add(totalPoints - 1);
+    } else if (totalPoints <= MAX_X_TICKS) {
+      for (let i = 0; i < totalPoints; i++) visibleIndices.add(i);
+    } else {
+      // Step interval across points to avoid overlapping
+      for (let i = 0; i < MAX_X_TICKS; i++) {
+        const index = Math.round((i * (totalPoints - 1)) / (MAX_X_TICKS - 1));
+        visibleIndices.add(index);
+      }
+    }
+
     // Format labels: short date MM/DD or Day X
-    const labels = burndownPoints.map(point => {
-      if (point.date && point.date.includes('-')) {
-        const parts = point.date.split('-');
-        if (parts.length === 3) {
-          return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}`;
+    const labels = burndownPoints.map((point, index) => {
+      if (!visibleIndices.has(index)) {
+        return '';
+      }
+
+      if (point.date) {
+        const dateObj = new Date(point.date);
+        if (!isNaN(dateObj.getTime())) {
+          return dateObj.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+          });
+        }
+        if (point.date.includes('-')) {
+          const parts = point.date.split('-');
+          if (parts.length === 3) {
+            const months = [
+              'Jan',
+              'Feb',
+              'Mar',
+              'Apr',
+              'May',
+              'Jun',
+              'Jul',
+              'Aug',
+              'Sept',
+              'Oct',
+              'Nov',
+              'Dec',
+            ];
+            return `${parts[2].padStart(2, '0')} ${months[Number(parts[1]) - 1] ?? ''}`.trim();
+          }
         }
       }
-      return `D${point.day}`;
+      return `D${point.day ?? index + 1}`;
     });
 
-    const actualData = burndownPoints.map(point => point.actual_hours ?? 0);
-    const idealData = burndownPoints.map(point => point.ideal_hours ?? 0);
+    const actualData = burndownPoints.map(
+      point => Number(point.actual_hours) || 0,
+    );
+    const idealData = burndownPoints.map(
+      point => Number(point.ideal_hours) || 0,
+    );
 
     const datasets = [
-      {
-        data: actualData,
-        color: (opacity = 1) =>
-          colors?.primary || `rgba(59, 130, 246, ${opacity})`,
-        strokeWidth: 2,
-      },
       {
         data: idealData,
         color: (opacity = 1) =>
           colors?.textSecondary || `rgba(156, 163, 175, ${opacity})`,
         strokeWidth: 2,
-        strokeDashArray: [5, 5],
+      },
+      {
+        data: actualData,
+        color: (opacity = 1) =>
+          colors?.primary || `rgba(59, 130, 246, ${opacity})`,
+        strokeWidth: 2.5,
       },
     ];
 
@@ -455,13 +547,57 @@ const Report = () => {
           borderColor: colors?.border,
         }}
       >
-        <AppText
-          variant='title'
-          className='mb-1 font-bold'
-          style={{ color: colors?.text }}
-        >
-          Sprint Burndown
-        </AppText>
+        <View className='mb-1 flex-row items-center justify-between'>
+          <AppText
+            variant='title'
+            className='font-bold'
+            style={{ color: colors?.text }}
+          >
+            Sprint Burndown
+          </AppText>
+          <View
+            className='flex-row items-center rounded-lg border px-2 py-1'
+            style={{ borderColor: colors?.border }}
+          >
+            <TouchableOpacity
+              activeOpacity={0.6}
+              onPress={() => setBurndownPage(page => Math.max(1, page - 1))}
+              disabled={burndownPage <= 1}
+              className='p-1'
+            >
+              <Ionicons
+                name='chevron-back'
+                size={moderateScale(14)}
+                color={burndownPage <= 1 ? colors?.border : colors?.text}
+              />
+            </TouchableOpacity>
+            <AppText
+              variant='caption'
+              className='mx-2 font-medium'
+              style={{ color: colors?.textSecondary }}
+            >
+              {burndownPage}/{burndownTotalPages}
+            </AppText>
+            <TouchableOpacity
+              activeOpacity={0.6}
+              onPress={() =>
+                setBurndownPage(page => Math.min(burndownTotalPages, page + 1))
+              }
+              disabled={burndownPage >= burndownTotalPages}
+              className='p-1'
+            >
+              <Ionicons
+                name='chevron-forward'
+                size={moderateScale(14)}
+                color={
+                  burndownPage >= burndownTotalPages
+                    ? colors?.border
+                    : colors?.text
+                }
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
         <AppText
           variant='body'
           className='mb-3'
@@ -470,8 +606,8 @@ const Report = () => {
           {activeSprintBurndown?.sprint_name
             ? `${activeSprintBurndown.sprint_name} · Ideal vs actual hours`
             : currentSprint?.name
-            ? `${currentSprint.name} · Ideal vs actual hours`
-            : 'No sprint selected · Ideal vs actual hours'}
+              ? `${currentSprint.name} · Ideal vs actual hours`
+              : 'No sprint selected · Ideal vs actual hours'}
         </AppText>
 
         {showBurndownSkeleton ? (
@@ -482,11 +618,19 @@ const Report = () => {
               data={getFormattedBurndownData()}
               width={chartWidth}
               height={200}
+              segments={4}
+              formatYLabel={value => {
+                const numeric = Number(value);
+                if (burndownMaxValue <= 10) {
+                  return `${Number(numeric.toFixed(1))}h`;
+                }
+                return `${Math.round(numeric)}h`;
+              }}
               chartConfig={{
                 backgroundColor: colors?.surface,
                 backgroundGradientFrom: colors?.surface,
                 backgroundGradientTo: colors?.surface,
-                decimalPlaces: 0,
+                decimalPlaces: burndownMaxValue <= 10 ? 1 : 0,
                 color: (opacity = 1) =>
                   colors?.primary || `rgba(59, 130, 246, ${opacity})`,
                 labelColor: (opacity = 1) =>
@@ -497,10 +641,10 @@ const Report = () => {
                 propsForDots: {
                   r: '3',
                   strokeWidth: '1.5',
-                  stroke: colors?.primary,
                 },
               }}
-              bezier
+              fromZero
+              withVerticalLines={false}
               style={{
                 marginVertical: 8,
                 borderRadius: 12,
@@ -557,10 +701,7 @@ const Report = () => {
       />
 
       {/* Team Workload Chart */}
-      <TeamWorkloadChart
-        data={workloadList}
-        isLoading={showWorkloadSkeleton}
-      />
+      <TeamWorkloadChart data={workloadList} isLoading={showWorkloadSkeleton} />
 
       {/* Cumulative Flow Diagram */}
       <View

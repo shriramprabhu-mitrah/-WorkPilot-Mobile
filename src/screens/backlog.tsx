@@ -29,7 +29,6 @@ import {
   useUploadUserStoryAttachmentMutation,
 } from '../store/api/userStoryApi';
 import { skipToken } from '@reduxjs/toolkit/query';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { UserStory, CreateUserStoryPayload, Task } from '../types/project.type';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
@@ -43,28 +42,7 @@ import CreateTaskBottomSheet from '../components/createTaskBottomSheet';
 import { TASK_PRIORITY_OPTIONS } from '../utils/enum';
 import { showSnackbar } from '../components/common/Snackbar';
 import { usePermissions } from '../hooks/usePermissions';
-
-const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
-  const { colors } = useTheme();
-  const { moderateScale } = useAuthLayout();
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={onPress}
-      style={{
-        width: moderateScale(60),
-        marginLeft: moderateScale(8),
-        borderRadius: Radius.md,
-        backgroundColor: colors.error,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Ionicons name='trash-outline' size={moderateScale(25)} color='#FFFFFF' />
-    </TouchableOpacity>
-  );
-};
+import SwipeableOption from '../components/SwipeableOption';
 
 export const Backlogs = () => {
   const { colors } = useTheme();
@@ -651,16 +629,21 @@ export const Backlogs = () => {
                   {filteredStories.map(story => {
                     const priorityConfig = getPriorityConfig(story.priority);
                     return (
-                      <Swipeable
+                      <SwipeableOption
                         key={story.id}
-                        renderRightActions={() =>
-                          permissionsReady && canDeleteUserStory ? (
-                            <SwipeDeleteAction
-                              onPress={() => setDeleteStoryItem(story)}
-                            />
-                          ) : null
-                        }
-                        overshootRight={false}
+                        enabled={permissionsReady && canDeleteUserStory}
+                        actionWidth={moderateScale(68)}
+                        leftInset={moderateScale(8)}
+                        actions={[
+                          {
+                            key: 'delete-story',
+                            icon: 'trash-outline',
+                            accessibilityLabel: 'Delete user story',
+                            onPress: () => setDeleteStoryItem(story),
+                            width: moderateScale(60),
+                            iconSize: moderateScale(25),
+                          },
+                        ]}
                       >
                         <View
                           className='overflow-hidden rounded-xl border p-3.5'
@@ -782,7 +765,7 @@ export const Backlogs = () => {
                             )}
                           </View>
                         </View>
-                      </Swipeable>
+                      </SwipeableOption>
                     );
                   })}
 

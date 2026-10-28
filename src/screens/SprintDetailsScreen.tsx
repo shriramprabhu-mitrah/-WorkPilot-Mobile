@@ -53,7 +53,7 @@ import SprintDetailsSkeleton from '../components/skeleton/SprintDetailsSkeleton'
 import { RootStackParamList } from '../types/navigationTypes';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import SwipeableOption from '../components/SwipeableOption';
 import { useDeleteUserStoryMutation } from '../store/api/userStoryApi';
 import { showSnackbar } from '../components/common/Snackbar';
 import { usePermissions } from '../hooks/usePermissions';
@@ -116,26 +116,6 @@ const cleanHtmlText = (html?: string) => {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .trim();
-};
-
-const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
-  const { moderateScale } = useResponsive();
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={onPress}
-      style={{
-        width: moderateScale(65),
-        height: '100%',
-        backgroundColor: '#EF4444',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Ionicons name='trash-outline' size={moderateScale(22)} color='#FFFFFF' />
-    </TouchableOpacity>
-  );
 };
 
 type FilterTab = 'all' | 'stories' | 'tasks' | 'high_priority';
@@ -655,19 +635,25 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
       const statusColor = getStatusColor(item.status);
 
       return (
-        <Swipeable
+        <SwipeableOption
+          enabled={permissionsReady && canDeleteUserStory}
+          actionWidth={moderateScale(65)}
+          actions={[
+            {
+              key: 'delete-story',
+              icon: 'trash-outline',
+              accessibilityLabel: 'Delete user story',
+              onPress: () => setDeleteStoryItem(item),
+              width: moderateScale(65),
+              iconSize: moderateScale(22),
+            },
+          ]}
           containerStyle={{
             marginHorizontal: wp(4),
             marginBottom: moderateScale(12),
             borderRadius: moderateScale(18),
             overflow: 'hidden',
           }}
-          renderRightActions={() =>
-            permissionsReady && canDeleteUserStory ? (
-              <SwipeDeleteAction onPress={() => setDeleteStoryItem(item)} />
-            ) : null
-          }
-          overshootRight={false}
           rightThreshold={40}
         >
           <View
@@ -899,7 +885,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
               </View>
             </TouchableOpacity>
           </View>
-        </Swipeable>
+        </SwipeableOption>
       );
     },
     [

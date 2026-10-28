@@ -19,7 +19,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import SwipeableOption from '../components/SwipeableOption';
 import { AppText } from '../components';
 import { Radius } from '../constants/Radius';
 import { useAuthLayout } from '../hooks/useAuthLayout';
@@ -60,28 +60,6 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
 });
-
-const SwipeDeleteAction = ({ onPress }: { onPress: () => void }) => {
-  const { colors } = useTheme();
-  const { moderateScale } = useAuthLayout();
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={onPress}
-      style={{
-        width: moderateScale(60),
-        marginLeft: moderateScale(8),
-        borderRadius: Radius.md,
-        backgroundColor: colors.error,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Ionicons name='trash-outline' size={moderateScale(22)} color='#FFFFFF' />
-    </TouchableOpacity>
-  );
-};
 
 const OrganizationMembers = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -482,12 +460,20 @@ const OrganizationMembers = () => {
                   };
 
             return (
-              <Swipeable
+              <SwipeableOption
                 enabled={!isExpanded}
-                renderRightActions={() => (
-                  <SwipeDeleteAction onPress={() => setMemberToRemove(item)} />
-                )}
-                overshootRight={false}
+                actionWidth={moderateScale(68)}
+                leftInset={moderateScale(8)}
+                actions={[
+                  {
+                    key: 'remove-member',
+                    icon: 'trash-outline',
+                    accessibilityLabel: 'Remove organization member',
+                    onPress: () => setMemberToRemove(item),
+                    width: moderateScale(60),
+                    iconSize: moderateScale(22),
+                  },
+                ]}
               >
                 <TouchableOpacity
                   activeOpacity={0.8}
@@ -710,7 +696,7 @@ const OrganizationMembers = () => {
                     </View>
                   )}
                 </TouchableOpacity>
-              </Swipeable>
+              </SwipeableOption>
             );
           }}
         />

@@ -39,78 +39,11 @@ import { showSnackbar } from '../components/common/Snackbar';
 import { RootStackParamList } from '../types/navigationTypes';
 import AddProjectMemberModal from '../components/projectMemberIniviteModel';
 import EditMemberRoleModal from '../components/EditMemberRoleModal';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import SwipeableOption from '../components/SwipeableOption';
 import { usePermissions } from '../hooks/usePermissions';
+import MemberDetailsModal from '../components/MemberDetailsModal';
 
 const PAGE_SIZE = 10;
-
-const SwipeRightActions = ({
-  onEdit,
-  onDelete,
-  isEditDisabled = false,
-  isDeleteDisabled = false,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-  isEditDisabled?: boolean;
-  isDeleteDisabled?: boolean;
-}) => {
-  const { colors } = useTheme();
-  const { moderateScale } = useAuthLayout();
-
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginLeft: moderateScale(8),
-        gap: moderateScale(8),
-      }}
-    >
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={isEditDisabled ? undefined : onEdit}
-        disabled={isEditDisabled}
-        style={{
-          width: moderateScale(54),
-          height: '100%',
-          borderRadius: Radius.md,
-          backgroundColor: '#10B981',
-          opacity: isEditDisabled ? 0.35 : 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Ionicons
-          name='create-outline'
-          size={moderateScale(25)}
-          color='#FFFFFF'
-        />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={isDeleteDisabled ? undefined : onDelete}
-        disabled={isDeleteDisabled}
-        style={{
-          width: moderateScale(54),
-          height: '100%',
-          borderRadius: Radius.md,
-          backgroundColor: colors.error,
-          opacity: isDeleteDisabled ? 0.35 : 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Ionicons
-          name='trash-outline'
-          size={moderateScale(25)}
-          color='#FFFFFF'
-        />
-      </TouchableOpacity>
-    </View>
-  );
-};
 
 const MemberItemSeparator = () => <View className='h-3' />;
 
@@ -135,6 +68,15 @@ const Members = () => {
     null,
   );
   const [memberToEdit, setMemberToEdit] = useState<ProjectMember | null>(null);
+  const [memberDetails, setMemberDetails] = useState<ProjectMember | null>(
+    null,
+  );
+  const [memberDetailsOrigin, setMemberDetailsOrigin] = useState<{
+    x: number;
+    y: number;
+    size: number;
+  } | null>(null);
+  const avatarRefs = useRef(new Map<string, View>());
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [debouncedModalSearch, setDebouncedModalSearch] = useState('');
   const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
@@ -540,20 +482,32 @@ const Members = () => {
             const isOrgAdminRole = item.role === 'org_admin';
 
             return (
-              <Swipeable
-                renderRightActions={() => {
-                  if (!permissionsReady) return null;
-                  if (!canEditProject && !canDeleteProject) return null;
-                  return (
-                    <SwipeRightActions
-                      onEdit={() => setMemberToEdit(item)}
-                      onDelete={() => setMemberToRemove(item)}
-                      isEditDisabled={isOrgAdminRole || !canEditProject}
-                      isDeleteDisabled={isOrgAdminRole || !canDeleteProject}
-                    />
-                  );
-                }}
-                overshootRight={false}
+              <SwipeableOption
+                actionWidth={moderateScale(124)}
+                leftInset={moderateScale(8)}
+                gap={moderateScale(8)}
+                enabled={
+                  permissionsReady && (canEditProject || canDeleteProject)
+                }
+                actions={[
+                  {
+                    key: 'edit',
+                    icon: 'create-outline',
+                    accessibilityLabel: 'Edit member role',
+                    onPress: () => setMemberToEdit(item),
+                    width: moderateScale(54),
+                    color: colors.success,
+                    disabled: isOrgAdminRole || !canEditProject,
+                  },
+                  {
+                    key: 'delete',
+                    icon: 'trash-outline',
+                    accessibilityLabel: 'Remove member',
+                    onPress: () => setMemberToRemove(item),
+                    width: moderateScale(54),
+                    disabled: isOrgAdminRole || !canDeleteProject,
+                  },
+                ]}
               >
                 <TouchableOpacity
                   activeOpacity={0.75}
@@ -564,6 +518,15 @@ const Members = () => {
                         projectId,
                         member: item,
                       });
+                    } else {
+                      const avatar = avatarRefs.current.get(
+                        String(item.user_id),
+                      );
+                      avatar?.measureInWindow((x, y, width) => {
+                        setMemberDetailsOrigin({ x, y, size: width });
+                        setMemberDetails(item);
+                      });
+                      if (!avatar) setMemberDetails(item);
                     }
                   }}
                   className='flex-row items-center border p-3.5 px-3'
@@ -576,6 +539,11 @@ const Members = () => {
                 >
                   {/* Member Avatar */}
                   <View
+                    ref={ref => {
+                      const key = String(item.user_id);
+                      if (ref) avatarRefs.current.set(key, ref);
+                      else avatarRefs.current.delete(key);
+                    }}
                     className='items-center justify-center overflow-hidden'
                     style={{
                       width: moderateScale(44),
@@ -587,10 +555,7 @@ const Members = () => {
                     {item.avatar_url ? (
                       <Image
                         source={{ uri: item.avatar_url }}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                        }}
+                        style={{ width: '100%', height: '100%' }}
                         resizeMode='cover'
                       />
                     ) : (
@@ -642,7 +607,7 @@ const Members = () => {
                     </AppText>
                   </View>
                 </TouchableOpacity>
-              </Swipeable>
+              </SwipeableOption>
             );
           }}
         />
@@ -684,6 +649,12 @@ const Members = () => {
         loading={isRemovingMember}
         onClose={() => setMemberToRemove(null)}
         onDelete={handleConfirmRemoveMember}
+      />
+      <MemberDetailsModal
+        visible={Boolean(memberDetails)}
+        member={memberDetails}
+        origin={memberDetailsOrigin}
+        onClose={() => setMemberDetails(null)}
       />
     </View>
   );
