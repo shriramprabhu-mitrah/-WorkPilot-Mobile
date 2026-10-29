@@ -60,16 +60,6 @@ import { usePermissions } from '../hooks/usePermissions';
 
 const SunsetHeaderImage = require('../assets/images/Serene Mountain Lake at Sunset.png');
 
-// Preload the image asset immediately on module load so it renders instantly
-try {
-  const assetSource = Image.resolveAssetSource(SunsetHeaderImage);
-  if (assetSource?.uri) {
-    Image.prefetch(assetSource.uri);
-  }
-} catch {
-  // Ignore prefetch errors in dev
-}
-
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 interface SprintDetailsScreenProps {
@@ -77,6 +67,7 @@ interface SprintDetailsScreenProps {
     params: {
       sprintId: string;
       sprintName?: string;
+      projectId?: string | number;
     };
   };
 }
@@ -125,7 +116,7 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const { sprintId, sprintName } = route.params;
+  const { sprintId, sprintName, projectId: routeProjectId } = route.params;
 
   const { colors, theme, mode } = useTheme();
   const isDark = Boolean(theme?.dark || mode === 'dark');
@@ -187,7 +178,11 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
     userStoryError,
   } = useAppSelector((state: RootState) => state.projects);
 
-  const projectId = project?.id;
+  const projectId = routeProjectId
+    ? String(routeProjectId)
+    : project?.id
+      ? String(project.id)
+      : undefined;
   const {
     permissionsReady,
     canEditSprint,
@@ -203,21 +198,27 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
 
   const [hasLoadedForThisSprint, setHasLoadedForThisSprint] =
     useState(isSameSprint);
-  const currentSprintIdRef = useRef(sprintId);
 
-  if (currentSprintIdRef.current !== sprintId) {
-    currentSprintIdRef.current = sprintId;
+  useEffect(() => {
     setHasLoadedForThisSprint(isSameSprint);
-  }
+  }, [sprintId, isSameSprint]);
 
   useEffect(() => {
     if (
-      (isSameSprint && !getCurrentSprintLoading && !loading) ||
-      (!getCurrentSprintLoading && !loading && (error || userStoryError))
+      !getCurrentSprintLoading &&
+      !loading &&
+      (isSameSprint || error || userStoryError)
     ) {
       setHasLoadedForThisSprint(true);
     }
   }, [isSameSprint, getCurrentSprintLoading, loading, error, userStoryError]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHasLoadedForThisSprint(true);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [sprintId]);
 
   // Fetch Sprint & User Stories on Mount
   useEffect(() => {
@@ -2351,75 +2352,52 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
       </Modal>
 
       {/* Delete Sprint Modal */}
-      <DeleteColumnModal
-        visible={isDeleteModalVisible}
-        columnTitle='Want to delete this sprint?'
-        onClose={() => {
-          if (!isDeleting) {
-            setIsDeleteModalVisible(false);
-          }
-        }}
-        onDelete={async () => {
-          await handleDeleteSprint(projectId || '', sprintId);
-        }}
-        loading={isDeleting}
-      />
+      {isDeleteModalVisible && (
+        <DeleteColumnModal
+          visible={isDeleteModalVisible}
+          columnTitle='Want to delete this sprint?'
+          onClose={() => {
+            if (!isDeleting) {
+              setIsDeleteModalVisible(false);
+            }
+          }}
+          onDelete={async () => {
+            await handleDeleteSprint(projectId || '', sprintId);
+          }}
+          loading={isDeleting}
+        />
+      )}
 
       {/* Delete Story Modal */}
-      <DeleteColumnModal
-        visible={Boolean(deleteStoryItem)}
-        title='Delete User Story'
-        columnTitle={deleteStoryItem?.title ?? 'this user story'}
-        colors={colors}
-        loading={isDeletingStory}
-        onClose={() => setDeleteStoryItem(null)}
-        onDelete={handleConfirmDeleteStory}
-      />
+      {Boolean(deleteStoryItem) && (
+        <DeleteColumnModal
+          visible={Boolean(deleteStoryItem)}
+          title='Delete User Story'
+          columnTitle={deleteStoryItem?.title ?? 'this user story'}
+          colors={colors}
+          loading={isDeletingStory}
+          onClose={() => setDeleteStoryItem(null)}
+          onDelete={handleConfirmDeleteStory}
+        />
+      )}
 
       {/* Start / Update Sprint Modal */}
-      <UpdateSprintModal
-        visible={isEditSprintVisible}
-        onClose={() => setIsEditSprintVisible(false)}
-        mode={sprintModalMode}
-        sprint={currentSprint}
-        isUpdating={isUpdatingSprint || isStartingSprint}
-        onStart={async payload => {
-          if (!permissionsReady || !canEditSprint || !projectId || !sprintId) {
-            return;
-          }
-          await startSprint({
-            project_id: projectId,
-            sprint_id: sprintId,
-            payload,
-          }).unwrap();
-          setIsEditSprintVisible(false);
-          await dispatch(
-            getSprintByIdThunk({
-              project_id: projectId || '',
+      {isEditSprintVisible && (
+        <UpdateSprintModal
+          visible={isEditSprintVisible}
+          onClose={() => setIsEditSprintVisible(false)}
+          mode={sprintModalMode}
+          sprint={currentSprint}
+          isUpdating={isUpdatingSprint || isStartingSprint}
+          onStart={async payload => {
+            if (!permissionsReady || !canEditSprint || !projectId || !sprintId) {
+              return;
+            }
+            await startSprint({
+              project_id: projectId,
               sprint_id: sprintId,
-            }),
-          ).unwrap();
-          showSnackbar({
-            message: 'Sprint started successfully',
-            type: 'success',
-          });
-        }}
-        onUpdate={async payload => {
-          if (!permissionsReady || !canEditSprint || !projectId || !sprintId) {
-            return;
-          }
-          try {
-            setIsUpdatingSprint(true);
-            await updateSprintDetails({
-              project_id: projectId || '',
-              sprint_id: sprintId,
-              payload: {
-                name: payload.name ?? currentSprint?.name ?? '',
-                goal: payload.goal ?? currentSprint?.goal ?? undefined,
-                end_date: payload.end_date ?? currentSprint?.end_date ?? '',
-              },
+              payload,
             }).unwrap();
-
             setIsEditSprintVisible(false);
             await dispatch(
               getSprintByIdThunk({
@@ -2427,32 +2405,63 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                 sprint_id: sprintId,
               }),
             ).unwrap();
-
             showSnackbar({
-              message: 'Sprint updated successfully',
+              message: 'Sprint started successfully',
               type: 'success',
             });
-          } finally {
-            setIsUpdatingSprint(false);
-          }
-        }}
-      />
+          }}
+          onUpdate={async payload => {
+            if (!permissionsReady || !canEditSprint || !projectId || !sprintId) {
+              return;
+            }
+            try {
+              setIsUpdatingSprint(true);
+              await updateSprintDetails({
+                project_id: projectId || '',
+                sprint_id: sprintId,
+                payload: {
+                  name: payload.name ?? currentSprint?.name ?? '',
+                  goal: payload.goal ?? currentSprint?.goal ?? undefined,
+                  end_date: payload.end_date ?? currentSprint?.end_date ?? '',
+                },
+              }).unwrap();
+
+              setIsEditSprintVisible(false);
+              await dispatch(
+                getSprintByIdThunk({
+                  project_id: projectId || '',
+                  sprint_id: sprintId,
+                }),
+              ).unwrap();
+
+              showSnackbar({
+                message: 'Sprint updated successfully',
+                type: 'success',
+              });
+            } finally {
+              setIsUpdatingSprint(false);
+            }
+          }}
+        />
+      )}
 
       {/* Complete Sprint Modal */}
-      <UpdateSprintModal
-        visible={isCompleteSprintVisible}
-        mode='complete'
-        onClose={() => {
-          if (!isCompletingSprint) setIsCompleteSprintVisible(false);
-        }}
-        sprint={sprint}
-        isUpdating={isCompletingSprint}
-        error={completeSprintError}
-        completedStoryCount={completedStoryCount}
-        inProgressStoryCount={inProgressStoryCount}
-        onComplete={handleCompleteSprint}
-        onUpdate={() => {}}
-      />
+      {isCompleteSprintVisible && (
+        <UpdateSprintModal
+          visible={isCompleteSprintVisible}
+          mode='complete'
+          onClose={() => {
+            if (!isCompletingSprint) setIsCompleteSprintVisible(false);
+          }}
+          sprint={sprint}
+          isUpdating={isCompletingSprint}
+          error={completeSprintError}
+          completedStoryCount={completedStoryCount}
+          inProgressStoryCount={inProgressStoryCount}
+          onComplete={handleCompleteSprint}
+          onUpdate={() => {}}
+        />
+      )}
     </View>
   );
 };

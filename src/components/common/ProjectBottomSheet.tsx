@@ -530,9 +530,15 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
                     item.status || (item.is_active ? 'active' : '');
 
                   const handleOpenSprintDetails = () => {
+                    const targetProjectId =
+                      projectId ||
+                      (item as any)?.project_id ||
+                      (item as any)?.projectId ||
+                      project?.id;
                     navigation.navigate('SprintDetails', {
                       sprintId: id,
                       sprintName: name,
+                      projectId: targetProjectId,
                     });
                     onDismiss();
                   };

@@ -81,6 +81,7 @@ const SearchScreen = () => {
             navigation.navigate('SprintDetails', {
               sprintId: item.id,
               sprintName: item.name || item.title || 'Sprint Details',
+              projectId: item.project_id,
             });
           } else {
             showSnackbar({

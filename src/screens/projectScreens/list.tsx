@@ -99,6 +99,25 @@ const List = () => {
     }, [projectId, refetchUserStories]),
   );
 
+  // Track sprint changes to consistently show skeleton until new sprint data arrives
+  const previousSprintId = useRef<string | undefined>(rawActiveSprintId);
+  const [isSprintChanging, setIsSprintChanging] = useState(false);
+
+  useEffect(() => {
+    if (previousSprintId.current !== undefined && previousSprintId.current !== rawActiveSprintId) {
+      previousSprintId.current = rawActiveSprintId;
+      setIsSprintChanging(true);
+    } else {
+      previousSprintId.current = rawActiveSprintId;
+    }
+  }, [rawActiveSprintId]);
+
+  useEffect(() => {
+    if (isSprintChanging && !userStoriesFetching) {
+      setIsSprintChanging(false);
+    }
+  }, [isSprintChanging, userStoriesFetching]);
+
   // Reset pagination and list when project or sprint changes
   useEffect(() => {
     setCurrentPage(1);
@@ -414,7 +433,7 @@ const List = () => {
       </View>
 
       {/* Main List / Skeleton State */}
-      {userStoriesLoading ? (
+      {userStoriesLoading || isSprintChanging || (userStoriesFetching && allStories.length === 0) ? (
         <View className='flex-1 px-4 py-6'>
           <ListSkeleton
             count={5}
@@ -427,6 +446,8 @@ const List = () => {
           data={filteredStories}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps='always'
+          keyboardDismissMode='on-drag'
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
           ItemSeparatorComponent={() => <View className='h-3' />}
           onEndReached={handleLoadMore}

@@ -94,6 +94,17 @@ const ProjectDetails: React.FC = () => {
   >('all');
   const [activeTab, setActiveTab] = useState<string>('Summary');
 
+  const handleTabChange = useCallback((tabName: string) => {
+    setActiveTab(prev => {
+      const wasSettings = prev?.toLowerCase() === 'settings';
+      const isSettings = tabName?.toLowerCase() === 'settings';
+      if (wasSettings !== isSettings) {
+        return tabName;
+      }
+      return prev;
+    });
+  }, []);
+
   // Tracks if the user explicitly clicked a sprint to stop auto-reversion
   const userHasSelected = useRef(false);
   const progressAnim = useRef(new Animated.Value(-1)).current;
@@ -132,14 +143,21 @@ const ProjectDetails: React.FC = () => {
 
   // 1. Summary Tab Preload
   useGetProjectDashboardQuery(
-    effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
+    effectiveProjectId
+      ? {
+          project_id: effectiveProjectId,
+          sprint_id:
+            currentSprintIdState && currentSprintIdState !== 'all'
+              ? currentSprintIdState
+              : undefined,
+        }
+      : skipToken,
   );
   useGetUpcomingDeadlinesQuery(
     effectiveProjectId ? { project_id: effectiveProjectId } : skipToken,
   );
 
   // 2. Board Tab Preload
-
   useGetBoardStoriesQuery(
     effectiveProjectId
       ? {
@@ -151,6 +169,20 @@ const ProjectDetails: React.FC = () => {
               ? currentSprintIdState
               : undefined,
           tasks_per_status: 5,
+        }
+      : skipToken,
+  );
+  useGetTasksQuery(
+    effectiveProjectId
+      ? {
+          projectId: effectiveProjectId,
+          sprint_id:
+            currentSprintIdState && currentSprintIdState !== 'all'
+              ? currentSprintIdState
+              : undefined,
+          storyless_task: true,
+          page: 1,
+          page_size: 100,
         }
       : skipToken,
   );
@@ -192,9 +224,9 @@ const ProjectDetails: React.FC = () => {
       : skipToken,
   );
 
-  // 4. Report Tab Preload (Only active when the user opens the Report tab)
+  // 4. Report Tab Preload (Preloaded for immediate availability on switch)
   useGetBurndownChartQuery(
-    effectiveProjectId && activeTab === 'Report'
+    effectiveProjectId
       ? {
           projectId: effectiveProjectId,
           sprintId:
@@ -205,7 +237,7 @@ const ProjectDetails: React.FC = () => {
       : skipToken,
   );
   useGetTeamWorkloadQuery(
-    effectiveProjectId && activeTab === 'Report'
+    effectiveProjectId
       ? {
           projectId: effectiveProjectId,
           sprintId:
@@ -216,7 +248,7 @@ const ProjectDetails: React.FC = () => {
       : skipToken,
   );
   useGetWeeklyProgressQuery(
-    effectiveProjectId && activeTab === 'Report'
+    effectiveProjectId
       ? {
           projectId: effectiveProjectId,
           start_date: todayStr,
@@ -357,14 +389,31 @@ const ProjectDetails: React.FC = () => {
   }, [currentSprintIdState, sprintByIdData, dispatch]);
 
   const handleOnSelectProject = (id: string, name: string) => {
-    if (!id || id === routeProjectId) {
+    if (!id || id === effectiveProjectId) {
       setProjectSheetVisible(false);
       return;
     }
 
-    dispatch(getProjectName(name));
     setProjectSheetVisible(false);
-    navigation.push('projectDetails', {
+
+    // 1. Update Project Name and optimistic project in Redux immediately
+    dispatch(getProjectName(name));
+    dispatch(
+      getProjectData({
+        data: { id, name } as any,
+        isLoading: true,
+        isFetching: true,
+      }),
+    );
+
+    // 2. Reset Sprint Selection to 'All sprints' immediately
+    userHasSelected.current = false;
+    setCurrentSprintIdState('all');
+    setSelectedSprint(ALL_SPRINTS_OPTION);
+    dispatch(getCurrentSprintData(ALL_SPRINTS_OPTION));
+
+    // 3. Update current route params so child tabs & hooks read the new project immediately
+    navigation.setParams({
       projectId: id,
       projectName: name,
     });
@@ -393,14 +442,21 @@ const ProjectDetails: React.FC = () => {
         sprintId.toString(),
     );
 
+    const targetSprint: Sprint = foundSprint || {
+      id: sprintId.toString(),
+      name: 'Sprint',
+      status: 'active',
+      start_date: '',
+      end_date: '',
+      goal: '',
+    };
+
     setIsSprintChanging(true);
     // Lock automatic selection and apply manual choice
     userHasSelected.current = true;
-    if (foundSprint) {
-      setSelectedSprint(foundSprint);
-      dispatch(getCurrentSprintData(foundSprint));
-    }
+    setSelectedSprint(targetSprint);
     setCurrentSprintIdState(sprintId.toString());
+    dispatch(getCurrentSprintData(targetSprint));
     setSprintListVisible(false);
   };
 
@@ -562,7 +618,7 @@ const ProjectDetails: React.FC = () => {
         settingsView={settingsView}
         setSettingsView={setSettingsView}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         projectName={projectDetails?.name || projectName}
       />
 

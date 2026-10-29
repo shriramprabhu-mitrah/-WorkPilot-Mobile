@@ -62,6 +62,7 @@ export type RootStackParamList = {
   SprintDetails: {
     sprintId: string;
     sprintName?: string;
+    projectId?: string | number;
   };
   userDetail: {
     userId: string;

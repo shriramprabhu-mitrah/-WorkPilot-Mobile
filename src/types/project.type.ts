@@ -604,11 +604,12 @@ export interface UpdateUserStoryPayload {
   reporter_id?: string | null;
   description?: string;
   priority?: UserStoryPriority;
-  sprint_id?: string;
+  sprint_id?: string | null;
   status?: UserStoryStatus;
   story_points?: number;
   title?: string;
   status_id?: string;
+  due_date?: string | null;
 }
 
 export interface UpdateUserStoryResponse {

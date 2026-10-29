@@ -126,6 +126,90 @@ export const Home: React.FC = () => {
   const favoritesTotalUserStories =
     favoritesData?.data?.total_user_stories ?? 0;
 
+  const [hasMoreFavorites, setHasMoreFavorites] = useState(true);
+  const prevFavItemsCountRef = useRef(0);
+  const prevFavPageRef = useRef(1);
+
+  const favoritesTotalCount = useMemo(() => {
+    if (typeof favoritesData?.data?.total === 'number') {
+      return favoritesData.data.total;
+    }
+    if (typeof favoritesMeta?.total_items === 'number') {
+      return favoritesMeta.total_items;
+    }
+    const tasks = favoritesData?.data?.total_tasks;
+    const stories = favoritesData?.data?.total_user_stories;
+    if (typeof tasks === 'number' || typeof stories === 'number') {
+      return (tasks ?? 0) + (stories ?? 0);
+    }
+    return null;
+  }, [favoritesData, favoritesMeta]);
+
+  useEffect(() => {
+    if (!favoritesIsFetching && favoritesData && activeTab === 'favorites') {
+      if (favoritesPage > 1 && favoritesPage !== prevFavPageRef.current) {
+        if (boardFavorites.length <= prevFavItemsCountRef.current) {
+          setHasMoreFavorites(false);
+        }
+        prevFavPageRef.current = favoritesPage;
+      }
+      prevFavItemsCountRef.current = boardFavorites.length;
+    }
+  }, [
+    favoritesIsFetching,
+    favoritesData,
+    favoritesPage,
+    boardFavorites.length,
+    activeTab,
+  ]);
+
+  const isFavoritesTotalOver = useMemo(() => {
+    if (favoritesIsLoading && boardFavorites.length === 0) {
+      return false;
+    }
+
+    if (
+      !favoritesIsLoading &&
+      !favoritesIsFetching &&
+      boardFavorites.length === 0
+    ) {
+      return true;
+    }
+
+    if (favoritesTotalCount !== null && favoritesTotalCount !== undefined) {
+      return boardFavorites.length >= favoritesTotalCount;
+    }
+
+    if (typeof favoritesMeta?.has_next === 'boolean') {
+      return !favoritesMeta.has_next;
+    }
+
+    if (
+      typeof favoritesMeta?.total_pages === 'number' &&
+      favoritesMeta.total_pages > 0
+    ) {
+      return favoritesPage >= favoritesMeta.total_pages;
+    }
+
+    if (
+      !favoritesIsFetching &&
+      boardFavorites.length > 0 &&
+      boardFavorites.length < 10
+    ) {
+      return true;
+    }
+
+    return !hasMoreFavorites;
+  }, [
+    favoritesIsLoading,
+    favoritesIsFetching,
+    boardFavorites.length,
+    favoritesTotalCount,
+    favoritesMeta,
+    favoritesPage,
+    hasMoreFavorites,
+  ]);
+
   // Sync user data from RTK Query to Redux for other screens
   useEffect(() => {
     if (auditData?.data?.user) {
@@ -137,7 +221,10 @@ export const Home: React.FC = () => {
   const showPaginationLoader =
     isFetchingMore ||
     (activeTab === 'viewed' && auditIsFetching && auditPage > 1) ||
-    (activeTab === 'favorites' && favoritesIsFetching && favoritesPage > 1);
+    (activeTab === 'favorites' &&
+      favoritesIsFetching &&
+      favoritesPage > 1 &&
+      !isFavoritesTotalOver);
 
   const isMainListLoading =
     (activeTab === 'favorites' &&
@@ -183,6 +270,9 @@ export const Home: React.FC = () => {
       if (currentTabRef.current === 'favorites') {
         setFavoritesPage(1);
         setRefetchFavoritesKey(prev => prev + 1);
+        setHasMoreFavorites(true);
+        prevFavItemsCountRef.current = 0;
+        prevFavPageRef.current = 1;
       } else {
         setAuditPage(1);
         setRefetchKey(prev => prev + 1);
@@ -223,6 +313,9 @@ export const Home: React.FC = () => {
     if (tab === 'favorites') {
       setFavoritesPage(1);
       setRefetchFavoritesKey(prev => prev + 1);
+      setHasMoreFavorites(true);
+      prevFavItemsCountRef.current = 0;
+      prevFavPageRef.current = 1;
     } else {
       setAuditPage(1);
       setRefetchKey(prev => prev + 1);
@@ -246,9 +339,13 @@ export const Home: React.FC = () => {
     const isFav = activeTab === 'favorites';
 
     if (isFav) {
-      if (favoritesIsFetching) return;
+      if (favoritesIsFetching || favoritesIsLoading || isFavoritesTotalOver) {
+        return;
+      }
     } else {
-      if (auditIsFetching) return;
+      if (auditIsFetching || loading) {
+        return;
+      }
     }
 
     const currentList = isFav ? boardFavorites : activities;
@@ -258,8 +355,9 @@ export const Home: React.FC = () => {
 
     const currentPage = isFav ? favoritesPage : auditPage;
 
-    const hasNextPage =
-      currentMeta?.has_next !== undefined
+    const hasNextPage = isFav
+      ? !isFavoritesTotalOver
+      : currentMeta?.has_next !== undefined
         ? currentMeta.has_next
         : currentMeta?.total_pages !== undefined
           ? currentPage < currentMeta.total_pages
@@ -268,7 +366,12 @@ export const Home: React.FC = () => {
     if (!hasNextPage) return;
 
     const nextPage = currentPage + 1;
-    if (lastRequestedPageRef.current === nextPage) return;
+    if (
+      lastRequestedPageRef.current !== null &&
+      lastRequestedPageRef.current >= nextPage
+    ) {
+      return;
+    }
 
     lastRequestedPageRef.current = nextPage;
 
@@ -285,10 +388,13 @@ export const Home: React.FC = () => {
     meta,
     auditPage,
     auditIsFetching,
+    loading,
     boardFavorites,
     favoritesIsFetching,
+    favoritesIsLoading,
     favoritesPage,
     favoritesMeta,
+    isFavoritesTotalOver,
   ]);
 
   const handleViewAll = () => {
@@ -313,6 +419,7 @@ export const Home: React.FC = () => {
       stackNavigation.navigate('SprintDetails', {
         sprintId: item.sprint_id || item.resource_id,
         sprintName: item.sprint_name,
+        projectId: targetProjectId,
       });
     } else if (resourceType === 'user_story' || resourceType === 'userstory') {
       const userStoryId = item?.resource_id || item?.user_story_id || item?.id;
@@ -622,18 +729,37 @@ export const Home: React.FC = () => {
   );
 
   const renderItemCard = ({ item }: { item: any }) => {
-    const resourceType = item.resource_type;
+    const isFav = activeTab === 'favorites';
+    const itemType =
+      item?.item_type ||
+      item?.resource_type ||
+      item?.type ||
+      (item?.task_id ? 'task' : item?.user_story_id ? 'user_story' : '');
+
+    const displayType =
+      itemType?.toLowerCase() === 'user_story' ||
+      itemType?.toLowerCase() === 'userstory'
+        ? 'user story'
+        : itemType?.replace(/_/g, ' ') || '';
+
     const title =
-      resourceType === 'sprint'
+      itemType === 'sprint'
         ? item.sprint_name
-        : item.title ||
-          item.task_title ||
-          item.user_story_title ||
-          item.task_name ||
-          item.user_story_name ||
-          item.task?.title ||
-          item.user_story?.title ||
-          (item.action ? formatAction(item.action) : 'Activity Item');
+        : itemType === 'task'
+          ? item.task_title || item.title || item.task_name || item.task?.title
+          : itemType === 'user_story' || itemType === 'story'
+            ? item.user_story_title ||
+              item.title ||
+              item.user_story_name ||
+              item.user_story?.title
+            : item.title ||
+              item.task_title ||
+              item.user_story_title ||
+              item.task_name ||
+              item.user_story_name ||
+              item.task?.title ||
+              item.user_story?.title ||
+              (item.action ? formatAction(item.action) : 'Activity Item');
 
     return (
       <TouchableOpacity
@@ -654,7 +780,7 @@ export const Home: React.FC = () => {
               backgroundColor: colors.surface,
             }}
           >
-            <WorkItemIcon type={resourceType} size={moderateScale(20)} />
+            <WorkItemIcon type={itemType} size={moderateScale(20)} />
           </View>
           <View className='flex-1 justify-center'>
             <AppText
@@ -673,14 +799,19 @@ export const Home: React.FC = () => {
             <View className='flex-row items-center' style={{ gap: 4 }}>
               <AppText
                 variant='caption'
-                className='font-medium'
+                className='font-medium capitalize'
                 color={colors.textSecondary}
                 style={{ fontSize: moderateScale(11) }}
               >
-                {resourceType}
+                {displayType}
               </AppText>
             </View>
           </View>
+          <Ionicons
+            name='chevron-forward'
+            size={moderateScale(16)}
+            color={colors.textSecondary}
+          />
         </View>
       </TouchableOpacity>
     );
@@ -791,7 +922,7 @@ export const Home: React.FC = () => {
           }}
           renderItem={renderListItem}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={2.5}
+          onEndReachedThreshold={0.5}
           ListFooterComponent={
             showPaginationLoader ? (
               <View className='py-2'>

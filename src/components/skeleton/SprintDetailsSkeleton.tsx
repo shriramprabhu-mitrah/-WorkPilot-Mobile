@@ -1,28 +1,41 @@
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useResponsive } from '../../utils/responsive';
 import { SkeletonBlock } from '../../utils/validations';
-import Screen from '../common/ScreenWapper';
 
 interface SprintDetailsSkeletonProps {
   onBack?: () => void;
 }
 
 const SprintDetailsSkeleton = ({ onBack }: SprintDetailsSkeletonProps) => {
-  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { colors, theme, mode } = useTheme();
+  const isDark = Boolean(theme?.dark || mode === 'dark');
   const { hp, wp, moderateScale } = useResponsive();
 
   const skeletonColor = colors.border;
 
   return (
-    <Screen backgroundColor={colors.surface}>
-      <View
-        className='flex-1'
-        style={{
-          backgroundColor: colors.background,
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.background,
+        paddingTop: insets.top,
+      }}
+    >
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        translucent
+        backgroundColor='transparent'
+      />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
           paddingHorizontal: wp(4),
-          paddingTop: hp(2),
+          paddingTop: hp(1.5),
+          paddingBottom: insets.bottom + hp(3),
         }}
       >
         {/* Sprint Hero Skeleton */}
@@ -319,8 +332,8 @@ const SprintDetailsSkeleton = ({ onBack }: SprintDetailsSkeletonProps) => {
             </View>
           </View>
         ))}
-      </View>
-    </Screen>
+      </ScrollView>
+    </View>
   );
 };
 

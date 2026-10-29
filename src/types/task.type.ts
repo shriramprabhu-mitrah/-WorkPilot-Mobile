@@ -1,7 +1,7 @@
 import { Task } from './project.type';
 
 export interface UpdateTaskPayload {
-  user_story_id?: string;
+  user_story_id?: string | null;
   status_id?: string;
   priority?: string;
   story_points?: number;
@@ -10,6 +10,7 @@ export interface UpdateTaskPayload {
   reporter_id?: string | null;
   title?: string;
   sprint_id?: string | null;
+  due_date?: string | null;
 }
 
 export interface UpdateTaskResponse {

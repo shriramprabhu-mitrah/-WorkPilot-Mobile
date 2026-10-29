@@ -307,7 +307,7 @@ const ProjectDeatailsScreen = () => {
     isError: isBoardStoriesError,
     refetch: refetchBoardStories,
   } = useGetBoardStoriesQuery(
-    isFocused && projectId
+    projectId
       ? {
           project_id: projectId,
           page: currentPage,
@@ -346,7 +346,7 @@ const ProjectDeatailsScreen = () => {
     isError: isStorylessTasksError,
     refetch: refetchStorylessTasks,
   } = useGetTasksQuery(
-    isFocused && projectId
+    projectId
       ? {
           projectId,
           sprint_id: currentSprintId,
@@ -379,7 +379,7 @@ const ProjectDeatailsScreen = () => {
   );
 
   const { data: customStatusData } = useGetCustomStatusQuery(
-    isFocused && projectId
+    projectId
       ? {
           project_id: projectId,
           _refetchKey: refetchKey,
@@ -419,7 +419,7 @@ const ProjectDeatailsScreen = () => {
   }, [boardStories, customStatusData?.data]);
   const { data: membersData, isFetching: isAssigneesFetching } =
     useGetProjectMembersQuery(
-      isFocused && projectId
+      projectId
         ? {
             project_id: projectId,
             _refetchKey: refetchKey,
@@ -765,17 +765,15 @@ const ProjectDeatailsScreen = () => {
   }, [selectedFilters]);
 
   useEffect(() => {
-    if (!isSprintSwitchLoading) {
-      hasStartedSprintFetch.current = false;
-      return;
-    }
-    if (isBoardStoriesFetching || isStorylessTasksFetching) {
-      hasStartedSprintFetch.current = true;
-      return;
-    }
-    if (!isBoardStoriesFetching && !isStorylessTasksFetching) {
+    if (!isSprintSwitchLoading) return;
+
+    if (
+      !isBoardStoriesFetching &&
+      !isStorylessTasksFetching &&
+      hasInitializedStories.current &&
+      hasInitializedStoryless.current
+    ) {
       setIsSprintSwitchLoading(false);
-      hasStartedSprintFetch.current = false;
     }
   }, [
     isSprintSwitchLoading,
@@ -783,9 +781,6 @@ const ProjectDeatailsScreen = () => {
     isStorylessTasksFetching,
     boardStoriesResponse,
     storylessTasksResponse,
-    isBoardStoriesError,
-    isStorylessTasksError,
-    currentPage,
   ]);
 
   useEffect(() => {
@@ -794,7 +789,7 @@ const ProjectDeatailsScreen = () => {
         setIsSprintSwitchLoading(false);
         hasInitializedStories.current = true;
         hasInitializedStoryless.current = true;
-      }, 1000);
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [isSprintSwitchLoading]);
@@ -1937,11 +1932,11 @@ const ProjectDeatailsScreen = () => {
           paddingHorizontal: layout.paddingHorizontal,
         }}
       >
-        {((isBoardStoriesLoading || !hasInitializedStories.current) &&
-          localUserStories.length === 0) ||
-        ((isStorylessTasksLoading || !hasInitializedStoryless.current) &&
-          localStorylessTasks.length === 0) ||
-        isSprintSwitchLoading ||
+        {isSprintSwitchLoading ||
+        !hasInitializedStories.current ||
+        !hasInitializedStoryless.current ||
+        (isBoardStoriesLoading && localUserStories.length === 0) ||
+        (isStorylessTasksLoading && localStorylessTasks.length === 0) ||
         (isFilterApplying &&
           (isBoardStoriesFetching || isStorylessTasksFetching)) ? (
           <BoardSkeleton columnCount={Math.max(boardColumns.length ?? 0, 3)} />

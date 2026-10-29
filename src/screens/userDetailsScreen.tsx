@@ -383,7 +383,7 @@ const UserDetailsScreen = () => {
           ListEmptyComponent={
             showListSkeleton ? (
               <UserDetailsSkeleton />
-            ) : user ? (
+            ) : !user ? (
               <View
                 style={{
                   alignItems: 'center',

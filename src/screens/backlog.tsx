@@ -221,6 +221,20 @@ export const Backlogs = () => {
     setIsFetchingNextTaskPage(false);
   }, [unassignedTasksData, taskPage]);
 
+  // Reset pagination and list when project changes
+  useEffect(() => {
+    setStoryPage(1);
+    setTaskPage(1);
+    lastRequestedStoryPageRef.current = 1;
+    lastRequestedTaskPageRef.current = 1;
+    setAllStories([]);
+    setAllTasks([]);
+    if (projectId) {
+      refetchStories();
+      refetchTasks();
+    }
+  }, [projectId, refetchStories, refetchTasks]);
+
   // Refetch on focus
   useFocusEffect(
     useCallback(() => {
@@ -1084,57 +1098,65 @@ export const Backlogs = () => {
       </ScrollView>
 
       {/* Create User Story Modal */}
-      <CreateProjectModal
-        visible={isCreateStoryVisible}
-        onClose={() => setIsCreateStoryVisible(false)}
-        mode='story'
-        title='Create Story'
-        projectId={projectId ? String(projectId) : undefined}
-        priorities={[...TASK_PRIORITY_OPTIONS]}
-        onCreateStory={handleCreateStory}
-        isCreatingStory={isCreatingStory}
-        onSuccess={() => {
-          setIsCreateStoryVisible(false);
-          refetchStories();
-        }}
-      />
+      {isCreateStoryVisible && (
+        <CreateProjectModal
+          visible={isCreateStoryVisible}
+          onClose={() => setIsCreateStoryVisible(false)}
+          mode='story'
+          title='Create Story'
+          projectId={projectId ? String(projectId) : undefined}
+          priorities={[...TASK_PRIORITY_OPTIONS]}
+          onCreateStory={handleCreateStory}
+          isCreatingStory={isCreatingStory}
+          onSuccess={() => {
+            setIsCreateStoryVisible(false);
+            refetchStories();
+          }}
+        />
+      )}
 
       {/* Delete User Story Modal */}
-      <DeleteColumnModal
-        visible={Boolean(deleteStoryItem)}
-        title='Delete User Story'
-        columnTitle={deleteStoryItem?.title ?? 'this user story'}
-        colors={colors}
-        loading={isDeleting}
-        onClose={() => setDeleteStoryItem(null)}
-        onDelete={handleConfirmDelete}
-      />
+      {Boolean(deleteStoryItem) && (
+        <DeleteColumnModal
+          visible={Boolean(deleteStoryItem)}
+          title='Delete User Story'
+          columnTitle={deleteStoryItem?.title ?? 'this user story'}
+          colors={colors}
+          loading={isDeleting}
+          onClose={() => setDeleteStoryItem(null)}
+          onDelete={handleConfirmDelete}
+        />
+      )}
 
       {/* Move to Sprint Modal */}
-      <MoveToSprintModal
-        visible={Boolean(moveModalItem)}
-        itemId={moveModalItem?.id}
-        itemTitle={moveModalItem?.title}
-        itemFormattedSerial={moveModalItem?.formattedSerial}
-        itemType={moveModalItem?.type || 'story'}
-        projectId={projectId ? String(projectId) : undefined}
-        onClose={() => setMoveModalItem(null)}
-        onSuccess={() => {
-          refetchStories();
-          refetchTasks();
-        }}
-      />
+      {Boolean(moveModalItem) && (
+        <MoveToSprintModal
+          visible={Boolean(moveModalItem)}
+          itemId={moveModalItem?.id}
+          itemTitle={moveModalItem?.title}
+          itemFormattedSerial={moveModalItem?.formattedSerial}
+          itemType={moveModalItem?.type || 'story'}
+          projectId={projectId ? String(projectId) : undefined}
+          onClose={() => setMoveModalItem(null)}
+          onSuccess={() => {
+            refetchStories();
+            refetchTasks();
+          }}
+        />
+      )}
 
       {/* Create Unassigned Task Modal */}
-      <CreateTaskBottomSheet
-        visible={isCreateTaskVisible}
-        onClose={() => setIsCreateTaskVisible(false)}
-        projectId={projectId ? String(projectId) : undefined}
-        onSuccess={() => {
-          setIsCreateTaskVisible(false);
-          refetchTasks();
-        }}
-      />
+      {isCreateTaskVisible && (
+        <CreateTaskBottomSheet
+          visible={isCreateTaskVisible}
+          onClose={() => setIsCreateTaskVisible(false)}
+          projectId={projectId ? String(projectId) : undefined}
+          onSuccess={() => {
+            setIsCreateTaskVisible(false);
+            refetchTasks();
+          }}
+        />
+      )}
     </View>
   );
 };
