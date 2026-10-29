@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, TouchableOpacity, FlatList, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -21,6 +21,9 @@ const Favorites = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [page, setPage] = useState(1);
   const lastRequestedPageRef = useRef(1);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const prevItemsCountRef = useRef(0);
+  const prevPageRef = useRef(1);
 
   const {
     data: favoritesData,
@@ -37,22 +40,85 @@ const Favorites = () => {
 
   const meta = useMemo(() => favoritesData?.meta ?? null, [favoritesData]);
 
-  const handleLoadMore = useCallback(() => {
-    if (isFetching || items.length === 0) return;
-    const hasNext =
-      meta?.has_next !== undefined
-        ? meta.has_next
-        : meta?.total_pages !== undefined
-          ? page < meta.total_pages
-          : items.length >= 10;
+  const totalCount = useMemo(() => {
+    if (typeof favoritesData?.data?.total === 'number') {
+      return favoritesData.data.total;
+    }
+    if (typeof favoritesData?.meta?.total_items === 'number') {
+      return favoritesData.meta.total_items;
+    }
+    const tasks = favoritesData?.data?.total_tasks;
+    const stories = favoritesData?.data?.total_user_stories;
+    if (typeof tasks === 'number' || typeof stories === 'number') {
+      return (tasks ?? 0) + (stories ?? 0);
+    }
+    return null;
+  }, [favoritesData]);
 
-    if (!hasNext) return;
+  const totalPages = meta?.total_pages;
+  const hasNextMeta = meta?.has_next;
+
+  useEffect(() => {
+    if (!isFetching && favoritesData) {
+      if (page > 1 && page !== prevPageRef.current) {
+        if (items.length <= prevItemsCountRef.current) {
+          setHasMoreData(false);
+        }
+        prevPageRef.current = page;
+      }
+      prevItemsCountRef.current = items.length;
+    }
+  }, [isFetching, favoritesData, page, items.length]);
+
+  const isTotalOver = useMemo(() => {
+    if (isLoading && items.length === 0) {
+      return false;
+    }
+
+    if (!isLoading && !isFetching && items.length === 0) {
+      return true;
+    }
+
+    if (totalCount !== null && totalCount !== undefined) {
+      return items.length >= totalCount;
+    }
+
+    if (typeof hasNextMeta === 'boolean') {
+      return !hasNextMeta;
+    }
+
+    if (typeof totalPages === 'number' && totalPages > 0) {
+      return page >= totalPages;
+    }
+
+    if (!isFetching && items.length > 0 && items.length < 10) {
+      return true;
+    }
+
+    return !hasMoreData;
+  }, [
+    isLoading,
+    isFetching,
+    items.length,
+    totalCount,
+    hasNextMeta,
+    totalPages,
+    page,
+    hasMoreData,
+  ]);
+
+  const handleLoadMore = useCallback(() => {
+    if (isFetching || isLoading || isTotalOver || items.length === 0) {
+      return;
+    }
 
     const nextPage = page + 1;
-    if (lastRequestedPageRef.current === nextPage) return;
+    if (lastRequestedPageRef.current >= nextPage) {
+      return;
+    }
     lastRequestedPageRef.current = nextPage;
     setPage(nextPage);
-  }, [isFetching, items.length, meta, page]);
+  }, [isFetching, isLoading, isTotalOver, items.length, page]);
 
   const handleItemPress = useCallback(
     (item: FavoriteItem) => {
@@ -81,13 +147,20 @@ const Favorites = () => {
 
   const renderItem = useCallback(
     ({ item }: { item: FavoriteItem }) => {
-      console.log('LINE79', item);
       const title =
         item.item_type === 'task'
           ? item.task_title || item.title
           : item.user_story_title || item.title;
-      const subtitle = item.project_name;
-      const type = item.item_type;
+      const type =
+        item.item_type ||
+        (item as any).resource_type ||
+        (item as any).type ||
+        '';
+      const displayType =
+        type?.toLowerCase() === 'user_story' ||
+        type?.toLowerCase() === 'userstory'
+          ? 'user story'
+          : type?.replace(/_/g, ' ') || '';
 
       return (
         <TouchableOpacity
@@ -131,7 +204,7 @@ const Favorites = () => {
                   color={colors.textSecondary}
                   style={{ fontSize: moderateScale(11) }}
                 >
-                  {subtitle}
+                  {displayType}
                 </AppText>
               </View>
             </View>
@@ -178,9 +251,9 @@ const Favorites = () => {
             flexGrow: items.length === 0 ? 1 : undefined,
           }}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={2.5}
+          onEndReachedThreshold={0.5}
           ListFooterComponent={
-            isFetching && items.length > 0 ? (
+            isFetching && items.length > 0 && !isTotalOver ? (
               <View className='py-2'>
                 <ProjectCardSkeleton />
               </View>

@@ -1,10 +1,11 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   TouchableOpacity,
   ScrollView,
   Animated,
   Easing,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -33,20 +34,31 @@ export const Summary: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   // 1. Redux Selectors
-  const { project, projectLoading } = useAppSelector(
+  const { project, currentSprint, projectLoading } = useAppSelector(
     (state: RootState) => state.projects,
   );
 
   const projectId =
     project?.id?.toString() || (project as any)?._id?.toString();
 
+  const rawSprintId =
+    currentSprint?.id?.toString() || (currentSprint as any)?._id?.toString();
+  const currentSprintId =
+    rawSprintId === 'all' || !rawSprintId ? undefined : rawSprintId;
+
   // 2. RTK Query Hook
   const {
     data: dashboardResponse,
     isLoading,
+    isFetching,
     refetch,
   } = useGetProjectDashboardQuery(
-    projectId ? { project_id: projectId } : skipToken,
+    projectId
+      ? {
+          project_id: projectId,
+          sprint_id: currentSprintId,
+        }
+      : skipToken,
   );
   const dashboardData = dashboardResponse?.data;
   const overviewData = dashboardData?.overview;
@@ -66,6 +78,33 @@ export const Summary: React.FC = () => {
   // 3. Animation values
   const drawAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Track sprint change to consistently show skeleton until new sprint data arrives
+  const previousSprintId = useRef<string | undefined>(rawSprintId);
+  const [isSprintChanging, setIsSprintChanging] = useState(false);
+
+  useEffect(() => {
+    if (previousSprintId.current !== undefined && previousSprintId.current !== rawSprintId) {
+      previousSprintId.current = rawSprintId;
+      setIsSprintChanging(true);
+    } else {
+      previousSprintId.current = rawSprintId;
+    }
+  }, [rawSprintId]);
+
+  useEffect(() => {
+    if (isSprintChanging && !isFetching) {
+      setIsSprintChanging(false);
+    }
+  }, [isSprintChanging, isFetching]);
+
+  // Refetch when project or sprint changes
+  useEffect(() => {
+    if (projectId) {
+      refetch();
+      refetchDeadlines();
+    }
+  }, [projectId, currentSprintId, refetch, refetchDeadlines]);
 
   // 4. Focus Effect
   useFocusEffect(
@@ -175,10 +214,13 @@ export const Summary: React.FC = () => {
   }, [colors.background]);
 
   // 6. Early returns are placed AFTER all hooks have executed
-  if (!overviewData && (isLoading || deadlinesLoading || projectLoading)) {
-    return <SummarySkeleton />;
-  }
-  if (!overviewData) {
+  if (
+    isSprintChanging ||
+    isLoading ||
+    (!overviewData && isFetching) ||
+    (!overviewData && (deadlinesLoading || projectLoading)) ||
+    !overviewData
+  ) {
     return <SummarySkeleton />;
   }
 
@@ -391,7 +433,7 @@ export const Summary: React.FC = () => {
                 transform: [{ rotate: circleDraw }],
               }}
             >
-              {chartData.length > 0 ? (
+              {chartData && chartData.length > 0 ? (
                 <DonutChart
                   data={chartData}
                   valueKey='value'
@@ -408,8 +450,12 @@ export const Summary: React.FC = () => {
                   style={{
                     width: moderateScale(300),
                     height: moderateScale(260),
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
-                />
+                >
+                  <ActivityIndicator size='small' color={colors.primary} />
+                </View>
               )}
             </Animated.View>
 

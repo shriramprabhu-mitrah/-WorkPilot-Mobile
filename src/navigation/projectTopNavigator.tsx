@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
+import { Keyboard } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useTheme } from '../hooks/useTheme';
 import { moderateScale } from '../utils/responsive';
@@ -23,7 +24,7 @@ interface ProjectTopNavigatorProps {
 
 const TopTab = createMaterialTopTabNavigator<ProjectTopTabParamList>();
 
-export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
+export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = React.memo(({
   settingsView,
   setSettingsView,
   setActiveTab,
@@ -31,24 +32,45 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
 }) => {
   const { colors } = useTheme();
 
+  const screenListeners = useMemo(
+    () => ({
+      tabPress: () => {
+        Keyboard.dismiss();
+      },
+      state: (e: any) => {
+        const state = e.data.state;
+        if (state) {
+          const activeRouteName = state.routes[state.index]?.name;
+          if (activeRouteName) {
+            setActiveTab?.(activeRouteName);
+          }
+        }
+      },
+    }),
+    [setActiveTab],
+  );
+
+  const renderSettings = useCallback(
+    (props: any) => (
+      <Settings
+        {...props}
+        currentView={settingsView}
+        setCurrentView={setSettingsView}
+        projectNameValue={projectName}
+      />
+    ),
+    [settingsView, setSettingsView, projectName],
+  );
+
   return (
     <TopTab.Navigator
-      screenListeners={{
-        state: e => {
-          const state = e.data.state;
-          if (state) {
-            const activeRouteName = state.routes[state.index]?.name;
-
-            if (activeRouteName) {
-              setActiveTab?.(activeRouteName);
-            }
-          }
-        },
-      }}
+      style={{ flex: 1 }}
+      screenListeners={screenListeners}
       screenOptions={{
-        // Removes Android press ripple & iOS click shadow overlay
-        animationEnabled: false,
-        lazy: true,
+        // Smooth parallel transition on tab clicks and swipes
+        animationEnabled: true,
+        lazy: false,
+        sceneStyle: { flex: 1 },
         tabBarPressColor: 'transparent',
         tabBarPressOpacity: 1,
         // Tab bar container bottom border (Inactive/Base line)
@@ -102,6 +124,12 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
       <TopTab.Screen
         name='Report'
         component={Report}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            Keyboard.dismiss();
+            navigation.navigate('Report');
+          },
+        })}
         options={{
           swipeEnabled: false,
         }}
@@ -126,17 +154,10 @@ export const ProjectTopNavigator: React.FC<ProjectTopNavigatorProps> = ({
           swipeEnabled: false,
         }}
       >
-        {props => (
-          <Settings
-            {...props}
-            currentView={settingsView}
-            setCurrentView={setSettingsView}
-            projectNameValue={projectName}
-          />
-        )}
+        {renderSettings}
       </TopTab.Screen>
     </TopTab.Navigator>
   );
-};
+});
 
 export default ProjectTopNavigator;

@@ -1,10 +1,18 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useTransition,
+  useOptimistic,
+} from 'react';
 import {
   View,
   TouchableOpacity,
   Modal,
   ScrollView,
   Dimensions,
+  InteractionManager,
 } from 'react-native';
 import Svg, { Path, Line, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,7 +27,9 @@ import {
   useGetBurndownChartQuery,
   useGetTeamWorkloadQuery,
   useGetWeeklyProgressQuery,
+  useLazyGetWeeklyProgressQuery,
 } from '../../store/api/projectApi';
+import { showSnackbar } from '../../components/common/Snackbar';
 import {
   BurndownDayPoint,
   SprintBurndownItem,
@@ -195,6 +205,21 @@ const BurndownChartSkeleton: React.FC<{ height?: number }> = ({
   );
 };
 
+const getOptimisticEndDate = (startDateStr: string): string => {
+  try {
+    const [year, month, day] = startDateStr.split('-').map(Number);
+    if (!year || !month || !day) return '';
+    const d = new Date(year, month - 1, day);
+    d.setDate(d.getDate() + 6);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dt = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dt}`;
+  } catch {
+    return '';
+  }
+};
+
 const getTodayDateString = (): string => {
   const today = new Date();
   const year = today.getFullYear();
@@ -223,10 +248,10 @@ const Report = () => {
   const [selectedTimeFilter, setSelectedTimeFilter] =
     useState<TimeFilterOption>('All Time');
 
-  const [weeklyStartDate, setWeeklyStartDate] =
-    useState<string>(getTodayDateString());
-  const [weeklyEndDate, setWeeklyEndDate] =
-    useState<string>(getTodayDateString());
+  const [weeklyStartDate, setWeeklyStartDate] = useState<string | undefined>(
+    undefined,
+  );
+  const [isPendingWeekly, startWeeklyTransition] = useTransition();
 
   const [isFocusLoading, setIsFocusLoading] = useState(false);
   const [burndownPage, setBurndownPage] = useState(1);
@@ -251,6 +276,7 @@ const Report = () => {
     projectId
       ? {
           projectId,
+          sprintId: sprintId || undefined,
         }
       : skipToken,
   );
@@ -265,7 +291,7 @@ const Report = () => {
 
   useEffect(() => {
     setBurndownPage(1);
-  }, [projectId]);
+  }, [projectId, sprintId]);
 
   const burndownPoints = activeSprintBurndown?.data ?? [];
 
@@ -310,17 +336,97 @@ const Report = () => {
       ? {
           projectId,
           start_date: weeklyStartDate,
-          end_date: weeklyEndDate,
         }
       : skipToken,
   );
 
+  const [triggerWeeklyProgress] = useLazyGetWeeklyProgressQuery();
+
   const rawWeekly: any = weeklyProgressResponse?.data;
+  const weeklyMeta: any = (weeklyProgressResponse as any)?.meta;
+  const confirmedStartDate = weeklyMeta?.start_date || weeklyStartDate || '';
+
+  const [optimisticStartDate, setOptimisticStartDate] = useOptimistic(
+    confirmedStartDate,
+    (_current: string, update: string) => update,
+  );
+
+  const displayWeeklyStartDate = optimisticStartDate || confirmedStartDate;
+  const displayWeeklyEndDate =
+    isPendingWeekly &&
+    optimisticStartDate &&
+    optimisticStartDate !== confirmedStartDate
+      ? getOptimisticEndDate(optimisticStartDate)
+      : weeklyMeta?.end_date;
+
+  const handleWeeklyStartDateChange = useCallback(
+    (newDate: string) => {
+      const todayStr = getTodayDateString();
+      if (
+        !projectId ||
+        !newDate ||
+        newDate > todayStr ||
+        newDate === displayWeeklyStartDate
+      ) {
+        return;
+      }
+
+      startWeeklyTransition(async () => {
+        // Optimistically show the changed start date suddenly in UI
+        setOptimisticStartDate(newDate);
+
+        try {
+          await triggerWeeklyProgress({
+            projectId,
+            start_date: newDate,
+          }).unwrap();
+
+          // On success, commit the new start date
+          setWeeklyStartDate(newDate);
+        } catch (error: any) {
+          // On error, do not commit. useOptimistic reverts back to old start date automatically.
+          showSnackbar({
+            message:
+              error?.data?.message ||
+              error?.message ||
+              'Failed to update weekly progress',
+            type: 'error',
+          });
+        }
+      });
+    },
+    [
+      projectId,
+      displayWeeklyStartDate,
+      triggerWeeklyProgress,
+      setOptimisticStartDate,
+    ],
+  );
+
   const weeklyProgressList: WeeklyProgressDayItem[] = Array.isArray(rawWeekly)
     ? rawWeekly
     : Array.isArray(rawWeekly?.weekly_progress)
       ? rawWeekly.weekly_progress
       : [];
+
+  // Track sprint changes to consistently show skeleton until new sprint data arrives
+  const previousSprintId = useRef<string | undefined>(rawSprintId);
+  const [isSprintChanging, setIsSprintChanging] = useState(false);
+
+  useEffect(() => {
+    if (previousSprintId.current !== undefined && previousSprintId.current !== rawSprintId) {
+      previousSprintId.current = rawSprintId;
+      setIsSprintChanging(true);
+    } else {
+      previousSprintId.current = rawSprintId;
+    }
+  }, [rawSprintId]);
+
+  useEffect(() => {
+    if (isSprintChanging && !burndownFetching && !workloadFetching) {
+      setIsSprintChanging(false);
+    }
+  }, [isSprintChanging, burndownFetching, workloadFetching]);
 
   // Fetch Burndown Chart, Team Workload, and Weekly Progress data when screen comes into focus
   useFocusEffect(
@@ -330,24 +436,31 @@ const Report = () => {
         return;
       }
 
-      const currentKey = `${projectId}_${sprintId || 'all'}`;
+      const task = InteractionManager.runAfterInteractions(() => {
+        const currentKey = `${projectId}_${sprintId || 'all'}`;
 
-      // Show skeleton only on initial load or if Project/Sprint ID changes
-      if (lastFetchedKeyRef.current !== currentKey) {
-        setIsFocusLoading(true);
-        lastFetchedKeyRef.current = currentKey;
-      }
+        // Show skeleton only on initial load or if Project/Sprint ID changes
+        if (lastFetchedKeyRef.current !== currentKey) {
+          setIsFocusLoading(true);
+          lastFetchedKeyRef.current = currentKey;
+          setWeeklyStartDate(undefined);
+        }
 
-      // Prevent "Cannot refetch a query that has not been started yet"
-      if (!burndownUninitialized) {
-        refetchBurndown();
-      }
-      if (!workloadUninitialized) {
-        refetchWorkload();
-      }
-      if (!weeklyProgressUninitialized) {
-        refetchWeeklyProgress();
-      }
+        // Prevent "Cannot refetch a query that has not been started yet"
+        if (!burndownUninitialized) {
+          refetchBurndown();
+        }
+        if (!workloadUninitialized) {
+          refetchWorkload();
+        }
+        if (!weeklyProgressUninitialized) {
+          refetchWeeklyProgress();
+        }
+      });
+
+      return () => {
+        task.cancel();
+      };
     }, [
       projectId,
       sprintId,
@@ -381,9 +494,13 @@ const Report = () => {
   ]);
 
   const showBurndownSkeleton =
-    !burndownResponse && (isFocusLoading || burndownLoading);
+    isSprintChanging ||
+    burndownLoading ||
+    (!burndownResponse && isFocusLoading);
   const showWorkloadSkeleton =
-    !workloadResponse && (isFocusLoading || workloadLoading);
+    isSprintChanging ||
+    workloadLoading ||
+    (!workloadResponse && isFocusLoading);
   const showWeeklySkeleton =
     !weeklyProgressResponse && (isFocusLoading || weeklyProgressLoading);
 
@@ -693,11 +810,10 @@ const Report = () => {
       {/* Weekly Progress Chart */}
       <WeeklyProgressChart
         data={weeklyProgressList}
-        isLoading={weeklyProgressLoading}
-        startDate={weeklyStartDate}
-        endDate={weeklyEndDate}
-        onStartDateChange={setWeeklyStartDate}
-        onEndDateChange={setWeeklyEndDate}
+        isLoading={weeklyProgressLoading || isPendingWeekly}
+        startDate={displayWeeklyStartDate}
+        endDate={displayWeeklyEndDate}
+        onStartDateChange={handleWeeklyStartDateChange}
       />
 
       {/* Team Workload Chart */}

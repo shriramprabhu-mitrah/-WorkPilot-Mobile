@@ -164,6 +164,14 @@ const Members = () => {
     });
   }, [orgMembersList, existingMemberIds]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+    lastRequestedPageRef.current = 1;
+    if (projectId) {
+      refetch();
+    }
+  }, [projectId, refetch]);
+
   useFocusEffect(
     useCallback(() => {
       if (projectId) {

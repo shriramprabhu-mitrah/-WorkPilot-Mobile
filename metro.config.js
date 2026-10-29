@@ -14,6 +14,14 @@ const config = mergeConfig(getDefaultConfig(__dirname), {
       /.*\/node_modules\/.*\/android\/\.cxx\/.*/,
     ],
   },
+  transformer: {
+    getTransformOptions: async () => ({
+      transform: {
+        experimentalImportSupport: false,
+        inlineRequires: true,
+      },
+    }),
+  },
 });
 
 module.exports = withNativeWind(config, { input: './global.css' });

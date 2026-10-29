@@ -11,6 +11,7 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
 import Avatar from './Avatar';
+import { WorkItemIcon } from './common/getWorkItemIcon';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { moderateScale } from '../utils/responsive';
 import { ThemeColors } from '../constants/Colors';
@@ -40,10 +41,16 @@ interface Props {
     storyPoints?: boolean;
     assignee?: boolean;
     reporter?: boolean;
+    dueDate?: boolean;
+    sprint?: boolean;
+    userStory?: boolean;
   };
   onPrioritySelect?: (priority: string) => void;
   onAssigneeSelect?: (member: ProjectMember | null) => void;
   onReporterSelect?: (member: ProjectMember | null) => void;
+  onDueDatePress?: () => void;
+  onSprintPress?: () => void;
+  onUserStoryPress?: () => void;
   members?: ProjectMember[];
   membersLoading?: boolean;
   storyPointsInputProps?: {
@@ -62,6 +69,9 @@ export const IssueMetaDetails: React.FC<Props> = ({
   onPrioritySelect,
   onAssigneeSelect,
   onReporterSelect,
+  onDueDatePress,
+  onSprintPress,
+  onUserStoryPress,
   members = [],
   membersLoading = false,
   storyPointsInputProps,
@@ -129,6 +139,11 @@ export const IssueMetaDetails: React.FC<Props> = ({
         const isReporterRow = item.label === 'Reporter';
         const isPriorityRow = item.label === 'Priority';
         const isStoryPointsRow = item.label === 'Story pts';
+        const isDueDateRow =
+          item.label === 'Due date' || item.label === 'Due Date';
+        const isSprintRow = item.label === 'Sprint';
+        const isUserStoryRow =
+          item.label === 'User story' || item.label === 'User Story';
 
         const canEdit = canEditDetails ?? false;
         const isAssigneeEditable =
@@ -139,6 +154,12 @@ export const IssueMetaDetails: React.FC<Props> = ({
           isPriorityRow && canEdit && !!editableFields?.priority;
         const isStoryPointsEditable =
           isStoryPointsRow && canEdit && !!editableFields?.storyPoints;
+        const isDueDateEditable =
+          isDueDateRow && canEdit && !!editableFields?.dueDate;
+        const isSprintEditable =
+          isSprintRow && canEdit && !!editableFields?.sprint;
+        const isUserStoryEditable =
+          isUserStoryRow && canEdit && !!editableFields?.userStory;
 
         const rowZIndex = isAssigneeRow
           ? showAssigneeDropdown
@@ -905,6 +926,177 @@ export const IssueMetaDetails: React.FC<Props> = ({
                     fontSize: layout.bodyFontSize * 0.9,
                   }}
                 />
+              </View>
+            ) : isDueDateRow && isDueDateEditable ? (
+              <View
+                className='items-end'
+                style={{ width: CONTROL_WIDTH }}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={onDueDatePress}
+                  className='flex-row items-center justify-between rounded-md border'
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    paddingHorizontal: 8,
+                    paddingVertical: 6,
+                    width: CONTROL_WIDTH,
+                  }}
+                >
+                  <View
+                    className='mr-1 flex-1 flex-row items-center'
+                    style={{ gap: 6 }}
+                  >
+                    <Ionicons
+                      name='calendar-outline'
+                      size={14}
+                      color={colors.textSecondary}
+                    />
+                    <AppText
+                      variant='body'
+                      color={
+                        item.value && item.value !== 'None'
+                          ? colors.text
+                          : colors.textSecondary
+                      }
+                      className='text-xs font-semibold'
+                      numberOfLines={1}
+                      style={{ flex: 1 }}
+                    >
+                      {item.value || 'None'}
+                    </AppText>
+                  </View>
+                  <Ionicons
+                    name='calendar'
+                    size={12}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+            ) : isDueDateRow ? (
+              <View
+                className='flex-row items-center justify-end'
+                style={{ width: CONTROL_WIDTH, gap: 6 }}
+              >
+                <Ionicons
+                  name='calendar-outline'
+                  size={14}
+                  color={colors.textSecondary}
+                />
+                <AppText variant='body' color={colors.text}>
+                  {item.value || 'None'}
+                </AppText>
+              </View>
+            ) : isSprintRow && isSprintEditable ? (
+              <View
+                className='items-end'
+                style={{ width: CONTROL_WIDTH }}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={onSprintPress}
+                  className='flex-row items-center justify-between rounded-md border'
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    paddingHorizontal: 8,
+                    paddingVertical: 6,
+                    width: CONTROL_WIDTH,
+                  }}
+                >
+                  <View
+                    className='mr-1 flex-1 flex-row items-center'
+                    style={{ gap: 6 }}
+                  >
+                    <WorkItemIcon type='sprint' size={14} />
+                    <AppText
+                      variant='body'
+                      color={
+                        item.value &&
+                        item.value !== 'None' &&
+                        item.value !== 'No Sprint'
+                          ? colors.text
+                          : colors.textSecondary
+                      }
+                      className='text-xs font-semibold'
+                      numberOfLines={1}
+                      style={{ flex: 1 }}
+                    >
+                      {item.value || 'No Sprint'}
+                    </AppText>
+                  </View>
+                  <Ionicons
+                    name='chevron-forward'
+                    size={12}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+            ) : isSprintRow ? (
+              <View
+                className='flex-row items-center justify-end'
+                style={{ width: CONTROL_WIDTH, gap: 6 }}
+              >
+                <WorkItemIcon type='sprint' size={14} />
+                <AppText variant='body' color={colors.text} numberOfLines={1}>
+                  {item.value || 'No Sprint'}
+                </AppText>
+              </View>
+            ) : isUserStoryRow && isUserStoryEditable ? (
+              <View
+                className='items-end'
+                style={{ width: CONTROL_WIDTH }}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={onUserStoryPress}
+                  className='flex-row items-center justify-between rounded-md border'
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    paddingHorizontal: 8,
+                    paddingVertical: 6,
+                    width: CONTROL_WIDTH,
+                  }}
+                >
+                  <View
+                    className='mr-1 flex-1 flex-row items-center'
+                    style={{ gap: 6 }}
+                  >
+                    <WorkItemIcon type='user_story' size={14} />
+                    <AppText
+                      variant='body'
+                      color={
+                        item.value &&
+                        item.value !== 'None' &&
+                        item.value !== 'Storyless'
+                          ? colors.text
+                          : colors.textSecondary
+                      }
+                      className='text-xs font-semibold'
+                      numberOfLines={1}
+                      style={{ flex: 1 }}
+                    >
+                      {item.value || 'None'}
+                    </AppText>
+                  </View>
+                  <Ionicons
+                    name='chevron-forward'
+                    size={12}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+            ) : isUserStoryRow ? (
+              <View
+                className='flex-row items-center justify-end'
+                style={{ width: CONTROL_WIDTH, gap: 6 }}
+              >
+                <WorkItemIcon type='user_story' size={14} />
+                <AppText variant='body' color={colors.text} numberOfLines={1}>
+                  {item.value || 'None'}
+                </AppText>
               </View>
             ) : item.initials ? (
               <View

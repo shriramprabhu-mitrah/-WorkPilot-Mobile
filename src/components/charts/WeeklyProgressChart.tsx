@@ -12,6 +12,7 @@ interface WeeklyProgressChartProps {
   isLoading?: boolean;
   startDate?: string;
   endDate?: string;
+  maxDate?: string;
   onStartDateChange?: (date: string) => void;
   onEndDateChange?: (date: string) => void;
 }
@@ -23,6 +24,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
   isLoading = false,
   startDate,
   endDate,
+  maxDate,
   onStartDateChange,
   onEndDateChange,
 }) => {
@@ -30,9 +32,17 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
   const layout = useAuthLayout();
   const moderateScale = layout?.moderateScale || ((size: number) => size);
 
-  const [dateModalType, setDateModalType] = useState<'start' | 'end' | null>(
-    null,
-  );
+  const todayString = useMemo(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const effectiveMaxDate = maxDate || todayString;
+
+  const [dateModalType, setDateModalType] = useState<'start' | null>(null);
 
   const rawList = Array.isArray(data) ? data : [];
 
@@ -88,15 +98,16 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
   const barGap = moderateScale(3);
 
   const handleDaySelect = (day: { dateString: string }) => {
+    if (day.dateString > effectiveMaxDate) {
+      return;
+    }
     if (dateModalType === 'start') {
       onStartDateChange?.(day.dateString);
-    } else if (dateModalType === 'end') {
-      onEndDateChange?.(day.dateString);
     }
     setDateModalType(null);
   };
 
-  const activeDateValue = dateModalType === 'start' ? startDate : endDate;
+  const activeDateValue = startDate;
 
   return (
     <View
@@ -159,10 +170,8 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
               </AppText>
             </TouchableOpacity>
 
-            {/* End Date Chip */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setDateModalType('end')}
+            {/* End Date Chip (Read-only) */}
+            <View
               className='flex-row items-center rounded-lg border px-2 py-1'
               style={{
                 borderColor: colors?.border,
@@ -185,7 +194,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
               >
                 {endDate || 'End'}
               </AppText>
-            </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -383,7 +392,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
                 className='font-bold'
                 style={{ color: colors?.text }}
               >
-                Select {dateModalType === 'start' ? 'Start Date' : 'End Date'}
+                Select Start Date
               </AppText>
               <TouchableOpacity
                 onPress={() => setDateModalType(null)}
@@ -400,6 +409,7 @@ export const WeeklyProgressChart: React.FC<WeeklyProgressChartProps> = ({
             {/* Calendar */}
             <Calendar
               current={activeDateValue}
+              maxDate={effectiveMaxDate}
               markedDates={
                 activeDateValue
                   ? {
