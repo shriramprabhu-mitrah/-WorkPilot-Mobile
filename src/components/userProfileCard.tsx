@@ -1,10 +1,11 @@
 import React from 'react';
-import { Image, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { useTheme } from '../theme/ThemeProvider';
 import AppText from './common/AppText';
 import { getInitials } from '../utils/utils';
+import Avatar from './Avatar';
 
 export interface UserProfileData {
   full_name?: string;
@@ -33,36 +34,14 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
   const { moderateScale, isSmallHeight } = useAuthLayout();
 
   const avatarSize = isSmallHeight ? moderateScale(56) : moderateScale(64);
-  const borderRadius = avatarSize / 2;
 
   const AvatarDisplay = (
-    <>
-      {user.avatar_url ? (
-        <Image
-          source={{ uri: user.avatar_url }}
-          style={{ width: avatarSize, height: avatarSize, borderRadius }}
-        />
-      ) : (
-        <View
-          style={{
-            width: avatarSize,
-            height: avatarSize,
-            borderRadius,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: user.color || colors.primary,
-          }}
-        >
-          <AppText
-            variant='h3'
-            color={colors.white}
-            style={{ fontWeight: '700' }}
-          >
-            {getInitials(user.full_name)}
-          </AppText>
-        </View>
-      )}
-    </>
+    <Avatar
+      dimension={avatarSize}
+      initials={getInitials(user.full_name)}
+      color={user.color || colors.primary}
+      imageUrl={user.avatar_url}
+    />
   );
 
   return (

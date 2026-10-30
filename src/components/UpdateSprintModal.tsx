@@ -109,6 +109,7 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const savedEndDateRef = useRef('');
 
   const [selectedStatus, setSelectedStatus] = useState<SprintStatus>('planned');
   const [activeDropdown, setActiveDropdown] = useState<
@@ -148,13 +149,20 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
     }
     if (mode === 'start') {
       const now = new Date();
+      const existingEndDate = sprint.end_date ?? sprint.endDate ?? '';
+      savedEndDateRef.current = existingEndDate;
       setSprintName(sprint?.name ?? '');
       setSprintGoal(sprint?.goal ?? '');
       setStartDate(now.toISOString());
-      setDuration('2');
-      const end = new Date(now);
-      end.setDate(end.getDate() + 14);
-      setEndDate(end.toISOString());
+      if (existingEndDate) {
+        setDuration('custom');
+        setEndDate(existingEndDate);
+      } else {
+        setDuration('2');
+        const end = new Date(now);
+        end.setDate(end.getDate() + 14);
+        setEndDate(end.toISOString());
+      }
       sprintGoalEditorRef.current?.setContentHTML(sprint?.goal ?? '');
       return;
     }
@@ -210,15 +218,15 @@ const UpdateSprintModal: React.FC<UpdateSprintModalProps> = ({
 
   const chooseDuration = (value: typeof duration) => {
     setDuration(value);
-    if (value !== 'custom') {
-      const end = new Date(startDate);
-      end.setDate(end.getDate() + Number(value) * 7);
-      setEndDate(end.toISOString());
-    } else {
-      const end = new Date(startDate);
-      end.setDate(end.getDate() + 7);
-      setEndDate(end.toISOString());
+    if (value === 'custom') {
+      if (savedEndDateRef.current) {
+        setEndDate(savedEndDateRef.current);
+      }
+      return;
     }
+    const start = parseSprintDate(startDate) ?? new Date();
+    start.setDate(start.getDate() + Number(value) * 7);
+    setEndDate(start.toISOString());
   };
 
   const showLocalSnackbar = (message: string, type: SnackbarType = 'error') => {

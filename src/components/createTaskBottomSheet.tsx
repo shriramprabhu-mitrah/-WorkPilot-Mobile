@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Pressable,
-  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -26,6 +25,7 @@ import { moderateScale } from '../utils/responsive';
 import { Radius } from '../constants/Radius';
 import { showSnackbar } from './common/Snackbar';
 import CustomSnackbar from './common/Snackbar/CustomSnackbar';
+import Avatar from './Avatar';
 import {
   useGetProjectMembersQuery,
   useGetCustomStatusQuery,
@@ -55,7 +55,9 @@ const DEFAULT_STATUSES = [
 
 const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTES_SECONDS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES_SECONDS = Array.from({ length: 60 }, (_, i) =>
+  String(i).padStart(2, '0'),
+);
 
 export const CreateTaskBottomSheet: React.FC<Props> = ({
   visible,
@@ -67,17 +69,23 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
   const { colors } = useTheme();
   const { layout } = useAuthLayout();
   const insets = useSafeAreaInsets();
-  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+  const bottomPadding = Math.max(
+    insets.bottom,
+    Platform.OS === 'android' ? 24 : 16,
+  );
   const editorRef = useRef<RichEditor>(null);
 
   // Form State
   const [taskName, setTaskName] = useState('');
   const [taskType, setTaskType] = useState('Task');
   const [description, setDescription] = useState('');
-  const [selectedAssignee, setSelectedAssignee] = useState<ProjectMember | null>(null);
+  const [selectedAssignee, setSelectedAssignee] =
+    useState<ProjectMember | null>(null);
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('Todo');
-  const [selectedStatusId, setSelectedStatusId] = useState<string | undefined>(undefined);
+  const [selectedStatusId, setSelectedStatusId] = useState<string | undefined>(
+    undefined,
+  );
   const [priority, setPriority] = useState('Low');
   const [estimatedHr, setEstimatedHr] = useState('');
   const [estimatedMin, setEstimatedMin] = useState('');
@@ -153,7 +161,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
   // API Queries & Mutations
   const { data: membersResponse, isLoading: membersLoading } =
     useGetProjectMembersQuery(
-      projectId ? { project_id: projectId, page: 1, page_size: 50 } : ({} as any),
+      projectId
+        ? { project_id: projectId, page: 1, page_size: 50 }
+        : ({} as any),
       { skip: !projectId || !visible },
     );
 
@@ -475,7 +485,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View className='flex-1 bg-black/60 justify-end'>
+      <View className='flex-1 justify-end bg-black/60'>
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={{ height: Math.max(insets.top, moderateScale(30)) }} />
         </TouchableWithoutFeedback>
@@ -516,7 +526,6 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
 
           {/* Form Body */}
           <View style={{ flex: 1, position: 'relative' }}>
-
             <ScrollView
               className='flex-1'
               contentContainerStyle={{
@@ -561,7 +570,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                       borderColor:
                         (hasAttemptedSubmit || taskNameTouched) &&
                         !taskName.trim()
-                          ? (colors.error || '#FF3B30')
+                          ? colors.error || '#FF3B30'
                           : colors.border,
                       borderWidth: 1,
                       borderRadius: Radius.md,
@@ -609,7 +618,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                       borderColor: typeDropdownOpen
                         ? colors.primary
                         : hasAttemptedSubmit && !taskType
-                          ? (colors.error || '#FF3B30')
+                          ? colors.error || '#FF3B30'
                           : colors.border,
                       borderWidth: 1,
                       borderRadius: Radius.md,
@@ -699,7 +708,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                             >
                               <AppText
                                 variant='body'
-                                color={isSelected ? colors.primary : colors.text}
+                                color={
+                                  isSelected ? colors.primary : colors.text
+                                }
                                 className={isSelected ? 'font-semibold' : ''}
                               >
                                 {typeItem}
@@ -820,35 +831,15 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                     }}
                   >
                     {selectedAssignee && !assigneeDropdownOpen && (
-                      <View
-                        style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: 11,
-                          backgroundColor: selectedAssignee.color || colors.primary,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'hidden',
-                          marginRight: 6,
-                        }}
-                      >
-                        {selectedAssignee.avatar_url ? (
-                          <Image
-                            source={{ uri: selectedAssignee.avatar_url }}
-                            style={{ width: '100%', height: '100%' }}
-                            resizeMode='cover'
-                          />
-                        ) : (
-                          <AppText
-                            variant='caption'
-                            color='#FFF'
-                            style={{ fontSize: 10, fontWeight: 'bold' }}
-                          >
-                            {(selectedAssignee.full_name || 'U')
-                              .charAt(0)
-                              .toUpperCase()}
-                          </AppText>
-                        )}
+                      <View style={{ marginRight: 6 }}>
+                        <Avatar
+                          dimension={22}
+                          initials={(selectedAssignee.full_name || 'U')
+                            .charAt(0)
+                            .toUpperCase()}
+                          color={selectedAssignee.color || colors.primary}
+                          imageUrl={selectedAssignee.avatar_url}
+                        />
                       </View>
                     )}
                     <TextInput
@@ -859,7 +850,8 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                       }
                       onChangeText={text => {
                         setAssigneeSearchQuery(text);
-                        if (!assigneeDropdownOpen) setAssigneeDropdownOpen(true);
+                        if (!assigneeDropdownOpen)
+                          setAssigneeDropdownOpen(true);
                       }}
                       onFocus={() => {
                         closeAllDropdowns();
@@ -891,7 +883,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                       </TouchableOpacity>
                     ) : (
                       <Ionicons
-                        name={assigneeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                        name={
+                          assigneeDropdownOpen ? 'chevron-up' : 'chevron-down'
+                        }
                         size={16}
                         color={colors.textSecondary}
                       />
@@ -955,8 +949,14 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                           >
                             <AppText
                               variant='body'
-                              color={!selectedAssignee ? colors.primary : colors.textSecondary}
-                              className={!selectedAssignee ? 'font-semibold' : ''}
+                              color={
+                                !selectedAssignee
+                                  ? colors.primary
+                                  : colors.textSecondary
+                              }
+                              className={
+                                !selectedAssignee ? 'font-semibold' : ''
+                              }
                             >
                               Unassigned
                             </AppText>
@@ -1004,38 +1004,19 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                                       : 'transparent',
                                   }}
                                 >
-                                  <View
-                                    style={{
-                                      width: 28,
-                                      height: 28,
-                                      borderRadius: 14,
-                                      backgroundColor: m.color || colors.primary,
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      overflow: 'hidden',
-                                    }}
-                                  >
-                                    {m.avatar_url ? (
-                                      <Image
-                                        source={{ uri: m.avatar_url }}
-                                        style={{ width: '100%', height: '100%' }}
-                                        resizeMode='cover'
-                                      />
-                                    ) : (
-                                      <AppText
-                                        variant='caption'
-                                        color='#FFF'
-                                        className='text-xs font-bold'
-                                      >
-                                        {initial}
-                                      </AppText>
-                                    )}
-                                  </View>
+                                  <Avatar
+                                    dimension={28}
+                                    initials={initial}
+                                    color={m.color || colors.primary}
+                                    imageUrl={m.avatar_url}
+                                  />
                                   <View style={{ flex: 1 }}>
                                     <AppText
                                       variant='body'
                                       color={
-                                        isSelected ? colors.primary : colors.text
+                                        isSelected
+                                          ? colors.primary
+                                          : colors.text
                                       }
                                       numberOfLines={1}
                                     >
@@ -1100,7 +1081,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                   >
                     <AppText
                       variant='body'
-                      color={selectedStatus ? colors.text : colors.textSecondary}
+                      color={
+                        selectedStatus ? colors.text : colors.textSecondary
+                      }
                       numberOfLines={1}
                     >
                       {selectedStatus || 'Select status'}
@@ -1153,7 +1136,8 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                           bounces={false}
                         >
                           {availableStatuses.map(statusItem => {
-                            const isSelected = selectedStatus === statusItem.name;
+                            const isSelected =
+                              selectedStatus === statusItem.name;
                             return (
                               <TouchableOpacity
                                 key={statusItem.name}
@@ -1274,7 +1258,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                       borderColor: priorityDropdownOpen
                         ? colors.primary
                         : hasAttemptedSubmit && !priority
-                          ? (colors.error || '#FF3B30')
+                          ? colors.error || '#FF3B30'
                           : colors.border,
                       borderWidth: 1,
                       borderRadius: Radius.md,
@@ -1293,7 +1277,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                       {priority || 'Select priority'}
                     </AppText>
                     <Ionicons
-                      name={priorityDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                      name={
+                        priorityDropdownOpen ? 'chevron-up' : 'chevron-down'
+                      }
                       size={16}
                       color={colors.textSecondary}
                     />
@@ -1364,7 +1350,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                             >
                               <AppText
                                 variant='body'
-                                color={isSelected ? colors.primary : colors.text}
+                                color={
+                                  isSelected ? colors.primary : colors.text
+                                }
                                 className={isSelected ? 'font-semibold' : ''}
                               >
                                 {priorityItem}
@@ -1596,7 +1584,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                 paddingVertical: 10,
                 backgroundColor: !isFormValid
                   ? `${colors.primary || '#0066FF'}50`
-                  : (colors.primary || '#0066FF'),
+                  : colors.primary || '#0066FF',
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1690,11 +1678,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                 />
               </TouchableOpacity>
 
-              <AppText
-                variant='body'
-                color={colors.text}
-                className='font-bold'
-              >
+              <AppText variant='body' color={colors.text} className='font-bold'>
                 {currentCalendarMonth.toLocaleDateString('en-US', {
                   month: 'long',
                   year: 'numeric',
@@ -1748,8 +1732,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                 const isSelected =
                   selectedDate &&
                   selectedDate.getDate() === dayNum &&
-                  selectedDate.getMonth() ===
-                    currentCalendarMonth.getMonth() &&
+                  selectedDate.getMonth() === currentCalendarMonth.getMonth() &&
                   selectedDate.getFullYear() ===
                     currentCalendarMonth.getFullYear();
 
@@ -1844,7 +1827,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                     <Ionicons
                       name='time-outline'
                       size={16}
-                      color={timePickerOpen ? colors.primary : colors.textSecondary}
+                      color={
+                        timePickerOpen ? colors.primary : colors.textSecondary
+                      }
                     />
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -1929,9 +1914,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                             key={`h-${h}`}
                             activeOpacity={0.6}
                             onPress={() => {
-                              const parts = (
-                                timeString || '00:00:00'
-                              ).split(':');
+                              const parts = (timeString || '00:00:00').split(
+                                ':',
+                              );
                               const m = parts[1] || '00';
                               const s = parts[2] || '00';
                               setTimeString(`${h}:${m}:${s}`);
@@ -1947,9 +1932,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                           >
                             <AppText
                               variant='caption'
-                              color={
-                                isSelected ? colors.primary : colors.text
-                              }
+                              color={isSelected ? colors.primary : colors.text}
                               style={{
                                 fontWeight: isSelected ? 'bold' : 'normal',
                                 fontSize: 13,
@@ -1987,9 +1970,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                             key={`m-${m}`}
                             activeOpacity={0.6}
                             onPress={() => {
-                              const parts = (
-                                timeString || '00:00:00'
-                              ).split(':');
+                              const parts = (timeString || '00:00:00').split(
+                                ':',
+                              );
                               const h = parts[0] || '00';
                               const s = parts[2] || '00';
                               setTimeString(`${h}:${m}:${s}`);
@@ -2005,9 +1988,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                           >
                             <AppText
                               variant='caption'
-                              color={
-                                isSelected ? colors.primary : colors.text
-                              }
+                              color={isSelected ? colors.primary : colors.text}
                               style={{
                                 fontWeight: isSelected ? 'bold' : 'normal',
                                 fontSize: 13,
@@ -2039,9 +2020,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                             key={`s-${s}`}
                             activeOpacity={0.6}
                             onPress={() => {
-                              const parts = (
-                                timeString || '00:00:00'
-                              ).split(':');
+                              const parts = (timeString || '00:00:00').split(
+                                ':',
+                              );
                               const h = parts[0] || '00';
                               const m = parts[1] || '00';
                               setTimeString(`${h}:${m}:${s}`);
@@ -2057,9 +2038,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
                           >
                             <AppText
                               variant='caption'
-                              color={
-                                isSelected ? colors.primary : colors.text
-                              }
+                              color={isSelected ? colors.primary : colors.text}
                               style={{
                                 fontWeight: isSelected ? 'bold' : 'normal',
                                 fontSize: 13,

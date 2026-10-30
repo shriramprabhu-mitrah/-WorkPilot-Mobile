@@ -5,13 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  FlatList,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -32,6 +26,7 @@ import {
   useGetRolesQuery,
 } from '../store/api/homeApi';
 import { ProjectMember } from '../types/project.type';
+import Avatar from '../components/Avatar';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import DeleteColumnModal from '../components/DeleteColumnModal';
@@ -552,29 +547,13 @@ const Members = () => {
                       if (ref) avatarRefs.current.set(key, ref);
                       else avatarRefs.current.delete(key);
                     }}
-                    className='items-center justify-center overflow-hidden'
-                    style={{
-                      width: moderateScale(44),
-                      height: moderateScale(44),
-                      backgroundColor: item?.color || colors.primary,
-                      borderRadius: Radius.circle,
-                    }}
                   >
-                    {item.avatar_url ? (
-                      <Image
-                        source={{ uri: item.avatar_url }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode='cover'
-                      />
-                    ) : (
-                      <AppText
-                        variant='body'
-                        className='font-bold'
-                        color={colors.white}
-                      >
-                        {initials || '?'}
-                      </AppText>
-                    )}
+                    <Avatar
+                      dimension={moderateScale(44)}
+                      initials={initials || '?'}
+                      color={item?.color || colors.primary}
+                      imageUrl={item.avatar_url}
+                    />
                   </View>
 
                   {/* Member Details */}

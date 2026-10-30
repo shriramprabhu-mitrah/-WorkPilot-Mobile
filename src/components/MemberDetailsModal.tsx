@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Clipboard,
   Dimensions,
-  Image,
   Modal,
   ScrollView,
   TouchableOpacity,
@@ -20,8 +19,9 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { useTheme } from '../hooks/useTheme';
-import { showSnackbar } from './common/Snackbar';
+import { CustomSnackbar, type SnackbarType } from './common/Snackbar';
 import { Radius } from '../constants/Radius';
+import Avatar from './Avatar';
 
 export interface MemberDetailsData {
   name?: string | null;
@@ -52,10 +52,16 @@ const formatRoleBadge = (role: string) =>
     .join(' ');
 
 const MemberDetailsModal = ({ visible, member, onClose, origin }: Props) => {
-  const { colors, mode } = useTheme();
+  const { colors } = useTheme();
   const { moderateScale } = useAuthLayout();
   const progress = useSharedValue(0);
+  const backdropProgress = useSharedValue(0);
   const [closing, setClosing] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    message: string;
+    type: SnackbarType;
+  } | null>(null);
+
   const screen = Dimensions.get('window');
 
   const source = origin || {
@@ -75,6 +81,10 @@ const MemberDetailsModal = ({ visible, member, onClose, origin }: Props) => {
     ],
   }));
 
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropProgress.value,
+  }));
+
   const finishClose = () => {
     setClosing(false);
     onClose();
@@ -83,6 +93,7 @@ const MemberDetailsModal = ({ visible, member, onClose, origin }: Props) => {
   const closeModal = () => {
     if (closing) return;
     setClosing(true);
+    backdropProgress.value = withTiming(0, { duration: 50 });
     progress.value = withTiming(0, { duration: 200 }, finished => {
       if (finished) runOnJS(finishClose)();
     });
@@ -109,9 +120,12 @@ const MemberDetailsModal = ({ visible, member, onClose, origin }: Props) => {
     if (!visible) return;
     setClosing(false);
     cancelAnimation(progress);
+    cancelAnimation(backdropProgress);
     progress.value = 0;
+    backdropProgress.value = 0;
     progress.value = withTiming(1, { duration: 250 });
-  }, [progress, visible]);
+    backdropProgress.value = withTiming(1, { duration: 250 });
+  }, [progress, backdropProgress, visible]);
 
   const initials =
     normalized.name === 'Name unavailable'
@@ -126,7 +140,7 @@ const MemberDetailsModal = ({ visible, member, onClose, origin }: Props) => {
 
   const handleCopy = (value: string, label: string) => {
     if (!value) {
-      showSnackbar({
+      setSnackbar({
         message: `No ${label.toLowerCase()} available to copy.`,
         type: 'info',
       });
@@ -134,12 +148,12 @@ const MemberDetailsModal = ({ visible, member, onClose, origin }: Props) => {
     }
     try {
       Clipboard.setString(value);
-      showSnackbar({
+      setSnackbar({
         message: `${label} copied to clipboard.`,
         type: 'success',
       });
     } catch {
-      showSnackbar({
+      setSnackbar({
         message: `Could not copy ${label.toLowerCase()}.`,
         type: 'error',
       });
@@ -279,15 +293,33 @@ const MemberDetailsModal = ({ visible, member, onClose, origin }: Props) => {
           justifyContent: 'center',
           alignItems: 'center',
           padding: moderateScale(20),
-          backgroundColor:
-            mode === 'dark' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(15, 23, 42, 0.55)',
         }}
       >
+        <Animated.View
+          pointerEvents='none'
+          style={[
+            {
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.72)',
+            },
+            backdropStyle,
+          ]}
+        />
         {/* Backdrop touch target */}
         <TouchableOpacity
           activeOpacity={1}
           onPress={closeModal}
-          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+          }}
           accessibilityLabel='Close member details'
         />
 
@@ -343,24 +375,12 @@ const MemberDetailsModal = ({ visible, member, onClose, origin }: Props) => {
                   elevation: 4,
                 }}
               >
-                {normalized.avatarUrl ? (
-                  <Image
-                    source={{ uri: normalized.avatarUrl }}
-                    style={{ width: '100%', height: '100%' }}
-                    resizeMode='cover'
-                  />
-                ) : (
-                  <AppText
-                    variant='h3'
-                    style={{
-                      color: colors.white,
-                      fontWeight: '700',
-                      fontSize: moderateScale(20),
-                    }}
-                  >
-                    {initials}
-                  </AppText>
-                )}
+                <Avatar
+                  dimension={moderateScale(62)}
+                  initials={initials}
+                  color={normalized.color || colors.primary}
+                  imageUrl={normalized.avatarUrl}
+                />
               </View>
               <View
                 style={{
@@ -566,6 +586,13 @@ const MemberDetailsModal = ({ visible, member, onClose, origin }: Props) => {
             </View>
           </ScrollView>
         </Animated.View>
+        <CustomSnackbar
+          visible={Boolean(snackbar)}
+          onDismiss={() => setSnackbar(null)}
+          message={snackbar?.message ?? ''}
+          type={snackbar?.type ?? 'default'}
+          bottomOffset={30}
+        />
       </View>
     </Modal>
   );

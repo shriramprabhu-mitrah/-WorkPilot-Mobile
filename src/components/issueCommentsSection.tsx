@@ -245,7 +245,8 @@ export const IssueCommentsSection: React.FC<Props> = ({
           <Avatar
             size='medium'
             initials={avatarInitials}
-            color={colors.primary}
+            color={item.color || colors.primary}
+            imageUrl={item.avatar_url}
           />
           <View className='flex-1' style={{ gap: 6 }}>
             <View className='flex-row items-center' style={{ gap: 8 }}>
@@ -290,7 +291,8 @@ export const IssueCommentsSection: React.FC<Props> = ({
           <Avatar
             size='medium'
             initials={avatarInitials}
-            color={colors.error || '#FF3B30'}
+            color={item.color || colors.error || '#FF3B30'}
+            imageUrl={item.avatar_url}
           />
           <View className='flex-1' style={{ gap: 6 }}>
             <View className='flex-row items-center' style={{ gap: 8 }}>
@@ -361,7 +363,8 @@ export const IssueCommentsSection: React.FC<Props> = ({
         <Avatar
           size='medium'
           initials={avatarInitials}
-          color={colors.primary}
+          color={item.color || colors.primary}
+          imageUrl={item.avatar_url}
         />
         <View className='flex-1' style={{ gap: 6 }}>
           <View className='flex-row items-center' style={{ gap: 8 }}>
@@ -388,7 +391,7 @@ export const IssueCommentsSection: React.FC<Props> = ({
             style={{ gap: 12 }}
           >
             <View className='flex-row items-center' style={{ gap: 12 }}>
-              {!canAddComment && onReply && (
+              {canAddComment && onReply && (
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => {

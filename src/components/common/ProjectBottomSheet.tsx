@@ -724,10 +724,7 @@ export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
 
       <CreateProjectModal
         visible={isCreateModalVisible}
-        onClose={() => {
-          if (permissionsReady || !canCreate) return;
-          setIsCreateModalVisible(true);
-        }}
+        onClose={() => setIsCreateModalVisible(false)}
         mode={isSprint ? 'sprint' : 'project'}
         title={isSprint ? 'Create Sprint' : 'New Project'}
         projectId={resolvedProjectId}

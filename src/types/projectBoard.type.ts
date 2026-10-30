@@ -45,6 +45,9 @@ export interface UserStory {
   is_closed: boolean;
   is_favourite: boolean;
   story_points: number;
+  assignee_id?: string;
+  assignee_name?: string;
+  assignee?: User | null;
   reporter_id: string;
   reporter_name: string;
   reporter: User;

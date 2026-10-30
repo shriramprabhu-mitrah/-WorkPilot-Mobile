@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, TouchableOpacity, Image } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-
+import Avatar from './Avatar';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../theme/ThemeProvider';
 import AppText from './common/AppText';
@@ -161,42 +161,29 @@ const TaskCard = ({ item, projectId, onToggleFavorite }: TaskCardProps) => {
           className='flex-row items-center'
           style={{ gap: layout.sectionGap }}
         >
-          <View
-            style={{
-              backgroundColor: item.avatarUrl
-                ? ''
-                : item.avatarColor || colors.primary,
-              width: moderateScale(22),
-              height: moderateScale(22),
-              borderRadius: Radius.circle,
-            }}
-            className='items-center justify-center rounded'
-          >
-            {item.avatarUrl ? (
-              <Image
-                source={{ uri: item.avatarUrl }}
-                style={{
-                  width: moderateScale(22),
-                  height: moderateScale(22),
-                  borderRadius: Radius.circle,
-                }}
-              />
-            ) : item.avatar ? (
-              <AppText
-                variant='caption'
-                className='font-bold'
-                color={colors.white}
-              >
-                {item.avatar}
-              </AppText>
-            ) : (
+          {item.avatarUrl || item.avatar ? (
+            <Avatar
+              dimension={moderateScale(22)}
+              initials={item.avatar}
+              color={item.avatarColor || colors.primary}
+              imageUrl={item.avatarUrl}
+            />
+          ) : (
+            <View
+              className='items-center justify-center rounded-full'
+              style={{
+                width: moderateScale(22),
+                height: moderateScale(22),
+                backgroundColor: colors.primary,
+              }}
+            >
               <Ionicons
                 name='person'
                 size={moderateScale(14)}
                 color={colors.white}
               />
-            )}
-          </View>
+            </View>
+          )}
 
           <AppText
             variant='caption'

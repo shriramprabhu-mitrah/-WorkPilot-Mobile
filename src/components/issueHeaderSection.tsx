@@ -46,7 +46,7 @@ export const IssueHeaderSection: React.FC<Props> = ({
    *
    * The width is NOT based on the status name.
    */
-  const statusWidth = Math.min(Math.max(layout.controlSize * 7, 160), 220);
+  const statusWidth = Math.min(Math.max(layout.controlSize * 7, 180), 220);
 
   const currentStatus = status || currentItem?.status || '';
 

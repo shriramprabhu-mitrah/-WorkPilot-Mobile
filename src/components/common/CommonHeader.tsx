@@ -2,7 +2,6 @@ import React from 'react';
 import {
   View,
   TouchableOpacity,
-  Image,
   ScrollView,
   StyleProp,
   ViewStyle,
@@ -14,7 +13,7 @@ import AppText from './AppText';
 import AppInput from './Input/AppInput';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthLayout } from '../../hooks/useAuthLayout';
-import { Radius } from '../../constants/Radius';
+import Avatar from '../Avatar';
 import { User } from '../../types/auth.type';
 import { RootState, useAppSelector } from '../../store';
 
@@ -26,6 +25,7 @@ export type HeaderVariant =
   | 'custom'
   | 'projectdetails'
   | 'taskDetails'
+  | 'taskList'
   | 'search'
   | 'organizationMembers'
   | 'status';
@@ -38,9 +38,14 @@ export interface SearchCategoryOption<T = string> {
 export interface HeaderProps {
   variant?: HeaderVariant;
   title?: string;
+  subtitle?: string;
   titleAlignment?: 'center' | 'left';
   onBackPress?: () => void;
   onRightActionPress?: () => void;
+  onAddTaskPress?: () => void;
+  onFilterPress?: () => void;
+  canAddTask?: boolean;
+  appliedFiltersCount?: number;
   rightIconName?: IoniconsIconName;
   onProjectTitlePress?: () => void;
   showDropdownIcon?: boolean; // <--- Controls dropdown arrow visibility
@@ -70,9 +75,14 @@ export interface HeaderProps {
 export const CommonHeader: React.FC<HeaderProps> = ({
   variant = 'custom',
   title,
+  subtitle,
   titleAlignment = 'center',
   onBackPress,
   onRightActionPress,
+  onAddTaskPress,
+  onFilterPress,
+  canAddTask = false,
+  appliedFiltersCount = 0,
   rightIconName,
   onProjectTitlePress,
   onSprintTitlePress, // <--- Destructured Sprint Press
@@ -151,45 +161,20 @@ export const CommonHeader: React.FC<HeaderProps> = ({
 
       case 'project':
         return (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={onProfilePress}
-            className='items-center justify-center overflow-hidden'
-            style={{
-              width: moderateScale(36),
-              height: moderateScale(36),
-              borderRadius: Radius.circle,
-              backgroundColor: user?.avatar_url
-                ? 'transparent'
-                : colors.accentOrange,
-            }}
-          >
-            {user?.avatar_url ? (
-              <Image
-                source={{ uri: user.avatar_url }}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: Radius.circle,
-                }}
-                resizeMode='cover'
-              />
-            ) : (
-              <AppText
-                style={{
-                  fontSize: moderateScale(16),
-                  fontWeight: 'bold',
-                  color: colors.white,
-                }}
-              >
-                {user?.name
+          <TouchableOpacity activeOpacity={0.8} onPress={onProfilePress}>
+            <Avatar
+              dimension={moderateScale(36)}
+              initials={
+                user?.name
                   ?.split(' ')
                   .map(word => word[0])
                   .join('')
                   .substring(0, 2)
-                  .toUpperCase() || 'P'}
-              </AppText>
-            )}
+                  .toUpperCase() || 'P'
+              }
+              color={colors.accentOrange}
+              imageUrl={user?.avatar_url}
+            />
           </TouchableOpacity>
         );
 
@@ -423,6 +408,57 @@ export const CommonHeader: React.FC<HeaderProps> = ({
     if (rightComponent) return rightComponent;
 
     switch (variant) {
+      case 'taskList':
+        return (
+          <View
+            className='flex-row items-center'
+            style={{ gap: moderateScale(6) }}
+          >
+            {canAddTask && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={onAddTaskPress}
+                accessibilityRole='button'
+                accessibilityLabel='Add task'
+                className='items-center justify-center rounded-lg'
+                style={{
+                  width: moderateScale(36),
+                  height: moderateScale(36),
+                  backgroundColor: colors.primary,
+                }}
+              >
+                <Ionicons
+                  name='add'
+                  size={moderateScale(18)}
+                  color={colors.white}
+                />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={onFilterPress}
+              accessibilityRole='button'
+              accessibilityLabel={`Filter${appliedFiltersCount > 0 ? `, ${appliedFiltersCount} applied` : ''}`}
+              className='flex-row items-center rounded-lg px-2.5 py-2'
+              style={{ backgroundColor: colors.primary }}
+            >
+              <Ionicons
+                name='filter-outline'
+                size={moderateScale(16)}
+                color={colors.white}
+              />
+              <AppText
+                variant='caption'
+                color={colors.white}
+                className='ml-1 font-bold'
+              >
+                Filter
+                {appliedFiltersCount > 0 ? ` (${appliedFiltersCount})` : ''}
+              </AppText>
+            </TouchableOpacity>
+          </View>
+        );
+
       case 'project':
         return (
           <TouchableOpacity
@@ -646,7 +682,21 @@ export const CommonHeader: React.FC<HeaderProps> = ({
             isLeftAligned ? 'items-start pl-3' : 'items-center justify-center'
           }`}
         >
-          {renderTitleContent()}
+          {subtitle ? (
+            <View className={isLeftAligned ? 'items-start' : 'items-center'}>
+              {renderTitleContent()}
+              <AppText
+                variant='caption'
+                color={colors.textSecondary}
+                numberOfLines={1}
+                style={{ marginTop: moderateScale(2) }}
+              >
+                {subtitle}
+              </AppText>
+            </View>
+          ) : (
+            renderTitleContent()
+          )}
         </View>
 
         {/* Right Section */}

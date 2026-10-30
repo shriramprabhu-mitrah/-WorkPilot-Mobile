@@ -481,6 +481,7 @@ export interface UserRoleInfo {
   email: string;
   role: string;
   avatar_url?: string;
+  color?: string;
 }
 
 export interface Task {
@@ -501,6 +502,7 @@ export interface Task {
   status: string;
   status_color: string;
   is_final: boolean;
+  is_favourite?: boolean;
   assignee_id: string | null;
   reporter_id: string | null;
   reporter_name: string;
@@ -1065,6 +1067,7 @@ export interface CompleteSprintResponse {
 export interface UpdateSprintDetailsPayload {
   name: string;
   goal?: string;
+  start_date: string;
   end_date: string;
 }
 

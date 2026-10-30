@@ -251,11 +251,13 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
 
   // Sprint details fallback
   const sprint = useMemo(() => {
+    const fallbackStartDate = new Date();
+
     return {
       id: currentSprint?.id || sprintId,
       name: currentSprint?.name || sprintName || 'Test11',
-      startDate: currentSprint?.start_date || '2026-10-14',
-      endDate: currentSprint?.end_date || '2026-10-15',
+      startDate: currentSprint?.start_date || fallbackStartDate.toISOString(),
+      endDate: currentSprint?.end_date,
       status: currentSprint?.status || 'Active',
       goal:
         currentSprint?.goal ||
@@ -2387,10 +2389,15 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
           visible={isEditSprintVisible}
           onClose={() => setIsEditSprintVisible(false)}
           mode={sprintModalMode}
-          sprint={currentSprint}
+          sprint={sprint}
           isUpdating={isUpdatingSprint || isStartingSprint}
           onStart={async payload => {
-            if (!permissionsReady || !canEditSprint || !projectId || !sprintId) {
+            if (
+              !permissionsReady ||
+              !canEditSprint ||
+              !projectId ||
+              !sprintId
+            ) {
               return;
             }
             await startSprint({
@@ -2411,7 +2418,12 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
             });
           }}
           onUpdate={async payload => {
-            if (!permissionsReady || !canEditSprint || !projectId || !sprintId) {
+            if (
+              !permissionsReady ||
+              !canEditSprint ||
+              !projectId ||
+              !sprintId
+            ) {
               return;
             }
             try {
@@ -2422,7 +2434,14 @@ const SprintDetailsScreen: React.FC<SprintDetailsScreenProps> = ({ route }) => {
                 payload: {
                   name: payload.name ?? currentSprint?.name ?? '',
                   goal: payload.goal ?? currentSprint?.goal ?? undefined,
-                  end_date: payload.end_date ?? currentSprint?.end_date ?? '',
+                  start_date:
+                    payload.start_date ??
+                    currentSprint?.start_date ??
+                    sprint.startDate,
+                  end_date:
+                    payload.end_date ??
+                    currentSprint?.end_date ??
+                    sprint.endDate,
                 },
               }).unwrap();
 
