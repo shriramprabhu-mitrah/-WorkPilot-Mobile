@@ -185,11 +185,10 @@ const IssueDetailScreen = () => {
   const {
     data: tasksResponse,
     isLoading: tasksLoading,
-    isFetching: tasksFetching,
     refetch: refetchTasks,
   } = useGetTasksQuery(
     projectId && userStoryId
-      ? { projectId, page: 1, page_size: 8, user_story_id: userStoryId }
+      ? { projectId, page: 1, page_size: 4, user_story_id: userStoryId }
       : skipToken,
   );
 
@@ -215,10 +214,14 @@ const IssueDetailScreen = () => {
   const [assignee, setAssignee] = useState<{
     id: string | null;
     name: string;
+    color?: string;
+    imageUrl?: string | null;
   } | null>(null);
   const [reporter, setReporter] = useState<{
     id: string | null;
     name: string;
+    color?: string;
+    imageUrl?: string | null;
   } | null>(null);
   const currentItemIdRef = useRef<string | null>(null);
   const [comment, setComment] = useState<string>('');
@@ -274,13 +277,13 @@ const IssueDetailScreen = () => {
   } = useGetUserStoriesQuery(
     projectId && isTaskView
       ? {
-        projectId,
-        payload: {
-          page: 1,
-          page_size: 100,
-          ...(sprint.id ? { sprint_id: sprint.id } : {}),
-        },
-      }
+          projectId,
+          payload: {
+            page: 1,
+            page_size: 100,
+            ...(sprint.id ? { sprint_id: sprint.id } : {}),
+          },
+        }
       : skipToken,
   );
 
@@ -367,7 +370,7 @@ const IssueDetailScreen = () => {
           : null;
       const uTitle =
         currentItem.user_story_title &&
-          currentItem.user_story_title !== 'Storyless'
+        currentItem.user_story_title !== 'Storyless'
           ? currentItem.user_story_title
           : '';
 
@@ -375,8 +378,18 @@ const IssueDetailScreen = () => {
       setStoryPoints(sp);
       setLocalDescription(desc);
       setStoryPointsText(sp.toString());
-      setAssignee({ id: assId, name: assName });
-      setReporter({ id: repId, name: repName });
+      setAssignee({
+        id: assId,
+        name: assName,
+        color: currentItem.assignee?.color,
+        imageUrl: currentItem.assignee?.avatar_url,
+      });
+      setReporter({
+        id: repId,
+        name: repName,
+        color: currentItem.reporter?.color,
+        imageUrl: currentItem.reporter?.avatar_url,
+      });
       setDueDate(due);
       setSprint({ id: sId, name: sName });
       setUserStoryState({ id: uId, title: uTitle });
@@ -441,13 +454,12 @@ const IssueDetailScreen = () => {
     if (isTaskView && currentItem?.user_story_id !== undefined) {
       setUserStoryState({
         id:
-          currentItem.user_story_id &&
-            currentItem.user_story_id !== 'storyless'
+          currentItem.user_story_id && currentItem.user_story_id !== 'storyless'
             ? currentItem.user_story_id
             : null,
         title:
           currentItem.user_story_title &&
-            currentItem.user_story_title !== 'Storyless'
+          currentItem.user_story_title !== 'Storyless'
             ? currentItem.user_story_title
             : '',
       });
@@ -565,12 +577,20 @@ const IssueDetailScreen = () => {
         initials:
           assigneeName !== 'Unassigned'
             ? assigneeName
-              .split(' ')
-              .map((n: string) => n[0])
-              .join('')
-              .toUpperCase()
+                .split(' ')
+                .map((n: string) => n[0])
+                .join('')
+                .toUpperCase()
             : 'U',
-        color: colors.primary,
+        color:
+          assignee?.color ||
+          currentItem.assignee?.color ||
+          members.find(member => member.user_id === assignee?.id)?.color ||
+          colors.primary,
+        imageUrl:
+          assignee?.imageUrl ??
+          currentItem.assignee?.avatar_url ??
+          members.find(member => member.user_id === assignee?.id)?.avatar_url,
         isLoading: isDetailsLoading,
       },
       {
@@ -579,12 +599,20 @@ const IssueDetailScreen = () => {
         initials:
           reporterName !== 'N/A' && reporterName !== 'Unassigned'
             ? reporterName
-              .split(' ')
-              .map((n: string) => n[0])
-              .join('')
-              .toUpperCase()
+                .split(' ')
+                .map((n: string) => n[0])
+                .join('')
+                .toUpperCase()
             : 'N/A',
-        color: colors.secondary,
+        color:
+          reporter?.color ||
+          currentItem.reporter?.color ||
+          members.find(member => member.user_id === reporter?.id)?.color ||
+          colors.secondary,
+        imageUrl:
+          reporter?.imageUrl ??
+          currentItem.reporter?.avatar_url ??
+          members.find(member => member.user_id === reporter?.id)?.avatar_url,
         isLoading: isDetailsLoading,
       },
       {
@@ -622,6 +650,7 @@ const IssueDetailScreen = () => {
     return items;
   }, [
     currentItem,
+    members,
     colors,
     assignee,
     reporter,
@@ -772,7 +801,12 @@ const IssueDetailScreen = () => {
       const targetUserId = member?.user_id ?? null;
       const newName = member?.full_name || member?.username || 'Unassigned';
 
-      setAssignee({ id: targetUserId, name: newName });
+      setAssignee({
+        id: targetUserId,
+        name: newName,
+        color: member?.color,
+        imageUrl: member?.avatar_url,
+      });
 
       try {
         if (taskId) {
@@ -823,7 +857,12 @@ const IssueDetailScreen = () => {
       const targetUserId = member?.user_id ?? null;
       const newName = member?.full_name || member?.username || 'N/A';
 
-      setReporter({ id: targetUserId, name: newName });
+      setReporter({
+        id: targetUserId,
+        name: newName,
+        color: member?.color,
+        imageUrl: member?.avatar_url,
+      });
 
       try {
         if (taskId) {
@@ -964,9 +1003,7 @@ const IssueDetailScreen = () => {
       } catch (error: any) {
         setDueDate(prevDueDate);
         const errorMessage =
-          error?.data?.message ||
-          error?.message ||
-          'Failed to update due date';
+          error?.data?.message || error?.message || 'Failed to update due date';
         showSnackbar({
           message: errorMessage,
           type: 'error',
@@ -985,57 +1022,52 @@ const IssueDetailScreen = () => {
     ],
   );
 
-  const handleDueDateClear = useCallback(
-    async () => {
-      if (!projectId) return;
-      const prevDueDate = dueDate;
-      setDueDate(null);
+  const handleDueDateClear = useCallback(async () => {
+    if (!projectId) return;
+    const prevDueDate = dueDate;
+    setDueDate(null);
 
-      try {
-        if (taskId) {
-          const taskPayload: UpdateTaskPayload = {
-            due_date: null,
-          };
-          await updateTask({
-            projectId,
-            taskId,
-            payload: taskPayload,
-          }).unwrap();
-          refetchTask();
-        } else if (userStoryId) {
-          const userStoryPayload: UpdateUserStoryPayload = {
-            due_date: null,
-          };
-          await updateUserStory({
-            projectId,
-            userStoryId,
-            payload: userStoryPayload,
-          }).unwrap();
-          refetchUserStory();
-        }
-      } catch (error: any) {
-        setDueDate(prevDueDate);
-        const errorMessage =
-          error?.data?.message ||
-          error?.message ||
-          'Failed to update due date';
-        showSnackbar({
-          message: errorMessage,
-          type: 'error',
-        });
+    try {
+      if (taskId) {
+        const taskPayload: UpdateTaskPayload = {
+          due_date: null,
+        };
+        await updateTask({
+          projectId,
+          taskId,
+          payload: taskPayload,
+        }).unwrap();
+        refetchTask();
+      } else if (userStoryId) {
+        const userStoryPayload: UpdateUserStoryPayload = {
+          due_date: null,
+        };
+        await updateUserStory({
+          projectId,
+          userStoryId,
+          payload: userStoryPayload,
+        }).unwrap();
+        refetchUserStory();
       }
-    },
-    [
-      taskId,
-      userStoryId,
-      projectId,
-      dueDate,
-      updateTask,
-      updateUserStory,
-      refetchTask,
-      refetchUserStory,
-    ],
-  );
+    } catch (error: any) {
+      setDueDate(prevDueDate);
+      const errorMessage =
+        error?.data?.message || error?.message || 'Failed to update due date';
+      showSnackbar({
+        message: errorMessage,
+        type: 'error',
+      });
+    }
+  }, [
+    taskId,
+    userStoryId,
+    projectId,
+    dueDate,
+    updateTask,
+    updateUserStory,
+    refetchTask,
+    refetchUserStory,
+  ]);
 
   const handleSprintSelect = useCallback(
     async (selectedSprintItem: Sprint | null) => {
@@ -1146,14 +1178,7 @@ const IssueDetailScreen = () => {
         });
       }
     },
-    [
-      projectId,
-      taskId,
-      userStoryState,
-      sprint,
-      updateTask,
-      refetchTask,
-    ],
+    [projectId, taskId, userStoryState, sprint, updateTask, refetchTask],
   );
 
   // 1. Uploads file immediately upon selection and saves its URL to the item
@@ -1198,11 +1223,11 @@ const IssueDetailScreen = () => {
           prev.map(item =>
             item.id === file.id
               ? {
-                ...item,
-                id: attachment_id,
-                remoteUrl: uploadedUrl,
-                isUploading: false,
-              }
+                  ...item,
+                  id: attachment_id,
+                  remoteUrl: uploadedUrl,
+                  isUploading: false,
+                }
               : item,
           ),
         );
@@ -1233,8 +1258,9 @@ const IssueDetailScreen = () => {
       }
     });
 
-    const finalContent = `${rawText}${mediaHtml ? `<br/>${mediaHtml}` : ''
-      }`.trim();
+    const finalContent = `${rawText}${
+      mediaHtml ? `<br/>${mediaHtml}` : ''
+    }`.trim();
 
     if (!finalContent) {
       return;
@@ -1800,7 +1826,6 @@ const IssueDetailScreen = () => {
                 navigation={navigation}
                 meta={tasksMeta}
                 loading={tasksLoading}
-                loadingMore={tasksFetching}
                 userStoryId={userStoryId}
                 onTaskCreated={() => {
                   refetchTasks();

@@ -70,6 +70,7 @@ export interface CommentItem {
   user_name: string;
   full_name: string;
   email: string;
+  color: string;
   avatar_url: string | null;
   content: string;
   created_at: string;

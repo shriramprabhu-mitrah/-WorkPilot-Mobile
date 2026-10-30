@@ -29,6 +29,7 @@ interface DetailItem {
   value: string;
   initials?: string;
   color?: string;
+  imageUrl?: string | null;
   dot?: string;
   isLoading?: boolean;
 }
@@ -234,6 +235,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
                         size='small'
                         initials={item.initials}
                         color={item.color || colors.primary}
+                        imageUrl={item.imageUrl}
                       />
                     ) : (
                       <View
@@ -524,6 +526,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
                         size='small'
                         initials={item.initials}
                         color={item.color || colors.secondary}
+                        imageUrl={item.imageUrl}
                       />
                     ) : (
                       <View
@@ -928,10 +931,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
                 />
               </View>
             ) : isDueDateRow && isDueDateEditable ? (
-              <View
-                className='items-end'
-                style={{ width: CONTROL_WIDTH }}
-              >
+              <View className='items-end' style={{ width: CONTROL_WIDTH }}>
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={onDueDatePress}
@@ -989,10 +989,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
                 </AppText>
               </View>
             ) : isSprintRow && isSprintEditable ? (
-              <View
-                className='items-end'
-                style={{ width: CONTROL_WIDTH }}
-              >
+              <View className='items-end' style={{ width: CONTROL_WIDTH }}>
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={onSprintPress}
@@ -1044,10 +1041,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
                 </AppText>
               </View>
             ) : isUserStoryRow && isUserStoryEditable ? (
-              <View
-                className='items-end'
-                style={{ width: CONTROL_WIDTH }}
-              >
+              <View className='items-end' style={{ width: CONTROL_WIDTH }}>
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={onUserStoryPress}
@@ -1107,6 +1101,7 @@ export const IssueMetaDetails: React.FC<Props> = ({
                   size='small'
                   initials={item.initials}
                   color={item.color || colors.primary}
+                  imageUrl={item.imageUrl}
                 />
                 <AppText variant='body' color={colors.text} numberOfLines={1}>
                   {item.value}

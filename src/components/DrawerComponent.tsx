@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, Image } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import {
   DrawerContentScrollView,
   DrawerContentComponentProps,
@@ -12,7 +12,7 @@ import AppText from '../components/common/AppText';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { useAppDispatch, useAppSelector } from '../store';
-import { Radius } from '../constants/Radius';
+import Avatar from './Avatar';
 import Screen from './common/ScreenWapper';
 import { ProjectListBottomSheet } from './common/ProjectBottomSheet';
 // import {
@@ -187,37 +187,20 @@ export const CustomDrawerContent: React.FC<
       >
         <TouchableOpacity activeOpacity={0.8}>
           {/* Avatar Circle */}
-          <View
-            style={{
-              width: moderateScale(48),
-              height: moderateScale(48),
-              borderRadius: Radius.circle,
-              backgroundColor: colors.accentOrange,
-            }}
-            className='mb-3 items-center justify-center overflow-hidden'
-          >
-            {user?.avatar_url ? (
-              <Image
-                source={{ uri: user.avatar_url }}
-                className='h-full w-full'
-                resizeMode='cover'
-              />
-            ) : (
-              <AppText
-                style={{
-                  fontSize: moderateScale(18),
-                  color: colors.white,
-                }}
-                className='font-bold'
-              >
-                {user?.name
+          <View className='mb-3'>
+            <Avatar
+              dimension={moderateScale(48)}
+              initials={
+                user?.name
                   ?.split(' ')
                   .map(word => word[0])
                   .join('')
                   .substring(0, 2)
-                  .toUpperCase() || 'JD'}
-              </AppText>
-            )}
+                  .toUpperCase() || 'JD'
+              }
+              color={colors.accentOrange}
+              imageUrl={user?.avatar_url}
+            />
           </View>
 
           {/* Name & Email */}

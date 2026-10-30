@@ -52,6 +52,11 @@ export type RootStackParamList = {
   Create: undefined;
   loginScreen: undefined;
   Favorites: undefined;
+  TaskList: {
+    projectId: string;
+    userStoryId: string;
+    userStoryTitle?: string;
+  };
   UpcomingDeadlines: undefined;
   Organization: undefined;
   OrganizationDetails: undefined;

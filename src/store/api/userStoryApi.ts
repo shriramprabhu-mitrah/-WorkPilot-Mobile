@@ -16,6 +16,7 @@ import {
   TASKATTACHMENT,
   DELETETASKATTACHMENT,
   UPDATE_TASKS,
+  DELETE_TASK,
   CREATE_USERSTORY,
   DELETE_USERSTORY,
 } from '../../constants/apiServiceEndpoint';
@@ -77,6 +78,7 @@ import {
   GetTasksResponse,
   UpdateTaskPayload,
   UpdateTaskResponse,
+  DeleteTaskResponse,
   CreateTaskPayload,
   CreateTaskResponse,
 } from '../../types/task.type';
@@ -255,13 +257,17 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
         currentCache.meta = newItems.meta;
       },
       forceRefetch({ currentArg, previousArg }) {
+        if (!currentArg || !previousArg) return false;
+        const currentFilters = { ...currentArg };
+        const previousFilters = { ...previousArg };
+        delete currentFilters.page;
+        delete currentFilters._refetchKey;
+        delete previousFilters.page;
+        delete previousFilters._refetchKey;
         return (
-          currentArg?.page !== previousArg?.page ||
-          currentArg?.sprint_id !== previousArg?.sprint_id ||
-          currentArg?.user_story_id !== previousArg?.user_story_id ||
-          currentArg?.unassigned_task !== previousArg?.unassigned_task ||
-          currentArg?.storyless_task !== previousArg?.storyless_task ||
-          currentArg?._refetchKey !== previousArg?._refetchKey
+          currentArg.page !== previousArg.page ||
+          currentArg._refetchKey !== previousArg._refetchKey ||
+          JSON.stringify(currentFilters) !== JSON.stringify(previousFilters)
         );
       },
       providesTags: (
@@ -369,6 +375,33 @@ export const userStoryApi = userStoryApiWithTags.injectEndpoints({
       invalidatesTags: (_result, _error, { projectId, taskId }) => [
         { type: 'TaskDetail', id: `${projectId}_${taskId}` },
         { type: 'Tasks' },
+        { type: 'Board', id: `${projectId}_STORIES` },
+        { type: 'Board' },
+      ],
+    }),
+
+    deleteTask: build.mutation<
+      DeleteTaskResponse,
+      { projectId: string; taskIds: string[]; userStoryId?: string }
+    >({
+      query: ({ projectId, taskIds }) => ({
+        url: DELETE_TASK.replace('{project_id}', projectId),
+        method: 'DELETE',
+        data: { task_ids: taskIds },
+      }),
+      invalidatesTags: (
+        _result,
+        _error,
+        { projectId, taskIds, userStoryId },
+      ) => [
+        ...taskIds.map(taskId => ({
+          type: 'TaskDetail' as const,
+          id: `${projectId}_${taskId}`,
+        })),
+        {
+          type: 'Tasks',
+          id: `${projectId}_${userStoryId ?? 'all'}`,
+        },
         { type: 'Board', id: `${projectId}_STORIES` },
         { type: 'Board' },
       ],
@@ -587,6 +620,7 @@ export const {
   useUpdateUserStoryMutation,
   useDeleteUserStoryMutation,
   useUpdateTaskMutation,
+  useDeleteTaskMutation,
   useCreateTaskMutation,
   useGetTaskByIdQuery,
   useGetUserStoryCommentsQuery,
@@ -595,6 +629,7 @@ export const {
   useGetTaskCommentRepliesQuery,
   useLazyGetUserStoryCommentRepliesQuery,
   useLazyGetTaskCommentRepliesQuery,
+  useLazyGetTasksQuery,
   useGetTasksQuery,
   useGetUserStoryAttachmentsQuery,
   useGetTaskAttachmentsQuery,

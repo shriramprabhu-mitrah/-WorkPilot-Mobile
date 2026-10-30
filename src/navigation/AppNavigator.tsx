@@ -42,6 +42,7 @@ import ProjectStatus from '../screens/projectScreens/projectStatus.tsx';
 import CalendarScreen from '../screens/Calendarscreen.tsx';
 import SprintDetailsScreen from '../screens/SprintDetailsScreen.tsx';
 import UserDetailsScreen from '../screens/userDetailsScreen';
+import TaskListScreen from '../screens/TaskListScreen';
 // import CreateScreen from '../screens/Create';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -157,6 +158,7 @@ const AppNavigator = () => {
             <Stack.Screen name='QuickAccess' component={QuickAccessScreen} />
             <Stack.Screen name='Search' component={SearchScreen} />
             <Stack.Screen name='Favorites' component={Favorites} />
+            <Stack.Screen name='TaskList' component={TaskListScreen} />
             <Stack.Screen name='Calendar' component={CalendarScreen} />
             <Stack.Screen name='Organization' component={Organization} />
             <Stack.Screen

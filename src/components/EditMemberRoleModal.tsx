@@ -5,13 +5,12 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthLayout } from '../hooks/useAuthLayout';
-import { Radius } from '../constants/Radius';
+import Avatar from './Avatar';
 import { ProjectMember } from '../types/project.type';
 import { RoleApiItem } from '../types/auth.type';
 import CustomDropdown, { DropdownItem } from './CustomDropdown';
@@ -136,31 +135,12 @@ const EditMemberRoleModal: React.FC<EditMemberRoleModalProps> = ({
                 }}
               >
                 {/* Avatar */}
-                <View
-                  className='items-center justify-center overflow-hidden'
-                  style={{
-                    width: moderateScale(42),
-                    height: moderateScale(42),
-                    backgroundColor: member.color || colors.primary,
-                    borderRadius: Radius.circle,
-                  }}
-                >
-                  {member.avatar_url ? (
-                    <Image
-                      source={{ uri: member.avatar_url }}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode='cover'
-                    />
-                  ) : (
-                    <AppText
-                      variant='body'
-                      className='font-bold'
-                      color={colors.white}
-                    >
-                      {initials || '?'}
-                    </AppText>
-                  )}
-                </View>
+                <Avatar
+                  dimension={moderateScale(42)}
+                  initials={initials || '?'}
+                  color={member.color || colors.primary}
+                  imageUrl={member.avatar_url}
+                />
 
                 {/* Info */}
                 <View className='flex-1' style={{ gap: 2 }}>

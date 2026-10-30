@@ -5,12 +5,12 @@ import {
   TouchableOpacity,
   Pressable,
   ScrollView,
-  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
 import AppInput from './common/Input/AppInput';
+import Avatar from './Avatar';
 import { useTheme } from '../hooks/useTheme';
 import { moderateScale } from '../utils/responsive';
 import { useAuthLayout } from '../hooks/useAuthLayout';
@@ -137,36 +137,29 @@ const FilterOptionRow = ({
       style={{
         width: 18,
         height: 18,
-        borderColor: isChecked ? colors.primary : colors.black + '50',
+        borderColor: isChecked ? colors.primary : 'transparent',
         backgroundColor: isChecked ? colors.primary : 'transparent',
       }}
     >
-      {isChecked && <Ionicons name='checkmark' size={12} color='#FFFFFF' />}
+      {isChecked ? (
+        <Ionicons name='checkmark' size={12} color='#FFFFFF' />
+      ) : (
+        <Ionicons
+          name='checkbox-outline'
+          size={18}
+          color={colors.placeholder}
+        />
+      )}
     </View>
 
     {showAvatar && (item.avatarUrl || item.avatarChar) && (
-      <View
-        className='mr-2 items-center justify-center rounded-full'
-        style={{
-          width: 22,
-          height: 22,
-          backgroundColor: item.color || colors.primary,
-        }}
-      >
-        {item.avatarUrl ? (
-          <Image
-            source={{ uri: item.avatarUrl }}
-            style={{ width: 22, height: 22, borderRadius: 11 }}
-          />
-        ) : (
-          <AppText
-            variant='caption'
-            color={colors.white}
-            style={{ fontSize: 10, fontWeight: 'bold' }}
-          >
-            {item.avatarChar}
-          </AppText>
-        )}
+      <View className='mr-2'>
+        <Avatar
+          dimension={22}
+          initials={item.avatarChar}
+          color={item.color || colors.primary}
+          imageUrl={item.avatarUrl}
+        />
       </View>
     )}
 

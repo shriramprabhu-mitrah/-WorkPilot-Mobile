@@ -23,7 +23,7 @@ export const SearchUserStoryCard = React.memo<SearchUserStoryCardProps>(
     const { colors } = useTheme();
     const { moderateScale } = useAuthLayout();
 
-    const statusColor = getStatusThemeColor(item.status, colors);
+    const statusColor = item.color ?? getStatusThemeColor(item.status, colors);
     const priorityColor = getPriorityThemeColor(item.priority, colors);
 
     return (

@@ -255,7 +255,8 @@ export const homeApi = createApi({
         params,
       }),
       // Cache key based on endpoint name only, ignoring pagination params
-      serializeQueryArgs: ({ endpointName }) => endpointName,
+      serializeQueryArgs: ({ endpointName, queryArgs }) =>
+        `${endpointName}-${queryArgs.search ?? ''}`,
       // Merge paginated responses
       merge(currentCache, newItems, { arg }) {
         if (arg.page === 1 || !currentCache?.data?.favorites) {
@@ -275,6 +276,7 @@ export const homeApi = createApi({
       forceRefetch({ currentArg, previousArg }) {
         return (
           currentArg?.page !== previousArg?.page ||
+          currentArg?.search !== previousArg?.search ||
           currentArg?._refetchKey !== previousArg?._refetchKey
         );
       },

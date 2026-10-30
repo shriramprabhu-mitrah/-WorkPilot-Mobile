@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import {
   FlatList,
-  Image,
   Modal,
   StyleSheet,
   TouchableOpacity,
@@ -24,6 +23,7 @@ import { AppText } from '../components';
 import { Radius } from '../constants/Radius';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { useTheme } from '../hooks/useTheme';
+import Avatar from '../components/Avatar';
 import {
   useGetOrganizationMembersQuery,
   useRemoveOrganizationMemberMutation,
@@ -495,35 +495,12 @@ const OrganizationMembers = () => {
                     className='flex-row items-center'
                     style={{ gap: layout.elementGap }}
                   >
-                    {item.avatar_url ? (
-                      <Image
-                        source={{ uri: item.avatar_url }}
-                        style={{
-                          width: moderateScale(44),
-                          height: moderateScale(44),
-                          borderRadius: moderateScale(12),
-                        }}
-                        resizeMode='cover'
-                      />
-                    ) : (
-                      <View
-                        className='items-center justify-center overflow-hidden'
-                        style={{
-                          width: moderateScale(44),
-                          height: moderateScale(44),
-                          backgroundColor: item?.color || colors.primary,
-                          borderRadius: moderateScale(12),
-                        }}
-                      >
-                        <AppText
-                          variant='body'
-                          className='font-bold'
-                          color={colors.white}
-                        >
-                          {initials}
-                        </AppText>
-                      </View>
-                    )}
+                    <Avatar
+                      dimension={moderateScale(44)}
+                      initials={initials}
+                      color={item?.color || colors.primary}
+                      imageUrl={item.avatar_url}
+                    />
 
                     <View className='flex-1' style={{ gap: 2 }}>
                       <AppText

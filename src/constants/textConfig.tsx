@@ -21,9 +21,9 @@ const Strings = {
 
   signUp: {
     headerTitle: 'Create your account',
-    headerSubtitle: 'Join millions of teams on Jira',
+    headerSubtitle: 'Join millions of teams on WorkPilot',
     title: 'Create your account',
-    subtitle: 'Join millions of teams using Jira.',
+    subtitle: 'Join millions of teams using WorkPilot.',
     fullNameLabel: 'Full Name',
     fullNamePlaceholder: 'Your full name',
     workEmailLabel: 'Work Email',

@@ -1,12 +1,8 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState } from 'react';
+import { View, TouchableOpacity, FlatList } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AppText from './common/AppText';
+import Avatar from './Avatar';
 import { useAuthLayout } from '../hooks/useAuthLayout';
 import { getPriorityThemeColor } from '../utils/enum';
 import { ThemeColors } from '../constants/Colors';
@@ -24,7 +20,6 @@ interface Props {
   navigation: any;
   meta?: TaskMeta | null;
   loading?: boolean;
-  loadingMore?: boolean;
   userStoryId?: string;
   onAddTask?: () => void;
   onTaskCreated?: () => void;
@@ -38,7 +33,6 @@ export const IssueChildTasksSection: React.FC<Props> = ({
   navigation,
   meta,
   loading = false,
-  loadingMore = false,
   userStoryId,
   onAddTask,
   onTaskCreated,
@@ -46,11 +40,8 @@ export const IssueChildTasksSection: React.FC<Props> = ({
 }) => {
   const dispatch = useAppDispatch();
   const { layout } = useAuthLayout();
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
-  const lastRequestedPageRef = useRef(1);
   const taskCount = meta?.total_items ?? tasks.length;
-  const visibleTasks = isExpanded ? tasks : tasks.slice(0, 4);
 
   const handlePressAdd = () => {
     if (onAddTask) {
@@ -61,13 +52,12 @@ export const IssueChildTasksSection: React.FC<Props> = ({
   };
 
   const handleTaskCreated = () => {
-    lastRequestedPageRef.current = 1;
     if (projectId && userStoryId) {
       dispatch(
         getTasks({
           projectId,
           page: 1,
-          page_size: meta?.page_size || 8,
+          page_size: 4,
           user_story_id: userStoryId,
         }),
       );
@@ -131,18 +121,21 @@ export const IssueChildTasksSection: React.FC<Props> = ({
           </View>
         </View>
         <View className='flex-row items-center' style={{ flex: 1, gap: 8 }}>
-          <View
-            className='h-7 w-7 items-center justify-center rounded-full'
-            style={{ backgroundColor: colors.primary || '#0066FF' }}
-          >
-            <AppText
-              variant='caption'
-              color={colors.white}
-              className='text-xs font-bold'
+          {item.assignee_name ? (
+            <Avatar
+              dimension={28}
+              initials={avatarLetter}
+              color={colors.primary || '#0066FF'}
+              imageUrl={item.assignee?.avatar_url}
+            />
+          ) : (
+            <View
+              className='h-7 w-7 items-center justify-center rounded-full'
+              style={{ backgroundColor: colors.primary || '#0066FF' }}
             >
-              {avatarLetter}
-            </AppText>
-          </View>
+              <Ionicons name='person' size={14} color={colors.white} />
+            </View>
+          )}
           <AppText
             variant='caption'
             color={colors.textSecondary}
@@ -189,44 +182,6 @@ export const IssueChildTasksSection: React.FC<Props> = ({
       </View>
     </View>
   );
-
-  const renderFooter = () => {
-    if (!loadingMore) {
-      return null;
-    }
-    return <TaskRowsSkeleton taskCount={1} />;
-  };
-
-  const handleEndReached = () => {
-    const hasNext =
-      meta?.has_next !== undefined
-        ? meta.has_next
-        : meta?.total_pages !== undefined
-          ? (meta.page || 1) < meta.total_pages
-          : tasks.length >= (meta?.page_size || 8);
-
-    if (
-      !loadingMore &&
-      !loading &&
-      hasNext &&
-      projectId &&
-      userStoryId &&
-      tasks.length > 0
-    ) {
-      const nextPage = (meta?.page || 1) + 1;
-      if (lastRequestedPageRef.current === nextPage) return;
-      lastRequestedPageRef.current = nextPage;
-
-      dispatch(
-        getTasks({
-          projectId,
-          page: nextPage,
-          page_size: meta?.page_size || 8,
-          user_story_id: userStoryId,
-        }),
-      );
-    }
-  };
 
   if (!loading && tasks.length === 0) {
     return (
@@ -283,9 +238,14 @@ export const IssueChildTasksSection: React.FC<Props> = ({
           Tasks ({taskCount})
         </AppText>
         <View className='flex-row items-center' style={{ gap: 12 }}>
-          {tasks.length > 4 && (
+          {taskCount > 4 && projectId && userStoryId && (
             <TouchableOpacity
-              onPress={() => setIsExpanded(prev => !prev)}
+              onPress={() =>
+                navigation.navigate('TaskList', {
+                  projectId,
+                  userStoryId,
+                })
+              }
               activeOpacity={0.7}
             >
               <AppText
@@ -293,7 +253,7 @@ export const IssueChildTasksSection: React.FC<Props> = ({
                 color={colors.primary}
                 className='font-semibold'
               >
-                {isExpanded ? 'View less' : 'View more'}
+                View more
               </AppText>
             </TouchableOpacity>
           )}
@@ -317,23 +277,9 @@ export const IssueChildTasksSection: React.FC<Props> = ({
         <AppText variant='body' color={colors.textSecondary} className='py-3'>
           No child tickets.
         </AppText>
-      ) : isExpanded ? (
-        <View style={{ maxHeight: 320 }}>
-          <FlatList
-            data={tasks}
-            renderItem={renderTaskRow}
-            keyExtractor={item => item.id}
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={true}
-            persistentScrollbar={true}
-            onEndReached={handleEndReached}
-            onEndReachedThreshold={2.5}
-            ListFooterComponent={renderFooter}
-          />
-        </View>
       ) : (
         <FlatList
-          data={visibleTasks}
+          data={tasks.slice(0, 4)}
           renderItem={renderTaskRow}
           keyExtractor={item => item.id}
           scrollEnabled={false}

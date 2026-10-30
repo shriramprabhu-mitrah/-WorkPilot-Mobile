@@ -1,11 +1,12 @@
 import React, { useRef } from 'react';
-import { View, TouchableOpacity, Image } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import AppText from '../../common/AppText';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAuthLayout } from '../../../hooks/useAuthLayout';
 import { SearchItem } from '../../../types/home.type';
 import { Radius } from '../../../constants/Radius';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import Avatar from '../../Avatar';
 
 interface SearchMemberCardProps {
   item: SearchItem;
@@ -64,37 +65,13 @@ export const SearchMemberCard = React.memo<SearchMemberCardProps>(
       >
         <View className='flex-row items-center'>
           {/* Avatar */}
-          <View
-            ref={avatarRef}
-            className='items-center justify-center overflow-hidden'
-            style={{
-              width: moderateScale(48),
-              height: moderateScale(48),
-              borderRadius: Radius.circle,
-              backgroundColor: avatarBg,
-            }}
-          >
-            {item.avatar_url ? (
-              <Image
-                source={{ uri: item.avatar_url }}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                }}
-                resizeMode='cover'
-              />
-            ) : (
-              <AppText
-                variant='body'
-                className='font-bold'
-                style={{
-                  fontSize: moderateScale(18),
-                  color: colors.white,
-                }}
-              >
-                {initials}
-              </AppText>
-            )}
+          <View ref={avatarRef}>
+            <Avatar
+              dimension={moderateScale(48)}
+              initials={initials}
+              color={avatarBg}
+              imageUrl={item.avatar_url}
+            />
           </View>
 
           {/* Member Details */}

@@ -20,6 +20,13 @@ export interface UpdateTaskResponse {
   data: Task;
 }
 
+export interface DeleteTaskResponse {
+  success: boolean;
+  status_code: number;
+  message: string;
+  data: string;
+}
+
 export interface CreateTaskPayload {
   title: string;
   type?: string;

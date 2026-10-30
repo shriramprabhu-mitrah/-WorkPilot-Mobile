@@ -1,9 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  FlatList,
-} from 'react-native';
+import { View, TouchableOpacity, FlatList } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigationTypes';
@@ -19,7 +15,7 @@ import { Activity } from '../types/home.type';
 import { formatAction, formatDate, getInitials } from '../utils/utils';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
-import { Image } from 'react-native';
+import Avatar from '../components/Avatar';
 
 const ActivityListScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -27,7 +23,7 @@ const ActivityListScreen = () => {
   const { layout, moderateScale, hp, isSmallHeight } = useAuthLayout();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector(state => state.auth);
-  
+
   const {
     activities,
     user: homeUser,
@@ -156,36 +152,12 @@ const ActivityListScreen = () => {
       >
         <View className='flex-row items-center'>
           <View className='relative mr-3.5 self-center'>
-            {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
-                style={{
-                  width: moderateScale(40),
-                  height: moderateScale(40),
-                  borderRadius: moderateScale(20),
-                }}
-                resizeMode='cover'
-              />
-            ) : (
-              <View
-                className='items-center justify-center rounded-full'
-                style={{
-                  width: moderateScale(40),
-                  height: moderateScale(40),
-                  backgroundColor: colors.accentOrange || '#E03E15',
-                }}
-              >
-                <AppText
-                  className='font-bold'
-                  style={{
-                    fontSize: moderateScale(15),
-                    color: colors.white,
-                  }}
-                >
-                  {userInitials}
-                </AppText>
-              </View>
-            )}
+            <Avatar
+              dimension={moderateScale(40)}
+              initials={userInitials}
+              color={colors.accentOrange || '#E03E15'}
+              imageUrl={avatarUrl}
+            />
             <View
               style={{
                 position: 'absolute',

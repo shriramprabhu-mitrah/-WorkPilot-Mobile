@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, TouchableOpacity, FlatList, Image } from 'react-native';
+import { View, TouchableOpacity, FlatList } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -12,6 +12,7 @@ import { getAllProjectInfo } from '../store/project_store/action/project_thunk';
 import Screen from '../components/common/ScreenWapper';
 import { Radius } from '../constants/Radius';
 import { moderateScale } from '../utils/responsive';
+import Avatar from '../components/Avatar';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
@@ -59,52 +60,20 @@ const ProjectScreen = () => {
           paddingVertical: moderateScale(10),
         }}
       >
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Profile')}
-          className='items-center justify-center rounded-full'
-          style={{
-            width: moderateScale(40),
-            height: moderateScale(40),
-            borderRadius: Radius.circle,
-          }}
-        >
-          {user?.avatar_url ? (
-            <Image
-              source={{ uri: user.avatar_url }}
-              style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: moderateScale(26),
-              }}
-              resizeMode='cover'
-            />
-          ) : (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Profile')}
-              className='items-center justify-center'
-              style={{
-                width: moderateScale(40),
-                height: moderateScale(40),
-                backgroundColor: colors.accentOrange,
-                borderRadius: Radius.circle,
-              }}
-            >
-              <AppText
-                style={{
-                  fontSize: moderateScale(18),
-                  fontWeight: 'bold',
-                  color: colors.white,
-                }}
-              >
-                {user?.name
-                  ?.split(' ')
-                  .map(word => word[0])
-                  .join('')
-                  .substring(0, 2)
-                  .toUpperCase() || 'U'}
-              </AppText>
-            </TouchableOpacity>
-          )}
+        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+          <Avatar
+            dimension={moderateScale(40)}
+            initials={
+              user?.name
+                ?.split(' ')
+                .map(word => word[0])
+                .join('')
+                .substring(0, 2)
+                .toUpperCase() || 'U'
+            }
+            color={colors.accentOrange}
+            imageUrl={user?.avatar_url}
+          />
         </TouchableOpacity>
         <AppText
           variant='title'
