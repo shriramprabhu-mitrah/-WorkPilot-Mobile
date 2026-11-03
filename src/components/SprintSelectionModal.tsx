@@ -16,6 +16,7 @@ import { useAuthLayout } from '../hooks/useAuthLayout';
 import { Radius } from '../constants/Radius';
 import { ThemeColors } from '../constants/Colors';
 import { Sprint } from '../types/project.type';
+import { formatDate } from '../utils/utils';
 
 interface SprintSelectionModalProps {
   visible: boolean;
@@ -26,21 +27,6 @@ interface SprintSelectionModalProps {
   isLoading?: boolean;
   colors: ThemeColors;
 }
-
-const formatSprintDate = (dStr?: string) => {
-  if (!dStr) return '';
-  try {
-    const d = new Date(dStr);
-    if (isNaN(d.getTime())) return dStr;
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return dStr;
-  }
-};
 
 export const SprintSelectionModal: React.FC<SprintSelectionModalProps> = ({
   visible,
@@ -73,7 +59,8 @@ export const SprintSelectionModal: React.FC<SprintSelectionModalProps> = ({
 
   const getStatusColor = (status?: string) => {
     const st = (status || '').toLowerCase();
-    if (st === 'active' || st === 'in_progress') return colors.success || '#10B981';
+    if (st === 'active' || st === 'in_progress')
+      return colors.success || '#10B981';
     if (st === 'completed' || st === 'closed') return colors.textSecondary;
     return colors.primary;
   };
@@ -183,9 +170,14 @@ export const SprintSelectionModal: React.FC<SprintSelectionModalProps> = ({
                       activeOpacity={0.7}
                       onPress={() => handleSelect(null)}
                       className='flex-row items-center justify-between border-b py-3.5'
-                      style={{ borderColor: colors.itemDivider || colors.border }}
+                      style={{
+                        borderColor: colors.itemDivider || colors.border,
+                      }}
                     >
-                      <View className='flex-row items-center' style={{ gap: 10 }}>
+                      <View
+                        className='flex-row items-center'
+                        style={{ gap: 10 }}
+                      >
                         <View
                           className='items-center justify-center rounded-lg border'
                           style={{
@@ -235,8 +227,12 @@ export const SprintSelectionModal: React.FC<SprintSelectionModalProps> = ({
                 renderItem={({ item }) => {
                   const isSelected = selectedSprintId === item.id;
                   const statusColor = getStatusColor(item.status);
-                  const startDateStr = formatSprintDate(item.start_date);
-                  const endDateStr = formatSprintDate(item.end_date);
+                  const startDateStr = item.start_date
+                    ? formatDate(item.start_date, { includeTime: false })
+                    : '';
+                  const endDateStr = item.end_date
+                    ? formatDate(item.end_date, { includeTime: false })
+                    : '';
                   const dateText =
                     startDateStr && endDateStr
                       ? `${startDateStr} - ${endDateStr}`
@@ -333,7 +329,9 @@ export const SprintSelectionModal: React.FC<SprintSelectionModalProps> = ({
                       style={{ opacity: 0.5, marginBottom: 8 }}
                     />
                     <AppText variant='caption' color={colors.textSecondary}>
-                      {search ? 'No sprints matching search' : 'No sprints found'}
+                      {search
+                        ? 'No sprints matching search'
+                        : 'No sprints found'}
                     </AppText>
                   </View>
                 }
@@ -345,4 +343,3 @@ export const SprintSelectionModal: React.FC<SprintSelectionModalProps> = ({
     </Modal>
   );
 };
-

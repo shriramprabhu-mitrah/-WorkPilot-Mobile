@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -26,6 +26,11 @@ import { RootStackParamList } from '../../types/navigationTypes';
 import { Radius } from '../../constants/Radius';
 import DeleteColumnModal from '../../components/DeleteColumnModal';
 import { usePermissions } from '../../hooks/usePermissions';
+import {
+  RichEditor,
+  RichToolbar,
+  actions,
+} from 'react-native-pell-rich-editor';
 
 interface UpdateProjectDetailsProps {
   initialProjectName?: string;
@@ -65,6 +70,22 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const descriptionEditorRef = useRef<RichEditor>(null);
+  const descriptionToolbarActions = [
+    actions.setBold,
+    actions.setItalic,
+    actions.setUnderline,
+    actions.heading1,
+    actions.insertBulletsList,
+    actions.insertOrderedList,
+    actions.insertLink,
+    actions.alignLeft,
+    actions.alignCenter,
+    actions.alignRight,
+    actions.removeFormat,
+    actions.undo,
+    actions.redo,
+  ];
 
   const [updateProjectMutation, { isLoading }] = useUpdateProjectMutation();
   const [deleteProjectMutation] = useDeleteProjectMutation();
@@ -76,6 +97,10 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
     }
     if (project?.description) {
       setDescription(project.description);
+      descriptionEditorRef.current?.setContentHTML(project.description);
+    } else if (project) {
+      setDescription('');
+      descriptionEditorRef.current?.setContentHTML('');
     }
     if (project?.status) {
       setStatus(getValidStatus(project.status));
@@ -233,22 +258,70 @@ export const UpdateProjectDetails: React.FC<UpdateProjectDetailsProps> = ({
             />
           }
         />
-        <AppInput
-          label='Description'
-          placeholder='Enter project description...'
-          disabled={!canEditProject}
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={5}
-          leftIcon={
-            <Ionicons
-              name='document-text-outline'
-              size={20}
-              color={colors.textSecondary}
+        <View>
+          <AppText
+            variant='body'
+            style={{
+              marginBottom: hp(0.8),
+              fontSize: layout.bodyFontSize,
+            }}
+          >
+            Description
+          </AppText>
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: Radius.md,
+              backgroundColor: colors.surface,
+              overflow: 'hidden',
+              opacity: canEditProject ? 1 : 0.7,
+            }}
+          >
+            {canEditProject && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps='always'
+                contentContainerStyle={{ alignItems: 'center' }}
+                style={{
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border,
+                }}
+              >
+                <RichToolbar
+                  editor={descriptionEditorRef}
+                  getEditor={() => descriptionEditorRef.current}
+                  actions={descriptionToolbarActions}
+                  iconTint={colors.textSecondary}
+                  selectedIconTint={colors.primary}
+                  style={{
+                    backgroundColor: 'transparent',
+                    minHeight: 40,
+                  }}
+                />
+              </ScrollView>
+            )}
+            <RichEditor
+              ref={descriptionEditorRef}
+              initialContentHTML={description}
+              placeholder='Enter project description...'
+              onChange={setDescription}
+              useContainer
+              disabled={!canEditProject}
+              style={{
+                minHeight: moderateScale(120),
+                maxHeight: moderateScale(220),
+              }}
+              editorStyle={{
+                backgroundColor: colors.surface,
+                color: colors.text,
+                placeholderColor: colors.placeholder || colors.textSecondary,
+                contentCSSText: `font-size: ${layout.bodyFontSize}px; padding: 10px;`,
+              }}
             />
-          }
-        />
+          </View>
+        </View>
         <View>
           <AppText
             variant='body'

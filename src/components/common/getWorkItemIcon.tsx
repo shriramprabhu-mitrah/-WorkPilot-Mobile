@@ -156,6 +156,10 @@ export const WorkItemIcon: React.FC<WorkItemIconProps> = ({
           color={color || colors?.primary}
         />
       );
+    case 'flame':
+      return (
+        <Ionicons name='flame' size={size} color={color || colors.error} />
+      );
 
     default:
       return (
