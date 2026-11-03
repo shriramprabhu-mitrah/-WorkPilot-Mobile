@@ -176,12 +176,18 @@ const ProfileScreen = () => {
   const handleActivityNavigation = (item: Activity) => {
     const resourceType = item?.resource_type?.toLowerCase();
 
-    if (resourceType === 'project' || resourceType === 'sprint') {
+    if (resourceType === 'project') {
       const projectId = item?.project_id?.toString() || item?.id?.toString();
       if (!projectId) return;
       navigation.navigate('projectDetails', {
         projectId,
         projectName: item?.project_name || '',
+      });
+    } else if (resourceType === 'sprint') {
+      navigation.navigate('SprintDetails', {
+        sprintId: item?.resource_id,
+        sprintName: item?.title,
+        projectId: item?.project_id,
       });
     } else if (resourceType === 'user_story' || resourceType === 'userstory') {
       navigation.navigate('issue', {

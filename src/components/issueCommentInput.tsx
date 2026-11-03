@@ -42,6 +42,7 @@ import { ThemeColors } from '../constants/Colors';
 export interface IssueCommentInputRef {
   dismissFocus: () => void;
   focus: () => void;
+  clear: () => void;
 }
 
 interface Props {
@@ -322,10 +323,15 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
       setIsFocused(true);
     };
 
+    const clear = () => {
+      editorRef.current?.setContentHTML('');
+    };
+
     // Expose methods to parent component ref
     useImperativeHandle(ref, () => ({
       dismissFocus: handleDismissFocus,
       focus: handleFocus,
+      clear,
     }));
 
     // Ensure keyboard and focus are explicitly dismissed on unmount
@@ -337,14 +343,12 @@ export const IssueCommentInput = forwardRef<IssueCommentInputRef, Props>(
 
     // Sync state changes directly with RichEditor HTML
     useEffect(() => {
-      if (editorRef.current) {
-        if (!comment) {
-          editorRef.current.setContentHTML('');
-        } else if (editingCommentId) {
-          editorRef.current.setContentHTML(comment);
-        }
+      if (editingCommentId) {
+        editorRef.current?.setContentHTML(comment || '');
+      } else {
+        editorRef.current?.setContentHTML('');
       }
-    }, [comment, editingCommentId]);
+    }, [editingCommentId]);
 
     // Strip HTML tags to check if comment has non-whitespace text
     const isCommentEmpty =

@@ -40,6 +40,7 @@ import {
 import { skipToken } from '@reduxjs/toolkit/query';
 import AttachmentsSkeleton from './skeleton/issueDetailSkeleton';
 import { moderateScale } from '../utils/responsive';
+import { formatDate } from '../utils/utils';
 
 const { DownloadModule } = NativeModules;
 
@@ -77,19 +78,6 @@ const formatFileSize = (bytes?: number): string => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-const formatDate = (isoString?: string): string => {
-  if (!isoString) return '';
-  try {
-    return new Date(isoString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return '';
-  }
 };
 
 export const IssueAttachments: React.FC<Props> = ({
@@ -133,7 +121,9 @@ export const IssueAttachments: React.FC<Props> = ({
     isFetching: userStoryAttachmentsFetching,
     refetch: refetchUserStoryAttachments,
   } = useGetUserStoryAttachmentsQuery(
-    userStoryId && projectId ? { projectId, userStoryId } : skipToken,
+    !isTask && userStoryId && projectId
+      ? { projectId, userStoryId }
+      : skipToken,
   );
 
   const {
@@ -142,7 +132,7 @@ export const IssueAttachments: React.FC<Props> = ({
     isFetching: taskAttachmentsFetching,
     refetch: refetchTaskAttachments,
   } = useGetTaskAttachmentsQuery(
-    taskId && projectId ? { projectId, taskId } : skipToken,
+    isTask && taskId && projectId ? { projectId, taskId } : skipToken,
   );
 
   const userStoryAttachments = userStoryAttachmentsResponse ?? [];

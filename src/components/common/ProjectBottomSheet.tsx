@@ -36,6 +36,7 @@ import CustomSnackbar, { SnackbarType } from './Snackbar/CustomSnackbar';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../types/navigationTypes';
 import { renderParsedHtml } from '../../utils/htmlParser';
+import { formatDate } from '../../utils/utils';
 import usePermissions from '../../hooks/usePermissions';
 
 export interface ProjectListBottomSheetProps {
@@ -50,21 +51,6 @@ export interface ProjectListBottomSheetProps {
   hasMore?: boolean;
   isFetchingMore?: boolean;
 }
-
-const formatDate = (dateString?: string) => {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return dateString;
-  }
-};
 
 export const ProjectListBottomSheet: React.FC<ProjectListBottomSheetProps> = ({
   visible,

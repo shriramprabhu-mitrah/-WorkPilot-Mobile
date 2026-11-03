@@ -39,6 +39,8 @@ export interface CreateTaskPayload {
   actual_hours?: number;
   story_points?: number;
   user_story_id?: string;
+  sprint_id?: string;
+  storyless?: boolean;
 }
 
 export interface CreateTaskResponse {
@@ -67,6 +69,7 @@ export interface GetTasksParams {
   assignee_id?: string;
   reporter_id?: string;
   sprint_id?: string;
+  storyless?: boolean;
   user_story_id?: string;
   type?: string;
   priority?: string;

@@ -10,6 +10,7 @@ import { useAuthLayout } from '../../hooks/useAuthLayout';
 import { Radius } from '../../constants/Radius';
 import { WorkItemIcon } from './getWorkItemIcon';
 import { renderParsedHtml } from '../../utils/htmlParser';
+import { formatDate } from '../../utils/utils';
 
 export interface ProjectCardItem {
   id: string;
@@ -81,16 +82,13 @@ const ProjectCard = ({ item, onPress, onToggleStar }: Props) => {
           {item.name}
         </AppText>
         {item.description ? (
-          <AppText
-            variant='caption'
-            color={colors.textSecondary}
-            numberOfLines={1}
-          >
-            {renderParsedHtml(item.description, {
+          <View>
+            {renderParsedHtml(item.description || '', {
+              fontSize: moderateScale(12),
               color: colors.textSecondary,
-              fontSize: moderateScale(13),
-            }) ?? 'No Description'}
-          </AppText>
+              lineHeight: moderateScale(19),
+            })}
+          </View>
         ) : null}
         <View className='flex-row' style={{ gap: layout.elementGap }}>
           <AppText
@@ -98,13 +96,7 @@ const ProjectCard = ({ item, onPress, onToggleStar }: Props) => {
             color={colors.text}
             className='font-medium'
           >
-            {item.created_at
-              ? new Date(item.created_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
-              : '-'}
+            {item.created_at ? formatDate(item.created_at) : '-'}
           </AppText>
           <AppText
             variant='caption'

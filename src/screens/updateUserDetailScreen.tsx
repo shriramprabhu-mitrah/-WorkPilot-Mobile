@@ -29,6 +29,8 @@ import {
 } from '../store/auth_store/action/auth.thunks';
 import { getRoleLabel } from '../constants/role';
 import LinearGradient from 'react-native-linear-gradient';
+import { useGetCountriesQuery } from '../store/api/homeApi';
+import TimezonePickerModal from '../components/common/TimezonePickerModal';
 type PickerTarget = 'avatar' | 'cover';
 
 const UpdateUserDetailsScreen = () => {
@@ -37,6 +39,7 @@ const UpdateUserDetailsScreen = () => {
   const { user } = useAppSelector(state => state.auth);
   const { colors, strings } = useTheme();
   const { layout, moderateScale, isSmallHeight } = useAuthLayout();
+  const { data: countriesResponse } = useGetCountriesQuery();
   const [avatarUri, setAvatarUri] = useState<string | undefined>(
     user?.avatar_url,
   );
@@ -46,6 +49,9 @@ const UpdateUserDetailsScreen = () => {
   const [name, setName] = useState<string>(user?.name ?? '');
   const [username, setUsername] = useState<string>(user?.username ?? '');
   const [email, setEmail] = useState<string>(user?.email ?? '');
+  const [timezone, setTimezone] = useState<string>(user?.timezone ?? '');
+  const [timezonePickerVisible, setTimezonePickerVisible] = useState(false);
+  const [timezoneSearch, setTimezoneSearch] = useState('');
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget>('avatar');
   const [errors, setErrors] = useState({
@@ -55,6 +61,20 @@ const UpdateUserDetailsScreen = () => {
     password: '',
   });
   const [loading, setLoading] = useState(false);
+  const timezoneOptions = Array.from(
+    new Map(
+      (countriesResponse?.data ?? []).flatMap(country =>
+        (country.timezone ?? []).map(timezone => [
+          timezone,
+          {
+            value: timezone,
+            flag: country.flag_emoji,
+          },
+        ]),
+      ),
+    ).values(),
+  ).sort((a, b) => a.value.localeCompare(b.value));
+
   const openPicker = (target: PickerTarget) => {
     setPickerTarget(target);
     setPickerModalVisible(true);
@@ -201,6 +221,9 @@ const UpdateUserDetailsScreen = () => {
     if (username !== user?.username) {
       formData.append('username', username);
     }
+    if (timezone !== (user?.timezone ?? '')) {
+      formData.append('timezone', timezone);
+    }
     appendImageIfChanged(formData, 'avatar', avatarUri, user?.avatar_url);
     appendImageIfChanged(
       formData,
@@ -238,7 +261,7 @@ const UpdateUserDetailsScreen = () => {
       style={{
         paddingHorizontal: layout.paddingHorizontal,
         paddingTop: isSmallHeight ? moderateScale(12) : moderateScale(16),
-        paddingBottom: isSmallHeight ? moderateScale(24) : moderateScale(32),
+        paddingBottom: isSmallHeight ? moderateScale(12) : moderateScale(16),
       }}
     >
       <View
@@ -519,6 +542,34 @@ const UpdateUserDetailsScreen = () => {
             setErrors(prev => ({ ...prev, email: '' }));
           }}
         />
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setTimezonePickerVisible(true)}
+        >
+          <AppText variant='body' style={{ marginBottom: moderateScale(6) }}>
+            Time Zone
+          </AppText>
+          <View
+            className='flex-row items-center justify-between rounded-lg border px-3'
+            style={{
+              minHeight: moderateScale(48),
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            }}
+          >
+            <AppText
+              variant='body'
+              color={timezone ? colors.text : colors.placeholder}
+            >
+              {timezone || 'Select time zone'}
+            </AppText>
+            <Ionicons
+              name='chevron-down'
+              size={moderateScale(18)}
+              color={colors.textSecondary}
+            />
+          </View>
+        </TouchableOpacity>
         <PrimaryButton
           title={strings?.updateUser?.submitButton || 'Save Changes'}
           style={{
@@ -537,6 +588,22 @@ const UpdateUserDetailsScreen = () => {
         onSelectGallery={handleChooseFromGallery}
         onRemovePhoto={handleRemovePhoto}
         showRemoveOption={pickerTarget === 'cover' ? !!coverUri : !!avatarUri}
+      />
+      <TimezonePickerModal
+        visible={timezonePickerVisible}
+        timezone={timezone}
+        timezoneOptions={timezoneOptions}
+        search={timezoneSearch}
+        onSearchChange={setTimezoneSearch}
+        onSelect={selectedTimezone => {
+          setTimezone(selectedTimezone);
+          setTimezonePickerVisible(false);
+          setTimezoneSearch('');
+        }}
+        onClose={() => {
+          setTimezonePickerVisible(false);
+          setTimezoneSearch('');
+        }}
       />
     </Screen>
   );

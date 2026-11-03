@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   View,
   TouchableOpacity,
@@ -84,7 +90,10 @@ export const Summary: React.FC = () => {
   const [isSprintChanging, setIsSprintChanging] = useState(false);
 
   useEffect(() => {
-    if (previousSprintId.current !== undefined && previousSprintId.current !== rawSprintId) {
+    if (
+      previousSprintId.current !== undefined &&
+      previousSprintId.current !== rawSprintId
+    ) {
       previousSprintId.current = rawSprintId;
       setIsSprintChanging(true);
     } else {
@@ -448,14 +457,14 @@ export const Summary: React.FC = () => {
               ) : (
                 <View
                   style={{
-                    width: moderateScale(300),
-                    height: moderateScale(260),
+                    width: moderateScale(250),
+                    height: moderateScale(250),
+                    borderRadius: Radius.circle,
+                    backgroundColor: colors.surface,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
-                >
-                  <ActivityIndicator size='small' color={colors.primary} />
-                </View>
+                />
               )}
             </Animated.View>
 

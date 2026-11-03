@@ -9,7 +9,6 @@ import { View, TouchableOpacity, FlatList } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import Avatar from '../components/Avatar';
 import Screen from '../components/common/ScreenWapper';
 import AppText from '../components/common/AppText';
 import { CommonHeader } from '../components/common/CommonHeader';
@@ -21,22 +20,12 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { WorkItemIcon } from '../components/common/getWorkItemIcon';
 import ListSkeleton from '../components/skeleton/ListSkeleton';
 import ProjectCardSkeleton from '../components/skeleton/ProjectCardSkeleton';
-import { getPriorityThemeColor } from '../utils/enum';
 import { useAppDispatch } from '../store';
 import {
   unfavouriteTaskThunk,
   unfavouriteUserStoryThunk,
 } from '../store/project_store/action/projectBoard.thunk';
 import { showSnackbar } from '../components/common/Snackbar';
-
-const ACCENT_PALETTE = [
-  '#7C3AED',
-  '#EC4899',
-  '#F59E0B',
-  '#10B981',
-  '#3B82F6',
-  '#EF4444',
-];
 
 const Favorites = () => {
   const { colors } = useTheme();
@@ -273,62 +262,31 @@ const Favorites = () => {
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: FavoriteItem; index: number }) => {
-      const workItem = item.item_type === 'task' ? item.task : item.user_story;
+    ({ item }: { item: FavoriteItem }) => {
       const title =
         item.item_type === 'task'
           ? item.task_title || item.title
           : item.user_story_title || item.title;
-
-      const isUnassigned = !workItem?.assignee;
-
-      const accent = isUnassigned
-        ? ACCENT_PALETTE[index % ACCENT_PALETTE.length]
-        : workItem?.assignee?.color ||
-          ACCENT_PALETTE[index % ACCENT_PALETTE.length];
-      const priorityColor = getPriorityThemeColor(workItem?.priority, colors);
-      const assigneeName =
-        workItem?.assignee_name || workItem?.assignee?.name || 'Unassigned';
-      const assigneeAvatar = workItem?.assignee?.avatar_url;
-      const type =
-        item.item_type ||
-        (item as any).resource_type ||
-        (item as any).type ||
-        '';
-      const displayType =
-        type?.toLowerCase() === 'user_story' ||
-        type?.toLowerCase() === 'userstory'
-          ? 'user story'
-          : type?.replace(/_/g, ' ') || '';
+      const subtitle = item.project_name;
+      const type = item.item_type;
 
       return (
         <TouchableOpacity
           activeOpacity={0.8}
           className='mb-3 rounded-2xl border p-4'
           style={{
-            backgroundColor: colors.card,
+            backgroundColor: colors.background,
             borderColor: colors.border,
-            overflow: 'hidden',
           }}
           onPress={() => handleItemPress(item)}
         >
-          <View
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: moderateScale(4),
-              backgroundColor: accent,
-            }}
-          />
           <View className='flex-row items-center'>
             <View
-              className='mr-3 items-center justify-center rounded-xl'
+              className='mr-3.5 items-center justify-center rounded-lg'
               style={{
-                width: moderateScale(40),
-                height: moderateScale(40),
-                backgroundColor: `${colors.primary}18`,
+                width: moderateScale(30),
+                height: moderateScale(30),
+                backgroundColor: colors.surface,
               }}
             >
               <WorkItemIcon type={type} size={moderateScale(20)} />
@@ -347,117 +305,46 @@ const Favorites = () => {
               >
                 {title}
               </AppText>
-              <AppText
-                variant='caption'
-                color={colors.textSecondary}
-                numberOfLines={1}
-                style={{ marginTop: moderateScale(3) }}
-              >
-                {item.item_type === 'task'
-                  ? item.task?.key ||
-                    item.task?.formatted_serial_number ||
-                    'Task'
-                  : item.user_story?.formatted_serial_number || 'User story'}
-              </AppText>
+              <View className='flex-row items-center' style={{ gap: 4 }}>
+                <AppText
+                  variant='caption'
+                  className='font-medium capitalize'
+                  color={colors.textSecondary}
+                  style={{ fontSize: moderateScale(11) }}
+                  numberOfLines={1}
+                >
+                  {subtitle}
+                </AppText>
+              </View>
             </View>
-            <View className='flex-row items-center' style={{ gap: 2 }}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                disabled={Boolean(unfavoritingId)}
-                accessibilityRole='button'
-                accessibilityLabel={`Remove ${title} from favorites`}
-                onPress={event => {
-                  event.stopPropagation();
-                  handleUnfavorite(item);
-                }}
-                className='items-center justify-center rounded-full'
-                style={{
-                  width: moderateScale(30),
-                  height: moderateScale(30),
-                  opacity: unfavoritingId === item.id ? 0.45 : 1,
-                }}
-              >
-                <Ionicons
-                  name='star'
-                  size={moderateScale(17)}
-                  color={colors.warning || '#F59E0B'}
-                />
-              </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              disabled={Boolean(unfavoritingId)}
+              accessibilityRole='button'
+              accessibilityLabel={`Remove ${title} from favorites`}
+              onPress={event => {
+                event.stopPropagation();
+                handleUnfavorite(item);
+              }}
+              className='mr-2 items-center justify-center rounded-full'
+              style={{
+                width: moderateScale(30),
+                height: moderateScale(30),
+                opacity: unfavoritingId === item.id ? 0.45 : 1,
+              }}
+            >
+              <Ionicons
+                name='star'
+                size={moderateScale(17)}
+                color={colors.warning || '#F59E0B'}
+              />
+            </TouchableOpacity>
+            <View>
               <Ionicons
                 name='chevron-forward'
                 size={moderateScale(16)}
                 color={colors.textSecondary}
               />
-            </View>
-          </View>
-          <View
-            className='mt-3 flex-row items-center justify-between border-t pt-3'
-            style={{ borderColor: colors.border }}
-          >
-            <View
-              className='flex-row items-center'
-              style={{ gap: moderateScale(8), flex: 1 }}
-            >
-              <View
-                className='rounded-full px-2 py-1'
-                style={{ backgroundColor: `${priorityColor}18` }}
-              >
-                <AppText
-                  variant='caption'
-                  color={priorityColor}
-                  className='font-semibold capitalize'
-                >
-                  {workItem?.priority || 'No priority'}
-                </AppText>
-              </View>
-              <View
-                className='rounded-full px-2 py-1'
-                style={{ backgroundColor: `${workItem.status_color}20` }}
-              >
-                <AppText
-                  variant='caption'
-                  color={colors.textSecondary}
-                  numberOfLines={1}
-                >
-                  {workItem?.status || displayType}
-                </AppText>
-              </View>
-            </View>
-            <View
-              className='flex-row items-center'
-              style={{ gap: moderateScale(6), maxWidth: '50%' }}
-            >
-              {assigneeName === 'Unassigned' ? (
-                <View
-                  className='items-center justify-center rounded-full'
-                  style={{
-                    width: moderateScale(26),
-                    height: moderateScale(26),
-                    backgroundColor: `${accent}20`,
-                  }}
-                >
-                  <Ionicons
-                    name='person'
-                    size={moderateScale(14)}
-                    color={accent}
-                  />
-                </View>
-              ) : (
-                <Avatar
-                  dimension={moderateScale(26)}
-                  initials={assigneeName.charAt(0).toUpperCase()}
-                  color={accent}
-                  imageUrl={assigneeAvatar}
-                />
-              )}
-              <AppText
-                variant='caption'
-                color={colors.textSecondary}
-                numberOfLines={1}
-                style={{ maxWidth: moderateScale(90) }}
-              >
-                {assigneeName}
-              </AppText>
             </View>
           </View>
         </TouchableOpacity>

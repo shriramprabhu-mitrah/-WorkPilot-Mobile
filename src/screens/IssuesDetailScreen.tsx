@@ -25,6 +25,7 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../hooks/useTheme';
 import { RootState, useAppDispatch, useAppSelector } from '../store';
 import { getStatusThemeColor, IssueStatus } from '../utils/enum';
+import { formatDate } from '../utils/utils';
 import {
   setDescription,
   setIsEditingDescription,
@@ -145,6 +146,9 @@ const IssueDetailScreen = () => {
   } = usePermissions({
     projectId,
   });
+  const currentUserId = useAppSelector(
+    (state: RootState) => state.auth.user?.id ?? null,
+  );
   const { isEditingDescription } = useAppSelector(
     (state: RootState) => state.issue,
   );
@@ -546,28 +550,7 @@ const IssueDetailScreen = () => {
 
     const formatDueDateDisplay = (dateVal?: string | null): string => {
       if (!dateVal) return 'None';
-      try {
-        const d = new Date(dateVal);
-        if (isNaN(d.getTime())) return dateVal;
-        const dateStr = d.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
-        const hasTime =
-          dateVal.includes('T') &&
-          !dateVal.endsWith('T00:00:00Z') &&
-          !dateVal.endsWith('T00:00:00.000Z') &&
-          !dateVal.endsWith('T00:00:00');
-        if (hasTime) {
-          const hours = String(d.getHours()).padStart(2, '0');
-          const minutes = String(d.getMinutes()).padStart(2, '0');
-          return `${dateStr} ${hours}:${minutes}`;
-        }
-        return dateStr;
-      } catch {
-        return dateVal || 'None';
-      }
+      return formatDate(dateVal);
     };
 
     const items = [
@@ -1299,12 +1282,6 @@ const IssueDetailScreen = () => {
     setIsSubmittingComment(true);
     dispatch(addCommentLocally(tempComment));
 
-    // Instantly reset input box and focus
-    setComment('');
-    setCommentAttachments([]);
-    setReplyingToCommentId(null);
-    handleDismissInputFocus();
-
     try {
       if (taskId) {
         const result = await createTaskComment({
@@ -1334,6 +1311,11 @@ const IssueDetailScreen = () => {
                 },
               }),
             );
+            setComment('');
+            commentInputRef.current?.clear();
+            setCommentAttachments([]);
+            setReplyingToCommentId(null);
+            handleDismissInputFocus();
             if (parentCommentId) {
               const rootId = getRootCommentId(parentCommentId);
               setExpandedCommentIds(prev => ({
@@ -1378,6 +1360,11 @@ const IssueDetailScreen = () => {
                 },
               }),
             );
+            setComment('');
+            commentInputRef.current?.clear();
+            setCommentAttachments([]);
+            setReplyingToCommentId(null);
+            handleDismissInputFocus();
             if (parentCommentId) {
               const rootId = getRootCommentId(parentCommentId);
               setExpandedCommentIds(prev => ({
@@ -1852,6 +1839,7 @@ const IssueDetailScreen = () => {
               canAddComment={permissionsReady && canAddComments}
               canEditComment={permissionsReady && canEditComments}
               canDeleteComment={permissionsReady && canDeleteComments}
+              currentUserId={currentUserId}
             />
           </ScrollView>
         </TouchableWithoutFeedback>

@@ -39,6 +39,9 @@ interface Props {
   onClose: () => void;
   projectId?: string;
   userStoryId?: string;
+  sprintId?: string;
+  storyless?: boolean;
+  title?: string;
   onSuccess?: () => void;
 }
 
@@ -64,6 +67,9 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
   onClose,
   projectId,
   userStoryId,
+  sprintId,
+  storyless,
+  title,
   onSuccess,
 }) => {
   const { colors } = useTheme();
@@ -422,6 +428,14 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
       payload.user_story_id = userStoryId;
     }
 
+    if (sprintId) {
+      payload.sprint_id = sprintId;
+    }
+
+    if (storyless !== undefined) {
+      payload.storyless = storyless;
+    }
+
     if (selectedAssignee?.user_id) {
       payload.assignee_id = selectedAssignee.user_id;
     }
@@ -513,7 +527,7 @@ export const CreateTaskBottomSheet: React.FC<Props> = ({
               color={colors.text}
               className='text-xl font-bold'
             >
-              Add Task
+              {title || (storyless ? 'Add Storyless Task' : 'Add Task')}
             </AppText>
             <TouchableOpacity
               onPress={onClose}

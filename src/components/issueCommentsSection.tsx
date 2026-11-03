@@ -28,6 +28,7 @@ import {
 } from '../types/comments.type';
 import { CommentsSectionSkeleton } from './skeleton/issueDetailSkeleton';
 import { renderParsedHtml } from '../utils/htmlParser';
+import { formatDate } from '../utils/utils';
 import DeleteColumnModal from './DeleteColumnModal';
 
 interface Props {
@@ -50,6 +51,7 @@ interface Props {
   canAddComment?: boolean;
   canEditComment?: boolean;
   canDeleteComment?: boolean;
+  currentUserId?: string | null;
 }
 
 export const IssueCommentsSection: React.FC<Props> = ({
@@ -70,6 +72,7 @@ export const IssueCommentsSection: React.FC<Props> = ({
   canAddComment,
   canEditComment,
   canDeleteComment,
+  currentUserId,
 }) => {
   const [triggerTaskReplies] = useLazyGetTaskCommentRepliesQuery();
   const [triggerUserStoryReplies] = useLazyGetUserStoryCommentRepliesQuery();
@@ -357,6 +360,10 @@ export const IssueCommentsSection: React.FC<Props> = ({
       .toUpperCase();
     const commentText = item.content || '';
     const isDeletingThis = deletingId === item.id;
+    const isOwnComment =
+      currentUserId != null &&
+      item.user_id != null &&
+      String(item.user_id) === String(currentUserId);
 
     return (
       <View key={item.id} className='flex-row' style={{ gap: 12 }}>
@@ -373,7 +380,7 @@ export const IssueCommentsSection: React.FC<Props> = ({
             </AppText>
             {item.created_at && (
               <AppText variant='caption' color={colors.textSecondary}>
-                {new Date(item.created_at).toLocaleString()}
+                {formatDate(item.created_at)}
               </AppText>
             )}
           </View>
@@ -429,39 +436,33 @@ export const IssueCommentsSection: React.FC<Props> = ({
             </View>
 
             <View className='flex-row items-center' style={{ gap: 14 }}>
-              {canEditComment && (
+              {canEditComment && isOwnComment && (
                 <TouchableOpacity
                   disabled={isDeletingThis}
                   onPress={() => {
-                    if (!canEditComment) return;
+                    if (!canEditComment || !isOwnComment) return;
                     onStartEdit(item.id, commentText);
                   }}
                 >
                   <Ionicons
                     name='pencil-outline'
                     size={16}
-                    color={
-                      editingCommentId === item.id
-                        ? colors.primary
-                        : colors.textSecondary
-                    }
+                    color={colors.textSecondary}
                   />
                 </TouchableOpacity>
               )}
-              {canDeleteComment &&
-                (isDeletingThis ? (
-                  <ActivityIndicator size='small' color={colors.error} />
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => handleOpenDeleteModal(item.id)}
-                  >
-                    <Ionicons
-                      name='trash-outline'
-                      size={16}
-                      color={colors.error || '#FF3B30'}
-                    />
-                  </TouchableOpacity>
-                ))}
+              {canDeleteComment && isOwnComment && (
+                <TouchableOpacity
+                  disabled={isDeletingThis}
+                  onPress={() => handleOpenDeleteModal(item.id)}
+                >
+                  <Ionicons
+                    name='trash-outline'
+                    size={16}
+                    color={colors.error || '#FF3B30'}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>

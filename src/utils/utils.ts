@@ -70,20 +70,54 @@ export const getInitials = (name?: string) => {
   return initials || 'U';
 };
 
-export const formatDate = (isoString?: string): string => {
+export const formatDate = (
+  isoString?: string,
+  options: { includeTime?: boolean } = {},
+): string => {
   if (!isoString) {
     return 'Recently';
   }
   try {
-    const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const match = isoString.match(
+      /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/,
+    );
+    if (!match) return 'Recently';
+
+    const [, year, month, day, rawHour = '00', minute = '00'] = match;
+    const monthName = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ][Number(month) - 1];
+    const hourNumber = Number(rawHour);
+    const dayNumber = Number(day);
+    const dateCheck = new Date(
+      Date.UTC(Number(year), Number(month) - 1, dayNumber),
+    );
+    if (
+      !monthName ||
+      dateCheck.getUTCFullYear() !== Number(year) ||
+      dateCheck.getUTCMonth() !== Number(month) - 1 ||
+      dateCheck.getUTCDate() !== dayNumber ||
+      hourNumber > 23 ||
+      Number(minute) > 59
+    ) {
+      return 'Recently';
+    }
+    const formattedDay = `${dayNumber} ${monthName} ${year}`;
+    if (options.includeTime === false) return formattedDay;
+
+    const hour = hourNumber % 12 || 12;
+    return `${formattedDay}, ${hour}:${minute} ${hourNumber >= 12 ? 'PM' : 'AM'}`;
   } catch {
     return 'Recently';
   }
